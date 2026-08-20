@@ -27385,7 +27385,7 @@ Array__ChunkCoord World_edit_MINUS_sdf_BANG_(World* world, Vector3__double* hit_
                                                                 bool _359;
                                                                 bool _349 = not(carve_QMARK_);
                                                                 if (_349) {
-                                                                    bool _354 = Float__LT_(new_MINUS_sdf, 0.0f);
+                                                                    bool _354 = Double__LT_(dist_MINUS_to_MINUS_hit, radius);
                                                                     bool _355 = _354;
                                                                     _359 = _355;
                                                                 } else {

@@ -183,7 +183,7 @@
                                               (Float.min old-sdf sphere-sdf))]
                               (do
                                 (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) new-sdf)
-                                (when (and (not carve?) (< new-sdf 0.0f))
+                                (when (and (not carve?) (< dist-to-hit radius))
                                   (Pointer.set (Pointer.add p-data (Long.from-int offset)) mat-id))
                                 (set! chunk-modified true))))))))
                   (when chunk-modified
