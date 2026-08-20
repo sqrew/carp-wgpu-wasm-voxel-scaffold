@@ -1,5 +1,6 @@
 (load "scaffold.carp")
 (load "camera.carp")
+(load "line_pass.carp")
 
 (def voxel-wgsl
   "struct Uniforms {
@@ -121,6 +122,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
   uniform-buffer (Ptr WGPUUniformBufferWrapper)
   voxel-texture (Ptr WGPURenderTexture)
   voxel-sampler WGPUSampler
+  line-pass LinePassRenderer
+  lines (Array Line)
 ])
 
 (defmodule Renderer
@@ -151,7 +154,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                                              (WGPURender.free-render-texture voxel-tex)
                                              (Result.Error (str* "Bind group failed: " e)))
                         (Result.Success bg)
-                          (Result.Success (Renderer.init pipe bg ub voxel-tex voxel-sampler)))))))))
+                          (let [format (WGPURender.surface-format @(Engine.surf eng))]
+                            (match (LinePass.create ctx &format 1000)
+                              (Result.Error e) (do (Engine.free-pipeline pipe)
+                                                   (Engine.free-uniform-buffer ub)
+                                                   (WGPURender.free-sampler voxel-sampler)
+                                                   (WGPURender.free-render-texture voxel-tex)
+                                                   (Engine.free-bind-group bg)
+                                                   (Result.Error (str* "LinePass creation failed: " e)))
+                              (Result.Success lp)
+                                (Result.Success (Renderer.init pipe bg ub voxel-tex voxel-sampler lp [])))))))))))
 
   (defn update-uniforms [eng ren cam uniforms]
     (let [c-pos (Camera.pos cam)
@@ -193,16 +205,39 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     (let [ctx @(Engine.ctx eng)]
       (WGPURender.update-3d-texture-subregion-floats ctx @(Renderer.voxel-texture ren) 0 0 0 32 32 32 chunk-data)))
 
-  (defn draw [eng ren]
+  (defn draw-line! [ren start end color]
+    (Array.push-back! (Renderer.lines ren) (Line.init @start @end @color)))
+
+  (defn clear-lines! [ren]
+    (let [lns (Renderer.lines ren)]
+      (while (not (Array.empty? lns))
+        (ignore (Array.pop-back! lns)))))
+
+  (defn draw [eng ren cam]
     (match (Engine.begin-frame eng)
       (Maybe.Nothing) ()
       (Maybe.Just frame)
-        (do
-          (WGPURender.run-pass frame @(Renderer.pipeline ren) @(Renderer.bind-group ren) (Maybe.Nothing))
-          (Engine.end-frame eng frame))))
+        (let [vp (Camera.view-projection cam)
+              vp-data (CameraMat4.data &vp)
+              ctx @(Engine.ctx eng)
+              line-count (LinePass.update! ctx (Renderer.line-pass ren) vp-data (Renderer.lines ren))]
+          (do
+            ;; 1. Voxel pass
+            (WGPURender.run-pass frame @(Renderer.pipeline ren) @(Renderer.bind-group ren) (Maybe.Nothing))
+            
+            ;; 2. Line pass (drawn on top)
+            (LinePass.render frame ctx (Renderer.line-pass ren) line-count (Maybe.Nothing))
+            
+            ;; 3. Clear lines
+            (Renderer.clear-lines! ren)
+            
+            ;; 4. Present
+            (Engine.end-frame eng frame)))))
 
   (defn cleanup [eng ren]
     (do
+      (Renderer.clear-lines! ren)
+      (LinePass.cleanup (Renderer.line-pass ren))
       (Engine.free-bind-group @(Renderer.bind-group ren))
       (Engine.free-pipeline @(Renderer.pipeline ren))
       (Engine.free-uniform-buffer @(Renderer.uniform-buffer ren))

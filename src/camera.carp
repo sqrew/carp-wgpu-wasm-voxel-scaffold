@@ -1,57 +1,22 @@
-(load "Vector.carp")
+(load "../carp-gamecam/camera.carp")
 (load "scaffold.carp")
-(use Vector3)
-(use Double)
-
-(deftype Camera [
-  pos (Vector3 Double)
-  yaw Double
-  pitch Double
-  front (Vector3 Double)
-  right (Vector3 Double)
-  up (Vector3 Double)
-])
 
 (defmodule Camera
-  (defn create [pos]
-    (Camera.init pos -90.0 0.0 (Vector3.init 0.0 0.0 -1.0) (Vector3.init 1.0 0.0 0.0) (Vector3.init 0.0 1.0 0.0)))
-
-  (defn update-vectors [cam]
-    (let [yaw @(Camera.yaw cam)
-          pitch @(Camera.pitch cam)
-          rad-yaw (* yaw (/ Double.pi 180.0))
-          rad-pitch (* pitch (/ Double.pi 180.0))
-          front-x (* (Double.cos rad-pitch) (Double.cos rad-yaw))
-          front-y (Double.sin rad-pitch)
-          front-z (* (Double.cos rad-pitch) (Double.sin rad-yaw))
-          front (Vector3.normalize &(Vector3.init front-x front-y front-z))
-          world-up (Vector3.init 0.0 1.0 0.0)
-          right (Vector3.normalize &(Vector3.cross &front &world-up))
-          up (Vector3.normalize &(Vector3.cross &right &front))]
-      (do
-        (Camera.set-front! cam front)
-        (Camera.set-right! cam right)
-        (Camera.set-up! cam up))))
-
   (defn update-input [win cam dt]
-    (let [speed (* 25.0 dt)
-          front @(Camera.front cam)
-          right @(Camera.right cam)
-          up @(Camera.up cam)
-          pos @(Camera.pos cam)]
+    (let [speed (* 25.0 dt)]
       (do
         (when (= (GLFW.get-key win GLFW.Keycode.W) GLFW.PRESS)
-          (Camera.set-pos! cam (Vector3.add &pos &(Vector3.mul &front speed))))
+          (Camera.move-forward! cam speed))
         (when (= (GLFW.get-key win GLFW.Keycode.S) GLFW.PRESS)
-          (Camera.set-pos! cam (Vector3.sub &pos &(Vector3.mul &front speed))))
+          (Camera.move-forward! cam (- 0.0 speed)))
         (when (= (GLFW.get-key win GLFW.Keycode.A) GLFW.PRESS)
-          (Camera.set-pos! cam (Vector3.sub &pos &(Vector3.mul &right speed))))
+          (Camera.move-right! cam (- 0.0 speed)))
         (when (= (GLFW.get-key win GLFW.Keycode.D) GLFW.PRESS)
-          (Camera.set-pos! cam (Vector3.add &pos &(Vector3.mul &right speed))))
+          (Camera.move-right! cam speed))
         (when (= (GLFW.get-key win GLFW.Keycode.E) GLFW.PRESS)
-          (Camera.set-pos! cam (Vector3.add &pos &(Vector3.mul &up speed))))
+          (Camera.move-up! cam speed))
         (when (= (GLFW.get-key win GLFW.Keycode.Q) GLFW.PRESS)
-          (Camera.set-pos! cam (Vector3.sub &pos &(Vector3.mul &up speed)))))))
+          (Camera.move-up! cam (- 0.0 speed))))))
 
   (defn update-look [win cam first-mouse-ptr last-x-ptr last-y-ptr]
     (let [xpos 0.0
@@ -71,9 +36,6 @@
             (do
               (Pointer.set last-x-ptr xpos)
               (Pointer.set last-y-ptr ypos)
-              (let [clamped-pitch (if (> pitch 89.0) 89.0 (if (< pitch -89.0) -89.0 pitch))]
-                (do
-                  (Camera.set-yaw! cam yaw)
-                  (Camera.set-pitch! cam clamped-pitch)
-                  (Camera.update-vectors cam)))))))))
+              (Camera.update-yaw! cam yaw)
+              (Camera.update-pitch! cam pitch)))))))
 )

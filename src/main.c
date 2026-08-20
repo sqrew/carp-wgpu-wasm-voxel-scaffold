@@ -55,10 +55,13 @@ typedef struct Binary__Lambda_unsafe_MINUS_bytes_MINUS__GT_int32_MINUS_seq_19_en
 typedef struct Binary__Lambda_unsafe_MINUS_bytes_MINUS__GT_int64_MINUS_seq_19_env_ty Binary__Lambda_unsafe_MINUS_bytes_MINUS__GT_int64_MINUS_seq_19_env_ty;
 typedef struct ByteOrder ByteOrder;
 typedef struct Camera Camera;
+typedef struct CameraMat4 CameraMat4;
 typedef struct Chunk Chunk;
 typedef struct Diagnostics Diagnostics;
 typedef struct Engine Engine;
 typedef struct EngineState EngineState;
+typedef struct Line Line;
+typedef struct LinePassRenderer LinePassRenderer;
 typedef struct LogLevel LogLevel;
 typedef struct Maybe__Long Maybe__Long;
 typedef struct Maybe__String Maybe__String;
@@ -86,6 +89,7 @@ typedef struct Result__Char_String Result__Char_String;
 typedef struct Result__EngineState_String Result__EngineState_String;
 typedef struct Result__Engine_String Result__Engine_String;
 typedef struct Result__FILE_MUL__String Result__FILE_MUL__String;
+typedef struct Result__LinePassRenderer_String Result__LinePassRenderer_String;
 typedef struct Result__Renderer_String Result__Renderer_String;
 typedef struct Result__String_String Result__String_String;
 typedef struct Result__Uint16_Array__uint8_t Result__Uint16_Array__uint8_t;
@@ -327,6 +331,9 @@ typedef Array Array__Char;
 typedef Array Array__Chunk;
 
 // Depth 4
+typedef Array Array__Line;
+
+// Depth 4
 typedef Array Array__PatternMatchResult;
 
 // Depth 4
@@ -546,6 +553,9 @@ typedef bool(*Fn__double_double_bool)(double, double);
 typedef double(*Fn__double_double_double)(double, double);
 
 // Depth 4
+typedef double(*Fn__double_double_double_double)(double, double, double);
+
+// Depth 4
 typedef float(*Fn__double_float)(double);
 
 // Depth 4
@@ -665,11 +675,28 @@ typedef void(*Fn__void_MUL__void)(void*);
 // Depth 5
 struct Camera {
     Vector3__double pos;
-    double yaw;
-    double pitch;
     Vector3__double front;
     Vector3__double right;
     Vector3__double up;
+    Vector3__double world_MINUS_up;
+    double yaw;
+    double pitch;
+    double fov;
+    double aspect;
+    double near;
+    double far;
+};
+
+// Depth 5
+struct Line {
+    Vector3__double start;
+    Vector3__double end;
+    Vector3__double color;
+};
+
+// Depth 6
+struct CameraMat4 {
+    Array__float data;
 };
 
 // Depth 6
@@ -828,6 +855,9 @@ typedef Array__String(*Fn__Array__String_String_Array__String)(Array__String, St
 typedef Array__float(*Fn__Array__float_Array__float)(Array__float);
 
 // Depth 7
+typedef Array__float(*Fn__Array__float_MUL__Array__float)(Array__float*);
+
+// Depth 7
 typedef String(*Fn__Array__float_MUL__String)(Array__float*);
 
 // Depth 7
@@ -835,6 +865,9 @@ typedef float*(*Fn__Array__float_MUL__float_MUL_)(Array__float*);
 
 // Depth 7
 typedef int(*Fn__Array__float_MUL__int)(Array__float*);
+
+// Depth 7
+typedef float*(*Fn__Array__float_MUL__int_float_MUL_)(Array__float*, int);
 
 // Depth 7
 typedef void(*Fn__Array__float_MUL__int_float_void)(Array__float*, int, float);
@@ -957,10 +990,34 @@ typedef void(*Fn__Camera_MUL__double_void)(Camera*, double);
 typedef void(*Fn__Camera_MUL__void)(Camera*);
 
 // Depth 8
-typedef Camera(*Fn__Vector3__double_Camera)(Vector3__double);
+typedef String(*Fn__Line_MUL__String)(Line*);
 
 // Depth 8
-typedef Camera(*Fn__Vector3__double_double_double_Vector3__double_Vector3__double_Vector3__double_Camera)(Vector3__double, double, double, Vector3__double, Vector3__double, Vector3__double);
+typedef Vector3__double*(*Fn__Line_MUL__Vector3__double_MUL_)(Line*);
+
+// Depth 8
+typedef Line(*Fn__Vector3__double_Vector3__double_Vector3__double_Line)(Vector3__double, Vector3__double, Vector3__double);
+
+// Depth 8
+typedef Camera(*Fn__Vector3__double_Vector3__double_Vector3__double_Vector3__double_Vector3__double_double_double_double_double_double_double_Camera)(Vector3__double, Vector3__double, Vector3__double, Vector3__double, Vector3__double, double, double, double, double, double, double);
+
+// Depth 8
+typedef Camera(*Fn__Vector3__double_double_double_double_Camera)(Vector3__double, double, double, double);
+
+// Depth 9
+typedef CameraMat4(*Fn__Array__float_CameraMat4)(Array__float);
+
+// Depth 9
+typedef Array__float*(*Fn__CameraMat4_MUL__Array__float_MUL_)(CameraMat4*);
+
+// Depth 9
+typedef CameraMat4(*Fn__CameraMat4_MUL__CameraMat4_MUL__CameraMat4)(CameraMat4*, CameraMat4*);
+
+// Depth 9
+typedef String(*Fn__CameraMat4_MUL__String)(CameraMat4*);
+
+// Depth 9
+typedef CameraMat4(*Fn__Camera_MUL__CameraMat4)(Camera*);
 
 // Depth 9
 typedef Array__float*(*Fn__Chunk_MUL__Array__float_MUL_)(Chunk*);
@@ -994,6 +1051,27 @@ typedef Array__int(*Fn__Fn__Array__uint8_t_MUL__int_MUL__Array__Array__uint8_t_M
 
 // Depth 10
 typedef Array__Array__uint8_t(*Fn__int_Array__Array__uint8_t)(int);
+
+// Depth 11
+typedef Array__Line(*Fn__Array__Line_Array__Line)(Array__Line);
+
+// Depth 11
+typedef Line(*Fn__Array__Line_MUL__Line)(Array__Line*);
+
+// Depth 11
+typedef void(*Fn__Array__Line_MUL__Line_void)(Array__Line*, Line);
+
+// Depth 11
+typedef String(*Fn__Array__Line_MUL__String)(Array__Line*);
+
+// Depth 11
+typedef bool(*Fn__Array__Line_MUL__bool)(Array__Line*);
+
+// Depth 11
+typedef int(*Fn__Array__Line_MUL__int)(Array__Line*);
+
+// Depth 11
+typedef Line*(*Fn__Array__Line_MUL__int_Line_MUL_)(Array__Line*, int);
 
 // Depth 11
 struct World {
@@ -1481,12 +1559,13 @@ struct Engine {
 };
 
 // Depth 103
-struct Renderer {
-    WGPURenderPipelineWrapper* pipeline;
+struct LinePassRenderer {
+    WGPUGeomPipelineWrapper* pipeline;
+    WGPUUniformBufferWrapper* u_MINUS_buffer;
+    WGPUVertexBufferWrapper* v_MINUS_buffer;
     WGPUBindGroup bind_MINUS_group;
-    WGPUUniformBufferWrapper* uniform_MINUS_buffer;
-    WGPURenderTexture* voxel_MINUS_texture;
-    WGPUSampler voxel_MINUS_sampler;
+    int max_MINUS_lines;
+    Array__float v_MINUS_data;
 };
 
 // Depth 103
@@ -1890,7 +1969,13 @@ typedef void(*Fn__WGPUContext_MUL__WGPURenderTexture_MUL__int_int_int_int_int_in
 typedef WGPUSampler(*Fn__WGPUContext_MUL__WGPUSampler)(WGPUContext*);
 
 // Depth 104
+typedef void(*Fn__WGPUContext_MUL__WGPUUniformBufferWrapper_MUL__Array__float_MUL__void)(WGPUContext*, WGPUUniformBufferWrapper*, Array__float*);
+
+// Depth 104
 typedef void(*Fn__WGPUContext_MUL__WGPUUniformBufferWrapper_MUL__float_MUL__Uint64_void)(WGPUContext*, WGPUUniformBufferWrapper*, float*, Uint64);
+
+// Depth 104
+typedef void(*Fn__WGPUContext_MUL__WGPUVertexBufferWrapper_MUL__Array__float_MUL__void)(WGPUContext*, WGPUVertexBufferWrapper*, Array__float*);
 
 // Depth 104
 typedef void(*Fn__WGPUContext_MUL__WGPUVertexBufferWrapper_MUL__float_MUL__Uint64_void)(WGPUContext*, WGPUVertexBufferWrapper*, float*, Uint64);
@@ -1938,7 +2023,19 @@ typedef bool(*Fn__WGPUFrameState_MUL__bool)(WGPUFrameState*);
 typedef void(*Fn__WGPUFrameState_MUL__void)(WGPUFrameState*);
 
 // Depth 104
+typedef WGPUGeomPipelineWrapper*(*Fn__WGPUGeomPipelineWrapper_MUL__MUL__WGPUGeomPipelineWrapper_MUL_)(WGPUGeomPipelineWrapper**);
+
+// Depth 104
+typedef String(*Fn__WGPUGeomPipelineWrapper_MUL__String)(WGPUGeomPipelineWrapper*);
+
+// Depth 104
+typedef WGPUGeomPipelineWrapper*(*Fn__WGPUGeomPipelineWrapper_MUL__WGPUGeomPipelineWrapper_MUL_)(WGPUGeomPipelineWrapper*);
+
+// Depth 104
 typedef bool(*Fn__WGPUGeomPipelineWrapper_MUL__bool)(WGPUGeomPipelineWrapper*);
+
+// Depth 104
+typedef void(*Fn__WGPUGeomPipelineWrapper_MUL__void)(WGPUGeomPipelineWrapper*);
 
 // Depth 104
 typedef bool(*Fn__WGPUIndexBufferWrapper_MUL__bool)(WGPUIndexBufferWrapper*);
@@ -2022,7 +2119,19 @@ typedef bool(*Fn__WGPUUniformBufferWrapper_MUL__bool)(WGPUUniformBufferWrapper*)
 typedef void(*Fn__WGPUUniformBufferWrapper_MUL__void)(WGPUUniformBufferWrapper*);
 
 // Depth 104
+typedef WGPUVertexBufferWrapper*(*Fn__WGPUVertexBufferWrapper_MUL__MUL__WGPUVertexBufferWrapper_MUL_)(WGPUVertexBufferWrapper**);
+
+// Depth 104
+typedef String(*Fn__WGPUVertexBufferWrapper_MUL__String)(WGPUVertexBufferWrapper*);
+
+// Depth 104
+typedef WGPUVertexBufferWrapper*(*Fn__WGPUVertexBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL_)(WGPUVertexBufferWrapper*);
+
+// Depth 104
 typedef bool(*Fn__WGPUVertexBufferWrapper_MUL__bool)(WGPUVertexBufferWrapper*);
+
+// Depth 104
+typedef void(*Fn__WGPUVertexBufferWrapper_MUL__void)(WGPUVertexBufferWrapper*);
 
 // Depth 104
 typedef ByteOrder(*Fn___ByteOrder)();
@@ -2041,6 +2150,9 @@ typedef Uint64(*Fn___Uint64)();
 
 // Depth 104
 typedef WGPUContext*(*Fn___WGPUContext_MUL_)();
+
+// Depth 104
+typedef WGPUDepthTexture*(*Fn___WGPUDepthTexture_MUL_)();
 
 // Depth 104
 typedef WGPURenderTexture*(*Fn___WGPURenderTexture_MUL_)();
@@ -2092,10 +2204,10 @@ struct Result__Engine_String {
 #define Result__Engine_String_Error_tag 1
 
 // Depth 105
-struct Result__Renderer_String {
+struct Result__LinePassRenderer_String {
     union {
     struct {
-        Renderer member0;
+        LinePassRenderer member0;
     } Success;
     struct {
         String member0;
@@ -2104,8 +2216,19 @@ struct Result__Renderer_String {
     } u;
     char _tag;
 };
-#define Result__Renderer_String_Success_tag 0
-#define Result__Renderer_String_Error_tag 1
+#define Result__LinePassRenderer_String_Success_tag 0
+#define Result__LinePassRenderer_String_Error_tag 1
+
+// Depth 105
+struct Renderer {
+    WGPURenderPipelineWrapper* pipeline;
+    WGPUBindGroup bind_MINUS_group;
+    WGPUUniformBufferWrapper* uniform_MINUS_buffer;
+    WGPURenderTexture* voxel_MINUS_texture;
+    WGPUSampler voxel_MINUS_sampler;
+    LinePassRenderer line_MINUS_pass;
+    Array__Line lines;
+};
 
 // Depth 106
 struct Result__Array__Uint16_int {
@@ -2207,15 +2330,6 @@ typedef GLFWwindow**(*Fn__Engine_MUL__GLFWwindow_MUL__MUL_)(Engine*);
 typedef Maybe__WGPUFrameState_MUL_(*Fn__Engine_MUL__Maybe__WGPUFrameState_MUL_)(Engine*);
 
 // Depth 106
-typedef void(*Fn__Engine_MUL__Renderer_MUL__Array__float_MUL__void)(Engine*, Renderer*, Array__float*);
-
-// Depth 106
-typedef void(*Fn__Engine_MUL__Renderer_MUL__Camera_MUL__Array__float_MUL__void)(Engine*, Renderer*, Camera*, Array__float*);
-
-// Depth 106
-typedef void(*Fn__Engine_MUL__Renderer_MUL__void)(Engine*, Renderer*);
-
-// Depth 106
 typedef String(*Fn__Engine_MUL__String)(Engine*);
 
 // Depth 106
@@ -2258,25 +2372,31 @@ typedef void(*Fn__Engine_void)(Engine);
 typedef Result__FILE_MUL__String(*Fn__FILE_MUL__Result__FILE_MUL__String)(FILE*);
 
 // Depth 106
-typedef String(*Fn__Renderer_MUL__String)(Renderer*);
+typedef LinePassRenderer(*Fn__LinePassRenderer_LinePassRenderer)(LinePassRenderer);
 
 // Depth 106
-typedef WGPUBindGroup*(*Fn__Renderer_MUL__WGPUBindGroup_MUL_)(Renderer*);
+typedef Array__float*(*Fn__LinePassRenderer_MUL__Array__float_MUL_)(LinePassRenderer*);
 
 // Depth 106
-typedef WGPURenderPipelineWrapper**(*Fn__Renderer_MUL__WGPURenderPipelineWrapper_MUL__MUL_)(Renderer*);
+typedef String(*Fn__LinePassRenderer_MUL__String)(LinePassRenderer*);
 
 // Depth 106
-typedef WGPURenderTexture**(*Fn__Renderer_MUL__WGPURenderTexture_MUL__MUL_)(Renderer*);
+typedef WGPUBindGroup*(*Fn__LinePassRenderer_MUL__WGPUBindGroup_MUL_)(LinePassRenderer*);
 
 // Depth 106
-typedef WGPUSampler*(*Fn__Renderer_MUL__WGPUSampler_MUL_)(Renderer*);
+typedef WGPUGeomPipelineWrapper**(*Fn__LinePassRenderer_MUL__WGPUGeomPipelineWrapper_MUL__MUL_)(LinePassRenderer*);
 
 // Depth 106
-typedef WGPUUniformBufferWrapper**(*Fn__Renderer_MUL__WGPUUniformBufferWrapper_MUL__MUL_)(Renderer*);
+typedef WGPUUniformBufferWrapper**(*Fn__LinePassRenderer_MUL__WGPUUniformBufferWrapper_MUL__MUL_)(LinePassRenderer*);
 
 // Depth 106
-typedef Renderer(*Fn__Renderer_Renderer)(Renderer);
+typedef WGPUVertexBufferWrapper**(*Fn__LinePassRenderer_MUL__WGPUVertexBufferWrapper_MUL__MUL_)(LinePassRenderer*);
+
+// Depth 106
+typedef int*(*Fn__LinePassRenderer_MUL__int_MUL_)(LinePassRenderer*);
+
+// Depth 106
+typedef void(*Fn__LinePassRenderer_MUL__void)(LinePassRenderer*);
 
 // Depth 106
 typedef FILE*(*Fn__Result__FILE_MUL__String_FILE_MUL_)(Result__FILE_MUL__String);
@@ -2423,7 +2543,13 @@ typedef Result__WGPUBuffer_String(*Fn__WGPUBuffer_Result__WGPUBuffer_String)(WGP
 typedef Result__WGPUComputePipeline_String(*Fn__WGPUComputePipeline_Result__WGPUComputePipeline_String)(WGPUComputePipeline);
 
 // Depth 106
+typedef Result__WGPUVertexBufferWrapper_MUL__String(*Fn__WGPUContext_MUL__Array__float_MUL__Result__WGPUVertexBufferWrapper_MUL__String)(WGPUContext*, Array__float*);
+
+// Depth 106
 typedef Engine(*Fn__WGPUContext_MUL__GLFWwindow_MUL__WGPURenderSurface_MUL__int_int_double_Engine)(WGPUContext*, GLFWwindow*, WGPURenderSurface*, int, int, double);
+
+// Depth 106
+typedef int(*Fn__WGPUContext_MUL__LinePassRenderer_MUL__Array__float_MUL__Array__Line_MUL__int)(WGPUContext*, LinePassRenderer*, Array__float*, Array__Line*);
 
 // Depth 106
 typedef Result__WGPUContext_MUL__String(*Fn__WGPUContext_MUL__Result__WGPUContext_MUL__String)(WGPUContext*);
@@ -2433,6 +2559,12 @@ typedef Result__WGPUSampler_String(*Fn__WGPUContext_MUL__Result__WGPUSampler_Str
 
 // Depth 106
 typedef Result__WGPURenderPipelineWrapper_MUL__String(*Fn__WGPUContext_MUL__String_MUL__String_MUL__String_MUL__String_MUL__Result__WGPURenderPipelineWrapper_MUL__String)(WGPUContext*, String*, String*, String*, String*);
+
+// Depth 106
+typedef Result__WGPUGeomPipelineWrapper_MUL__String(*Fn__WGPUContext_MUL__String_MUL__String_MUL__String_MUL__String_MUL__String_MUL__int_Result__WGPUGeomPipelineWrapper_MUL__String)(WGPUContext*, String*, String*, String*, String*, String*, int);
+
+// Depth 106
+typedef Result__WGPUBindGroup_String(*Fn__WGPUContext_MUL__WGPUGeomPipelineWrapper_MUL__WGPUUniformBufferWrapper_MUL__Result__WGPUBindGroup_String)(WGPUContext*, WGPUGeomPipelineWrapper*, WGPUUniformBufferWrapper*);
 
 // Depth 106
 typedef Result__WGPUBindGroup_String(*Fn__WGPUContext_MUL__WGPURenderPipelineWrapper_MUL__WGPUUniformBufferWrapper_MUL__Result__WGPUBindGroup_String)(WGPUContext*, WGPURenderPipelineWrapper*, WGPUUniformBufferWrapper*);
@@ -2456,19 +2588,25 @@ typedef Maybe__WGPUFrameState_MUL_(*Fn__WGPUFrameState_MUL__Maybe__WGPUFrameStat
 typedef Result__WGPUFrameState_MUL__String(*Fn__WGPUFrameState_MUL__Result__WGPUFrameState_MUL__String)(WGPUFrameState*);
 
 // Depth 106
+typedef void(*Fn__WGPUFrameState_MUL__WGPUContext_MUL__LinePassRenderer_MUL__int_Maybe__WGPURenderTexture_MUL__void)(WGPUFrameState*, WGPUContext*, LinePassRenderer*, int, Maybe__WGPURenderTexture_MUL_);
+
+// Depth 106
+typedef void(*Fn__WGPUFrameState_MUL__WGPUGeomPipelineWrapper_MUL__WGPUBindGroup_WGPUVertexBufferWrapper_MUL__WGPUDepthTexture_MUL__Uint32_Maybe__WGPURenderTexture_MUL__void)(WGPUFrameState*, WGPUGeomPipelineWrapper*, WGPUBindGroup, WGPUVertexBufferWrapper*, WGPUDepthTexture*, Uint32, Maybe__WGPURenderTexture_MUL_);
+
+// Depth 106
 typedef void(*Fn__WGPUFrameState_MUL__WGPURenderPipelineWrapper_MUL__WGPUBindGroup_Maybe__WGPURenderTexture_MUL__void)(WGPUFrameState*, WGPURenderPipelineWrapper*, WGPUBindGroup, Maybe__WGPURenderTexture_MUL_);
 
 // Depth 106
 typedef Result__WGPUGeomPipelineWrapper_MUL__String(*Fn__WGPUGeomPipelineWrapper_MUL__Result__WGPUGeomPipelineWrapper_MUL__String)(WGPUGeomPipelineWrapper*);
 
 // Depth 106
+typedef LinePassRenderer(*Fn__WGPUGeomPipelineWrapper_MUL__WGPUUniformBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL__WGPUBindGroup_int_Array__float_LinePassRenderer)(WGPUGeomPipelineWrapper*, WGPUUniformBufferWrapper*, WGPUVertexBufferWrapper*, WGPUBindGroup, int, Array__float);
+
+// Depth 106
 typedef Result__WGPUIndexBufferWrapper_MUL__String(*Fn__WGPUIndexBufferWrapper_MUL__Result__WGPUIndexBufferWrapper_MUL__String)(WGPUIndexBufferWrapper*);
 
 // Depth 106
 typedef Result__WGPURenderPipelineWrapper_MUL__String(*Fn__WGPURenderPipelineWrapper_MUL__Result__WGPURenderPipelineWrapper_MUL__String)(WGPURenderPipelineWrapper*);
-
-// Depth 106
-typedef Renderer(*Fn__WGPURenderPipelineWrapper_MUL__WGPUBindGroup_WGPUUniformBufferWrapper_MUL__WGPURenderTexture_MUL__WGPUSampler_Renderer)(WGPURenderPipelineWrapper*, WGPUBindGroup, WGPUUniformBufferWrapper*, WGPURenderTexture*, WGPUSampler);
 
 // Depth 106
 typedef Result__WGPURenderSurface_MUL__String(*Fn__WGPURenderSurface_MUL__Result__WGPURenderSurface_MUL__String)(WGPURenderSurface*);
@@ -2550,6 +2688,22 @@ struct Pair__Array__Uint64_int {
     Array__Uint64 a;
     int b;
 };
+
+// Depth 107
+struct Result__Renderer_String {
+    union {
+    struct {
+        Renderer member0;
+    } Success;
+    struct {
+        String member0;
+    } Error;
+    char __dummy;
+    } u;
+    char _tag;
+};
+#define Result__Renderer_String_Success_tag 0
+#define Result__Renderer_String_Error_tag 1
 
 // Depth 107
 typedef Array__Uint16(*Fn__Array__Uint16_MUL__Array__Uint16)(Array__Uint16*);
@@ -2649,13 +2803,58 @@ struct Diagnostics {
 };
 
 // Depth 108
-typedef Result__Renderer_String(*Fn__Engine_MUL__Result__Renderer_String)(Engine*);
+typedef void(*Fn__Engine_MUL__Renderer_MUL__Array__float_MUL__void)(Engine*, Renderer*, Array__float*);
+
+// Depth 108
+typedef void(*Fn__Engine_MUL__Renderer_MUL__Camera_MUL__Array__float_MUL__void)(Engine*, Renderer*, Camera*, Array__float*);
+
+// Depth 108
+typedef void(*Fn__Engine_MUL__Renderer_MUL__Camera_MUL__void)(Engine*, Renderer*, Camera*);
+
+// Depth 108
+typedef void(*Fn__Engine_MUL__Renderer_MUL__void)(Engine*, Renderer*);
 
 // Depth 108
 typedef Result__Engine_String(*Fn__Engine_Result__Engine_String)(Engine);
 
 // Depth 108
-typedef Result__Renderer_String(*Fn__Renderer_Result__Renderer_String)(Renderer);
+typedef Result__LinePassRenderer_String(*Fn__LinePassRenderer_Result__LinePassRenderer_String)(LinePassRenderer);
+
+// Depth 108
+typedef Array__Line*(*Fn__Renderer_MUL__Array__Line_MUL_)(Renderer*);
+
+// Depth 108
+typedef LinePassRenderer*(*Fn__Renderer_MUL__LinePassRenderer_MUL_)(Renderer*);
+
+// Depth 108
+typedef String(*Fn__Renderer_MUL__String)(Renderer*);
+
+// Depth 108
+typedef void(*Fn__Renderer_MUL__Vector3__double_MUL__Vector3__double_MUL__Vector3__double_MUL__void)(Renderer*, Vector3__double*, Vector3__double*, Vector3__double*);
+
+// Depth 108
+typedef WGPUBindGroup*(*Fn__Renderer_MUL__WGPUBindGroup_MUL_)(Renderer*);
+
+// Depth 108
+typedef WGPURenderPipelineWrapper**(*Fn__Renderer_MUL__WGPURenderPipelineWrapper_MUL__MUL_)(Renderer*);
+
+// Depth 108
+typedef WGPURenderTexture**(*Fn__Renderer_MUL__WGPURenderTexture_MUL__MUL_)(Renderer*);
+
+// Depth 108
+typedef WGPUSampler*(*Fn__Renderer_MUL__WGPUSampler_MUL_)(Renderer*);
+
+// Depth 108
+typedef WGPUUniformBufferWrapper**(*Fn__Renderer_MUL__WGPUUniformBufferWrapper_MUL__MUL_)(Renderer*);
+
+// Depth 108
+typedef void(*Fn__Renderer_MUL__double_double_double_double_double_double_Vector3__double_MUL__void)(Renderer*, double, double, double, double, double, double, Vector3__double*);
+
+// Depth 108
+typedef void(*Fn__Renderer_MUL__void)(Renderer*);
+
+// Depth 108
+typedef Renderer(*Fn__Renderer_Renderer)(Renderer);
 
 // Depth 108
 typedef Result__Engine_String(*Fn__String_MUL__int_int_Result__Engine_String)(String*, int, int);
@@ -2664,7 +2863,13 @@ typedef Result__Engine_String(*Fn__String_MUL__int_int_Result__Engine_String)(St
 typedef Result__Engine_String(*Fn__String_Result__Engine_String)(String);
 
 // Depth 108
-typedef Result__Renderer_String(*Fn__String_Result__Renderer_String)(String);
+typedef Result__LinePassRenderer_String(*Fn__String_Result__LinePassRenderer_String)(String);
+
+// Depth 108
+typedef Result__LinePassRenderer_String(*Fn__WGPUContext_MUL__String_MUL__int_Result__LinePassRenderer_String)(WGPUContext*, String*, int);
+
+// Depth 108
+typedef Renderer(*Fn__WGPURenderPipelineWrapper_MUL__WGPUBindGroup_WGPUUniformBufferWrapper_MUL__WGPURenderTexture_MUL__WGPUSampler_LinePassRenderer_Array__Line_Renderer)(WGPURenderPipelineWrapper*, WGPUBindGroup, WGPUUniformBufferWrapper*, WGPURenderTexture*, WGPUSampler, LinePassRenderer, Array__Line);
 
 // Depth 109
 typedef Array__ActiveTimer(*Fn__Array__ActiveTimer_Array__ActiveTimer)(Array__ActiveTimer);
@@ -2869,6 +3074,15 @@ struct EngineState {
     int frame_MINUS_count;
 };
 
+// Depth 110
+typedef Result__Renderer_String(*Fn__Engine_MUL__Result__Renderer_String)(Engine*);
+
+// Depth 110
+typedef Result__Renderer_String(*Fn__Renderer_Result__Renderer_String)(Renderer);
+
+// Depth 110
+typedef Result__Renderer_String(*Fn__String_Result__Renderer_String)(String);
+
 // Depth 111
 typedef Diagnostics(*Fn__Diagnostics_Diagnostics)(Diagnostics);
 
@@ -3020,6 +3234,9 @@ typedef Array__ActiveTimer(*Fn__LambdaEnv_Array__ActiveTimer_Array__ActiveTimer)
 typedef Array__Chunk(*Fn__LambdaEnv_Array__Chunk_Array__Chunk)(LambdaEnv, Array__Chunk);
 
 // Depth 505
+typedef Array__Line(*Fn__LambdaEnv_Array__Line_Array__Line)(LambdaEnv, Array__Line);
+
+// Depth 505
 typedef Array__ZoneStats(*Fn__LambdaEnv_Array__ZoneStats_Array__ZoneStats)(LambdaEnv, Array__ZoneStats);
 
 // Depth 505
@@ -3039,6 +3256,9 @@ typedef GLFWwindow*(*Fn__LambdaEnv_GLFWwindow_MUL__GLFWwindow_MUL_)(LambdaEnv, G
 
 // Depth 505
 typedef JobHandle*(*Fn__LambdaEnv_JobHandle_MUL__JobHandle_MUL_)(LambdaEnv, JobHandle*);
+
+// Depth 505
+typedef LinePassRenderer(*Fn__LambdaEnv_LinePassRenderer_LinePassRenderer)(LambdaEnv, LinePassRenderer);
 
 // Depth 505
 typedef Renderer(*Fn__LambdaEnv_Renderer_Renderer)(LambdaEnv, Renderer);
@@ -3071,6 +3291,9 @@ typedef WGPUBindGroup(*Fn__LambdaEnv_WGPUBindGroup_WGPUBindGroup)(LambdaEnv, WGP
 typedef WGPUContext*(*Fn__LambdaEnv_WGPUContext_MUL__WGPUContext_MUL_)(LambdaEnv, WGPUContext*);
 
 // Depth 505
+typedef WGPUGeomPipelineWrapper*(*Fn__LambdaEnv_WGPUGeomPipelineWrapper_MUL__WGPUGeomPipelineWrapper_MUL_)(LambdaEnv, WGPUGeomPipelineWrapper*);
+
+// Depth 505
 typedef WGPURenderPipelineWrapper*(*Fn__LambdaEnv_WGPURenderPipelineWrapper_MUL__WGPURenderPipelineWrapper_MUL_)(LambdaEnv, WGPURenderPipelineWrapper*);
 
 // Depth 505
@@ -3084,6 +3307,9 @@ typedef WGPUSampler(*Fn__LambdaEnv_WGPUSampler_WGPUSampler)(LambdaEnv, WGPUSampl
 
 // Depth 505
 typedef WGPUUniformBufferWrapper*(*Fn__LambdaEnv_WGPUUniformBufferWrapper_MUL__WGPUUniformBufferWrapper_MUL_)(LambdaEnv, WGPUUniformBufferWrapper*);
+
+// Depth 505
+typedef WGPUVertexBufferWrapper*(*Fn__LambdaEnv_WGPUVertexBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL_)(LambdaEnv, WGPUVertexBufferWrapper*);
 
 // Depth 505
 typedef World(*Fn__LambdaEnv_World_World)(LambdaEnv, World);
@@ -3303,6 +3529,9 @@ int min__int(int a, int b);
 
 // Depth 500
 bool not(bool a);
+
+// Depth 500
+WGPUDepthTexture* null_MINUS_depth_MINUS_texture();
 
 // Depth 500
 bool null_QMARK___CChar(CChar* p);
@@ -3537,6 +3766,9 @@ Array Array_copy__ActiveTimer (Array* a);
 Array Array_copy__Chunk (Array* a);
 
 // Depth 500
+Array Array_copy__Line (Array* a);
+
+// Depth 500
 Array Array_copy__Result__Uint16_Array__uint8_t (Array* a);
 
 // Depth 500
@@ -3574,6 +3806,9 @@ void Array_delete__Char (Array a);
 
 // Depth 500
 void Array_delete__Chunk (Array a);
+
+// Depth 500
+void Array_delete__Line (Array a);
 
 // Depth 500
 void Array_delete__PatternMatchResult (Array a);
@@ -3615,6 +3850,9 @@ void Array_delete__int (Array a);
 void Array_delete__uint8_t (Array a);
 
 // Depth 500
+bool Array_empty_QMARK___Line(Array__Line* a);
+
+// Depth 500
 Array Array_endo_MINUS_filter__Result__Uint16_Array__uint8_t(Lambda *predicate, Array a);
 
 // Depth 500
@@ -3637,6 +3875,9 @@ int Array_length__Array__uint8_t (Array *a);
 
 // Depth 500
 int Array_length__Char (Array *a);
+
+// Depth 500
+int Array_length__Line (Array *a);
 
 // Depth 500
 int Array_length__PatternMatchResult (Array *a);
@@ -3684,6 +3925,9 @@ Maybe__uint8_t Array_nth__uint8_t(Array__uint8_t* xs, int index);
 Array__Array__uint8_t Array_partition__uint8_t(Array__uint8_t* arr, int n);
 
 // Depth 500
+Line Array_pop_MINUS_back_BANG___Line(Array *aRef);
+
+// Depth 500
 Array Array_pop_MINUS_back__ActiveTimer(Array a);
 
 // Depth 500
@@ -3696,6 +3940,9 @@ String Array_prn__ActiveTimer(Array__ActiveTimer* x);
 String Array_prn__Chunk(Array__Chunk* x);
 
 // Depth 500
+String Array_prn__Line(Array__Line* x);
+
+// Depth 500
 String Array_prn__ZoneStats(Array__ZoneStats* x);
 
 // Depth 500
@@ -3706,6 +3953,9 @@ void Array_push_MINUS_back_BANG___ActiveTimer(Array *aRef, ActiveTimer value);
 
 // Depth 500
 void Array_push_MINUS_back_BANG___Chunk(Array *aRef, Chunk value);
+
+// Depth 500
+void Array_push_MINUS_back_BANG___Line(Array *aRef, Line value);
 
 // Depth 500
 void Array_push_MINUS_back_BANG___ZoneStats(Array *aRef, ZoneStats value);
@@ -3756,6 +4006,9 @@ String Array_str__ActiveTimer (Array* a);
 String Array_str__Chunk (Array* a);
 
 // Depth 500
+String Array_str__Line (Array* a);
+
+// Depth 500
 String Array_str__ZoneStats (Array* a);
 
 // Depth 500
@@ -3775,6 +4028,9 @@ Char* Array_unsafe_MINUS_nth__Char (Array *aRef, int n);
 
 // Depth 500
 Chunk* Array_unsafe_MINUS_nth__Chunk (Array *aRef, int n);
+
+// Depth 500
+Line* Array_unsafe_MINUS_nth__Line (Array *aRef, int n);
 
 // Depth 500
 PatternMatchResult* Array_unsafe_MINUS_nth__PatternMatchResult (Array *aRef, int n);
@@ -3802,6 +4058,9 @@ Uint64* Array_unsafe_MINUS_nth__Uint64 (Array *aRef, int n);
 
 // Depth 500
 ZoneStats* Array_unsafe_MINUS_nth__ZoneStats (Array *aRef, int n);
+
+// Depth 500
+float* Array_unsafe_MINUS_nth__float (Array *aRef, int n);
 
 // Depth 500
 int* Array_unsafe_MINUS_nth__int (Array *aRef, int n);
@@ -4094,19 +4353,52 @@ String ByteRef_str(uint8_t* x);
 // Depth 1000
 
 // Depth 500
+double* Camera_aspect(Camera* p);
+
+// Depth 500
 Camera Camera_copy(Camera* pRef);
 
 // Depth 500
-Camera Camera_create(Vector3__double pos);
+double Camera_deg(double rad);
 
 // Depth 500
 void Camera_delete(Camera p);
 
 // Depth 500
+double* Camera_far(Camera* p);
+
+// Depth 500
+double* Camera_fov(Camera* p);
+
+// Depth 500
 Vector3__double* Camera_front(Camera* p);
 
 // Depth 500
-Camera Camera_init(Vector3__double pos, double yaw, double pitch, Vector3__double front, Vector3__double right, Vector3__double up);
+Camera Camera_init(Vector3__double pos, Vector3__double front, Vector3__double right, Vector3__double up, Vector3__double world_MINUS_up, double yaw, double pitch, double fov, double aspect, double near, double far);
+
+// Depth 500
+CameraMat4 Camera_look_MINUS_at(Camera* c);
+
+// Depth 500
+void Camera_look_MINUS_at_MINUS_point_BANG_(Camera* c, Vector3__double* target);
+
+// Depth 500
+void Camera_move_MINUS_forward_BANG_(Camera* c, double dist);
+
+// Depth 500
+void Camera_move_MINUS_right_BANG_(Camera* c, double dist);
+
+// Depth 500
+void Camera_move_MINUS_up_BANG_(Camera* c, double dist);
+
+// Depth 500
+double* Camera_near(Camera* p);
+
+// Depth 500
+Camera Camera_new(Vector3__double pos, double yaw, double pitch, double aspect);
+
+// Depth 500
+CameraMat4 Camera_perspective(Camera* c);
 
 // Depth 500
 double* Camera_pitch(Camera* p);
@@ -4118,13 +4410,43 @@ Vector3__double* Camera_pos(Camera* p);
 String Camera_prn(Camera *p);
 
 // Depth 500
+double Camera_rad(double deg);
+
+// Depth 500
 Vector3__double* Camera_right(Camera* p);
+
+// Depth 500
+void Camera_rotate_BANG_(Camera* c, double dyaw, double dpitch);
+
+// Depth 500
+Camera Camera_set_MINUS_aspect(Camera p, double newValue);
+
+// Depth 500
+void Camera_set_MINUS_aspect_BANG_(Camera* pRef, double newValue);
+
+// Depth 500
+Camera Camera_set_MINUS_far(Camera p, double newValue);
+
+// Depth 500
+void Camera_set_MINUS_far_BANG_(Camera* pRef, double newValue);
+
+// Depth 500
+Camera Camera_set_MINUS_fov(Camera p, double newValue);
+
+// Depth 500
+void Camera_set_MINUS_fov_BANG_(Camera* pRef, double newValue);
 
 // Depth 500
 Camera Camera_set_MINUS_front(Camera p, Vector3__double newValue);
 
 // Depth 500
 void Camera_set_MINUS_front_BANG_(Camera* pRef, Vector3__double newValue);
+
+// Depth 500
+Camera Camera_set_MINUS_near(Camera p, double newValue);
+
+// Depth 500
+void Camera_set_MINUS_near_BANG_(Camera* pRef, double newValue);
 
 // Depth 500
 Camera Camera_set_MINUS_pitch(Camera p, double newValue);
@@ -4151,6 +4473,12 @@ Camera Camera_set_MINUS_up(Camera p, Vector3__double newValue);
 void Camera_set_MINUS_up_BANG_(Camera* pRef, Vector3__double newValue);
 
 // Depth 500
+Camera Camera_set_MINUS_world_MINUS_up(Camera p, Vector3__double newValue);
+
+// Depth 500
+void Camera_set_MINUS_world_MINUS_up_BANG_(Camera* pRef, Vector3__double newValue);
+
+// Depth 500
 Camera Camera_set_MINUS_yaw(Camera p, double newValue);
 
 // Depth 500
@@ -4163,6 +4491,18 @@ String Camera_str(Camera *p);
 Vector3__double* Camera_up(Camera* p);
 
 // Depth 500
+Camera Camera_update_MINUS_aspect(Camera p, Lambda *updater);
+
+// Depth 500
+void Camera_update_MINUS_basis_BANG_(Camera* c);
+
+// Depth 500
+Camera Camera_update_MINUS_far(Camera p, Lambda *updater);
+
+// Depth 500
+Camera Camera_update_MINUS_fov(Camera p, Lambda *updater);
+
+// Depth 500
 Camera Camera_update_MINUS_front(Camera p, Lambda *updater);
 
 // Depth 500
@@ -4172,7 +4512,13 @@ void Camera_update_MINUS_input(GLFWwindow* win, Camera* cam, double dt);
 void Camera_update_MINUS_look(GLFWwindow* win, Camera* cam, bool* first_MINUS_mouse_MINUS_ptr, double* last_MINUS_x_MINUS_ptr, double* last_MINUS_y_MINUS_ptr);
 
 // Depth 500
+Camera Camera_update_MINUS_near(Camera p, Lambda *updater);
+
+// Depth 500
 Camera Camera_update_MINUS_pitch(Camera p, Lambda *updater);
+
+// Depth 500
+void Camera_update_MINUS_pitch_BANG_(Camera* c, double val);
 
 // Depth 500
 Camera Camera_update_MINUS_pos(Camera p, Lambda *updater);
@@ -4184,13 +4530,60 @@ Camera Camera_update_MINUS_right(Camera p, Lambda *updater);
 Camera Camera_update_MINUS_up(Camera p, Lambda *updater);
 
 // Depth 500
-void Camera_update_MINUS_vectors(Camera* cam);
+Camera Camera_update_MINUS_world_MINUS_up(Camera p, Lambda *updater);
 
 // Depth 500
 Camera Camera_update_MINUS_yaw(Camera p, Lambda *updater);
 
 // Depth 500
+void Camera_update_MINUS_yaw_BANG_(Camera* c, double val);
+
+// Depth 500
+CameraMat4 Camera_view_MINUS_projection(Camera* c);
+
+// Depth 500
+Vector3__double* Camera_world_MINUS_up(Camera* p);
+
+// Depth 500
 double* Camera_yaw(Camera* p);
+
+// Depth 1000
+
+// Depth 500
+CameraMat4 CameraMat4_copy(CameraMat4* pRef);
+
+// Depth 500
+Array__float* CameraMat4_data(CameraMat4* p);
+
+// Depth 500
+void CameraMat4_delete(CameraMat4 p);
+
+// Depth 500
+CameraMat4 CameraMat4_identity();
+
+// Depth 500
+CameraMat4 CameraMat4_init(Array__float data);
+
+// Depth 500
+CameraMat4 CameraMat4_mul(CameraMat4* a, CameraMat4* b);
+
+// Depth 500
+String CameraMat4_prn(CameraMat4 *p);
+
+// Depth 500
+CameraMat4 CameraMat4_set_MINUS_data(CameraMat4 p, Array__float newValue);
+
+// Depth 500
+void CameraMat4_set_MINUS_data_BANG_(CameraMat4* pRef, Array__float newValue);
+
+// Depth 500
+String CameraMat4_str(CameraMat4 *p);
+
+// Depth 500
+CameraMat4 CameraMat4_update_MINUS_data(CameraMat4 p, Lambda *updater);
+
+// Depth 500
+CameraMat4 CameraMat4_zero();
 
 // Depth 1000
 
@@ -4434,6 +4827,9 @@ double Double_add_MINUS_ref(double* x, double* y);
 double Double_blit(double x);
 
 // Depth 500
+double Double_clamp__double(double min, double max, double val);
+
+// Depth 500
 double Double_dec(double x);
 
 // Depth 500
@@ -4648,6 +5044,9 @@ void EngineState_delete(EngineState p);
 
 // Depth 500
 Diagnostics* EngineState_diag(EngineState* p);
+
+// Depth 500
+void EngineState_draw_MINUS_bounds_MINUS_wireframe_BANG_(Renderer* ren, double min_MINUS_x, double min_MINUS_y, double min_MINUS_z, double max_MINUS_x, double max_MINUS_y, double max_MINUS_z, Vector3__double* color);
 
 // Depth 500
 Engine* EngineState_eng(EngineState* p);
@@ -5133,6 +5532,165 @@ void JobSystem_wait(job_handle_t *handle);
 // Depth 1000
 
 // Depth 500
+Vector3__double* Line_color(Line* p);
+
+// Depth 500
+Line Line_copy(Line* pRef);
+
+// Depth 500
+void Line_delete(Line p);
+
+// Depth 500
+Vector3__double* Line_end(Line* p);
+
+// Depth 500
+Line Line_init(Vector3__double start, Vector3__double end, Vector3__double color);
+
+// Depth 500
+String Line_prn(Line *p);
+
+// Depth 500
+Line Line_set_MINUS_color(Line p, Vector3__double newValue);
+
+// Depth 500
+void Line_set_MINUS_color_BANG_(Line* pRef, Vector3__double newValue);
+
+// Depth 500
+Line Line_set_MINUS_end(Line p, Vector3__double newValue);
+
+// Depth 500
+void Line_set_MINUS_end_BANG_(Line* pRef, Vector3__double newValue);
+
+// Depth 500
+Line Line_set_MINUS_start(Line p, Vector3__double newValue);
+
+// Depth 500
+void Line_set_MINUS_start_BANG_(Line* pRef, Vector3__double newValue);
+
+// Depth 500
+Vector3__double* Line_start(Line* p);
+
+// Depth 500
+String Line_str(Line *p);
+
+// Depth 500
+Line Line_update_MINUS_color(Line p, Lambda *updater);
+
+// Depth 500
+Line Line_update_MINUS_end(Line p, Lambda *updater);
+
+// Depth 500
+Line Line_update_MINUS_start(Line p, Lambda *updater);
+
+// Depth 1000
+
+// Depth 500
+void LinePass_cleanup(LinePassRenderer* lp);
+
+// Depth 500
+Result__LinePassRenderer_String LinePass_create(WGPUContext* ctx, String* format, int max_MINUS_lines);
+
+// Depth 500
+String* LinePass_line_MINUS_shader_MINUS_wgsl;
+
+// Depth 500
+void LinePass_render__WGPUContext_MUL_(WGPUFrameState* frame, WGPUContext* ctx, LinePassRenderer* lp, int line_MINUS_count, Maybe__WGPURenderTexture_MUL_ target);
+
+// Depth 500
+int LinePass_update_BANG_(WGPUContext* ctx, LinePassRenderer* lp, Array__float* view_MINUS_proj, Array__Line* lines);
+
+// Depth 1000
+
+// Depth 500
+WGPUBindGroup* LinePassRenderer_bind_MINUS_group(LinePassRenderer* p);
+
+// Depth 500
+LinePassRenderer LinePassRenderer_copy(LinePassRenderer* pRef);
+
+// Depth 500
+void LinePassRenderer_delete(LinePassRenderer p);
+
+// Depth 500
+LinePassRenderer LinePassRenderer_init(WGPUGeomPipelineWrapper* pipeline, WGPUUniformBufferWrapper* u_MINUS_buffer, WGPUVertexBufferWrapper* v_MINUS_buffer, WGPUBindGroup bind_MINUS_group, int max_MINUS_lines, Array__float v_MINUS_data);
+
+// Depth 500
+int* LinePassRenderer_max_MINUS_lines(LinePassRenderer* p);
+
+// Depth 500
+WGPUGeomPipelineWrapper** LinePassRenderer_pipeline(LinePassRenderer* p);
+
+// Depth 500
+String LinePassRenderer_prn(LinePassRenderer *p);
+
+// Depth 500
+LinePassRenderer LinePassRenderer_set_MINUS_bind_MINUS_group(LinePassRenderer p, WGPUBindGroup newValue);
+
+// Depth 500
+void LinePassRenderer_set_MINUS_bind_MINUS_group_BANG_(LinePassRenderer* pRef, WGPUBindGroup newValue);
+
+// Depth 500
+LinePassRenderer LinePassRenderer_set_MINUS_max_MINUS_lines(LinePassRenderer p, int newValue);
+
+// Depth 500
+void LinePassRenderer_set_MINUS_max_MINUS_lines_BANG_(LinePassRenderer* pRef, int newValue);
+
+// Depth 500
+LinePassRenderer LinePassRenderer_set_MINUS_pipeline(LinePassRenderer p, WGPUGeomPipelineWrapper* newValue);
+
+// Depth 500
+void LinePassRenderer_set_MINUS_pipeline_BANG_(LinePassRenderer* pRef, WGPUGeomPipelineWrapper* newValue);
+
+// Depth 500
+LinePassRenderer LinePassRenderer_set_MINUS_u_MINUS_buffer(LinePassRenderer p, WGPUUniformBufferWrapper* newValue);
+
+// Depth 500
+void LinePassRenderer_set_MINUS_u_MINUS_buffer_BANG_(LinePassRenderer* pRef, WGPUUniformBufferWrapper* newValue);
+
+// Depth 500
+LinePassRenderer LinePassRenderer_set_MINUS_v_MINUS_buffer(LinePassRenderer p, WGPUVertexBufferWrapper* newValue);
+
+// Depth 500
+void LinePassRenderer_set_MINUS_v_MINUS_buffer_BANG_(LinePassRenderer* pRef, WGPUVertexBufferWrapper* newValue);
+
+// Depth 500
+LinePassRenderer LinePassRenderer_set_MINUS_v_MINUS_data(LinePassRenderer p, Array__float newValue);
+
+// Depth 500
+void LinePassRenderer_set_MINUS_v_MINUS_data_BANG_(LinePassRenderer* pRef, Array__float newValue);
+
+// Depth 500
+String LinePassRenderer_str(LinePassRenderer *p);
+
+// Depth 500
+WGPUUniformBufferWrapper** LinePassRenderer_u_MINUS_buffer(LinePassRenderer* p);
+
+// Depth 500
+LinePassRenderer LinePassRenderer_update_MINUS_bind_MINUS_group(LinePassRenderer p, Lambda *updater);
+
+// Depth 500
+LinePassRenderer LinePassRenderer_update_MINUS_max_MINUS_lines(LinePassRenderer p, Lambda *updater);
+
+// Depth 500
+LinePassRenderer LinePassRenderer_update_MINUS_pipeline(LinePassRenderer p, Lambda *updater);
+
+// Depth 500
+LinePassRenderer LinePassRenderer_update_MINUS_u_MINUS_buffer(LinePassRenderer p, Lambda *updater);
+
+// Depth 500
+LinePassRenderer LinePassRenderer_update_MINUS_v_MINUS_buffer(LinePassRenderer p, Lambda *updater);
+
+// Depth 500
+LinePassRenderer LinePassRenderer_update_MINUS_v_MINUS_data(LinePassRenderer p, Lambda *updater);
+
+// Depth 500
+WGPUVertexBufferWrapper** LinePassRenderer_v_MINUS_buffer(LinePassRenderer* p);
+
+// Depth 500
+Array__float* LinePassRenderer_v_MINUS_data(LinePassRenderer* p);
+
+// Depth 1000
+
+// Depth 500
 LogLevel LogLevel_Critical();
 
 // Depth 500
@@ -5513,6 +6071,9 @@ JobHandle* Pointer_copy__JobHandle (JobHandle** ptrRef);
 WGPUContext* Pointer_copy__WGPUContext (WGPUContext** ptrRef);
 
 // Depth 500
+WGPUGeomPipelineWrapper* Pointer_copy__WGPUGeomPipelineWrapper (WGPUGeomPipelineWrapper** ptrRef);
+
+// Depth 500
 WGPURenderPipelineWrapper* Pointer_copy__WGPURenderPipelineWrapper (WGPURenderPipelineWrapper** ptrRef);
 
 // Depth 500
@@ -5523,6 +6084,9 @@ WGPURenderTexture* Pointer_copy__WGPURenderTexture (WGPURenderTexture** ptrRef);
 
 // Depth 500
 WGPUUniformBufferWrapper* Pointer_copy__WGPUUniformBufferWrapper (WGPUUniformBufferWrapper** ptrRef);
+
+// Depth 500
+WGPUVertexBufferWrapper* Pointer_copy__WGPUVertexBufferWrapper (WGPUVertexBufferWrapper** ptrRef);
 
 // Depth 500
 bool Pointer_eq__CChar(CChar *p1, CChar *p2);
@@ -5546,6 +6110,9 @@ String Pointer_prn__GLFWwindow(GLFWwindow* a);
 String Pointer_prn__WGPUContext(WGPUContext* a);
 
 // Depth 500
+String Pointer_prn__WGPUGeomPipelineWrapper(WGPUGeomPipelineWrapper* a);
+
+// Depth 500
 String Pointer_prn__WGPURenderPipelineWrapper(WGPURenderPipelineWrapper* a);
 
 // Depth 500
@@ -5556,6 +6123,9 @@ String Pointer_prn__WGPURenderTexture(WGPURenderTexture* a);
 
 // Depth 500
 String Pointer_prn__WGPUUniformBufferWrapper(WGPUUniformBufferWrapper* a);
+
+// Depth 500
+String Pointer_prn__WGPUVertexBufferWrapper(WGPUVertexBufferWrapper* a);
 
 // Depth 500
 void Pointer_set__bool(bool* p, bool a);
@@ -5624,6 +6194,9 @@ WGPUBindGroup* Renderer_bind_MINUS_group(Renderer* p);
 void Renderer_cleanup__Engine_MUL_(Engine* eng, Renderer* ren);
 
 // Depth 500
+void Renderer_clear_MINUS_lines_BANG_(Renderer* ren);
+
+// Depth 500
 Renderer Renderer_copy(Renderer* pRef);
 
 // Depth 500
@@ -5633,10 +6206,19 @@ Result__Renderer_String Renderer_create(Engine* eng);
 void Renderer_delete(Renderer p);
 
 // Depth 500
-void Renderer_draw(Engine* eng, Renderer* ren);
+void Renderer_draw(Engine* eng, Renderer* ren, Camera* cam);
 
 // Depth 500
-Renderer Renderer_init(WGPURenderPipelineWrapper* pipeline, WGPUBindGroup bind_MINUS_group, WGPUUniformBufferWrapper* uniform_MINUS_buffer, WGPURenderTexture* voxel_MINUS_texture, WGPUSampler voxel_MINUS_sampler);
+void Renderer_draw_MINUS_line_BANG_(Renderer* ren, Vector3__double* start, Vector3__double* end, Vector3__double* color);
+
+// Depth 500
+Renderer Renderer_init(WGPURenderPipelineWrapper* pipeline, WGPUBindGroup bind_MINUS_group, WGPUUniformBufferWrapper* uniform_MINUS_buffer, WGPURenderTexture* voxel_MINUS_texture, WGPUSampler voxel_MINUS_sampler, LinePassRenderer line_MINUS_pass, Array__Line lines);
+
+// Depth 500
+LinePassRenderer* Renderer_line_MINUS_pass(Renderer* p);
+
+// Depth 500
+Array__Line* Renderer_lines(Renderer* p);
 
 // Depth 500
 WGPURenderPipelineWrapper** Renderer_pipeline(Renderer* p);
@@ -5649,6 +6231,18 @@ Renderer Renderer_set_MINUS_bind_MINUS_group(Renderer p, WGPUBindGroup newValue)
 
 // Depth 500
 void Renderer_set_MINUS_bind_MINUS_group_BANG_(Renderer* pRef, WGPUBindGroup newValue);
+
+// Depth 500
+Renderer Renderer_set_MINUS_line_MINUS_pass(Renderer p, LinePassRenderer newValue);
+
+// Depth 500
+void Renderer_set_MINUS_line_MINUS_pass_BANG_(Renderer* pRef, LinePassRenderer newValue);
+
+// Depth 500
+Renderer Renderer_set_MINUS_lines(Renderer p, Array__Line newValue);
+
+// Depth 500
+void Renderer_set_MINUS_lines_BANG_(Renderer* pRef, Array__Line newValue);
 
 // Depth 500
 Renderer Renderer_set_MINUS_pipeline(Renderer p, WGPURenderPipelineWrapper* newValue);
@@ -5682,6 +6276,12 @@ WGPUUniformBufferWrapper** Renderer_uniform_MINUS_buffer(Renderer* p);
 
 // Depth 500
 Renderer Renderer_update_MINUS_bind_MINUS_group(Renderer p, Lambda *updater);
+
+// Depth 500
+Renderer Renderer_update_MINUS_line_MINUS_pass(Renderer p, Lambda *updater);
+
+// Depth 500
+Renderer Renderer_update_MINUS_lines(Renderer p, Lambda *updater);
 
 // Depth 500
 Renderer Renderer_update_MINUS_pipeline(Renderer p, Lambda *updater);
@@ -5729,6 +6329,9 @@ Result__EngineState_String Result_Error__String_EngineState(String member0);
 
 // Depth 500
 Result__FILE_MUL__String Result_Error__String_FILE_MUL_(String member0);
+
+// Depth 500
+Result__LinePassRenderer_String Result_Error__String_LinePassRenderer(String member0);
 
 // Depth 500
 Result__Renderer_String Result_Error__String_Renderer(String member0);
@@ -5810,6 +6413,9 @@ Result__Engine_String Result_Success__Engine_String(Engine member0);
 
 // Depth 500
 Result__FILE_MUL__String Result_Success__FILE_MUL__String(FILE* member0);
+
+// Depth 500
+Result__LinePassRenderer_String Result_Success__LinePassRenderer_String(LinePassRenderer member0);
 
 // Depth 500
 Result__Renderer_String Result_Success__Renderer_String(Renderer member0);
@@ -5900,6 +6506,9 @@ void Result_delete__Engine_String(Result__Engine_String p);
 
 // Depth 500
 void Result_delete__FILE_MUL__String(Result__FILE_MUL__String p);
+
+// Depth 500
+void Result_delete__LinePassRenderer_String(Result__LinePassRenderer_String p);
 
 // Depth 500
 void Result_delete__Renderer_String(Result__Renderer_String p);
@@ -7092,6 +7701,13 @@ void carp_init_globals(int argc, char** argv) {
 
     // Depth 0
     {
+        static String _2 = "struct Uniforms {\n        view_proj: mat4x4<f32>,\n    }\n    @group(0) @binding(0) var<uniform> u: Uniforms;\n\n    struct VertexInput {\n        @location(0) position: vec3<f32>,\n        @location(1) color: vec3<f32>,\n    }\n\n    struct VertexOutput {\n        @builtin(position) clip_pos: vec4<f32>,\n        @location(0) color: vec3<f32>,\n    }\n\n    @vertex\n    fn vs_main(in: VertexInput) -> VertexOutput {\n        var out: VertexOutput;\n        out.clip_pos = u.view_proj * vec4<f32>(in.position, 1.0);\n        out.color = in.color;\n        return out;\n    }\n\n    @fragment\n    fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {\n        return vec4<f32>(in.color, 1.0);\n    }\n    ";
+        String *_2_ref = &_2;
+        LinePass_line_MINUS_shader_MINUS_wgsl = _2_ref;
+    }
+
+    // Depth 0
+    {
         Map_min_MINUS_load = 20;
     }
 
@@ -8232,6 +8848,17 @@ Array Array_copy__Chunk (Array* a){
     return copy;
 }
 
+Array Array_copy__Line (Array* a){
+    Array copy;
+    copy.len = a->len;
+    copy.capacity = a->capacity;
+    copy.data = CARP_MALLOC(sizeof(Line) * a->capacity);
+    for(int i = 0; i < a->len; i++) {
+        ((Line*)(copy.data))[i] = Line_copy(&(((Line*)a->data)[i]));
+    }
+    return copy;
+}
+
 Array Array_copy__Result__Uint16_Array__uint8_t (Array* a){
     Array copy;
     copy.len = a->len;
@@ -8349,6 +8976,13 @@ void Array_delete__Chunk (Array a){
     CARP_FREE(a.data);
 }
 
+void Array_delete__Line (Array a){
+    for(int i = 0; i < a.len; i++) {
+        Line_delete(((Line*)a.data)[i]);
+    }
+    CARP_FREE(a.data);
+}
+
 void Array_delete__PatternMatchResult (Array a){
     for(int i = 0; i < a.len; i++) {
         /* Ignore non-managed type inside Array: 'Pattern.MatchResult' */
@@ -8440,6 +9074,12 @@ void Array_delete__uint8_t (Array a){
     CARP_FREE(a.data);
 }
 
+bool Array_empty_QMARK___Line(Array__Line* a) {
+    int _7 = Array_length__Line(a);
+    bool _9 = Int__EQ_(_7, 0);
+    return _9;
+}
+
 Array Array_endo_MINUS_filter__Result__Uint16_Array__uint8_t(Lambda *predicate, Array a) { 
     int insertIndex = 0;
     for(int i = 0; i < a.len; ++i) {
@@ -8526,6 +9166,7 @@ Array Array_endo_MINUS_map__uint8_t(Lambda *f, Array a) {
 int Array_length__ActiveTimer (Array *a) { return (*a).len; }
 int Array_length__Array__uint8_t (Array *a) { return (*a).len; }
 int Array_length__Char (Array *a) { return (*a).len; }
+int Array_length__Line (Array *a) { return (*a).len; }
 int Array_length__PatternMatchResult (Array *a) { return (*a).len; }
 int Array_length__Result__Uint16_Array__uint8_t (Array *a) { return (*a).len; }
 int Array_length__Result__Uint32_Array__uint8_t (Array *a) { return (*a).len; }
@@ -8601,6 +9242,14 @@ Array__Array__uint8_t Array_partition__uint8_t(Array__uint8_t* arr, int n) {
     return _67;
 }
 
+Line Array_pop_MINUS_back_BANG___Line(Array *aRef) { 
+  Line ret;
+  assert(aRef->len > 0);
+  ret = ((Line*)aRef->data)[aRef->len - 1];
+  aRef->len--;
+  return ret;
+}
+
 Array Array_pop_MINUS_back__ActiveTimer(Array a) { 
   assert(a.len > 0);
   a.len--;
@@ -8626,6 +9275,11 @@ String Array_prn__ActiveTimer(Array__ActiveTimer* x) {
 
 String Array_prn__Chunk(Array__Chunk* x) {
     String _6 = Array_str__Chunk(x);
+    return _6;
+}
+
+String Array_prn__Line(Array__Line* x) {
+    String _6 = Array_str__Line(x);
     return _6;
 }
 
@@ -8655,6 +9309,15 @@ void Array_push_MINUS_back_BANG___Chunk(Array *aRef, Chunk value) {
         aRef->data = CARP_REALLOC(aRef->data, sizeof(Chunk) * aRef->capacity);
     }
     ((Chunk*)aRef->data)[aRef->len - 1] = value;
+}
+
+void Array_push_MINUS_back_BANG___Line(Array *aRef, Line value) { 
+    aRef->len++;
+    if(aRef->len > aRef->capacity) {
+        aRef->capacity = aRef->len * 2;
+        aRef->data = CARP_REALLOC(aRef->data, sizeof(Line) * aRef->capacity);
+    }
+    ((Line*)aRef->data)[aRef->len - 1] = value;
 }
 
 void Array_push_MINUS_back_BANG___ZoneStats(Array *aRef, ZoneStats value) { 
@@ -9005,6 +9668,41 @@ String Array_str__Chunk (Array* a) {
   return buffer;
 }
 
+String Array_str__Line (Array* a) {
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize;
+  int size = 3; // opening and closing brackets and terminator
+  for(int i = 0; i < a->len; i++) {
+    temp = Line_prn(&((Line*)a->data)[i]);
+    size += snprintf(NULL, 0, "%s ", temp);
+    if(temp) {
+      CARP_FREE(temp);
+      temp = NULL;
+    }
+  }
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  snprintf(buffer, size, "[");
+  bufferPtr += 1;
+
+  for(int i = 0; i < a->len; i++) {
+    temp = Line_prn(&((Line*)a->data)[i]);
+    tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+    bufferPtr += tempsize;
+    if(temp) {
+      CARP_FREE(temp);
+      temp = NULL;
+    }
+  }
+
+  if(a->len > 0) { bufferPtr -= 1; }
+  snprintf(bufferPtr, size - (bufferPtr - buffer), "]");
+  return buffer;
+}
+
 String Array_str__ZoneStats (Array* a) {
   String temp = NULL;
   int tempsize = 0;
@@ -9109,6 +9807,13 @@ Chunk* Array_unsafe_MINUS_nth__Chunk (Array *aRef, int n) {
     return &(((Chunk*)a.data)[n]);
 }
 
+Line* Array_unsafe_MINUS_nth__Line (Array *aRef, int n) {
+    Array a = *aRef;
+    assert(n >= 0);
+    assert(n < a.len);
+    return &(((Line*)a.data)[n]);
+}
+
 PatternMatchResult* Array_unsafe_MINUS_nth__PatternMatchResult (Array *aRef, int n) {
     Array a = *aRef;
     assert(n >= 0);
@@ -9170,6 +9875,13 @@ ZoneStats* Array_unsafe_MINUS_nth__ZoneStats (Array *aRef, int n) {
     assert(n >= 0);
     assert(n < a.len);
     return &(((ZoneStats*)a.data)[n]);
+}
+
+float* Array_unsafe_MINUS_nth__float (Array *aRef, int n) {
+    Array a = *aRef;
+    assert(n >= 0);
+    assert(n < a.len);
+    return &(((float*)a.data)[n]);
 }
 
 int* Array_unsafe_MINUS_nth__int (Array *aRef, int n) {
@@ -11544,45 +12256,306 @@ String ByteRef_str(uint8_t* x) {
     return _8;
 }
 
+double* Camera_aspect(Camera* p) { return (&(p->aspect)); }
+
 Camera Camera_copy(Camera* pRef) {
     Camera copy = *pRef;
     copy.pos = Vector3_copy__double(&(pRef->pos));
-    /* Ignore non-managed member 'yaw' : Double */
-    /* Ignore non-managed member 'pitch' : Double */
     copy.front = Vector3_copy__double(&(pRef->front));
     copy.right = Vector3_copy__double(&(pRef->right));
     copy.up = Vector3_copy__double(&(pRef->up));
+    copy.world_MINUS_up = Vector3_copy__double(&(pRef->world_MINUS_up));
+    /* Ignore non-managed member 'yaw' : Double */
+    /* Ignore non-managed member 'pitch' : Double */
+    /* Ignore non-managed member 'fov' : Double */
+    /* Ignore non-managed member 'aspect' : Double */
+    /* Ignore non-managed member 'near' : Double */
+    /* Ignore non-managed member 'far' : Double */
     return copy;
 }
 
-Camera Camera_create(Vector3__double pos) {
-    Vector3__double _12 = Vector3_init__double(0.0, 0.0, -1.0);
-    Vector3__double _17 = Vector3_init__double(1.0, 0.0, 0.0);
-    Vector3__double _22 = Vector3_init__double(0.0, 1.0, 0.0);
-    Camera _23 = Camera_init(pos, -90.0, 0.0, _12, _17, _22);
-    return _23;
+double Camera_deg(double rad) {
+    double _7 = Double__MUL_(rad, 57.2957795);
+    return _7;
 }
 
 void Camera_delete(Camera p) {
     Vector3_delete__double(p.pos);
-    /* Ignore non-managed member 'yaw' : Double */
-    /* Ignore non-managed member 'pitch' : Double */
     Vector3_delete__double(p.front);
     Vector3_delete__double(p.right);
     Vector3_delete__double(p.up);
+    Vector3_delete__double(p.world_MINUS_up);
+    /* Ignore non-managed member 'yaw' : Double */
+    /* Ignore non-managed member 'pitch' : Double */
+    /* Ignore non-managed member 'fov' : Double */
+    /* Ignore non-managed member 'aspect' : Double */
+    /* Ignore non-managed member 'near' : Double */
+    /* Ignore non-managed member 'far' : Double */
 }
+
+double* Camera_far(Camera* p) { return (&(p->far)); }
+
+double* Camera_fov(Camera* p) { return (&(p->fov)); }
 
 Vector3__double* Camera_front(Camera* p) { return (&(p->front)); }
 
-Camera Camera_init(Vector3__double pos, double yaw, double pitch, Vector3__double front, Vector3__double right, Vector3__double up) {
+Camera Camera_init(Vector3__double pos, Vector3__double front, Vector3__double right, Vector3__double up, Vector3__double world_MINUS_up, double yaw, double pitch, double fov, double aspect, double near, double far) {
     Camera instance;
     instance.pos = pos;
-    instance.yaw = yaw;
-    instance.pitch = pitch;
     instance.front = front;
     instance.right = right;
     instance.up = up;
+    instance.world_MINUS_up = world_MINUS_up;
+    instance.yaw = yaw;
+    instance.pitch = pitch;
+    instance.fov = fov;
+    instance.aspect = aspect;
+    instance.near = near;
+    instance.far = far;
     return instance;
+}
+
+CameraMat4 Camera_look_MINUS_at(Camera* c) {
+    CameraMat4 _245;
+    /* let */ {
+        Vector3__double* _8 = Camera_front(c);
+        Vector3__double* f = _8;
+        Vector3__double* _12 = Camera_right(c);
+        Vector3__double* s = _12;
+        Vector3__double* _16 = Camera_up(c);
+        Vector3__double* u = _16;
+        Vector3__double* _20 = Camera_pos(c);
+        Vector3__double* p = _20;
+        static float _26_lit = 0.0f;
+        float* _26 = &_26_lit; // ref
+        Array__float _27 = Array_replicate__float(16, _26);
+        Array__float m = _27;
+        Array__float* _33 = &m; // ref
+        double* _41 = Vector3_x__double(s);
+        double _42 = Double_copy(_41);
+        float _43 = Double_to_MINUS_float(_42);
+        float _44 = _43; // From the 'the' function.
+        Array_aset_BANG___float(_33, 0, _44);
+        Array__float* _49 = &m; // ref
+        double* _57 = Vector3_y__double(s);
+        double _58 = Double_copy(_57);
+        float _59 = Double_to_MINUS_float(_58);
+        float _60 = _59; // From the 'the' function.
+        Array_aset_BANG___float(_49, 4, _60);
+        Array__float* _65 = &m; // ref
+        double* _73 = Vector3_z__double(s);
+        double _74 = Double_copy(_73);
+        float _75 = Double_to_MINUS_float(_74);
+        float _76 = _75; // From the 'the' function.
+        Array_aset_BANG___float(_65, 8, _76);
+        Array__float* _81 = &m; // ref
+        double* _89 = Vector3_x__double(u);
+        double _90 = Double_copy(_89);
+        float _91 = Double_to_MINUS_float(_90);
+        float _92 = _91; // From the 'the' function.
+        Array_aset_BANG___float(_81, 1, _92);
+        Array__float* _97 = &m; // ref
+        double* _105 = Vector3_y__double(u);
+        double _106 = Double_copy(_105);
+        float _107 = Double_to_MINUS_float(_106);
+        float _108 = _107; // From the 'the' function.
+        Array_aset_BANG___float(_97, 5, _108);
+        Array__float* _113 = &m; // ref
+        double* _121 = Vector3_z__double(u);
+        double _122 = Double_copy(_121);
+        float _123 = Double_to_MINUS_float(_122);
+        float _124 = _123; // From the 'the' function.
+        Array_aset_BANG___float(_113, 9, _124);
+        Array__float* _129 = &m; // ref
+        double* _139 = Vector3_x__double(f);
+        double _140 = Double_copy(_139);
+        double _141 = Double__MINUS_(0.0, _140);
+        float _142 = Double_to_MINUS_float(_141);
+        float _143 = _142; // From the 'the' function.
+        Array_aset_BANG___float(_129, 2, _143);
+        Array__float* _148 = &m; // ref
+        double* _158 = Vector3_y__double(f);
+        double _159 = Double_copy(_158);
+        double _160 = Double__MINUS_(0.0, _159);
+        float _161 = Double_to_MINUS_float(_160);
+        float _162 = _161; // From the 'the' function.
+        Array_aset_BANG___float(_148, 6, _162);
+        Array__float* _167 = &m; // ref
+        double* _177 = Vector3_z__double(f);
+        double _178 = Double_copy(_177);
+        double _179 = Double__MINUS_(0.0, _178);
+        float _180 = Double_to_MINUS_float(_179);
+        float _181 = _180; // From the 'the' function.
+        Array_aset_BANG___float(_167, 10, _181);
+        Array__float* _186 = &m; // ref
+        double _196 = Vector3_dot__double(s, p);
+        double _197 = Double__MINUS_(0.0, _196);
+        float _198 = Double_to_MINUS_float(_197);
+        float _199 = _198; // From the 'the' function.
+        Array_aset_BANG___float(_186, 12, _199);
+        Array__float* _204 = &m; // ref
+        double _214 = Vector3_dot__double(u, p);
+        double _215 = Double__MINUS_(0.0, _214);
+        float _216 = Double_to_MINUS_float(_215);
+        float _217 = _216; // From the 'the' function.
+        Array_aset_BANG___float(_204, 13, _217);
+        Array__float* _222 = &m; // ref
+        double _230 = Vector3_dot__double(f, p);
+        float _231 = Double_to_MINUS_float(_230);
+        float _232 = _231; // From the 'the' function.
+        Array_aset_BANG___float(_222, 14, _232);
+        Array__float* _237 = &m; // ref
+        Array_aset_BANG___float(_237, 15, 1.0f);
+        CameraMat4 _243 = CameraMat4_init(m);
+        CameraMat4 _244 = _243;
+        _245 = _244;
+    }
+    return _245;
+}
+
+void Camera_look_MINUS_at_MINUS_point_BANG_(Camera* c, Vector3__double* target) {
+    /* let */ {
+        Vector3__double* _13 = Camera_pos(c);
+        Vector3__double _14 = Vector3_sub__double(target, _13);
+        Vector3__double* _15 = &_14; // ref
+        Vector3__double _16 = Vector3_normalize__double(_15);
+        Vector3__double dir = _16;
+        Vector3__double* _24 = &dir; // ref
+        double* _25 = Vector3_y__double(_24);
+        double _26 = Double_copy(_25);
+        double _27 = Double_asin(_26);
+        double _28 = Camera_deg(_27);
+        double p = _28;
+        Vector3__double* _36 = &dir; // ref
+        double* _37 = Vector3_z__double(_36);
+        double _38 = Double_copy(_37);
+        Vector3__double* _43 = &dir; // ref
+        double* _44 = Vector3_x__double(_43);
+        double _45 = Double_copy(_44);
+        double _46 = Double_atan2(_38, _45);
+        double _47 = Camera_deg(_46);
+        double y = _47;
+        double _56 = Double_clamp__double(-89.0, 89.0, p);
+        Camera_set_MINUS_pitch_BANG_(c, _56);
+        Camera_set_MINUS_yaw_BANG_(c, y);
+        Camera_update_MINUS_basis_BANG_(c);
+        Vector3_delete__double(_14);
+        Vector3_delete__double(dir);
+    }
+}
+
+void Camera_move_MINUS_forward_BANG_(Camera* c, double dist) {
+    /* let */ {
+        Vector3__double* _9 = Camera_pos(c);
+        Vector3__double* p = _9;
+        Vector3__double* _13 = Camera_front(c);
+        Vector3__double* f = _13;
+        Vector3__double _23 = Vector3_mul__double(f, dist);
+        Vector3__double* _24 = &_23; // ref
+        Vector3__double _25 = Vector3_add__double(p, _24);
+        Camera_set_MINUS_pos_BANG_(c, _25);
+        Vector3_delete__double(_23);
+    }
+}
+
+void Camera_move_MINUS_right_BANG_(Camera* c, double dist) {
+    /* let */ {
+        Vector3__double* _9 = Camera_pos(c);
+        Vector3__double* p = _9;
+        Vector3__double* _13 = Camera_right(c);
+        Vector3__double* r = _13;
+        Vector3__double _23 = Vector3_mul__double(r, dist);
+        Vector3__double* _24 = &_23; // ref
+        Vector3__double _25 = Vector3_add__double(p, _24);
+        Camera_set_MINUS_pos_BANG_(c, _25);
+        Vector3_delete__double(_23);
+    }
+}
+
+void Camera_move_MINUS_up_BANG_(Camera* c, double dist) {
+    /* let */ {
+        Vector3__double* _9 = Camera_pos(c);
+        Vector3__double* p = _9;
+        Vector3__double* _13 = Camera_world_MINUS_up(c);
+        Vector3__double* wu = _13;
+        Vector3__double _23 = Vector3_mul__double(wu, dist);
+        Vector3__double* _24 = &_23; // ref
+        Vector3__double _25 = Vector3_add__double(p, _24);
+        Camera_set_MINUS_pos_BANG_(c, _25);
+        Vector3_delete__double(_23);
+    }
+}
+
+double* Camera_near(Camera* p) { return (&(p->near)); }
+
+Camera Camera_new(Vector3__double pos, double yaw, double pitch, double aspect) {
+    Camera _47;
+    /* let */ {
+        Vector3__double _15 = Vector3_init__double(0.0, 0.0, 0.0);
+        Vector3__double _20 = Vector3_init__double(0.0, 0.0, 0.0);
+        Vector3__double _25 = Vector3_init__double(0.0, 0.0, 0.0);
+        Vector3__double _30 = Vector3_init__double(0.0, 1.0, 0.0);
+        Camera _37 = Camera_init(pos, _15, _20, _25, _30, yaw, pitch, 60.0, aspect, 0.1, 100.0);
+        Camera c = _37;
+        Camera* _43 = &c; // ref
+        Camera_update_MINUS_basis_BANG_(_43);
+        Camera _46 = c;
+        _47 = _46;
+    }
+    return _47;
+}
+
+CameraMat4 Camera_perspective(Camera* c) {
+    CameraMat4 _123;
+    /* let */ {
+        double* _16 = Camera_fov(c);
+        double _17 = Double_copy(_16);
+        double _19 = Double__MUL_(_17, 8.72664625e-3);
+        double _20 = Double_tan(_19);
+        float _21 = Double_to_MINUS_float(_20);
+        float _22 = _21; // From the 'the' function.
+        float _23 = Float__DIV_(1.0f, _22);
+        float f = _23;
+        double* _31 = Camera_aspect(c);
+        double _32 = Double_copy(_31);
+        float _33 = Double_to_MINUS_float(_32);
+        float _34 = _33; // From the 'the' function.
+        float a = _34;
+        double* _42 = Camera_near(c);
+        double _43 = Double_copy(_42);
+        float _44 = Double_to_MINUS_float(_43);
+        float _45 = _44; // From the 'the' function.
+        float n = _45;
+        double* _53 = Camera_far(c);
+        double _54 = Double_copy(_53);
+        float _55 = Double_to_MINUS_float(_54);
+        float _56 = _55; // From the 'the' function.
+        float far = _56;
+        static float _62_lit = 0.0f;
+        float* _62 = &_62_lit; // ref
+        Array__float _63 = Array_replicate__float(16, _62);
+        Array__float m = _63;
+        Array__float* _69 = &m; // ref
+        float _74 = Float__DIV_(f, a);
+        Array_aset_BANG___float(_69, 0, _74);
+        Array__float* _79 = &m; // ref
+        Array_aset_BANG___float(_79, 5, f);
+        Array__float* _86 = &m; // ref
+        float _93 = Float__MINUS_(n, far);
+        float _94 = Float__DIV_(far, _93);
+        Array_aset_BANG___float(_86, 10, _94);
+        Array__float* _99 = &m; // ref
+        Array_aset_BANG___float(_99, 11, -1.0f);
+        Array__float* _106 = &m; // ref
+        float _112 = Float__MUL_(far, n);
+        float _116 = Float__MINUS_(n, far);
+        float _117 = Float__DIV_(_112, _116);
+        Array_aset_BANG___float(_106, 14, _117);
+        CameraMat4 _121 = CameraMat4_init(m);
+        CameraMat4 _122 = _121;
+        _123 = _122;
+    }
+    return _123;
 }
 
 double* Camera_pitch(Camera* p) { return (&(p->pitch)); }
@@ -11599,14 +12572,6 @@ String Camera_prn(Camera *p) {
   size += snprintf(NULL, 0, "%s ", temp);
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
-  temp = Double_prn(p->yaw); 
-  size += snprintf(NULL, 0, "%s ", temp);
-  if(temp) { CARP_FREE(temp); temp = NULL; }
-
-  temp = Double_prn(p->pitch); 
-  size += snprintf(NULL, 0, "%s ", temp);
-  if(temp) { CARP_FREE(temp); temp = NULL; }
-
   temp = Vector3_prn__double(&p->front); 
   size += snprintf(NULL, 0, "%s ", temp);
   if(temp) { CARP_FREE(temp); temp = NULL; }
@@ -11619,22 +12584,40 @@ String Camera_prn(Camera *p) {
   size += snprintf(NULL, 0, "%s ", temp);
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
+  temp = Vector3_prn__double(&p->world_MINUS_up); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->yaw); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->pitch); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->fov); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->aspect); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->near); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->far); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
 
   String buffer = CARP_MALLOC(size);
   String bufferPtr = buffer;
 
   bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Camera");
   temp = Vector3_prn__double(&p->pos);
-  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
-  bufferPtr += tempsize;
-  if(temp) { CARP_FREE(temp); temp = NULL; }
-
-  temp = Double_prn(p->yaw);
-  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
-  bufferPtr += tempsize;
-  if(temp) { CARP_FREE(temp); temp = NULL; }
-
-  temp = Double_prn(p->pitch);
   tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
   bufferPtr += tempsize;
   if(temp) { CARP_FREE(temp); temp = NULL; }
@@ -11654,12 +12637,104 @@ String Camera_prn(Camera *p) {
   bufferPtr += tempsize;
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
+  temp = Vector3_prn__double(&p->world_MINUS_up);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->yaw);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->pitch);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->fov);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->aspect);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->near);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->far);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
   bufferPtr--;
   snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
   return buffer;
 }
 
+double Camera_rad(double deg) {
+    double _7 = Double__MUL_(deg, 1.74532925e-2);
+    return _7;
+}
+
 Vector3__double* Camera_right(Camera* p) { return (&(p->right)); }
+
+void Camera_rotate_BANG_(Camera* c, double dyaw, double dpitch) {
+    double* _13 = Camera_yaw(c);
+    double _14 = Double_copy(_13);
+    double _16 = Double__PLUS_(_14, dyaw);
+    Camera_set_MINUS_yaw_BANG_(c, _16);
+    double* _27 = Camera_pitch(c);
+    double _28 = Double_copy(_27);
+    double _30 = Double__PLUS_(_28, dpitch);
+    double _31 = Double_clamp__double(-89.0, 89.0, _30);
+    Camera_set_MINUS_pitch_BANG_(c, _31);
+    Camera_update_MINUS_basis_BANG_(c);
+}
+
+Camera Camera_set_MINUS_aspect(Camera p, double newValue) {
+    /* Ignore non-managed member 'aspect' : Double */
+    p.aspect = newValue;
+    return p;
+}
+
+
+void Camera_set_MINUS_aspect_BANG_(Camera* pRef, double newValue) {
+    /* Ignore non-managed member 'aspect' : Double */
+    pRef->aspect = newValue;
+}
+
+
+Camera Camera_set_MINUS_far(Camera p, double newValue) {
+    /* Ignore non-managed member 'far' : Double */
+    p.far = newValue;
+    return p;
+}
+
+
+void Camera_set_MINUS_far_BANG_(Camera* pRef, double newValue) {
+    /* Ignore non-managed member 'far' : Double */
+    pRef->far = newValue;
+}
+
+
+Camera Camera_set_MINUS_fov(Camera p, double newValue) {
+    /* Ignore non-managed member 'fov' : Double */
+    p.fov = newValue;
+    return p;
+}
+
+
+void Camera_set_MINUS_fov_BANG_(Camera* pRef, double newValue) {
+    /* Ignore non-managed member 'fov' : Double */
+    pRef->fov = newValue;
+}
+
 
 Camera Camera_set_MINUS_front(Camera p, Vector3__double newValue) {
     Vector3_delete__double(p.front);
@@ -11671,6 +12746,19 @@ Camera Camera_set_MINUS_front(Camera p, Vector3__double newValue) {
 void Camera_set_MINUS_front_BANG_(Camera* pRef, Vector3__double newValue) {
     Vector3_delete__double(pRef->front);
     pRef->front = newValue;
+}
+
+
+Camera Camera_set_MINUS_near(Camera p, double newValue) {
+    /* Ignore non-managed member 'near' : Double */
+    p.near = newValue;
+    return p;
+}
+
+
+void Camera_set_MINUS_near_BANG_(Camera* pRef, double newValue) {
+    /* Ignore non-managed member 'near' : Double */
+    pRef->near = newValue;
 }
 
 
@@ -11726,6 +12814,19 @@ void Camera_set_MINUS_up_BANG_(Camera* pRef, Vector3__double newValue) {
 }
 
 
+Camera Camera_set_MINUS_world_MINUS_up(Camera p, Vector3__double newValue) {
+    Vector3_delete__double(p.world_MINUS_up);
+    p.world_MINUS_up = newValue;
+    return p;
+}
+
+
+void Camera_set_MINUS_world_MINUS_up_BANG_(Camera* pRef, Vector3__double newValue) {
+    Vector3_delete__double(pRef->world_MINUS_up);
+    pRef->world_MINUS_up = newValue;
+}
+
+
 Camera Camera_set_MINUS_yaw(Camera p, double newValue) {
     /* Ignore non-managed member 'yaw' : Double */
     p.yaw = newValue;
@@ -11749,14 +12850,6 @@ String Camera_str(Camera *p) {
   size += snprintf(NULL, 0, "%s ", temp);
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
-  temp = Double_prn(p->yaw); 
-  size += snprintf(NULL, 0, "%s ", temp);
-  if(temp) { CARP_FREE(temp); temp = NULL; }
-
-  temp = Double_prn(p->pitch); 
-  size += snprintf(NULL, 0, "%s ", temp);
-  if(temp) { CARP_FREE(temp); temp = NULL; }
-
   temp = Vector3_prn__double(&p->front); 
   size += snprintf(NULL, 0, "%s ", temp);
   if(temp) { CARP_FREE(temp); temp = NULL; }
@@ -11769,22 +12862,40 @@ String Camera_str(Camera *p) {
   size += snprintf(NULL, 0, "%s ", temp);
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
+  temp = Vector3_prn__double(&p->world_MINUS_up); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->yaw); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->pitch); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->fov); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->aspect); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->near); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->far); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
 
   String buffer = CARP_MALLOC(size);
   String bufferPtr = buffer;
 
   bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Camera");
   temp = Vector3_prn__double(&p->pos);
-  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
-  bufferPtr += tempsize;
-  if(temp) { CARP_FREE(temp); temp = NULL; }
-
-  temp = Double_prn(p->yaw);
-  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
-  bufferPtr += tempsize;
-  if(temp) { CARP_FREE(temp); temp = NULL; }
-
-  temp = Double_prn(p->pitch);
   tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
   bufferPtr += tempsize;
   if(temp) { CARP_FREE(temp); temp = NULL; }
@@ -11804,12 +12915,107 @@ String Camera_str(Camera *p) {
   bufferPtr += tempsize;
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
+  temp = Vector3_prn__double(&p->world_MINUS_up);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->yaw);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->pitch);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->fov);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->aspect);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->near);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->far);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
   bufferPtr--;
   snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
   return buffer;
 }
 
 Vector3__double* Camera_up(Camera* p) { return (&(p->up)); }
+
+Camera Camera_update_MINUS_aspect(Camera p, Lambda *updater) {
+    p.aspect = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.aspect) : ((Fn__double_double)(*updater).callback)(p.aspect);
+    return p;
+}
+
+
+void Camera_update_MINUS_basis_BANG_(Camera* c) {
+    /* let */ {
+        double* _10 = Camera_yaw(c);
+        double _11 = Double_copy(_10);
+        double _12 = Camera_rad(_11);
+        double y = _12;
+        double* _18 = Camera_pitch(c);
+        double _19 = Double_copy(_18);
+        double _20 = Camera_rad(_19);
+        double p = _20;
+        double _28 = Double_cos(y);
+        double _31 = Double_cos(p);
+        double _32 = Double__MUL_(_28, _31);
+        double _35 = Double_sin(p);
+        double _39 = Double_sin(y);
+        double _42 = Double_cos(p);
+        double _43 = Double__MUL_(_39, _42);
+        Vector3__double _44 = Vector3_init__double(_32, _35, _43);
+        Vector3__double* _45 = &_44; // ref
+        Vector3__double _46 = Vector3_normalize__double(_45);
+        Vector3__double f = _46;
+        Vector3__double* _53 = &f; // ref
+        Vector3__double* _56 = Camera_world_MINUS_up(c);
+        Vector3__double _57 = Vector3_cross__double(_53, _56);
+        Vector3__double* _58 = &_57; // ref
+        Vector3__double _59 = Vector3_normalize__double(_58);
+        Vector3__double r = _59;
+        Vector3__double* _66 = &r; // ref
+        Vector3__double* _69 = &f; // ref
+        Vector3__double _70 = Vector3_cross__double(_66, _69);
+        Vector3__double* _71 = &_70; // ref
+        Vector3__double _72 = Vector3_normalize__double(_71);
+        Vector3__double u = _72;
+        Camera_set_MINUS_front_BANG_(c, f);
+        Camera_set_MINUS_right_BANG_(c, r);
+        Camera_set_MINUS_up_BANG_(c, u);
+        Vector3_delete__double(_44);
+        Vector3_delete__double(_57);
+        Vector3_delete__double(_70);
+    }
+}
+
+Camera Camera_update_MINUS_far(Camera p, Lambda *updater) {
+    p.far = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.far) : ((Fn__double_double)(*updater).callback)(p.far);
+    return p;
+}
+
+
+Camera Camera_update_MINUS_fov(Camera p, Lambda *updater) {
+    p.fov = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.fov) : ((Fn__double_double)(*updater).callback)(p.fov);
+    return p;
+}
+
 
 Camera Camera_update_MINUS_front(Camera p, Lambda *updater) {
     p.front = (*updater).env ? ((Fn__LambdaEnv_Vector3__double_Vector3__double)(*updater).callback)((*updater).env, p.front) : ((Fn__Vector3__double_Vector3__double)(*updater).callback)(p.front);
@@ -11821,100 +13027,51 @@ void Camera_update_MINUS_input(GLFWwindow* win, Camera* cam, double dt) {
     /* let */ {
         double _11 = Double__MUL_(25.0, dt);
         double speed = _11;
-        Vector3__double* _16 = Camera_front(cam);
-        Vector3__double _17 = Vector3_copy__double(_16);
-        Vector3__double front = _17;
-        Vector3__double* _22 = Camera_right(cam);
-        Vector3__double _23 = Vector3_copy__double(_22);
-        Vector3__double right = _23;
-        Vector3__double* _28 = Camera_up(cam);
-        Vector3__double _29 = Vector3_copy__double(_28);
-        Vector3__double up = _29;
-        Vector3__double* _34 = Camera_pos(cam);
-        Vector3__double _35 = Vector3_copy__double(_34);
-        Vector3__double pos = _35;
-        int _43 = glfwGetKey(win, GLFW_KEY_W);
-        bool _45 = Int__EQ_(_43, GLFW_PRESS);
-        if (_45) {
-            Vector3__double* _52 = &pos; // ref
-            Vector3__double* _57 = &front; // ref
-            Vector3__double _59 = Vector3_mul__double(_57, speed);
-            Vector3__double* _60 = &_59; // ref
-            Vector3__double _61 = Vector3_add__double(_52, _60);
-            Camera_set_MINUS_pos_BANG_(cam, _61);
-            Vector3_delete__double(_59);
+        int _19 = glfwGetKey(win, GLFW_KEY_W);
+        bool _21 = Int__EQ_(_19, GLFW_PRESS);
+        if (_21) {
+            Camera_move_MINUS_forward_BANG_(cam, speed);
         } else {
             /* () */
         }
-        int _73 = glfwGetKey(win, GLFW_KEY_S);
-        bool _75 = Int__EQ_(_73, GLFW_PRESS);
-        if (_75) {
-            Vector3__double* _82 = &pos; // ref
-            Vector3__double* _87 = &front; // ref
-            Vector3__double _89 = Vector3_mul__double(_87, speed);
-            Vector3__double* _90 = &_89; // ref
-            Vector3__double _91 = Vector3_sub__double(_82, _90);
-            Camera_set_MINUS_pos_BANG_(cam, _91);
-            Vector3_delete__double(_89);
+        int _37 = glfwGetKey(win, GLFW_KEY_S);
+        bool _39 = Int__EQ_(_37, GLFW_PRESS);
+        if (_39) {
+            double _46 = Double__MINUS_(0.0, speed);
+            Camera_move_MINUS_forward_BANG_(cam, _46);
         } else {
             /* () */
         }
-        int _103 = glfwGetKey(win, GLFW_KEY_A);
-        bool _105 = Int__EQ_(_103, GLFW_PRESS);
-        if (_105) {
-            Vector3__double* _112 = &pos; // ref
-            Vector3__double* _117 = &right; // ref
-            Vector3__double _119 = Vector3_mul__double(_117, speed);
-            Vector3__double* _120 = &_119; // ref
-            Vector3__double _121 = Vector3_sub__double(_112, _120);
-            Camera_set_MINUS_pos_BANG_(cam, _121);
-            Vector3_delete__double(_119);
+        int _58 = glfwGetKey(win, GLFW_KEY_A);
+        bool _60 = Int__EQ_(_58, GLFW_PRESS);
+        if (_60) {
+            double _67 = Double__MINUS_(0.0, speed);
+            Camera_move_MINUS_right_BANG_(cam, _67);
         } else {
             /* () */
         }
-        int _133 = glfwGetKey(win, GLFW_KEY_D);
-        bool _135 = Int__EQ_(_133, GLFW_PRESS);
-        if (_135) {
-            Vector3__double* _142 = &pos; // ref
-            Vector3__double* _147 = &right; // ref
-            Vector3__double _149 = Vector3_mul__double(_147, speed);
-            Vector3__double* _150 = &_149; // ref
-            Vector3__double _151 = Vector3_add__double(_142, _150);
-            Camera_set_MINUS_pos_BANG_(cam, _151);
-            Vector3_delete__double(_149);
+        int _79 = glfwGetKey(win, GLFW_KEY_D);
+        bool _81 = Int__EQ_(_79, GLFW_PRESS);
+        if (_81) {
+            Camera_move_MINUS_right_BANG_(cam, speed);
         } else {
             /* () */
         }
-        int _163 = glfwGetKey(win, GLFW_KEY_E);
-        bool _165 = Int__EQ_(_163, GLFW_PRESS);
-        if (_165) {
-            Vector3__double* _172 = &pos; // ref
-            Vector3__double* _177 = &up; // ref
-            Vector3__double _179 = Vector3_mul__double(_177, speed);
-            Vector3__double* _180 = &_179; // ref
-            Vector3__double _181 = Vector3_add__double(_172, _180);
-            Camera_set_MINUS_pos_BANG_(cam, _181);
-            Vector3_delete__double(_179);
+        int _97 = glfwGetKey(win, GLFW_KEY_E);
+        bool _99 = Int__EQ_(_97, GLFW_PRESS);
+        if (_99) {
+            Camera_move_MINUS_up_BANG_(cam, speed);
         } else {
             /* () */
         }
-        int _193 = glfwGetKey(win, GLFW_KEY_Q);
-        bool _195 = Int__EQ_(_193, GLFW_PRESS);
-        if (_195) {
-            Vector3__double* _202 = &pos; // ref
-            Vector3__double* _207 = &up; // ref
-            Vector3__double _209 = Vector3_mul__double(_207, speed);
-            Vector3__double* _210 = &_209; // ref
-            Vector3__double _211 = Vector3_sub__double(_202, _210);
-            Camera_set_MINUS_pos_BANG_(cam, _211);
-            Vector3_delete__double(_209);
+        int _115 = glfwGetKey(win, GLFW_KEY_Q);
+        bool _117 = Int__EQ_(_115, GLFW_PRESS);
+        if (_117) {
+            double _124 = Double__MINUS_(0.0, speed);
+            Camera_move_MINUS_up_BANG_(cam, _124);
         } else {
             /* () */
         }
-        Vector3_delete__double(front);
-        Vector3_delete__double(pos);
-        Vector3_delete__double(right);
-        Vector3_delete__double(up);
     }
 }
 
@@ -11953,40 +13110,30 @@ void Camera_update_MINUS_look(GLFWwindow* win, Camera* cam, bool* first_MINUS_mo
                 double pitch = _87;
                 Pointer_set__double(last_MINUS_x_MINUS_ptr, xpos);
                 Pointer_set__double(last_MINUS_y_MINUS_ptr, ypos);
-                /* let */ {
-                    double _122;
-                    bool _104 = Double__GT_(pitch, 89.0);
-                    if (_104) {
-                        double _107 = 89.0;
-                        _122 = _107;
-                    } else {
-                        double _120;
-                        bool _113 = Double__LT_(pitch, -89.0);
-                        if (_113) {
-                            double _116 = -89.0;
-                            _120 = _116;
-                        } else {
-                            double _119 = pitch;
-                            _120 = _119;
-                        }
-                        double _121 = _120;
-                        _122 = _121;
-                    }
-                    double clamped_MINUS_pitch = _122;
-                    Camera_set_MINUS_yaw_BANG_(cam, yaw);
-                    Camera_set_MINUS_pitch_BANG_(cam, clamped_MINUS_pitch);
-                    Camera_update_MINUS_vectors(cam);
-                }
+                Camera_update_MINUS_yaw_BANG_(cam, yaw);
+                Camera_update_MINUS_pitch_BANG_(cam, pitch);
             }
         }
     }
 }
+
+Camera Camera_update_MINUS_near(Camera p, Lambda *updater) {
+    p.near = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.near) : ((Fn__double_double)(*updater).callback)(p.near);
+    return p;
+}
+
 
 Camera Camera_update_MINUS_pitch(Camera p, Lambda *updater) {
     p.pitch = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.pitch) : ((Fn__double_double)(*updater).callback)(p.pitch);
     return p;
 }
 
+
+void Camera_update_MINUS_pitch_BANG_(Camera* c, double val) {
+    double _12 = Double_clamp__double(-89.0, 89.0, val);
+    Camera_set_MINUS_pitch_BANG_(c, _12);
+    Camera_update_MINUS_basis_BANG_(c);
+}
 
 Camera Camera_update_MINUS_pos(Camera p, Lambda *updater) {
     p.pos = (*updater).env ? ((Fn__LambdaEnv_Vector3__double_Vector3__double)(*updater).callback)((*updater).env, p.pos) : ((Fn__Vector3__double_Vector3__double)(*updater).callback)(p.pos);
@@ -12006,57 +13153,11 @@ Camera Camera_update_MINUS_up(Camera p, Lambda *updater) {
 }
 
 
-void Camera_update_MINUS_vectors(Camera* cam) {
-    /* let */ {
-        double* _9 = Camera_yaw(cam);
-        double _10 = Double_copy(_9);
-        double yaw = _10;
-        double* _15 = Camera_pitch(cam);
-        double _16 = Double_copy(_15);
-        double pitch = _16;
-        double _23 = Double__DIV_(Double_pi, 180.0);
-        double _24 = Double__MUL_(yaw, _23);
-        double rad_MINUS_yaw = _24;
-        double _31 = Double__DIV_(Double_pi, 180.0);
-        double _32 = Double__MUL_(pitch, _31);
-        double rad_MINUS_pitch = _32;
-        double _37 = Double_cos(rad_MINUS_pitch);
-        double _40 = Double_cos(rad_MINUS_yaw);
-        double _41 = Double__MUL_(_37, _40);
-        double front_MINUS_x = _41;
-        double _45 = Double_sin(rad_MINUS_pitch);
-        double front_MINUS_y = _45;
-        double _50 = Double_cos(rad_MINUS_pitch);
-        double _53 = Double_sin(rad_MINUS_yaw);
-        double _54 = Double__MUL_(_50, _53);
-        double front_MINUS_z = _54;
-        Vector3__double _62 = Vector3_init__double(front_MINUS_x, front_MINUS_y, front_MINUS_z);
-        Vector3__double* _63 = &_62; // ref
-        Vector3__double _64 = Vector3_normalize__double(_63);
-        Vector3__double front = _64;
-        Vector3__double _70 = Vector3_init__double(0.0, 1.0, 0.0);
-        Vector3__double world_MINUS_up = _70;
-        Vector3__double* _77 = &front; // ref
-        Vector3__double* _80 = &world_MINUS_up; // ref
-        Vector3__double _81 = Vector3_cross__double(_77, _80);
-        Vector3__double* _82 = &_81; // ref
-        Vector3__double _83 = Vector3_normalize__double(_82);
-        Vector3__double right = _83;
-        Vector3__double* _90 = &right; // ref
-        Vector3__double* _93 = &front; // ref
-        Vector3__double _94 = Vector3_cross__double(_90, _93);
-        Vector3__double* _95 = &_94; // ref
-        Vector3__double _96 = Vector3_normalize__double(_95);
-        Vector3__double up = _96;
-        Camera_set_MINUS_front_BANG_(cam, front);
-        Camera_set_MINUS_right_BANG_(cam, right);
-        Camera_set_MINUS_up_BANG_(cam, up);
-        Vector3_delete__double(_62);
-        Vector3_delete__double(_81);
-        Vector3_delete__double(_94);
-        Vector3_delete__double(world_MINUS_up);
-    }
+Camera Camera_update_MINUS_world_MINUS_up(Camera p, Lambda *updater) {
+    p.world_MINUS_up = (*updater).env ? ((Fn__LambdaEnv_Vector3__double_Vector3__double)(*updater).callback)((*updater).env, p.world_MINUS_up) : ((Fn__Vector3__double_Vector3__double)(*updater).callback)(p.world_MINUS_up);
+    return p;
 }
+
 
 Camera Camera_update_MINUS_yaw(Camera p, Lambda *updater) {
     p.yaw = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.yaw) : ((Fn__double_double)(*updater).callback)(p.yaw);
@@ -12064,7 +13165,211 @@ Camera Camera_update_MINUS_yaw(Camera p, Lambda *updater) {
 }
 
 
+void Camera_update_MINUS_yaw_BANG_(Camera* c, double val) {
+    Camera_set_MINUS_yaw_BANG_(c, val);
+    Camera_update_MINUS_basis_BANG_(c);
+}
+
+CameraMat4 Camera_view_MINUS_projection(Camera* c) {
+    CameraMat4 _8 = Camera_perspective(c);
+    CameraMat4* _9 = &_8; // ref
+    CameraMat4 _13 = Camera_look_MINUS_at(c);
+    CameraMat4* _14 = &_13; // ref
+    CameraMat4 _15 = CameraMat4_mul(_9, _14);
+    CameraMat4_delete(_13);
+    CameraMat4_delete(_8);
+    return _15;
+}
+
+Vector3__double* Camera_world_MINUS_up(Camera* p) { return (&(p->world_MINUS_up)); }
+
 double* Camera_yaw(Camera* p) { return (&(p->yaw)); }
+
+CameraMat4 CameraMat4_copy(CameraMat4* pRef) {
+    CameraMat4 copy = *pRef;
+    copy.data = Array_copy__float(&(pRef->data));
+    return copy;
+}
+
+Array__float* CameraMat4_data(CameraMat4* p) { return (&(p->data)); }
+
+void CameraMat4_delete(CameraMat4 p) {
+    Array_delete__float(p.data);
+}
+
+CameraMat4 CameraMat4_identity() {
+    CameraMat4 _45;
+    /* let */ {
+        static float _9_lit = 0.0f;
+        float* _9 = &_9_lit; // ref
+        Array__float _10 = Array_replicate__float(16, _9);
+        Array__float m = _10;
+        Array__float* _16 = &m; // ref
+        Array_aset_BANG___float(_16, 0, 1.0f);
+        Array__float* _23 = &m; // ref
+        Array_aset_BANG___float(_23, 5, 1.0f);
+        Array__float* _30 = &m; // ref
+        Array_aset_BANG___float(_30, 10, 1.0f);
+        Array__float* _37 = &m; // ref
+        Array_aset_BANG___float(_37, 15, 1.0f);
+        CameraMat4 _43 = CameraMat4_init(m);
+        CameraMat4 _44 = _43;
+        _45 = _44;
+    }
+    return _45;
+}
+
+CameraMat4 CameraMat4_init(Array__float data) {
+    CameraMat4 instance;
+    instance.data = data;
+    return instance;
+}
+
+CameraMat4 CameraMat4_mul(CameraMat4* a, CameraMat4* b) {
+    CameraMat4 _139;
+    /* let */ {
+        Array__float* _9 = CameraMat4_data(a);
+        Array__float* m1 = _9;
+        Array__float* _13 = CameraMat4_data(b);
+        Array__float* m2 = _13;
+        static float _19_lit = 0.0f;
+        float* _19 = &_19_lit; // ref
+        Array__float _20 = Array_replicate__float(16, _19);
+        Array__float res = _20;
+        /* let */ {
+            int col = 0;
+            bool _1000008 = Int__LT_(col, 4);
+            bool _1000006 = _1000008;
+            while (_1000006) {
+                /* let */ {
+                    int row = 0;
+                    bool _1000015 = Int__LT_(row, 4);
+                    bool _1000013 = _1000015;
+                    while (_1000013) {
+                        /* let */ {
+                            float sum = 0.0f;
+                            /* let */ {
+                                int k = 0;
+                                bool _1000024 = Int__LT_(k, 4);
+                                bool _1000022 = _1000024;
+                                while (_1000022) {
+                                    int _70 = Int__MUL_(k, 4);
+                                    int _72 = Int__PLUS_(_70, row);
+                                    float* _73 = Array_unsafe_MINUS_nth__float(m1, _72);
+                                    float _74 = Float_copy(_73);
+                                    int _82 = Int__MUL_(col, 4);
+                                    int _84 = Int__PLUS_(_82, k);
+                                    float* _85 = Array_unsafe_MINUS_nth__float(m2, _84);
+                                    float _86 = Float_copy(_85);
+                                    float _87 = Float__MUL_(_74, _86);
+                                    float _88 = Float__PLUS_(sum, _87);
+                                    sum = _88;  // Float = Float
+                                    int _1000030 = Int__PLUS_(k, 1);
+                                    k = _1000030;  // Int = Int
+                                    bool _1000024 = Int__LT_(k, 4);
+                                    _1000022 = _1000024;
+                                }
+                            }
+                            Array__float* _103 = &res; // ref
+                            int _108 = Int__MUL_(col, 4);
+                            int _110 = Int__PLUS_(_108, row);
+                            Array_aset_BANG___float(_103, _110, sum);
+                        }
+                        int _1000033 = Int__PLUS_(row, 1);
+                        row = _1000033;  // Int = Int
+                        bool _1000015 = Int__LT_(row, 4);
+                        _1000013 = _1000015;
+                    }
+                }
+                int _1000036 = Int__PLUS_(col, 1);
+                col = _1000036;  // Int = Int
+                bool _1000008 = Int__LT_(col, 4);
+                _1000006 = _1000008;
+            }
+        }
+        CameraMat4 _137 = CameraMat4_init(res);
+        CameraMat4 _138 = _137;
+        _139 = _138;
+    }
+    return _139;
+}
+
+String CameraMat4_prn(CameraMat4 *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "CameraMat4");
+  temp = Array_prn__float(&p->data); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "CameraMat4");
+  temp = Array_prn__float(&p->data);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+CameraMat4 CameraMat4_set_MINUS_data(CameraMat4 p, Array__float newValue) {
+    Array_delete__float(p.data);
+    p.data = newValue;
+    return p;
+}
+
+
+void CameraMat4_set_MINUS_data_BANG_(CameraMat4* pRef, Array__float newValue) {
+    Array_delete__float(pRef->data);
+    pRef->data = newValue;
+}
+
+
+String CameraMat4_str(CameraMat4 *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "CameraMat4");
+  temp = Array_prn__float(&p->data); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "CameraMat4");
+  temp = Array_prn__float(&p->data);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+CameraMat4 CameraMat4_update_MINUS_data(CameraMat4 p, Lambda *updater) {
+    p.data = (*updater).env ? ((Fn__LambdaEnv_Array__float_Array__float)(*updater).callback)((*updater).env, p.data) : ((Fn__Array__float_Array__float)(*updater).callback)(p.data);
+    return p;
+}
+
+
+CameraMat4 CameraMat4_zero() {
+    static float _8_lit = 0.0f;
+    float* _8 = &_8_lit; // ref
+    Array__float _9 = Array_replicate__float(16, _8);
+    CameraMat4 _10 = CameraMat4_init(_9);
+    return _10;
+}
 
 bool Char_alpha_QMARK_(Char c) {
     bool _16;
@@ -13640,6 +14945,28 @@ double Double_blit(double x) {
     return _7;
 }
 
+double Double_clamp__double(double min, double max, double val) {
+    double _28;
+    bool _10 = Double__GT_(val, max);
+    if (_10) {
+        double _13 = max;
+        _28 = _13;
+    } else {
+        double _26;
+        bool _19 = Double__LT_(val, min);
+        if (_19) {
+            double _22 = min;
+            _26 = _22;
+        } else {
+            double _25 = val;
+            _26 = _25;
+        }
+        double _27 = _26;
+        _28 = _27;
+    }
+    return _28;
+}
+
 double Double_dec(double x) {
     double _7 = Double__MINUS_(x, 1.0);
     return _7;
@@ -14410,7 +15737,7 @@ EngineState EngineState_copy(EngineState* pRef) {
 
 Result__EngineState_String EngineState_create(String* title, int width, int height) {
     Result__Engine_String _11 = Engine_create(title, width, height);
-    Result__EngineState_String _134;
+    Result__EngineState_String _137;
     if(_11._tag == Result__Engine_String_Error_tag) {
         Result__Engine_String _11_temp = _11;
         String e = _11_temp.u.Error.member0;
@@ -14425,7 +15752,7 @@ Result__EngineState_String EngineState_create(String* title, int width, int heig
         String* _1000004 = &_1000005; // ref
         String _1000003 = String_copy(_1000004);
         Result__EngineState_String _32 = Result_Error__String_EngineState(_1000003);
-        _134 = _32;
+        _137 = _32;
         String_delete(_1000005);
         String_delete(_1000007);
         String_delete(_1000009);
@@ -14436,7 +15763,7 @@ Result__EngineState_String EngineState_create(String* title, int width, int heig
         // Case expr:
         Engine* _40 = &platform_MINUS_eng; // ref
         Result__Renderer_String _41 = Renderer_create(_40);
-        Result__EngineState_String _133;
+        Result__EngineState_String _136;
         if(_41._tag == Result__Renderer_String_Error_tag) {
             Result__Renderer_String _41_temp = _41;
             String e = _41_temp.u.Error.member0;
@@ -14453,7 +15780,7 @@ Result__EngineState_String EngineState_create(String* title, int width, int heig
             String _1000012 = String_copy(_1000013);
             Result__EngineState_String _66 = Result_Error__String_EngineState(_1000012);
             Result__EngineState_String _67 = _66;
-            _133 = _67;
+            _136 = _67;
             String_delete(_1000014);
             String_delete(_1000016);
             String_delete(_1000018);
@@ -14462,42 +15789,42 @@ Result__EngineState_String EngineState_create(String* title, int width, int heig
             Result__Renderer_String _41_temp = _41;
             Renderer ren = _41_temp.u.Success.member0;
             // Case expr:
-            Result__EngineState_String _132;
+            Result__EngineState_String _135;
             /* let */ {
                 World _74 = World_create();
                 World world = _74;
                 Vector3__double _81 = Vector3_init__double(16.0, 16.0, -20.0);
-                Camera _82 = Camera_create(_81);
-                Camera cam = _82;
-                Array__float _86 = Array_allocate__float(20);
-                Array__float uniforms = _86;
-                static String _90 = "diagnostics.log";
-                String *_90_ref = &_90;
-                String _91 = String_copy(_90_ref);
-                Diagnostics _92 = Diagnostics_new(_91);
-                Diagnostics diag = _92;
-                World* _98 = &world; // ref
-                Array__Chunk* _99 = World_chunks(_98);
-                Chunk* _101 = Array_unsafe_MINUS_nth__Chunk(_99, 0);
-                Chunk* first_MINUS_chunk = _101;
-                Engine* _107 = &platform_MINUS_eng; // ref
-                Renderer* _110 = &ren; // ref
-                Array__float* _113 = Chunk_voxel_MINUS_data(first_MINUS_chunk);
-                Renderer_update_MINUS_texture(_107, _110, _113);
-                Camera* _118 = &cam; // ref
-                Camera_update_MINUS_vectors(_118);
-                EngineState _129 = EngineState_init(platform_MINUS_eng, ren, world, cam, uniforms, diag, 0);
-                Result__EngineState_String _130 = Result_Success__EngineState_String(_129);
-                Result__EngineState_String _131 = _130;
-                _132 = _131;
+                Camera _85 = Camera_new(_81, -90.0, 0.0, 1.7777777777777777);
+                Camera cam = _85;
+                Array__float _89 = Array_allocate__float(20);
+                Array__float uniforms = _89;
+                static String _93 = "diagnostics.log";
+                String *_93_ref = &_93;
+                String _94 = String_copy(_93_ref);
+                Diagnostics _95 = Diagnostics_new(_94);
+                Diagnostics diag = _95;
+                World* _101 = &world; // ref
+                Array__Chunk* _102 = World_chunks(_101);
+                Chunk* _104 = Array_unsafe_MINUS_nth__Chunk(_102, 0);
+                Chunk* first_MINUS_chunk = _104;
+                Engine* _110 = &platform_MINUS_eng; // ref
+                Renderer* _113 = &ren; // ref
+                Array__float* _116 = Chunk_voxel_MINUS_data(first_MINUS_chunk);
+                Renderer_update_MINUS_texture(_110, _113, _116);
+                Camera* _121 = &cam; // ref
+                Camera_update_MINUS_basis_BANG_(_121);
+                EngineState _132 = EngineState_init(platform_MINUS_eng, ren, world, cam, uniforms, diag, 0);
+                Result__EngineState_String _133 = Result_Success__EngineState_String(_132);
+                Result__EngineState_String _134 = _133;
+                _135 = _134;
             }
-            _133 = _132;
+            _136 = _135;
         }
         else UNHANDLED("engine.carp", 22);
-        _134 = _133;
+        _137 = _136;
     }
     else UNHANDLED("engine.carp", 19);
-    return _134;
+    return _137;
 }
 
 void EngineState_delete(EngineState p) {
@@ -14511,6 +15838,71 @@ void EngineState_delete(EngineState p) {
 }
 
 Diagnostics* EngineState_diag(EngineState* p) { return (&(p->diag)); }
+
+void EngineState_draw_MINUS_bounds_MINUS_wireframe_BANG_(Renderer* ren, double min_MINUS_x, double min_MINUS_y, double min_MINUS_z, double max_MINUS_x, double max_MINUS_y, double max_MINUS_z, Vector3__double* color) {
+    /* let */ {
+        Vector3__double _17 = Vector3_init__double(min_MINUS_x, min_MINUS_y, min_MINUS_z);
+        Vector3__double w0 = _17;
+        Vector3__double _23 = Vector3_init__double(max_MINUS_x, min_MINUS_y, min_MINUS_z);
+        Vector3__double w1 = _23;
+        Vector3__double _29 = Vector3_init__double(max_MINUS_x, max_MINUS_y, min_MINUS_z);
+        Vector3__double w2 = _29;
+        Vector3__double _35 = Vector3_init__double(min_MINUS_x, max_MINUS_y, min_MINUS_z);
+        Vector3__double w3 = _35;
+        Vector3__double _41 = Vector3_init__double(min_MINUS_x, min_MINUS_y, max_MINUS_z);
+        Vector3__double w4 = _41;
+        Vector3__double _47 = Vector3_init__double(max_MINUS_x, min_MINUS_y, max_MINUS_z);
+        Vector3__double w5 = _47;
+        Vector3__double _53 = Vector3_init__double(max_MINUS_x, max_MINUS_y, max_MINUS_z);
+        Vector3__double w6 = _53;
+        Vector3__double _59 = Vector3_init__double(min_MINUS_x, max_MINUS_y, max_MINUS_z);
+        Vector3__double w7 = _59;
+        Vector3__double* _66 = &w0; // ref
+        Vector3__double* _69 = &w1; // ref
+        Renderer_draw_MINUS_line_BANG_(ren, _66, _69, color);
+        Vector3__double* _76 = &w1; // ref
+        Vector3__double* _79 = &w2; // ref
+        Renderer_draw_MINUS_line_BANG_(ren, _76, _79, color);
+        Vector3__double* _86 = &w2; // ref
+        Vector3__double* _89 = &w3; // ref
+        Renderer_draw_MINUS_line_BANG_(ren, _86, _89, color);
+        Vector3__double* _96 = &w3; // ref
+        Vector3__double* _99 = &w0; // ref
+        Renderer_draw_MINUS_line_BANG_(ren, _96, _99, color);
+        Vector3__double* _106 = &w4; // ref
+        Vector3__double* _109 = &w5; // ref
+        Renderer_draw_MINUS_line_BANG_(ren, _106, _109, color);
+        Vector3__double* _116 = &w5; // ref
+        Vector3__double* _119 = &w6; // ref
+        Renderer_draw_MINUS_line_BANG_(ren, _116, _119, color);
+        Vector3__double* _126 = &w6; // ref
+        Vector3__double* _129 = &w7; // ref
+        Renderer_draw_MINUS_line_BANG_(ren, _126, _129, color);
+        Vector3__double* _136 = &w7; // ref
+        Vector3__double* _139 = &w4; // ref
+        Renderer_draw_MINUS_line_BANG_(ren, _136, _139, color);
+        Vector3__double* _146 = &w0; // ref
+        Vector3__double* _149 = &w4; // ref
+        Renderer_draw_MINUS_line_BANG_(ren, _146, _149, color);
+        Vector3__double* _156 = &w1; // ref
+        Vector3__double* _159 = &w5; // ref
+        Renderer_draw_MINUS_line_BANG_(ren, _156, _159, color);
+        Vector3__double* _166 = &w2; // ref
+        Vector3__double* _169 = &w6; // ref
+        Renderer_draw_MINUS_line_BANG_(ren, _166, _169, color);
+        Vector3__double* _176 = &w3; // ref
+        Vector3__double* _179 = &w7; // ref
+        Renderer_draw_MINUS_line_BANG_(ren, _176, _179, color);
+        Vector3_delete__double(w0);
+        Vector3_delete__double(w1);
+        Vector3_delete__double(w2);
+        Vector3_delete__double(w3);
+        Vector3_delete__double(w4);
+        Vector3_delete__double(w5);
+        Vector3_delete__double(w6);
+        Vector3_delete__double(w7);
+    }
+}
 
 Engine* EngineState_eng(EngineState* p) { return (&(p->eng)); }
 
@@ -14800,32 +16192,39 @@ void EngineState_tick(EngineState* state, GLFWwindow* win, double dt, bool* firs
         static String _50 = "Input & Camera";
         String *_50_ref = &_50;
         Diagnostics_end_MINUS_zone_BANG_(diag, _50_ref);
-        Engine_handle_MINUS_resize(platform_MINUS_eng);
-        static String _57 = "Renderer & Draw";
-        String *_57_ref = &_57;
-        Diagnostics_start_MINUS_zone_BANG_(diag, _57_ref);
-        Array__float* _65 = EngineState_uniforms(state);
-        Renderer_update_MINUS_uniforms(platform_MINUS_eng, ren, cam, _65);
-        Renderer_draw(platform_MINUS_eng, ren);
-        static String _73 = "Renderer & Draw";
-        String *_73_ref = &_73;
-        Diagnostics_end_MINUS_zone_BANG_(diag, _73_ref);
-        Engine_poll_MINUS_events__Engine_MUL_(platform_MINUS_eng);
-        static String _80 = "Total Frame Time";
-        String *_80_ref = &_80;
-        Diagnostics_end_MINUS_zone_BANG_(diag, _80_ref);
         /* let */ {
-            int* _87 = EngineState_frame_MINUS_count(state);
-            int* _88 = ref_MINUS_to_MINUS_ptr__int(_87);
-            int* p_MINUS_frames = _88;
-            int _92 = Pointer_to_MINUS_value__int(p_MINUS_frames);
-            int curr_MINUS_frames = _92;
-            int _96 = Int_inc(curr_MINUS_frames);
-            int next_MINUS_frames = _96;
+            Vector3__double _58 = Vector3_init__double(1.0, 0.1, 0.1);
+            Vector3__double red_MINUS_color = _58;
+            Vector3__double* _70 = &red_MINUS_color; // ref
+            EngineState_draw_MINUS_bounds_MINUS_wireframe_BANG_(ren, 0.0, 0.0, 0.0, 32.0, 32.0, 32.0, _70);
+            Vector3_delete__double(red_MINUS_color);
+        }
+        Engine_handle_MINUS_resize(platform_MINUS_eng);
+        static String _78 = "Renderer & Draw";
+        String *_78_ref = &_78;
+        Diagnostics_start_MINUS_zone_BANG_(diag, _78_ref);
+        Array__float* _86 = EngineState_uniforms(state);
+        Renderer_update_MINUS_uniforms(platform_MINUS_eng, ren, cam, _86);
+        Renderer_draw(platform_MINUS_eng, ren, cam);
+        static String _95 = "Renderer & Draw";
+        String *_95_ref = &_95;
+        Diagnostics_end_MINUS_zone_BANG_(diag, _95_ref);
+        Engine_poll_MINUS_events__Engine_MUL_(platform_MINUS_eng);
+        static String _102 = "Total Frame Time";
+        String *_102_ref = &_102;
+        Diagnostics_end_MINUS_zone_BANG_(diag, _102_ref);
+        /* let */ {
+            int* _109 = EngineState_frame_MINUS_count(state);
+            int* _110 = ref_MINUS_to_MINUS_ptr__int(_109);
+            int* p_MINUS_frames = _110;
+            int _114 = Pointer_to_MINUS_value__int(p_MINUS_frames);
+            int curr_MINUS_frames = _114;
+            int _118 = Int_inc(curr_MINUS_frames);
+            int next_MINUS_frames = _118;
             Pointer_set__int(p_MINUS_frames, next_MINUS_frames);
-            int _108 = Int_mod(next_MINUS_frames, 300);
-            bool _110 = Int__EQ_(_108, 0);
-            if (_110) {
+            int _130 = Int_mod(next_MINUS_frames, 300);
+            bool _132 = Int__EQ_(_130, 0);
+            if (_132) {
                 Diagnostics_print_MINUS_stats_BANG_(diag);
             } else {
                 /* () */
@@ -16069,6 +17468,772 @@ void JobSystem_submit_MINUS_raw_BANG_(thread_pool_t *pool, void (*work)(void*), 
         job_queue_push(pool->queue, job);
     }
 void JobSystem_wait(job_handle_t *handle) { job_handle_wait(handle); }
+Vector3__double* Line_color(Line* p) { return (&(p->color)); }
+
+Line Line_copy(Line* pRef) {
+    Line copy = *pRef;
+    copy.start = Vector3_copy__double(&(pRef->start));
+    copy.end = Vector3_copy__double(&(pRef->end));
+    copy.color = Vector3_copy__double(&(pRef->color));
+    return copy;
+}
+
+void Line_delete(Line p) {
+    Vector3_delete__double(p.start);
+    Vector3_delete__double(p.end);
+    Vector3_delete__double(p.color);
+}
+
+Vector3__double* Line_end(Line* p) { return (&(p->end)); }
+
+Line Line_init(Vector3__double start, Vector3__double end, Vector3__double color) {
+    Line instance;
+    instance.start = start;
+    instance.end = end;
+    instance.color = color;
+    return instance;
+}
+
+String Line_prn(Line *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "Line");
+  temp = Vector3_prn__double(&p->start); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->end); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->color); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Line");
+  temp = Vector3_prn__double(&p->start);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->end);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->color);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+Line Line_set_MINUS_color(Line p, Vector3__double newValue) {
+    Vector3_delete__double(p.color);
+    p.color = newValue;
+    return p;
+}
+
+
+void Line_set_MINUS_color_BANG_(Line* pRef, Vector3__double newValue) {
+    Vector3_delete__double(pRef->color);
+    pRef->color = newValue;
+}
+
+
+Line Line_set_MINUS_end(Line p, Vector3__double newValue) {
+    Vector3_delete__double(p.end);
+    p.end = newValue;
+    return p;
+}
+
+
+void Line_set_MINUS_end_BANG_(Line* pRef, Vector3__double newValue) {
+    Vector3_delete__double(pRef->end);
+    pRef->end = newValue;
+}
+
+
+Line Line_set_MINUS_start(Line p, Vector3__double newValue) {
+    Vector3_delete__double(p.start);
+    p.start = newValue;
+    return p;
+}
+
+
+void Line_set_MINUS_start_BANG_(Line* pRef, Vector3__double newValue) {
+    Vector3_delete__double(pRef->start);
+    pRef->start = newValue;
+}
+
+
+Vector3__double* Line_start(Line* p) { return (&(p->start)); }
+
+String Line_str(Line *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "Line");
+  temp = Vector3_prn__double(&p->start); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->end); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->color); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Line");
+  temp = Vector3_prn__double(&p->start);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->end);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->color);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+Line Line_update_MINUS_color(Line p, Lambda *updater) {
+    p.color = (*updater).env ? ((Fn__LambdaEnv_Vector3__double_Vector3__double)(*updater).callback)((*updater).env, p.color) : ((Fn__Vector3__double_Vector3__double)(*updater).callback)(p.color);
+    return p;
+}
+
+
+Line Line_update_MINUS_end(Line p, Lambda *updater) {
+    p.end = (*updater).env ? ((Fn__LambdaEnv_Vector3__double_Vector3__double)(*updater).callback)((*updater).env, p.end) : ((Fn__Vector3__double_Vector3__double)(*updater).callback)(p.end);
+    return p;
+}
+
+
+Line Line_update_MINUS_start(Line p, Lambda *updater) {
+    p.start = (*updater).env ? ((Fn__LambdaEnv_Vector3__double_Vector3__double)(*updater).callback)((*updater).env, p.start) : ((Fn__Vector3__double_Vector3__double)(*updater).callback)(p.start);
+    return p;
+}
+
+
+void LinePass_cleanup(LinePassRenderer* lp) {
+    WGPUBindGroup* _9 = LinePassRenderer_bind_MINUS_group(lp);
+    WGPUBindGroup _10 = WGPUBindGroup_copy(_9);
+    wgpuBindGroupRelease(_10);
+    WGPUGeomPipelineWrapper** _16 = LinePassRenderer_pipeline(lp);
+    WGPUGeomPipelineWrapper* _17 = Pointer_copy__WGPUGeomPipelineWrapper(_16);
+    wgpu_geom_pipeline_free(_17);
+    WGPUUniformBufferWrapper** _23 = LinePassRenderer_u_MINUS_buffer(lp);
+    WGPUUniformBufferWrapper* _24 = Pointer_copy__WGPUUniformBufferWrapper(_23);
+    wgpu_uniform_buffer_free(_24);
+    WGPUVertexBufferWrapper** _30 = LinePassRenderer_v_MINUS_buffer(lp);
+    WGPUVertexBufferWrapper* _31 = Pointer_copy__WGPUVertexBufferWrapper(_30);
+    wgpu_vertex_buffer_free(_31);
+}
+
+Result__LinePassRenderer_String LinePass_create(WGPUContext* ctx, String* format, int max_MINUS_lines) {
+    Result__LinePassRenderer_String _201;
+    /* let */ {
+        int u_MINUS_size = 64;
+        int _15 = Int__MUL_(2, 24);
+        int _16 = Int__MUL_(max_MINUS_lines, _15);
+        int v_MINUS_size = _16;
+        int _26 = Int__DIV_(v_MINUS_size, 4);
+        static float _29_lit = 0.0f;
+        float* _29 = &_29_lit; // ref
+        Array__float _30 = Array_replicate__float(_26, _29);
+        Array__float _31 = _30; // From the 'the' function.
+        Array__float dummy_MINUS_data = _31;
+        Array__float* _36 = &dummy_MINUS_data; // ref
+        Array__float _37 = Array_copy__float(_36);
+        Array__float v_MINUS_data = _37;
+        Result__WGPUUniformBufferWrapper_MUL__String _43 = WGPURender_create_MINUS_uniform_MINUS_buffer(ctx, u_MINUS_size);
+        Result__LinePassRenderer_String _200;
+        if(_43._tag == Result__WGPUUniformBufferWrapper_MUL__String_Error_tag) {
+            Result__WGPUUniformBufferWrapper_MUL__String _43_temp = _43;
+            String e = _43_temp.u.Error.member0;
+            // Case expr:
+            static String _53 = "Line Uniform failed: ";
+            String *_53_ref = &_53;
+            String _1000009 = String_str(_53_ref);
+            String* _1000008 = &_1000009; // ref
+            String _1000011 = StringCopy_str(e);
+            String* _1000010 = &_1000011; // ref
+            String _1000007 = String_append(_1000008, _1000010);
+            String* _1000006 = &_1000007; // ref
+            String _1000005 = String_copy(_1000006);
+            Result__LinePassRenderer_String _64 = Result_Error__String_LinePassRenderer(_1000005);
+            _200 = _64;
+            Array_delete__float(v_MINUS_data);
+            String_delete(_1000007);
+            String_delete(_1000009);
+            String_delete(_1000011);
+        }
+        else if(_43._tag == Result__WGPUUniformBufferWrapper_MUL__String_Success_tag) {
+            Result__WGPUUniformBufferWrapper_MUL__String _43_temp = _43;
+            WGPUUniformBufferWrapper* ub = _43_temp.u.Success.member0;
+            // Case expr:
+            Array__float* _73 = &dummy_MINUS_data; // ref
+            Result__WGPUVertexBufferWrapper_MUL__String _74 = WGPURender_create_MINUS_vertex_MINUS_buffer(ctx, _73);
+            Result__LinePassRenderer_String _199;
+            if(_74._tag == Result__WGPUVertexBufferWrapper_MUL__String_Error_tag) {
+                Result__WGPUVertexBufferWrapper_MUL__String _74_temp = _74;
+                String e = _74_temp.u.Error.member0;
+                // Case expr:
+                wgpu_uniform_buffer_free(ub);
+                static String _88 = "Line Vertex failed: ";
+                String *_88_ref = &_88;
+                String _1000018 = String_str(_88_ref);
+                String* _1000017 = &_1000018; // ref
+                String _1000020 = StringCopy_str(e);
+                String* _1000019 = &_1000020; // ref
+                String _1000016 = String_append(_1000017, _1000019);
+                String* _1000015 = &_1000016; // ref
+                String _1000014 = String_copy(_1000015);
+                Result__LinePassRenderer_String _99 = Result_Error__String_LinePassRenderer(_1000014);
+                Result__LinePassRenderer_String _100 = _99;
+                _199 = _100;
+                Array_delete__float(v_MINUS_data);
+                String_delete(_1000016);
+                String_delete(_1000018);
+                String_delete(_1000020);
+            }
+            else if(_74._tag == Result__WGPUVertexBufferWrapper_MUL__String_Success_tag) {
+                Result__WGPUVertexBufferWrapper_MUL__String _74_temp = _74;
+                WGPUVertexBufferWrapper* vb = _74_temp.u.Success.member0;
+                // Case expr:
+                static String _108 = "vs_main";
+                String *_108_ref = &_108;
+                static String _109 = "fs_main";
+                String *_109_ref = &_109;
+                static String _111 = "line-list";
+                String *_111_ref = &_111;
+                Result__WGPUGeomPipelineWrapper_MUL__String _113 = WGPURender_create_MINUS_geom_MINUS_pipeline(ctx, LinePass_line_MINUS_shader_MINUS_wgsl, _108_ref, _109_ref, format, _111_ref, 24);
+                Result__LinePassRenderer_String _198;
+                if(_113._tag == Result__WGPUGeomPipelineWrapper_MUL__String_Error_tag) {
+                    Result__WGPUGeomPipelineWrapper_MUL__String _113_temp = _113;
+                    String e = _113_temp.u.Error.member0;
+                    // Case expr:
+                    wgpu_uniform_buffer_free(ub);
+                    wgpu_vertex_buffer_free(vb);
+                    static String _130 = "Line Pipeline failed: ";
+                    String *_130_ref = &_130;
+                    String _1000027 = String_str(_130_ref);
+                    String* _1000026 = &_1000027; // ref
+                    String _1000029 = StringCopy_str(e);
+                    String* _1000028 = &_1000029; // ref
+                    String _1000025 = String_append(_1000026, _1000028);
+                    String* _1000024 = &_1000025; // ref
+                    String _1000023 = String_copy(_1000024);
+                    Result__LinePassRenderer_String _141 = Result_Error__String_LinePassRenderer(_1000023);
+                    Result__LinePassRenderer_String _142 = _141;
+                    _198 = _142;
+                    Array_delete__float(v_MINUS_data);
+                    String_delete(_1000025);
+                    String_delete(_1000027);
+                    String_delete(_1000029);
+                }
+                else if(_113._tag == Result__WGPUGeomPipelineWrapper_MUL__String_Success_tag) {
+                    Result__WGPUGeomPipelineWrapper_MUL__String _113_temp = _113;
+                    WGPUGeomPipelineWrapper* pipe = _113_temp.u.Success.member0;
+                    // Case expr:
+                    Result__WGPUBindGroup_String _151 = WGPURender_create_MINUS_uniform_MINUS_bind_MINUS_group(ctx, pipe, ub);
+                    Result__LinePassRenderer_String _197;
+                    if(_151._tag == Result__WGPUBindGroup_String_Error_tag) {
+                        Result__WGPUBindGroup_String _151_temp = _151;
+                        String e = _151_temp.u.Error.member0;
+                        // Case expr:
+                        wgpu_geom_pipeline_free(pipe);
+                        wgpu_uniform_buffer_free(ub);
+                        wgpu_vertex_buffer_free(vb);
+                        static String _171 = "Line Bind group failed: ";
+                        String *_171_ref = &_171;
+                        String _1000036 = String_str(_171_ref);
+                        String* _1000035 = &_1000036; // ref
+                        String _1000038 = StringCopy_str(e);
+                        String* _1000037 = &_1000038; // ref
+                        String _1000034 = String_append(_1000035, _1000037);
+                        String* _1000033 = &_1000034; // ref
+                        String _1000032 = String_copy(_1000033);
+                        Result__LinePassRenderer_String _182 = Result_Error__String_LinePassRenderer(_1000032);
+                        Result__LinePassRenderer_String _183 = _182;
+                        _197 = _183;
+                        Array_delete__float(v_MINUS_data);
+                        String_delete(_1000034);
+                        String_delete(_1000036);
+                        String_delete(_1000038);
+                    }
+                    else if(_151._tag == Result__WGPUBindGroup_String_Success_tag) {
+                        Result__WGPUBindGroup_String _151_temp = _151;
+                        WGPUBindGroup bg = _151_temp.u.Success.member0;
+                        // Case expr:
+                        LinePassRenderer _195 = LinePassRenderer_init(pipe, ub, vb, bg, max_MINUS_lines, v_MINUS_data);
+                        Result__LinePassRenderer_String _196 = Result_Success__LinePassRenderer_String(_195);
+                        _197 = _196;
+                    }
+                    else UNHANDLED("line_pass.carp", 67);
+                    _198 = _197;
+                }
+                else UNHANDLED("line_pass.carp", 64);
+                _199 = _198;
+            }
+            else UNHANDLED("line_pass.carp", 61);
+            _200 = _199;
+        }
+        else UNHANDLED("line_pass.carp", 58);
+        _201 = _200;
+        Array_delete__float(dummy_MINUS_data);
+    }
+    return _201;
+}
+
+void LinePass_render__WGPUContext_MUL_(WGPUFrameState* frame, WGPUContext* ctx, LinePassRenderer* lp, int line_MINUS_count, Maybe__WGPURenderTexture_MUL_ target) {
+    bool _12 = Int__GT_(line_MINUS_count, 0);
+    if (_12) {
+        WGPUGeomPipelineWrapper** _19 = LinePassRenderer_pipeline(lp);
+        WGPUGeomPipelineWrapper* _20 = Pointer_copy__WGPUGeomPipelineWrapper(_19);
+        WGPUBindGroup* _24 = LinePassRenderer_bind_MINUS_group(lp);
+        WGPUBindGroup _25 = WGPUBindGroup_copy(_24);
+        WGPUVertexBufferWrapper** _29 = LinePassRenderer_v_MINUS_buffer(lp);
+        WGPUVertexBufferWrapper* _30 = Pointer_copy__WGPUVertexBufferWrapper(_29);
+        WGPUDepthTexture* _32 = null_MINUS_depth_MINUS_texture();
+        int _38 = Int__MUL_(line_MINUS_count, 2);
+        Long _39 = Long_from_MINUS_int(_38);
+        Uint32 _40 = Uint32_from_MINUS_long(_39);
+        WGPURender_run_MINUS_geom_MINUS_pass_MINUS_overlay(frame, _20, _25, _30, _32, _40, target);
+    } else {
+        /* () */
+        Maybe_delete__WGPURenderTexture_MUL_(target);
+    }
+}
+
+int LinePass_update_BANG_(WGPUContext* ctx, LinePassRenderer* lp, Array__float* view_MINUS_proj, Array__Line* lines) {
+    int _284;
+    /* let */ {
+        Array__float* _11 = LinePassRenderer_v_MINUS_data(lp);
+        Array__float* v_MINUS_data = _11;
+        int line_MINUS_count = 0;
+        int* _18 = LinePassRenderer_max_MINUS_lines(lp);
+        int _19 = Int_copy(_18);
+        int max = _19;
+        WGPUUniformBufferWrapper** _27 = LinePassRenderer_u_MINUS_buffer(lp);
+        WGPUUniformBufferWrapper* _28 = Pointer_copy__WGPUUniformBufferWrapper(_27);
+        WGPURender_update_MINUS_uniform_MINUS_buffer(ctx, _28, view_MINUS_proj);
+        /* let */ {
+            int i = 0;
+            int _40 = Array_length__Line(lines);
+            bool _1000008 = Int__LT_(i, _40);
+            bool _1000006 = _1000008;
+            while (_1000006) {
+                bool _47 = Int__LT_(line_MINUS_count, max);
+                if (_47) {
+                    /* let */ {
+                        Line* _54 = Array_unsafe_MINUS_nth__Line(lines, i);
+                        Line* line = _54;
+                        Vector3__double* _58 = Line_start(line);
+                        Vector3__double* start = _58;
+                        Vector3__double* _62 = Line_end(line);
+                        Vector3__double* end = _62;
+                        Vector3__double* _66 = Line_color(line);
+                        Vector3__double* color = _66;
+                        int _71 = Int__MUL_(line_MINUS_count, 12);
+                        int base_MINUS_idx = _71;
+                        double* _81 = Vector3_x__double(start);
+                        double _82 = Double_copy(_81);
+                        float _83 = Double_to_MINUS_float(_82);
+                        Array_aset_BANG___float(v_MINUS_data, base_MINUS_idx, _83);
+                        int _90 = Int__PLUS_(base_MINUS_idx, 1);
+                        double* _95 = Vector3_y__double(start);
+                        double _96 = Double_copy(_95);
+                        float _97 = Double_to_MINUS_float(_96);
+                        Array_aset_BANG___float(v_MINUS_data, _90, _97);
+                        int _104 = Int__PLUS_(base_MINUS_idx, 2);
+                        double* _109 = Vector3_z__double(start);
+                        double _110 = Double_copy(_109);
+                        float _111 = Double_to_MINUS_float(_110);
+                        Array_aset_BANG___float(v_MINUS_data, _104, _111);
+                        int _118 = Int__PLUS_(base_MINUS_idx, 3);
+                        double* _123 = Vector3_x__double(color);
+                        double _124 = Double_copy(_123);
+                        float _125 = Double_to_MINUS_float(_124);
+                        Array_aset_BANG___float(v_MINUS_data, _118, _125);
+                        int _132 = Int__PLUS_(base_MINUS_idx, 4);
+                        double* _137 = Vector3_y__double(color);
+                        double _138 = Double_copy(_137);
+                        float _139 = Double_to_MINUS_float(_138);
+                        Array_aset_BANG___float(v_MINUS_data, _132, _139);
+                        int _146 = Int__PLUS_(base_MINUS_idx, 5);
+                        double* _151 = Vector3_z__double(color);
+                        double _152 = Double_copy(_151);
+                        float _153 = Double_to_MINUS_float(_152);
+                        Array_aset_BANG___float(v_MINUS_data, _146, _153);
+                        int _160 = Int__PLUS_(base_MINUS_idx, 6);
+                        double* _165 = Vector3_x__double(end);
+                        double _166 = Double_copy(_165);
+                        float _167 = Double_to_MINUS_float(_166);
+                        Array_aset_BANG___float(v_MINUS_data, _160, _167);
+                        int _174 = Int__PLUS_(base_MINUS_idx, 7);
+                        double* _179 = Vector3_y__double(end);
+                        double _180 = Double_copy(_179);
+                        float _181 = Double_to_MINUS_float(_180);
+                        Array_aset_BANG___float(v_MINUS_data, _174, _181);
+                        int _188 = Int__PLUS_(base_MINUS_idx, 8);
+                        double* _193 = Vector3_z__double(end);
+                        double _194 = Double_copy(_193);
+                        float _195 = Double_to_MINUS_float(_194);
+                        Array_aset_BANG___float(v_MINUS_data, _188, _195);
+                        int _202 = Int__PLUS_(base_MINUS_idx, 9);
+                        double* _207 = Vector3_x__double(color);
+                        double _208 = Double_copy(_207);
+                        float _209 = Double_to_MINUS_float(_208);
+                        Array_aset_BANG___float(v_MINUS_data, _202, _209);
+                        int _216 = Int__PLUS_(base_MINUS_idx, 10);
+                        double* _221 = Vector3_y__double(color);
+                        double _222 = Double_copy(_221);
+                        float _223 = Double_to_MINUS_float(_222);
+                        Array_aset_BANG___float(v_MINUS_data, _216, _223);
+                        int _230 = Int__PLUS_(base_MINUS_idx, 11);
+                        double* _235 = Vector3_z__double(color);
+                        double _236 = Double_copy(_235);
+                        float _237 = Double_to_MINUS_float(_236);
+                        Array_aset_BANG___float(v_MINUS_data, _230, _237);
+                        int _243 = Int_inc(line_MINUS_count);
+                        line_MINUS_count = _243;  // Int = Int
+                    }
+                } else {
+                    /* () */
+                }
+                int _1000019 = Int__PLUS_(i, 1);
+                i = _1000019;  // Int = Int
+                int _40 = Array_length__Line(lines);
+                bool _1000008 = Int__LT_(i, _40);
+                _1000006 = _1000008;
+            }
+        }
+        bool _266 = Int__GT_(line_MINUS_count, 0);
+        if (_266) {
+            WGPUVertexBufferWrapper** _273 = LinePassRenderer_v_MINUS_buffer(lp);
+            WGPUVertexBufferWrapper* _274 = Pointer_copy__WGPUVertexBufferWrapper(_273);
+            WGPURender_update_MINUS_vertex_MINUS_buffer(ctx, _274, v_MINUS_data);
+        } else {
+            /* () */
+        }
+        int _283 = line_MINUS_count;
+        _284 = _283;
+    }
+    return _284;
+}
+
+WGPUBindGroup* LinePassRenderer_bind_MINUS_group(LinePassRenderer* p) { return (&(p->bind_MINUS_group)); }
+
+LinePassRenderer LinePassRenderer_copy(LinePassRenderer* pRef) {
+    LinePassRenderer copy = *pRef;
+    /* Ignore non-managed member 'pipeline' : (Ptr WGPUGeomPipelineWrapper) */
+    /* Ignore non-managed member 'u_MINUS_buffer' : (Ptr WGPUUniformBufferWrapper) */
+    /* Ignore non-managed member 'v_MINUS_buffer' : (Ptr WGPUVertexBufferWrapper) */
+    /* Ignore non-managed member 'bind_MINUS_group' : WGPUBindGroup */
+    /* Ignore non-managed member 'max_MINUS_lines' : Int */
+    copy.v_MINUS_data = Array_copy__float(&(pRef->v_MINUS_data));
+    return copy;
+}
+
+void LinePassRenderer_delete(LinePassRenderer p) {
+    /* Ignore non-managed member 'pipeline' : (Ptr WGPUGeomPipelineWrapper) */
+    /* Ignore non-managed member 'u_MINUS_buffer' : (Ptr WGPUUniformBufferWrapper) */
+    /* Ignore non-managed member 'v_MINUS_buffer' : (Ptr WGPUVertexBufferWrapper) */
+    /* Ignore non-managed member 'bind_MINUS_group' : WGPUBindGroup */
+    /* Ignore non-managed member 'max_MINUS_lines' : Int */
+    Array_delete__float(p.v_MINUS_data);
+}
+
+LinePassRenderer LinePassRenderer_init(WGPUGeomPipelineWrapper* pipeline, WGPUUniformBufferWrapper* u_MINUS_buffer, WGPUVertexBufferWrapper* v_MINUS_buffer, WGPUBindGroup bind_MINUS_group, int max_MINUS_lines, Array__float v_MINUS_data) {
+    LinePassRenderer instance;
+    instance.pipeline = pipeline;
+    instance.u_MINUS_buffer = u_MINUS_buffer;
+    instance.v_MINUS_buffer = v_MINUS_buffer;
+    instance.bind_MINUS_group = bind_MINUS_group;
+    instance.max_MINUS_lines = max_MINUS_lines;
+    instance.v_MINUS_data = v_MINUS_data;
+    return instance;
+}
+
+int* LinePassRenderer_max_MINUS_lines(LinePassRenderer* p) { return (&(p->max_MINUS_lines)); }
+
+WGPUGeomPipelineWrapper** LinePassRenderer_pipeline(LinePassRenderer* p) { return (&(p->pipeline)); }
+
+String LinePassRenderer_prn(LinePassRenderer *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "LinePassRenderer");
+  temp = Pointer_prn__WGPUGeomPipelineWrapper(p->pipeline); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPUUniformBufferWrapper(p->u_MINUS_buffer); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPUVertexBufferWrapper(p->v_MINUS_buffer); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  // Failed to find str function for bind_MINUS_group : WGPUBindGroup
+
+  temp = Int_prn(p->max_MINUS_lines); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__float(&p->v_MINUS_data); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "LinePassRenderer");
+  temp = Pointer_prn__WGPUGeomPipelineWrapper(p->pipeline);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPUUniformBufferWrapper(p->u_MINUS_buffer);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPUVertexBufferWrapper(p->v_MINUS_buffer);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  // Failed to find str function for bind_MINUS_group : WGPUBindGroup
+
+  temp = Int_prn(p->max_MINUS_lines);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__float(&p->v_MINUS_data);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+LinePassRenderer LinePassRenderer_set_MINUS_bind_MINUS_group(LinePassRenderer p, WGPUBindGroup newValue) {
+    /* Ignore non-managed member 'bind_MINUS_group' : WGPUBindGroup */
+    p.bind_MINUS_group = newValue;
+    return p;
+}
+
+
+void LinePassRenderer_set_MINUS_bind_MINUS_group_BANG_(LinePassRenderer* pRef, WGPUBindGroup newValue) {
+    /* Ignore non-managed member 'bind_MINUS_group' : WGPUBindGroup */
+    pRef->bind_MINUS_group = newValue;
+}
+
+
+LinePassRenderer LinePassRenderer_set_MINUS_max_MINUS_lines(LinePassRenderer p, int newValue) {
+    /* Ignore non-managed member 'max_MINUS_lines' : Int */
+    p.max_MINUS_lines = newValue;
+    return p;
+}
+
+
+void LinePassRenderer_set_MINUS_max_MINUS_lines_BANG_(LinePassRenderer* pRef, int newValue) {
+    /* Ignore non-managed member 'max_MINUS_lines' : Int */
+    pRef->max_MINUS_lines = newValue;
+}
+
+
+LinePassRenderer LinePassRenderer_set_MINUS_pipeline(LinePassRenderer p, WGPUGeomPipelineWrapper* newValue) {
+    /* Ignore non-managed member 'pipeline' : (Ptr WGPUGeomPipelineWrapper) */
+    p.pipeline = newValue;
+    return p;
+}
+
+
+void LinePassRenderer_set_MINUS_pipeline_BANG_(LinePassRenderer* pRef, WGPUGeomPipelineWrapper* newValue) {
+    /* Ignore non-managed member 'pipeline' : (Ptr WGPUGeomPipelineWrapper) */
+    pRef->pipeline = newValue;
+}
+
+
+LinePassRenderer LinePassRenderer_set_MINUS_u_MINUS_buffer(LinePassRenderer p, WGPUUniformBufferWrapper* newValue) {
+    /* Ignore non-managed member 'u_MINUS_buffer' : (Ptr WGPUUniformBufferWrapper) */
+    p.u_MINUS_buffer = newValue;
+    return p;
+}
+
+
+void LinePassRenderer_set_MINUS_u_MINUS_buffer_BANG_(LinePassRenderer* pRef, WGPUUniformBufferWrapper* newValue) {
+    /* Ignore non-managed member 'u_MINUS_buffer' : (Ptr WGPUUniformBufferWrapper) */
+    pRef->u_MINUS_buffer = newValue;
+}
+
+
+LinePassRenderer LinePassRenderer_set_MINUS_v_MINUS_buffer(LinePassRenderer p, WGPUVertexBufferWrapper* newValue) {
+    /* Ignore non-managed member 'v_MINUS_buffer' : (Ptr WGPUVertexBufferWrapper) */
+    p.v_MINUS_buffer = newValue;
+    return p;
+}
+
+
+void LinePassRenderer_set_MINUS_v_MINUS_buffer_BANG_(LinePassRenderer* pRef, WGPUVertexBufferWrapper* newValue) {
+    /* Ignore non-managed member 'v_MINUS_buffer' : (Ptr WGPUVertexBufferWrapper) */
+    pRef->v_MINUS_buffer = newValue;
+}
+
+
+LinePassRenderer LinePassRenderer_set_MINUS_v_MINUS_data(LinePassRenderer p, Array__float newValue) {
+    Array_delete__float(p.v_MINUS_data);
+    p.v_MINUS_data = newValue;
+    return p;
+}
+
+
+void LinePassRenderer_set_MINUS_v_MINUS_data_BANG_(LinePassRenderer* pRef, Array__float newValue) {
+    Array_delete__float(pRef->v_MINUS_data);
+    pRef->v_MINUS_data = newValue;
+}
+
+
+String LinePassRenderer_str(LinePassRenderer *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "LinePassRenderer");
+  temp = Pointer_prn__WGPUGeomPipelineWrapper(p->pipeline); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPUUniformBufferWrapper(p->u_MINUS_buffer); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPUVertexBufferWrapper(p->v_MINUS_buffer); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  // Failed to find str function for bind_MINUS_group : WGPUBindGroup
+
+  temp = Int_prn(p->max_MINUS_lines); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__float(&p->v_MINUS_data); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "LinePassRenderer");
+  temp = Pointer_prn__WGPUGeomPipelineWrapper(p->pipeline);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPUUniformBufferWrapper(p->u_MINUS_buffer);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPUVertexBufferWrapper(p->v_MINUS_buffer);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  // Failed to find str function for bind_MINUS_group : WGPUBindGroup
+
+  temp = Int_prn(p->max_MINUS_lines);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__float(&p->v_MINUS_data);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+WGPUUniformBufferWrapper** LinePassRenderer_u_MINUS_buffer(LinePassRenderer* p) { return (&(p->u_MINUS_buffer)); }
+
+LinePassRenderer LinePassRenderer_update_MINUS_bind_MINUS_group(LinePassRenderer p, Lambda *updater) {
+    p.bind_MINUS_group = (*updater).env ? ((Fn__LambdaEnv_WGPUBindGroup_WGPUBindGroup)(*updater).callback)((*updater).env, p.bind_MINUS_group) : ((Fn__WGPUBindGroup_WGPUBindGroup)(*updater).callback)(p.bind_MINUS_group);
+    return p;
+}
+
+
+LinePassRenderer LinePassRenderer_update_MINUS_max_MINUS_lines(LinePassRenderer p, Lambda *updater) {
+    p.max_MINUS_lines = (*updater).env ? ((Fn__LambdaEnv_int_int)(*updater).callback)((*updater).env, p.max_MINUS_lines) : ((Fn__int_int)(*updater).callback)(p.max_MINUS_lines);
+    return p;
+}
+
+
+LinePassRenderer LinePassRenderer_update_MINUS_pipeline(LinePassRenderer p, Lambda *updater) {
+    p.pipeline = (*updater).env ? ((Fn__LambdaEnv_WGPUGeomPipelineWrapper_MUL__WGPUGeomPipelineWrapper_MUL_)(*updater).callback)((*updater).env, p.pipeline) : ((Fn__WGPUGeomPipelineWrapper_MUL__WGPUGeomPipelineWrapper_MUL_)(*updater).callback)(p.pipeline);
+    return p;
+}
+
+
+LinePassRenderer LinePassRenderer_update_MINUS_u_MINUS_buffer(LinePassRenderer p, Lambda *updater) {
+    p.u_MINUS_buffer = (*updater).env ? ((Fn__LambdaEnv_WGPUUniformBufferWrapper_MUL__WGPUUniformBufferWrapper_MUL_)(*updater).callback)((*updater).env, p.u_MINUS_buffer) : ((Fn__WGPUUniformBufferWrapper_MUL__WGPUUniformBufferWrapper_MUL_)(*updater).callback)(p.u_MINUS_buffer);
+    return p;
+}
+
+
+LinePassRenderer LinePassRenderer_update_MINUS_v_MINUS_buffer(LinePassRenderer p, Lambda *updater) {
+    p.v_MINUS_buffer = (*updater).env ? ((Fn__LambdaEnv_WGPUVertexBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL_)(*updater).callback)((*updater).env, p.v_MINUS_buffer) : ((Fn__WGPUVertexBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL_)(*updater).callback)(p.v_MINUS_buffer);
+    return p;
+}
+
+
+LinePassRenderer LinePassRenderer_update_MINUS_v_MINUS_data(LinePassRenderer p, Lambda *updater) {
+    p.v_MINUS_data = (*updater).env ? ((Fn__LambdaEnv_Array__float_Array__float)(*updater).callback)((*updater).env, p.v_MINUS_data) : ((Fn__Array__float_Array__float)(*updater).callback)(p.v_MINUS_data);
+    return p;
+}
+
+
+WGPUVertexBufferWrapper** LinePassRenderer_v_MINUS_buffer(LinePassRenderer* p) { return (&(p->v_MINUS_buffer)); }
+
+Array__float* LinePassRenderer_v_MINUS_data(LinePassRenderer* p) { return (&(p->v_MINUS_data)); }
+
 LogLevel LogLevel_Critical() {
   LogLevel instance;
 
@@ -17493,6 +19658,10 @@ WGPUContext* Pointer_copy__WGPUContext (WGPUContext** ptrRef) {
     return *ptrRef;
 }
 
+WGPUGeomPipelineWrapper* Pointer_copy__WGPUGeomPipelineWrapper (WGPUGeomPipelineWrapper** ptrRef) {
+    return *ptrRef;
+}
+
 WGPURenderPipelineWrapper* Pointer_copy__WGPURenderPipelineWrapper (WGPURenderPipelineWrapper** ptrRef) {
     return *ptrRef;
 }
@@ -17509,6 +19678,10 @@ WGPUUniformBufferWrapper* Pointer_copy__WGPUUniformBufferWrapper (WGPUUniformBuf
     return *ptrRef;
 }
 
+WGPUVertexBufferWrapper* Pointer_copy__WGPUVertexBufferWrapper (WGPUVertexBufferWrapper** ptrRef) {
+    return *ptrRef;
+}
+
  bool Pointer_eq__CChar(CChar *p1, CChar *p2) { return p1 == p2; }
  bool Pointer_eq__FILE(FILE *p1, FILE *p2) { return p1 == p2; }
  bool Pointer_eq__GLFWwindow(GLFWwindow *p1, GLFWwindow *p2) { return p1 == p2; }
@@ -17520,6 +19693,11 @@ String Pointer_prn__GLFWwindow(GLFWwindow* a) {
 }
 
 String Pointer_prn__WGPUContext(WGPUContext* a) {
+    String _6 = Pointer_strp(a);
+    return _6;
+}
+
+String Pointer_prn__WGPUGeomPipelineWrapper(WGPUGeomPipelineWrapper* a) {
     String _6 = Pointer_strp(a);
     return _6;
 }
@@ -17540,6 +19718,11 @@ String Pointer_prn__WGPURenderTexture(WGPURenderTexture* a) {
 }
 
 String Pointer_prn__WGPUUniformBufferWrapper(WGPUUniformBufferWrapper* a) {
+    String _6 = Pointer_strp(a);
+    return _6;
+}
+
+String Pointer_prn__WGPUVertexBufferWrapper(WGPUVertexBufferWrapper* a) {
     String _6 = Pointer_strp(a);
     return _6;
 }
@@ -17586,21 +19769,45 @@ bool RefBool__EQ_(bool* a, bool* b) {
 WGPUBindGroup* Renderer_bind_MINUS_group(Renderer* p) { return (&(p->bind_MINUS_group)); }
 
 void Renderer_cleanup__Engine_MUL_(Engine* eng, Renderer* ren) {
-    WGPUBindGroup* _10 = Renderer_bind_MINUS_group(ren);
-    WGPUBindGroup _11 = WGPUBindGroup_copy(_10);
-    Engine_free_MINUS_bind_MINUS_group(_11);
-    WGPURenderPipelineWrapper** _17 = Renderer_pipeline(ren);
-    WGPURenderPipelineWrapper* _18 = Pointer_copy__WGPURenderPipelineWrapper(_17);
-    Engine_free_MINUS_pipeline(_18);
-    WGPUUniformBufferWrapper** _24 = Renderer_uniform_MINUS_buffer(ren);
-    WGPUUniformBufferWrapper* _25 = Pointer_copy__WGPUUniformBufferWrapper(_24);
-    Engine_free_MINUS_uniform_MINUS_buffer(_25);
-    WGPUSampler* _31 = Renderer_voxel_MINUS_sampler(ren);
-    WGPUSampler _32 = WGPUSampler_copy(_31);
-    wgpuSamplerRelease(_32);
-    WGPURenderTexture** _38 = Renderer_voxel_MINUS_texture(ren);
-    WGPURenderTexture* _39 = Pointer_copy__WGPURenderTexture(_38);
-    wgpu_render_texture_free(_39);
+    Renderer_clear_MINUS_lines_BANG_(ren);
+    LinePassRenderer* _12 = Renderer_line_MINUS_pass(ren);
+    LinePass_cleanup(_12);
+    WGPUBindGroup* _18 = Renderer_bind_MINUS_group(ren);
+    WGPUBindGroup _19 = WGPUBindGroup_copy(_18);
+    Engine_free_MINUS_bind_MINUS_group(_19);
+    WGPURenderPipelineWrapper** _25 = Renderer_pipeline(ren);
+    WGPURenderPipelineWrapper* _26 = Pointer_copy__WGPURenderPipelineWrapper(_25);
+    Engine_free_MINUS_pipeline(_26);
+    WGPUUniformBufferWrapper** _32 = Renderer_uniform_MINUS_buffer(ren);
+    WGPUUniformBufferWrapper* _33 = Pointer_copy__WGPUUniformBufferWrapper(_32);
+    Engine_free_MINUS_uniform_MINUS_buffer(_33);
+    WGPUSampler* _39 = Renderer_voxel_MINUS_sampler(ren);
+    WGPUSampler _40 = WGPUSampler_copy(_39);
+    wgpuSamplerRelease(_40);
+    WGPURenderTexture** _46 = Renderer_voxel_MINUS_texture(ren);
+    WGPURenderTexture* _47 = Pointer_copy__WGPURenderTexture(_46);
+    wgpu_render_texture_free(_47);
+}
+
+void Renderer_clear_MINUS_lines_BANG_(Renderer* ren) {
+    /* let */ {
+        Array__Line* _8 = Renderer_lines(ren);
+        Array__Line* lns = _8;
+        bool _14 = Array_empty_QMARK___Line(lns);
+        bool _15 = not(_14);
+        bool _24 = _15;
+        while (_24) {
+            /* let */ {
+                Line _20 = Array_pop_MINUS_back_BANG___Line(lns);
+                Line _ = _20;
+                /* () */
+                Line_delete(_);
+            }
+            bool _14 = Array_empty_QMARK___Line(lns);
+            bool _15 = not(_14);
+            _24 = _15;
+        }
+    }
 }
 
 Renderer Renderer_copy(Renderer* pRef) {
@@ -17610,11 +19817,13 @@ Renderer Renderer_copy(Renderer* pRef) {
     /* Ignore non-managed member 'uniform_MINUS_buffer' : (Ptr WGPUUniformBufferWrapper) */
     /* Ignore non-managed member 'voxel_MINUS_texture' : (Ptr WGPURenderTexture) */
     /* Ignore non-managed member 'voxel_MINUS_sampler' : WGPUSampler */
+    copy.line_MINUS_pass = LinePassRenderer_copy(&(pRef->line_MINUS_pass));
+    copy.lines = Array_copy__Line(&(pRef->lines));
     return copy;
 }
 
 Result__Renderer_String Renderer_create(Engine* eng) {
-    Result__Renderer_String _216;
+    Result__Renderer_String _279;
     /* let */ {
         WGPUContext** _9 = Engine_ctx(eng);
         WGPUContext* _10 = Pointer_copy__WGPUContext(_9);
@@ -17622,7 +19831,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
         static String _18 = "rgba16float";
         String *_18_ref = &_18;
         Result__WGPURenderTexture_MUL__String _19 = WGPURender_create_MINUS_3d_MINUS_texture(ctx, 32, 32, 32, _18_ref);
-        Result__Renderer_String _215;
+        Result__Renderer_String _278;
         if(_19._tag == Result__WGPURenderTexture_MUL__String_Error_tag) {
             Result__WGPURenderTexture_MUL__String _19_temp = _19;
             String e = _19_temp.u.Error.member0;
@@ -17637,7 +19846,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
             String* _1000005 = &_1000006; // ref
             String _1000004 = String_copy(_1000005);
             Result__Renderer_String _40 = Result_Error__String_Renderer(_1000004);
-            _215 = _40;
+            _278 = _40;
             String_delete(_1000006);
             String_delete(_1000008);
             String_delete(_1000010);
@@ -17647,7 +19856,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
             WGPURenderTexture* voxel_MINUS_tex = _19_temp.u.Success.member0;
             // Case expr:
             Result__WGPUSampler_String _47 = WGPURender_create_MINUS_sampler(ctx);
-            Result__Renderer_String _214;
+            Result__Renderer_String _277;
             if(_47._tag == Result__WGPUSampler_String_Error_tag) {
                 Result__WGPUSampler_String _47_temp = _47;
                 String e = _47_temp.u.Error.member0;
@@ -17664,7 +19873,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                 String _1000013 = String_copy(_1000014);
                 Result__Renderer_String _72 = Result_Error__String_Renderer(_1000013);
                 Result__Renderer_String _73 = _72;
-                _214 = _73;
+                _277 = _73;
                 String_delete(_1000015);
                 String_delete(_1000017);
                 String_delete(_1000019);
@@ -17674,7 +19883,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                 WGPUSampler voxel_MINUS_sampler = _47_temp.u.Success.member0;
                 // Case expr:
                 Result__WGPUUniformBufferWrapper_MUL__String _81 = WGPURender_create_MINUS_uniform_MINUS_buffer(ctx, 80);
-                Result__Renderer_String _213;
+                Result__Renderer_String _276;
                 if(_81._tag == Result__WGPUUniformBufferWrapper_MUL__String_Error_tag) {
                     Result__WGPUUniformBufferWrapper_MUL__String _81_temp = _81;
                     String e = _81_temp.u.Error.member0;
@@ -17692,7 +19901,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                     String _1000022 = String_copy(_1000023);
                     Result__Renderer_String _109 = Result_Error__String_Renderer(_1000022);
                     Result__Renderer_String _110 = _109;
-                    _213 = _110;
+                    _276 = _110;
                     String_delete(_1000024);
                     String_delete(_1000026);
                     String_delete(_1000028);
@@ -17706,7 +19915,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                     static String _119 = "fs_main";
                     String *_119_ref = &_119;
                     Result__WGPURenderPipelineWrapper_MUL__String _120 = Engine_create_MINUS_pipeline(eng, voxel_MINUS_wgsl, _118_ref, _119_ref);
-                    Result__Renderer_String _212;
+                    Result__Renderer_String _275;
                     if(_120._tag == Result__WGPURenderPipelineWrapper_MUL__String_Error_tag) {
                         Result__WGPURenderPipelineWrapper_MUL__String _120_temp = _120;
                         String e = _120_temp.u.Error.member0;
@@ -17725,7 +19934,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                         String _1000031 = String_copy(_1000032);
                         Result__Renderer_String _151 = Result_Error__String_Renderer(_1000031);
                         Result__Renderer_String _152 = _151;
-                        _212 = _152;
+                        _275 = _152;
                         String_delete(_1000033);
                         String_delete(_1000035);
                         String_delete(_1000037);
@@ -17735,7 +19944,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                         WGPURenderPipelineWrapper* pipe = _120_temp.u.Success.member0;
                         // Case expr:
                         Result__WGPUBindGroup_String _163 = Engine_create_MINUS_voxel_MINUS_bind_MINUS_group(eng, pipe, voxel_MINUS_tex, voxel_MINUS_sampler, ub);
-                        Result__Renderer_String _211;
+                        Result__Renderer_String _274;
                         if(_163._tag == Result__WGPUBindGroup_String_Error_tag) {
                             Result__WGPUBindGroup_String _163_temp = _163;
                             String e = _163_temp.u.Error.member0;
@@ -17755,7 +19964,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                             String _1000040 = String_copy(_1000041);
                             Result__Renderer_String _197 = Result_Error__String_Renderer(_1000040);
                             Result__Renderer_String _198 = _197;
-                            _211 = _198;
+                            _274 = _198;
                             String_delete(_1000042);
                             String_delete(_1000044);
                             String_delete(_1000046);
@@ -17764,26 +19973,71 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                             Result__WGPUBindGroup_String _163_temp = _163;
                             WGPUBindGroup bg = _163_temp.u.Success.member0;
                             // Case expr:
-                            Renderer _209 = Renderer_init(pipe, bg, ub, voxel_MINUS_tex, voxel_MINUS_sampler);
-                            Result__Renderer_String _210 = Result_Success__Renderer_String(_209);
-                            _211 = _210;
+                            Result__Renderer_String _273;
+                            /* let */ {
+                                WGPURenderSurface** _208 = Engine_surf(eng);
+                                WGPURenderSurface* _209 = Pointer_copy__WGPURenderSurface(_208);
+                                String _210 = WGPURender_surface_MINUS_format(_209);
+                                String format = _210;
+                                String* _217 = &format; // ref
+                                Result__LinePassRenderer_String _219 = LinePass_create(ctx, _217, 1000);
+                                Result__Renderer_String _272;
+                                if(_219._tag == Result__LinePassRenderer_String_Error_tag) {
+                                    Result__LinePassRenderer_String _219_temp = _219;
+                                    String e = _219_temp.u.Error.member0;
+                                    // Case expr:
+                                    Engine_free_MINUS_pipeline(pipe);
+                                    Engine_free_MINUS_uniform_MINUS_buffer(ub);
+                                    wgpuSamplerRelease(voxel_MINUS_sampler);
+                                    wgpu_render_texture_free(voxel_MINUS_tex);
+                                    Engine_free_MINUS_bind_MINUS_group(bg);
+                                    static String _245 = "LinePass creation failed: ";
+                                    String *_245_ref = &_245;
+                                    String _1000054 = String_str(_245_ref);
+                                    String* _1000053 = &_1000054; // ref
+                                    String _1000056 = StringCopy_str(e);
+                                    String* _1000055 = &_1000056; // ref
+                                    String _1000052 = String_append(_1000053, _1000055);
+                                    String* _1000051 = &_1000052; // ref
+                                    String _1000050 = String_copy(_1000051);
+                                    Result__Renderer_String _256 = Result_Error__String_Renderer(_1000050);
+                                    Result__Renderer_String _257 = _256;
+                                    _272 = _257;
+                                    String_delete(_1000052);
+                                    String_delete(_1000054);
+                                    String_delete(_1000056);
+                                }
+                                else if(_219._tag == Result__LinePassRenderer_String_Success_tag) {
+                                    Result__LinePassRenderer_String _219_temp = _219;
+                                    LinePassRenderer lp = _219_temp.u.Success.member0;
+                                    // Case expr:
+                                    Array _269 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(Line) * 0) };
+                                    Renderer _270 = Renderer_init(pipe, bg, ub, voxel_MINUS_tex, voxel_MINUS_sampler, lp, _269);
+                                    Result__Renderer_String _271 = Result_Success__Renderer_String(_270);
+                                    _272 = _271;
+                                }
+                                else UNHANDLED("renderer.carp", 158);
+                                _273 = _272;
+                                String_delete(format);
+                            }
+                            _274 = _273;
                         }
-                        else UNHANDLED("renderer.carp", 147);
-                        _212 = _211;
+                        else UNHANDLED("renderer.carp", 150);
+                        _275 = _274;
                     }
-                    else UNHANDLED("renderer.carp", 141);
-                    _213 = _212;
+                    else UNHANDLED("renderer.carp", 144);
+                    _276 = _275;
                 }
-                else UNHANDLED("renderer.carp", 136);
-                _214 = _213;
+                else UNHANDLED("renderer.carp", 139);
+                _277 = _276;
             }
-            else UNHANDLED("renderer.carp", 132);
-            _215 = _214;
+            else UNHANDLED("renderer.carp", 135);
+            _278 = _277;
         }
-        else UNHANDLED("renderer.carp", 129);
-        _216 = _215;
+        else UNHANDLED("renderer.carp", 132);
+        _279 = _278;
     }
-    return _216;
+    return _279;
 }
 
 void Renderer_delete(Renderer p) {
@@ -17792,39 +20046,75 @@ void Renderer_delete(Renderer p) {
     /* Ignore non-managed member 'uniform_MINUS_buffer' : (Ptr WGPUUniformBufferWrapper) */
     /* Ignore non-managed member 'voxel_MINUS_texture' : (Ptr WGPURenderTexture) */
     /* Ignore non-managed member 'voxel_MINUS_sampler' : WGPUSampler */
+    LinePassRenderer_delete(p.line_MINUS_pass);
+    Array_delete__Line(p.lines);
 }
 
-void Renderer_draw(Engine* eng, Renderer* ren) {
-    Maybe__WGPUFrameState_MUL_ _8 = Engine_begin_MINUS_frame(eng);
-    if(_8._tag == Maybe__WGPUFrameState_MUL__Nothing_tag) {
-        Maybe__WGPUFrameState_MUL_ _8_temp = _8;
+void Renderer_draw(Engine* eng, Renderer* ren, Camera* cam) {
+    Maybe__WGPUFrameState_MUL_ _9 = Engine_begin_MINUS_frame(eng);
+    if(_9._tag == Maybe__WGPUFrameState_MUL__Nothing_tag) {
+        Maybe__WGPUFrameState_MUL_ _9_temp = _9;
         // Case expr:
         /* () */
     }
-    else if(_8._tag == Maybe__WGPUFrameState_MUL__Just_tag) {
-        Maybe__WGPUFrameState_MUL_ _8_temp = _8;
-        WGPUFrameState* frame = _8_temp.u.Just.member0;
+    else if(_9._tag == Maybe__WGPUFrameState_MUL__Just_tag) {
+        Maybe__WGPUFrameState_MUL_ _9_temp = _9;
+        WGPUFrameState* frame = _9_temp.u.Just.member0;
         // Case expr:
-        WGPURenderPipelineWrapper** _21 = Renderer_pipeline(ren);
-        WGPURenderPipelineWrapper* _22 = Pointer_copy__WGPURenderPipelineWrapper(_21);
-        WGPUBindGroup* _26 = Renderer_bind_MINUS_group(ren);
-        WGPUBindGroup _27 = WGPUBindGroup_copy(_26);
-        Maybe__WGPURenderTexture_MUL_ _29 = Maybe_Nothing__WGPURenderTexture_MUL_();
-        WGPURender_run_MINUS_pass(frame, _22, _27, _29);
-        Engine_end_MINUS_frame(eng, frame);
+        /* let */ {
+            CameraMat4 _20 = Camera_view_MINUS_projection(cam);
+            CameraMat4 vp = _20;
+            CameraMat4* _25 = &vp; // ref
+            Array__float* _26 = CameraMat4_data(_25);
+            Array__float* vp_MINUS_data = _26;
+            WGPUContext** _31 = Engine_ctx(eng);
+            WGPUContext* _32 = Pointer_copy__WGPUContext(_31);
+            WGPUContext* ctx = _32;
+            LinePassRenderer* _38 = Renderer_line_MINUS_pass(ren);
+            Array__Line* _42 = Renderer_lines(ren);
+            int _43 = LinePass_update_BANG_(ctx, _38, vp_MINUS_data, _42);
+            int line_MINUS_count = _43;
+            WGPURenderPipelineWrapper** _51 = Renderer_pipeline(ren);
+            WGPURenderPipelineWrapper* _52 = Pointer_copy__WGPURenderPipelineWrapper(_51);
+            WGPUBindGroup* _56 = Renderer_bind_MINUS_group(ren);
+            WGPUBindGroup _57 = WGPUBindGroup_copy(_56);
+            Maybe__WGPURenderTexture_MUL_ _59 = Maybe_Nothing__WGPURenderTexture_MUL_();
+            WGPURender_run_MINUS_pass(frame, _52, _57, _59);
+            LinePassRenderer* _66 = Renderer_line_MINUS_pass(ren);
+            Maybe__WGPURenderTexture_MUL_ _69 = Maybe_Nothing__WGPURenderTexture_MUL_();
+            LinePass_render__WGPUContext_MUL_(frame, ctx, _66, line_MINUS_count, _69);
+            Renderer_clear_MINUS_lines_BANG_(ren);
+            Engine_end_MINUS_frame(eng, frame);
+            CameraMat4_delete(vp);
+        }
     }
-    else UNHANDLED("renderer.carp", 197);
+    else UNHANDLED("renderer.carp", 217);
 }
 
-Renderer Renderer_init(WGPURenderPipelineWrapper* pipeline, WGPUBindGroup bind_MINUS_group, WGPUUniformBufferWrapper* uniform_MINUS_buffer, WGPURenderTexture* voxel_MINUS_texture, WGPUSampler voxel_MINUS_sampler) {
+void Renderer_draw_MINUS_line_BANG_(Renderer* ren, Vector3__double* start, Vector3__double* end, Vector3__double* color) {
+    Array__Line* _10 = Renderer_lines(ren);
+    Vector3__double _14 = Vector3_copy__double(start);
+    Vector3__double _17 = Vector3_copy__double(end);
+    Vector3__double _20 = Vector3_copy__double(color);
+    Line _21 = Line_init(_14, _17, _20);
+    Array_push_MINUS_back_BANG___Line(_10, _21);
+}
+
+Renderer Renderer_init(WGPURenderPipelineWrapper* pipeline, WGPUBindGroup bind_MINUS_group, WGPUUniformBufferWrapper* uniform_MINUS_buffer, WGPURenderTexture* voxel_MINUS_texture, WGPUSampler voxel_MINUS_sampler, LinePassRenderer line_MINUS_pass, Array__Line lines) {
     Renderer instance;
     instance.pipeline = pipeline;
     instance.bind_MINUS_group = bind_MINUS_group;
     instance.uniform_MINUS_buffer = uniform_MINUS_buffer;
     instance.voxel_MINUS_texture = voxel_MINUS_texture;
     instance.voxel_MINUS_sampler = voxel_MINUS_sampler;
+    instance.line_MINUS_pass = line_MINUS_pass;
+    instance.lines = lines;
     return instance;
 }
+
+LinePassRenderer* Renderer_line_MINUS_pass(Renderer* p) { return (&(p->line_MINUS_pass)); }
+
+Array__Line* Renderer_lines(Renderer* p) { return (&(p->lines)); }
 
 WGPURenderPipelineWrapper** Renderer_pipeline(Renderer* p) { return (&(p->pipeline)); }
 
@@ -17850,6 +20140,14 @@ String Renderer_prn(Renderer *p) {
 
   // Failed to find str function for voxel_MINUS_sampler : WGPUSampler
 
+  temp = LinePassRenderer_prn(&p->line_MINUS_pass); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__Line(&p->lines); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
 
   String buffer = CARP_MALLOC(size);
   String bufferPtr = buffer;
@@ -17874,6 +20172,16 @@ String Renderer_prn(Renderer *p) {
 
   // Failed to find str function for voxel_MINUS_sampler : WGPUSampler
 
+  temp = LinePassRenderer_prn(&p->line_MINUS_pass);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__Line(&p->lines);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
   bufferPtr--;
   snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
   return buffer;
@@ -17889,6 +20197,32 @@ Renderer Renderer_set_MINUS_bind_MINUS_group(Renderer p, WGPUBindGroup newValue)
 void Renderer_set_MINUS_bind_MINUS_group_BANG_(Renderer* pRef, WGPUBindGroup newValue) {
     /* Ignore non-managed member 'bind_MINUS_group' : WGPUBindGroup */
     pRef->bind_MINUS_group = newValue;
+}
+
+
+Renderer Renderer_set_MINUS_line_MINUS_pass(Renderer p, LinePassRenderer newValue) {
+    LinePassRenderer_delete(p.line_MINUS_pass);
+    p.line_MINUS_pass = newValue;
+    return p;
+}
+
+
+void Renderer_set_MINUS_line_MINUS_pass_BANG_(Renderer* pRef, LinePassRenderer newValue) {
+    LinePassRenderer_delete(pRef->line_MINUS_pass);
+    pRef->line_MINUS_pass = newValue;
+}
+
+
+Renderer Renderer_set_MINUS_lines(Renderer p, Array__Line newValue) {
+    Array_delete__Line(p.lines);
+    p.lines = newValue;
+    return p;
+}
+
+
+void Renderer_set_MINUS_lines_BANG_(Renderer* pRef, Array__Line newValue) {
+    Array_delete__Line(pRef->lines);
+    pRef->lines = newValue;
 }
 
 
@@ -17966,6 +20300,14 @@ String Renderer_str(Renderer *p) {
 
   // Failed to find str function for voxel_MINUS_sampler : WGPUSampler
 
+  temp = LinePassRenderer_prn(&p->line_MINUS_pass); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__Line(&p->lines); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
 
   String buffer = CARP_MALLOC(size);
   String bufferPtr = buffer;
@@ -17990,6 +20332,16 @@ String Renderer_str(Renderer *p) {
 
   // Failed to find str function for voxel_MINUS_sampler : WGPUSampler
 
+  temp = LinePassRenderer_prn(&p->line_MINUS_pass);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__Line(&p->lines);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
   bufferPtr--;
   snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
   return buffer;
@@ -17999,6 +20351,18 @@ WGPUUniformBufferWrapper** Renderer_uniform_MINUS_buffer(Renderer* p) { return (
 
 Renderer Renderer_update_MINUS_bind_MINUS_group(Renderer p, Lambda *updater) {
     p.bind_MINUS_group = (*updater).env ? ((Fn__LambdaEnv_WGPUBindGroup_WGPUBindGroup)(*updater).callback)((*updater).env, p.bind_MINUS_group) : ((Fn__WGPUBindGroup_WGPUBindGroup)(*updater).callback)(p.bind_MINUS_group);
+    return p;
+}
+
+
+Renderer Renderer_update_MINUS_line_MINUS_pass(Renderer p, Lambda *updater) {
+    p.line_MINUS_pass = (*updater).env ? ((Fn__LambdaEnv_LinePassRenderer_LinePassRenderer)(*updater).callback)((*updater).env, p.line_MINUS_pass) : ((Fn__LinePassRenderer_LinePassRenderer)(*updater).callback)(p.line_MINUS_pass);
+    return p;
+}
+
+
+Renderer Renderer_update_MINUS_lines(Renderer p, Lambda *updater) {
+    p.lines = (*updater).env ? ((Fn__LambdaEnv_Array__Line_Array__Line)(*updater).callback)((*updater).env, p.lines) : ((Fn__Array__Line_Array__Line)(*updater).callback)(p.lines);
     return p;
 }
 
@@ -18170,6 +20534,13 @@ Result__FILE_MUL__String Result_Error__String_FILE_MUL_(String member0) {
   Result__FILE_MUL__String instance;
     instance.u.Error.member0 = member0;
     instance._tag = Result__FILE_MUL__String_Error_tag;
+    return instance;
+}
+
+Result__LinePassRenderer_String Result_Error__String_LinePassRenderer(String member0) {
+  Result__LinePassRenderer_String instance;
+    instance.u.Error.member0 = member0;
+    instance._tag = Result__LinePassRenderer_String_Error_tag;
     return instance;
 }
 
@@ -18359,6 +20730,13 @@ Result__FILE_MUL__String Result_Success__FILE_MUL__String(FILE* member0) {
   Result__FILE_MUL__String instance;
     instance.u.Success.member0 = member0;
     instance._tag = Result__FILE_MUL__String_Success_tag;
+    return instance;
+}
+
+Result__LinePassRenderer_String Result_Success__LinePassRenderer_String(LinePassRenderer member0) {
+  Result__LinePassRenderer_String instance;
+    instance.u.Success.member0 = member0;
+    instance._tag = Result__LinePassRenderer_String_Success_tag;
     return instance;
 }
 
@@ -18606,6 +20984,16 @@ void Result_delete__FILE_MUL__String(Result__FILE_MUL__String p) {
     /* Ignore non-managed member 'u.Success.member0' : (Ptr FILE) */
   }
   else if(p._tag == Result__FILE_MUL__String_Error_tag) {
+    String_delete(p.u.Error.member0);
+  }
+
+}
+
+void Result_delete__LinePassRenderer_String(Result__LinePassRenderer_String p) {
+  if(p._tag == Result__LinePassRenderer_String_Success_tag) {
+    LinePassRenderer_delete(p.u.Success.member0);
+  }
+  else if(p._tag == Result__LinePassRenderer_String_Error_tag) {
     String_delete(p.u.Error.member0);
   }
 
@@ -22113,6 +24501,7 @@ bool not(bool a) {
     return _6;
 }
 
+WGPUDepthTexture* null_MINUS_depth_MINUS_texture() { return NULL; }
 bool null_QMARK___CChar(CChar* p) {
     CChar* _11 = p; // From the 'the' function.
     bool _12 = Pointer_eq__CChar(NULL, _11);

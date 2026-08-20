@@ -1,0 +1,121 @@
+(load "scaffold.carp")
+
+(deftemplate null-depth-texture (Fn [] (Ptr WGPUDepthTexture))
+  "WGPUDepthTexture* $NAME()"
+  "$DECL { return NULL; }")
+
+(deftype Line [
+  start (Vector3 Double)
+  end (Vector3 Double)
+  color (Vector3 Double)
+])
+
+(deftype LinePassRenderer [
+  pipeline (Ptr WGPUGeomPipelineWrapper)
+  u-buffer (Ptr WGPUUniformBufferWrapper)
+  v-buffer (Ptr WGPUVertexBufferWrapper)
+  bind-group WGPUBindGroup
+  max-lines Int
+  v-data (Array Float)
+])
+
+(defmodule LinePass
+  (def line-shader-wgsl
+    "struct Uniforms {
+        view_proj: mat4x4<f32>,
+    }
+    @group(0) @binding(0) var<uniform> u: Uniforms;
+
+    struct VertexInput {
+        @location(0) position: vec3<f32>,
+        @location(1) color: vec3<f32>,
+    }
+
+    struct VertexOutput {
+        @builtin(position) clip_pos: vec4<f32>,
+        @location(0) color: vec3<f32>,
+    }
+
+    @vertex
+    fn vs_main(in: VertexInput) -> VertexOutput {
+        var out: VertexOutput;
+        out.clip_pos = u.view_proj * vec4<f32>(in.position, 1.0);
+        out.color = in.color;
+        return out;
+    }
+
+    @fragment
+    fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+        return vec4<f32>(in.color, 1.0);
+    }
+    ")
+
+  (defn create [ctx format max-lines]
+    (let [u-size 64 ;; 4x4 float matrix
+          v-size (* max-lines (* 2 24)) ;; 2 vertices per line, 24 bytes per vertex (3 floats pos + 3 floats color = 6 floats = 24 bytes)
+          dummy-data (the (Array Float) (replicate (/ v-size 4) &0.0f))
+          v-data @&dummy-data]
+      (match (WGPURender.create-uniform-buffer ctx u-size)
+        (Result.Error e) (Result.Error (str* "Line Uniform failed: " e))
+        (Result.Success ub)
+          (match (WGPURender.create-vertex-buffer ctx &dummy-data)
+            (Result.Error e) (do (WGPURender.free-uniform-buffer ub) (Result.Error (str* "Line Vertex failed: " e)))
+            (Result.Success vb)
+              (match (WGPURender.create-geom-pipeline ctx line-shader-wgsl "vs_main" "fs_main" format "line-list" 24)
+                (Result.Error e) (do (WGPURender.free-uniform-buffer ub) (WGPURender.free-vertex-buffer vb) (Result.Error (str* "Line Pipeline failed: " e)))
+                (Result.Success pipe)
+                  (match (WGPURender.create-uniform-bind-group ctx pipe ub)
+                    (Result.Error e) (do (WGPURender.free-geom-pipeline pipe) (WGPURender.free-uniform-buffer ub) (WGPURender.free-vertex-buffer vb) (Result.Error (str* "Line Bind group failed: " e)))
+                    (Result.Success bg)
+                      (Result.Success (LinePassRenderer.init pipe ub vb bg max-lines v-data))))))))
+
+  (defn update! [ctx lp view-proj lines]
+    (let [v-data (LinePassRenderer.v-data lp)
+          line-count 0
+          max @(LinePassRenderer.max-lines lp)]
+      (do
+        ;; 1. Update Uniforms (ViewProj Matrix)
+        (WGPURender.update-uniform-buffer ctx @(LinePassRenderer.u-buffer lp) view-proj)
+        
+        ;; 2. Pack Vertex Data from lines array in-place
+        (for [i 0 (Array.length lines)]
+          (when (< line-count max)
+            (let [line (Array.unsafe-nth lines i)
+                  start (Line.start line)
+                  end (Line.end line)
+                  color (Line.color line)
+                  base-idx (* line-count 12)]
+              (do
+                (Array.aset! v-data base-idx (Double.to-float @(Vector3.x start)))
+                (Array.aset! v-data (+ base-idx 1) (Double.to-float @(Vector3.y start)))
+                (Array.aset! v-data (+ base-idx 2) (Double.to-float @(Vector3.z start)))
+                (Array.aset! v-data (+ base-idx 3) (Double.to-float @(Vector3.x color)))
+                (Array.aset! v-data (+ base-idx 4) (Double.to-float @(Vector3.y color)))
+                (Array.aset! v-data (+ base-idx 5) (Double.to-float @(Vector3.z color)))
+                
+                (Array.aset! v-data (+ base-idx 6) (Double.to-float @(Vector3.x end)))
+                (Array.aset! v-data (+ base-idx 7) (Double.to-float @(Vector3.y end)))
+                (Array.aset! v-data (+ base-idx 8) (Double.to-float @(Vector3.z end)))
+                (Array.aset! v-data (+ base-idx 9) (Double.to-float @(Vector3.x color)))
+                (Array.aset! v-data (+ base-idx 10) (Double.to-float @(Vector3.y color)))
+                (Array.aset! v-data (+ base-idx 11) (Double.to-float @(Vector3.z color)))
+                (set! line-count (inc line-count))))))
+        
+        ;; 3. Upload to GPU
+        (if (> line-count 0)
+            (WGPURender.update-vertex-buffer ctx @(LinePassRenderer.v-buffer lp) v-data)
+            ())
+        line-count)))
+
+  (defn render [frame ctx lp line-count target]
+    (if (> line-count 0)
+        (WGPURender.run-geom-pass-overlay frame @(LinePassRenderer.pipeline lp) @(LinePassRenderer.bind-group lp) @(LinePassRenderer.v-buffer lp) (null-depth-texture) (Uint32.from-long (Long.from-int (* line-count 2))) target)
+        ()))
+
+  (defn cleanup [lp]
+    (do
+      (WGPURender.free-bind-group @(LinePassRenderer.bind-group lp))
+      (WGPURender.free-geom-pipeline @(LinePassRenderer.pipeline lp))
+      (WGPURender.free-uniform-buffer @(LinePassRenderer.u-buffer lp))
+      (WGPURender.free-vertex-buffer @(LinePassRenderer.v-buffer lp))))
+)

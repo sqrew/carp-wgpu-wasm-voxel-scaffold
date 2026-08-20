@@ -4886,6 +4886,53 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
   }
 
   
+  
+  
+  
+  
+  var _emwgpuBufferGetMappedRange = (bufferPtr, offset, size) => {
+      var buffer = WebGPU.getJsObject(bufferPtr);
+  
+      if (size === 0) warnOnce('getMappedRange size=0 no longer means WGPU_WHOLE_MAP_SIZE');
+  
+      if (size == -1) size = undefined;
+  
+      var mapped;
+      try {
+        mapped = buffer.getMappedRange(offset, size);
+      } catch (ex) {
+        err(`buffer.getMappedRange(${offset}, ${size}) failed: ${ex}`);
+        return 0;
+      }
+  
+      var data = _memalign(16, mapped.byteLength);
+      HEAPU8.fill(0, data, mapped.byteLength);
+      WebGPU.Internals.bufferOnUnmaps[bufferPtr].push(() => {
+        new Uint8Array(mapped).set(HEAPU8.subarray(data, data + mapped.byteLength));
+        _free(data);
+      });
+      return data;
+    };
+
+  
+  var _emwgpuBufferUnmap = (bufferPtr) => {
+      var buffer = WebGPU.getJsObject(bufferPtr);
+  
+      var onUnmap = WebGPU.Internals.bufferOnUnmaps[bufferPtr];
+      if (!onUnmap) {
+        // Already unmapped
+        return;
+      }
+  
+      for (var i = 0; i < onUnmap.length; ++i) {
+        onUnmap[i]();
+      }
+      delete WebGPU.Internals.bufferOnUnmaps[bufferPtr]
+  
+      buffer.unmap();
+    };
+
+  
   var _emwgpuDelete = (ptr) => {
       delete WebGPU.Internals.jsObjects[ptr];
     };
@@ -7585,6 +7632,112 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
   
   
   
+  
+  var _wgpuDeviceCreateBindGroupLayout = (devicePtr, descriptor) => {
+      assert(descriptor);assert(HEAPU32[((descriptor)>>2)] === 0);
+  
+      function makeBufferEntry(substructPtr) {
+        var typeInt =
+          HEAPU32[(((substructPtr)+(4))>>2)];
+        if (!typeInt) return undefined;
+  
+        return {
+          "type": WebGPU.BufferBindingType[typeInt],
+          "hasDynamicOffset":
+            !!(HEAPU32[(((substructPtr)+(8))>>2)]),
+          "minBindingSize":
+            readI53FromI64((substructPtr)+(16)),
+        };
+      }
+  
+      function makeSamplerEntry(substructPtr) {
+        var typeInt =
+          HEAPU32[(((substructPtr)+(4))>>2)];
+        if (!typeInt) return undefined;
+  
+        return {
+          "type": WebGPU.SamplerBindingType[typeInt],
+        };
+      }
+  
+      function makeTextureEntry(substructPtr) {
+        var sampleTypeInt =
+          HEAPU32[(((substructPtr)+(4))>>2)];
+        if (!sampleTypeInt) return undefined;
+  
+        return {
+          "sampleType": WebGPU.TextureSampleType[sampleTypeInt],
+          "viewDimension": WebGPU.TextureViewDimension[HEAP32[(((substructPtr)+(8))>>2)]],
+          "multisampled":
+            !!(HEAPU32[(((substructPtr)+(12))>>2)]),
+        };
+      }
+  
+      function makeStorageTextureEntry(substructPtr) {
+        var accessInt =
+          HEAPU32[(((substructPtr)+(4))>>2)]
+        if (!accessInt) return undefined;
+  
+        return {
+          "access": WebGPU.StorageTextureAccess[accessInt],
+          "format": WebGPU.TextureFormat[HEAP32[(((substructPtr)+(8))>>2)]],
+          "viewDimension": WebGPU.TextureViewDimension[HEAP32[(((substructPtr)+(12))>>2)]],
+        };
+      }
+  
+      function makeEntry(entryPtr) {
+        assert(entryPtr);
+        // bindingArraySize is not specced and thus not implemented yet. We don't pass it through
+        // because if we did, then existing apps using this version of the bindings could break when
+        // browsers start accepting bindingArraySize.
+        var bindingArraySize = HEAPU32[(((entryPtr)+(16))>>2)];
+        assert(bindingArraySize == 0 || bindingArraySize == 1);
+  
+        var entry = {
+          "binding":
+            HEAPU32[(((entryPtr)+(4))>>2)],
+          "visibility":
+            HEAPU32[(((entryPtr)+(8))>>2)],
+          "buffer": makeBufferEntry(entryPtr + 24),
+          "sampler": makeSamplerEntry(entryPtr + 48),
+          "texture": makeTextureEntry(entryPtr + 56),
+          "storageTexture": makeStorageTextureEntry(entryPtr + 72),
+        };
+        WebGPU.iterateExtensions(entryPtr, {
+          13: (ptr) => {
+            entry["externalTexture"] = {};
+          },
+        });
+        return entry;
+      }
+  
+      function makeEntries(count, entriesPtrs) {
+        var entries = [];
+        for (var i = 0; i < count; ++i) {
+          entries.push(makeEntry(entriesPtrs +
+              88 * i));
+        }
+        return entries;
+      }
+  
+      var desc = {
+        "label": WebGPU.makeStringFromOptionalStringView(
+          descriptor + 4),
+        "entries": makeEntries(
+          HEAPU32[(((descriptor)+(12))>>2)],
+          HEAPU32[(((descriptor)+(16))>>2)]
+        ),
+      };
+  
+      var device = WebGPU.getJsObject(devicePtr);
+      var ptr = _emwgpuCreateBindGroupLayout(0);
+      WebGPU.Internals.jsObjectInsert(ptr, device.createBindGroupLayout(desc));
+      return ptr;
+    };
+
+  
+  
+  
   var _wgpuDeviceCreateCommandEncoder = (devicePtr, descriptor) => {
       var desc;
       if (descriptor) {
@@ -7597,6 +7750,30 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
       var device = WebGPU.getJsObject(devicePtr);
       var ptr = _emwgpuCreateCommandEncoder(0);
       WebGPU.Internals.jsObjectInsert(ptr, device.createCommandEncoder(desc));
+      return ptr;
+    };
+
+  
+  
+  
+  var _wgpuDeviceCreatePipelineLayout = (devicePtr, descriptor) => {
+      assert(descriptor);assert(HEAPU32[((descriptor)>>2)] === 0);
+      var bglCount = HEAPU32[(((descriptor)+(12))>>2)];
+      var bglPtr = HEAPU32[(((descriptor)+(16))>>2)];
+      var bgls = [];
+      for (var i = 0; i < bglCount; ++i) {
+        bgls.push(WebGPU.getJsObject(
+          HEAPU32[(((bglPtr)+(4 * i))>>2)]));
+      }
+      var desc = {
+        "label": WebGPU.makeStringFromOptionalStringView(
+          descriptor + 4),
+        "bindGroupLayouts": bgls,
+      };
+  
+      var device = WebGPU.getJsObject(devicePtr);
+      var ptr = _emwgpuCreatePipelineLayout(0);
+      WebGPU.Internals.jsObjectInsert(ptr, device.createPipelineLayout(desc));
       return ptr;
     };
 
@@ -7810,6 +7987,21 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
       var pipeline = WebGPU.getJsObject(pipelinePtr);
       pass.setPipeline(pipeline);
     };
+
+  
+  
+  function _wgpuRenderPassEncoderSetVertexBuffer(passPtr, slot, bufferPtr, offset, size) {
+    offset = bigintToI53Checked(offset);
+    size = bigintToI53Checked(size);
+  
+  
+      assert(slot >= 0);
+      var pass = WebGPU.getJsObject(passPtr);
+      var buffer = WebGPU.getJsObject(bufferPtr);
+      if (size == -1) size = undefined;
+      pass.setVertexBuffer(slot, buffer, offset, size);
+    ;
+  }
 
   
   
@@ -8958,6 +9150,10 @@ var wasmImports = {
   /** @export */
   emwgpuAdapterRequestDevice: _emwgpuAdapterRequestDevice,
   /** @export */
+  emwgpuBufferGetMappedRange: _emwgpuBufferGetMappedRange,
+  /** @export */
+  emwgpuBufferUnmap: _emwgpuBufferUnmap,
+  /** @export */
   emwgpuDelete: _emwgpuDelete,
   /** @export */
   emwgpuDeviceCreateBuffer: _emwgpuDeviceCreateBuffer,
@@ -9008,7 +9204,11 @@ var wasmImports = {
   /** @export */
   wgpuDeviceCreateBindGroup: _wgpuDeviceCreateBindGroup,
   /** @export */
+  wgpuDeviceCreateBindGroupLayout: _wgpuDeviceCreateBindGroupLayout,
+  /** @export */
   wgpuDeviceCreateCommandEncoder: _wgpuDeviceCreateCommandEncoder,
+  /** @export */
+  wgpuDeviceCreatePipelineLayout: _wgpuDeviceCreatePipelineLayout,
   /** @export */
   wgpuDeviceCreateRenderPipeline: _wgpuDeviceCreateRenderPipeline,
   /** @export */
@@ -9031,6 +9231,8 @@ var wasmImports = {
   wgpuRenderPassEncoderSetBindGroup: _wgpuRenderPassEncoderSetBindGroup,
   /** @export */
   wgpuRenderPassEncoderSetPipeline: _wgpuRenderPassEncoderSetPipeline,
+  /** @export */
+  wgpuRenderPassEncoderSetVertexBuffer: _wgpuRenderPassEncoderSetVertexBuffer,
   /** @export */
   wgpuRenderPipelineGetBindGroupLayout: _wgpuRenderPipelineGetBindGroupLayout,
   /** @export */
