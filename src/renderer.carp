@@ -50,6 +50,41 @@ fn intersect_box(ro: vec3<f32>, rd: vec3<f32>, box_min: vec3<f32>, box_max: vec3
     return t_near < t_far && t_far > 0.0;
 }
 
+fn getShadow(ro: vec3<f32>, rd: vec3<f32>, mint: f32, maxt: f32, k: f32) -> f32 {
+    var res: f32 = 1.0;
+    var t = mint;
+    let dims = vec3<f32>(128.0, 64.0, 128.0);
+    for (var i = 0; i < 40; i = i + 1) {
+        let p = ro + rd * t;
+        let uvw = clamp(p / dims, vec3<f32>(0.002), vec3<f32>(0.998));
+        let h = textureSampleLevel(voxel_texture, voxel_sampler, uvw, 0.0).g * 0.5;
+        if (h < 0.008) {
+            return 0.0;
+        }
+        res = min(res, k * h / t);
+        t += max(0.05, h);
+        if (t > maxt) {
+            break;
+        }
+    }
+    return clamp(res, 0.2, 1.0);
+}
+
+fn getAO(p: vec3<f32>, n: vec3<f32>) -> f32 {
+    var occ = 0.0;
+    var sca = 1.0;
+    let dims = vec3<f32>(128.0, 64.0, 128.0);
+    for (var i = 0; i < 5; i = i + 1) {
+        let hr = 0.05 + 0.15 * f32(i) / 4.0;
+        let aopos = p + n * hr;
+        let uvw = clamp(aopos / dims, vec3<f32>(0.002), vec3<f32>(0.998));
+        let d = textureSampleLevel(voxel_texture, voxel_sampler, uvw, 0.0).g * 0.5;
+        occ += -(d - hr) * sca;
+        sca *= 0.95;
+    }
+    return clamp(1.0 - occ * 4.0, 0.0, 1.0);
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let aspect = u.width / u.height;
@@ -110,7 +145,19 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 
                 let light_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));
                 let diffuse = max(dot(normal, light_dir), 0.1);
-                color = base_color * (diffuse + 0.3);
+                
+                // Raymarched Shadows (soft shadows)
+                let shadow_pos = p + normal * 0.05;
+                let sha = getShadow(shadow_pos, light_dir, 0.05, 40.0, 16.0);
+                
+                // Ambient Occlusion
+                let ao = getAO(p, normal);
+                
+                // Combine Shading
+                let ambient = vec3<f32>(0.1, 0.12, 0.2) * ao;
+                let direct = vec3<f32>(1.0, 0.95, 0.85) * diffuse * sha;
+                
+                color = base_color * (direct + ambient);
                 hit = true;
                 break;
             }
