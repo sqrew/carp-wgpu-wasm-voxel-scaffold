@@ -5818,7 +5818,7 @@ void carp_init_globals(int argc, char** argv) {
 #endif
     // Depth 0
     {
-        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    _pad0: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n}\n\n@group(0) @binding(0) var<uniform> u: Uniforms;\n@group(0) @binding(1) var voxel_texture: texture_3d<f32>;\n@group(0) @binding(2) var voxel_sampler: sampler;\n\nstruct VertexOutput {\n    @builtin(position) position: vec4<f32>,\n    @location(0) uv: vec2<f32>,\n}\n\n@vertex\nfn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {\n    var pos: array<vec2<f32>, 3> = array<vec2<f32>, 3>(\n        vec2<f32>(-1.0, -1.0),\n        vec2<f32>( 3.0, -1.0),\n        vec2<f32>(-1.0,  3.0),\n    );\n    var out: VertexOutput;\n    let p = pos[vi];\n    out.position = vec4<f32>(p, 0.0, 1.0);\n    out.uv = (p + 1.0) * 0.5;\n    return out;\n}\n\nfn intersect_box(ro: vec3<f32>, rd: vec3<f32>, box_min: vec3<f32>, box_max: vec3<f32>, t0: ptr<function, f32>, t1: ptr<function, f32>) -> bool {\n    let inv_d = 1.0 / rd;\n    let t_bot = inv_d * (box_min - ro);\n    let t_top = inv_d * (box_max - ro);\n    let t_min = min(t_bot, t_top);\n    let t_max = max(t_bot, t_top);\n    let t_near = max(t_min.x, max(t_min.y, t_min.z));\n    let t_far = min(t_max.x, min(t_max.y, t_max.z));\n    *t0 = t_near;\n    *t1 = t_far;\n    return t_near < t_far && t_far > 0.0;\n}\n\n@fragment\nfn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {\n    let aspect = u.width / u.height;\n    let uv = (in.uv * 2.0 - 1.0) * vec2<f32>(aspect, 1.0);\n    \n    let ro = u.cam_pos.xyz;\n    let rd = normalize(u.cam_dir.xyz * 2.0 + uv.x * u.cam_right.xyz + uv.y * u.cam_up.xyz);\n    \n    let box_min = vec3<f32>(0.0, 0.0, 0.0);\n    let box_max = vec3<f32>(64.0, 64.0, 64.0);\n    \n    var t_near: f32 = 0.0;\n    var t_far: f32 = 0.0;\n    \n    var color = vec3<f32>(0.05, 0.08, 0.15);\n    \n    if (intersect_box(ro, rd, box_min, box_max, &t_near, &t_far)) {\n        let t_start = max(t_near, 0.0);\n        var t = t_start;\n        var hit = false;\n        \n        for (var step = 0; step < 280; step = step + 1) {\n            if (t > t_far) {\n                break;\n            }\n            let p = ro + rd * t;\n            \n            let voxel_coord = vec3<i32>(floor(p));\n            if (any(voxel_coord < vec3<i32>(0)) || any(voxel_coord >= vec3<i32>(64))) {\n                t = t + 0.4;\n                continue;\n            }\n            let val = textureLoad(voxel_texture, voxel_coord, 0);\n            \n            if (val.a > 0.5) {\n                let normal = normalize(p - vec3<f32>(32.0, 32.0, 32.0));\n                let light_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));\n                let diffuse = max(dot(normal, light_dir), 0.1);\n                color = val.rgb * (diffuse + 0.4);\n                hit = true;\n                break;\n            }\n            \n            t = t + 0.4;\n        }\n    }\n    \n    let dummy = textureSampleLevel(voxel_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r * 1e-10;\n    return vec4<f32>(color + dummy, 1.0);\n}\n";
+        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    _pad0: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n}\n\n@group(0) @binding(0) var<uniform> u: Uniforms;\n@group(0) @binding(1) var voxel_texture: texture_3d<f32>;\n@group(0) @binding(2) var voxel_sampler: sampler;\n\nstruct VertexOutput {\n    @builtin(position) position: vec4<f32>,\n    @location(0) uv: vec2<f32>,\n}\n\n@vertex\nfn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {\n    var pos: array<vec2<f32>, 3> = array<vec2<f32>, 3>(\n        vec2<f32>(-1.0, -1.0),\n        vec2<f32>( 3.0, -1.0),\n        vec2<f32>(-1.0,  3.0),\n    );\n    var out: VertexOutput;\n    let p = pos[vi];\n    out.position = vec4<f32>(p, 0.0, 1.0);\n    out.uv = (p + 1.0) * 0.5;\n    return out;\n}\n\nfn intersect_box(ro: vec3<f32>, rd: vec3<f32>, box_min: vec3<f32>, box_max: vec3<f32>, t0: ptr<function, f32>, t1: ptr<function, f32>) -> bool {\n    let inv_d = 1.0 / rd;\n    let t_bot = inv_d * (box_min - ro);\n    let t_top = inv_d * (box_max - ro);\n    let t_min = min(t_bot, t_top);\n    let t_max = max(t_bot, t_top);\n    let t_near = max(t_min.x, max(t_min.y, t_min.z));\n    let t_far = min(t_max.x, min(t_max.y, t_max.z));\n    *t0 = t_near;\n    *t1 = t_far;\n    return t_near < t_far && t_far > 0.0;\n}\n\n@fragment\nfn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {\n    let aspect = u.width / u.height;\n    let uv = (in.uv * 2.0 - 1.0) * vec2<f32>(aspect, 1.0);\n    \n    let ro = u.cam_pos.xyz;\n    let rd = normalize(u.cam_dir.xyz * 2.0 + uv.x * u.cam_right.xyz + uv.y * u.cam_up.xyz);\n    \n    let box_min = vec3<f32>(0.0, 0.0, 0.0);\n    let box_max = vec3<f32>(64.0, 64.0, 64.0);\n    \n    var t_near: f32 = 0.0;\n    var t_far: f32 = 0.0;\n    \n    var color = vec3<f32>(0.05, 0.08, 0.15);\n    \n    if (intersect_box(ro, rd, box_min, box_max, &t_near, &t_far)) {\n        let t_start = max(t_near, 0.0);\n        var t = t_start;\n        var hit = false;\n        \n        for (var step = 0; step < 280; step = step + 1) {\n            if (t > t_far) {\n                break;\n            }\n            let p = ro + rd * t;\n            \n            let voxel_coord = vec3<i32>(floor(p));\n            if (any(voxel_coord < vec3<i32>(0)) || any(voxel_coord >= vec3<i32>(64))) {\n                t = t + 0.4;\n                continue;\n            }\n            let val = textureLoad(voxel_texture, voxel_coord, 0);\n            \n            if (val.a > 0.5) {\n                let prev_p = p - rd * 0.4;\n                let prev_coord = vec3<i32>(floor(prev_p));\n                let diff = voxel_coord - prev_coord;\n                var normal = vec3<f32>(0.0);\n                if (diff.x != 0) {\n                    normal.x = -f32(diff.x);\n                } else if (diff.y != 0) {\n                    normal.y = -f32(diff.y);\n                } else if (diff.z != 0) {\n                    normal.z = -f32(diff.z);\n                } else {\n                    normal = normalize(p - vec3<f32>(32.0, 32.0, 32.0));\n                }\n                normal = normalize(normal);\n\n                let light_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));\n                let diffuse = max(dot(normal, light_dir), 0.1);\n                color = val.rgb * (diffuse + 0.4);\n                hit = true;\n                break;\n            }\n            \n            t = t + 0.4;\n        }\n    }\n    \n    let dummy = textureSampleLevel(voxel_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r * 1e-10;\n    return vec4<f32>(color + dummy, 1.0);\n}\n";
         String *_2_ref = &_2;
         voxel_MINUS_wgsl = _2_ref;
     }
@@ -17300,7 +17300,7 @@ int main(int argc, char** argv) {
                                                     Engine* _919 = &eng; // ref
                                                     Engine_end_MINUS_frame(_919, frame);
                                                 }
-                                                else UNHANDLED("main.carp", 322);
+                                                else UNHANDLED("main.carp", 336);
                                                 Engine* _927 = &eng; // ref
                                                 Engine_poll_MINUS_events__Engine_MUL_(_927);
                                                 emscripten_MINUS_sleep(16);
@@ -17323,25 +17323,25 @@ int main(int argc, char** argv) {
                                     }
                                     _956 = _955;
                                 }
-                                else UNHANDLED("main.carp", 227);
+                                else UNHANDLED("main.carp", 241);
                                 _957 = _956;
                             }
-                            else UNHANDLED("main.carp", 220);
+                            else UNHANDLED("main.carp", 234);
                             _958 = _957;
                         }
-                        else UNHANDLED("main.carp", 214);
+                        else UNHANDLED("main.carp", 228);
                         _959 = _958;
                     }
-                    else UNHANDLED("main.carp", 209);
+                    else UNHANDLED("main.carp", 223);
                     _960 = _959;
                 }
-                else UNHANDLED("main.carp", 206);
+                else UNHANDLED("main.carp", 220);
                 int _961 = _960;
                 _962 = _961;
             }
             _963 = _962;
         }
-        else UNHANDLED("main.carp", 196);
+        else UNHANDLED("main.carp", 210);
         _964 = _963;
     }
     return _964;

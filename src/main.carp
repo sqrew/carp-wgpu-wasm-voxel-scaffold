@@ -91,7 +91,21 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             let val = textureLoad(voxel_texture, voxel_coord, 0);
             
             if (val.a > 0.5) {
-                let normal = normalize(p - vec3<f32>(32.0, 32.0, 32.0));
+                let prev_p = p - rd * 0.4;
+                let prev_coord = vec3<i32>(floor(prev_p));
+                let diff = voxel_coord - prev_coord;
+                var normal = vec3<f32>(0.0);
+                if (diff.x != 0) {
+                    normal.x = -f32(diff.x);
+                } else if (diff.y != 0) {
+                    normal.y = -f32(diff.y);
+                } else if (diff.z != 0) {
+                    normal.z = -f32(diff.z);
+                } else {
+                    normal = normalize(p - vec3<f32>(32.0, 32.0, 32.0));
+                }
+                normal = normalize(normal);
+
                 let light_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));
                 let diffuse = max(dot(normal, light_dir), 0.1);
                 color = val.rgb * (diffuse + 0.4);
