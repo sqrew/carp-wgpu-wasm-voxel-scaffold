@@ -83,19 +83,22 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 break;
             }
             
-            let tex_coord = p / 64.0;
-            let val = textureSampleLevel(voxel_texture, voxel_sampler, tex_coord, 0.0);
+            let voxel_coord = vec3<i32>(floor(p));
+            if (any(voxel_coord < vec3<i32>(0)) || any(voxel_coord >= vec3<i32>(64))) {
+                break;
+            }
+            let val = textureLoad(voxel_texture, voxel_coord, 0);
             
             if (val.a > 0.5) {
-                let normal = vec3<f32>(0.0, 1.0, 0.0);
+                let normal = normalize(p - vec3<f32>(32.0, 32.0, 32.0));
                 let light_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));
-                let diffuse = max(dot(normal, light_dir), 0.2);
-                color = val.rgb * (diffuse + 0.3);
+                let diffuse = max(dot(normal, light_dir), 0.1);
+                color = val.rgb * (diffuse + 0.4);
                 hit = true;
                 break;
             }
             
-            t = t + 0.2;
+            t = t + 0.15;
         }
     }
     
