@@ -16825,7 +16825,7 @@ Result__EngineState_String EngineState_create(String* title, int width, int heig
             /* let */ {
                 World _74 = World_create();
                 World world = _74;
-                Vector3__double _81 = Vector3_init__double(16.0, 16.0, -20.0);
+                Vector3__double _81 = Vector3_init__double(64.0, 45.0, 64.0);
                 Camera _85 = Camera_new(_81, -90.0, 0.0, 1.7777777777777777);
                 Camera cam = _85;
                 Array__float _89 = Array_allocate__float(20);

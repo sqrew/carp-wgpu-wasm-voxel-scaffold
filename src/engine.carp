@@ -27,7 +27,7 @@
                                (Result.Error (str* "Renderer failed: " e)))
           (Result.Success ren)
             (let [world (World.create)
-                  cam (Camera.new (Vector3.init 16.0 16.0 -20.0) -90.0 0.0 1.7777777777777777)
+                  cam (Camera.new (Vector3.init 64.0 45.0 64.0) -90.0 0.0 1.7777777777777777)
                   uniforms (Array.allocate 20)
                   diag (Diagnostics.new @"diagnostics.log")]
               (do
