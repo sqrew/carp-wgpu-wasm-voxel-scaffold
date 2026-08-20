@@ -30,16 +30,14 @@
                     dz (- (Float.from-int z) 16.0f)
                     dist (Float.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))
                     
-                    density (if (and (< dist 11.0f) (> dist 8.0f)) 1.0f 0.0f)
-                    r (/ (Float.from-int x) 32.0f)
-                    g (/ (Float.from-int y) 32.0f)
-                    b (/ (Float.from-int z) 32.0f)
+                    sdf (- (Float.abs (- dist 9.0f)) 1.0f)
+                    mat-id (if (< sdf 0.0f) 2.0f 0.0f)
                     offset (* idx 4)]
                 (do
-                  (Pointer.set (Pointer.add p-data (Long.from-int offset)) r)
-                  (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) g)
-                  (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) b)
-                  (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) density))))))
+                  (Pointer.set (Pointer.add p-data (Long.from-int offset)) mat-id)
+                  (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) sdf)
+                  (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
+                  (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 1.0f))))))
         (Chunk.init qx qy qz voxel-data))))
 )
 

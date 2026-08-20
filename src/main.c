@@ -7751,7 +7751,7 @@ void carp_init_globals(int argc, char** argv) {
 #endif
     // Depth 0
     {
-        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    _pad0: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n}\n\n@group(0) @binding(0) var<uniform> u: Uniforms;\n@group(0) @binding(1) var voxel_texture: texture_3d<f32>;\n@group(0) @binding(2) var voxel_sampler: sampler;\n\nstruct VertexOutput {\n    @builtin(position) position: vec4<f32>,\n    @location(0) uv: vec2<f32>,\n}\n\n@vertex\nfn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {\n    var pos: array<vec2<f32>, 3> = array<vec2<f32>, 3>(\n        vec2<f32>(-1.0, -1.0),\n        vec2<f32>( 3.0, -1.0),\n        vec2<f32>(-1.0,  3.0),\n    );\n    var out: VertexOutput;\n    let p = pos[vi];\n    out.position = vec4<f32>(p, 0.0, 1.0);\n    out.uv = (p + 1.0) * 0.5;\n    return out;\n}\n\nfn intersect_box(ro: vec3<f32>, rd: vec3<f32>, box_min: vec3<f32>, box_max: vec3<f32>, t0: ptr<function, f32>, t1: ptr<function, f32>) -> bool {\n    let inv_d = 1.0 / rd;\n    let t_bot = inv_d * (box_min - ro);\n    let t_top = inv_d * (box_max - ro);\n    let t_min = min(t_bot, t_top);\n    let t_max = max(t_bot, t_top);\n    let t_near = max(t_min.x, max(t_min.y, t_min.z));\n    let t_far = min(t_max.x, min(t_max.y, t_max.z));\n    *t0 = t_near;\n    *t1 = t_far;\n    return t_near < t_far && t_far > 0.0;\n}\n\n@fragment\nfn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {\n    let aspect = u.width / u.height;\n    let uv = (in.uv * 2.0 - 1.0) * vec2<f32>(aspect, 1.0);\n    \n    let ro = u.cam_pos.xyz;\n    let rd = normalize(u.cam_dir.xyz * 2.0 + uv.x * u.cam_right.xyz + uv.y * u.cam_up.xyz);\n    \n    let box_min = vec3<f32>(0.0, 0.0, 0.0);\n    let box_max = vec3<f32>(32.0, 32.0, 32.0);\n    \n    var t_near: f32 = 0.0;\n    var t_far: f32 = 0.0;\n    \n    var color = vec3<f32>(0.05, 0.08, 0.15);\n    \n    if (intersect_box(ro, rd, box_min, box_max, &t_near, &t_far)) {\n        let t_start = max(t_near, 0.0);\n        var t = t_start;\n        var hit = false;\n        \n        for (var step = 0; step < 140; step = step + 1) {\n            if (t > t_far) {\n                break;\n            }\n            let p = ro + rd * t;\n            \n            let voxel_coord = vec3<i32>(floor(p));\n            if (any(voxel_coord < vec3<i32>(0)) || any(voxel_coord >= vec3<i32>(32))) {\n                t = t + 0.4;\n                continue;\n            }\n            let val = textureLoad(voxel_texture, voxel_coord, 0);\n            \n            if (val.a > 0.5) {\n                let prev_p = p - rd * 0.4;\n                let prev_coord = vec3<i32>(floor(prev_p));\n                let diff = voxel_coord - prev_coord;\n                var normal = vec3<f32>(0.0);\n                if (diff.x != 0) {\n                    normal.x = -f32(diff.x);\n                } else if (diff.y != 0) {\n                    normal.y = -f32(diff.y);\n                } else if (diff.z != 0) {\n                    normal.z = -f32(diff.z);\n                } else {\n                    normal = normalize(p - vec3<f32>(16.0, 16.0, 16.0));\n                }\n                normal = normalize(normal);\n\n                let light_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));\n                let diffuse = max(dot(normal, light_dir), 0.1);\n                color = val.rgb * (diffuse + 0.4);\n                hit = true;\n                break;\n            }\n            \n            t = t + 0.4;\n        }\n    }\n    \n    let dummy = textureSampleLevel(voxel_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r * 1e-10;\n    return vec4<f32>(color + dummy, 1.0);\n}\n";
+        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    _pad0: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n}\n\n@group(0) @binding(0) var<uniform> u: Uniforms;\n@group(0) @binding(1) var voxel_texture: texture_3d<f32>;\n@group(0) @binding(2) var voxel_sampler: sampler;\n\nstruct VertexOutput {\n    @builtin(position) position: vec4<f32>,\n    @location(0) uv: vec2<f32>,\n}\n\n@vertex\nfn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {\n    var pos: array<vec2<f32>, 3> = array<vec2<f32>, 3>(\n        vec2<f32>(-1.0, -1.0),\n        vec2<f32>( 3.0, -1.0),\n        vec2<f32>(-1.0,  3.0),\n    );\n    var out: VertexOutput;\n    let p = pos[vi];\n    out.position = vec4<f32>(p, 0.0, 1.0);\n    out.uv = (p + 1.0) * 0.5;\n    return out;\n}\n\nfn intersect_box(ro: vec3<f32>, rd: vec3<f32>, box_min: vec3<f32>, box_max: vec3<f32>, t0: ptr<function, f32>, t1: ptr<function, f32>) -> bool {\n    let inv_d = 1.0 / rd;\n    let t_bot = inv_d * (box_min - ro);\n    let t_top = inv_d * (box_max - ro);\n    let t_min = min(t_bot, t_top);\n    let t_max = max(t_bot, t_top);\n    let t_near = max(t_min.x, max(t_min.y, t_min.z));\n    let t_far = min(t_max.x, min(t_max.y, t_max.z));\n    *t0 = t_near;\n    *t1 = t_far;\n    return t_near < t_far && t_far > 0.0;\n}\n\n@fragment\nfn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {\n    let aspect = u.width / u.height;\n    let uv = (in.uv * 2.0 - 1.0) * vec2<f32>(aspect, 1.0);\n    \n    let ro = u.cam_pos.xyz;\n    let rd = normalize(u.cam_dir.xyz * 2.0 + uv.x * u.cam_right.xyz + uv.y * u.cam_up.xyz);\n    \n    let box_min = vec3<f32>(0.0, 0.0, 0.0);\n    let box_max = vec3<f32>(32.0, 32.0, 32.0);\n    \n    var t_near: f32 = 0.0;\n    var t_far: f32 = 0.0;\n    \n    var color = vec3<f32>(0.05, 0.08, 0.15);\n    \n    if (intersect_box(ro, rd, box_min, box_max, &t_near, &t_far)) {\n        let t_start = max(t_near, 0.0);\n        var t = t_start;\n        var hit = false;\n        \n        for (var step = 0; step < 120; step = step + 1) {\n            if (t > t_far) {\n                break;\n            }\n            let p = ro + rd * t;\n            \n            // Normalized coords in [0, 1]\n            let uvw = p / 32.0;\n            \n            // Sample SDF value from green channel (G)\n            let val = textureSampleLevel(voxel_texture, voxel_sampler, uvw, 0.0);\n            let dist = val.g;\n            \n            if (dist < 0.005) {\n                // Hit! Calculate normals using finite differences\n                let eps = 0.05;\n                let n = vec3<f32>(\n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw + vec3<f32>(eps, 0.0, 0.0)/32.0, 0.0).g - \n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw - vec3<f32>(eps, 0.0, 0.0)/32.0, 0.0).g,\n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw + vec3<f32>(0.0, eps, 0.0)/32.0, 0.0).g - \n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw - vec3<f32>(0.0, eps, 0.0)/32.0, 0.0).g,\n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw + vec3<f32>(0.0, 0.0, eps)/32.0, 0.0).g - \n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw - vec3<f32>(0.0, 0.0, eps)/32.0, 0.0).g\n                );\n                let normal = normalize(n);\n                \n                // Color based on material ID (R channel)\n                var base_color = vec3<f32>(0.5, 0.5, 0.5);\n                if (val.r > 1.5) {\n                    base_color = vec3<f32>(0.2, 0.8, 0.3); // Organic green terrain\n                } else if (val.r > 0.5) {\n                    base_color = vec3<f32>(0.8, 0.7, 0.5); // Stone/sand\n                } else {\n                    base_color = vec3<f32>(0.3, 0.3, 0.3);\n                }\n                \n                let light_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));\n                let diffuse = max(dot(normal, light_dir), 0.1);\n                color = base_color * (diffuse + 0.3);\n                hit = true;\n                break;\n            }\n            \n            // Step forward by the SDF value\n            t = t + max(0.02, dist);\n        }\n    }\n    \n    return vec4<f32>(color, 1.0);\n}\n";
         String *_2_ref = &_2;
         voxel_MINUS_wgsl = _2_ref;
     }
@@ -13687,7 +13687,7 @@ Chunk Chunk_copy(Chunk* pRef) {
 }
 
 Chunk Chunk_create(int qx, int qy, int qz) {
-    Chunk _253;
+    Chunk _231;
     /* let */ {
         int res = 32;
         int _17 = Int__MUL_(res, 4);
@@ -13736,75 +13736,61 @@ Chunk Chunk_create(int qx, int qy, int qz) {
                                     float _115 = Float__PLUS_(_110, _114);
                                     float _116 = Float_sqrt(_115);
                                     float dist = _116;
-                                    float _140;
-                                    bool _133;
-                                    bool _123 = Float__LT_(dist, 11.0f);
-                                    if (_123) {
-                                        bool _128 = Float__GT_(dist, 8.0f);
-                                        bool _129 = _128;
-                                        _133 = _129;
+                                    float _123 = Float__MINUS_(dist, 9.0f);
+                                    float _124 = Float_abs(_123);
+                                    float _126 = Float__MINUS_(_124, 1.0f);
+                                    float sdf = _126;
+                                    float _139;
+                                    bool _132 = Float__LT_(sdf, 0.0f);
+                                    if (_132) {
+                                        float _135 = 2.0f;
+                                        _139 = _135;
                                     } else {
-                                        bool _132 = false;
-                                        _133 = _132;
+                                        float _138 = 0.0f;
+                                        _139 = _138;
                                     }
-                                    if (_133) {
-                                        float _136 = 1.0f;
-                                        _140 = _136;
-                                    } else {
-                                        float _139 = 0.0f;
-                                        _140 = _139;
-                                    }
-                                    float density = _140;
-                                    float _145 = Float_from_MINUS_int(x);
-                                    float _147 = Float__DIV_(_145, 32.0f);
-                                    float r = _147;
-                                    float _152 = Float_from_MINUS_int(y);
-                                    float _154 = Float__DIV_(_152, 32.0f);
-                                    float g = _154;
-                                    float _159 = Float_from_MINUS_int(z);
-                                    float _161 = Float__DIV_(_159, 32.0f);
-                                    float b = _161;
-                                    int _166 = Int__MUL_(idx, 4);
-                                    int offset = _166;
-                                    Long _174 = Long_from_MINUS_int(offset);
-                                    float* _175 = Pointer_add__float(p_MINUS_data, _174);
-                                    Pointer_set__float(_175, r);
-                                    int _185 = Int__PLUS_(offset, 1);
-                                    Long _186 = Long_from_MINUS_int(_185);
-                                    float* _187 = Pointer_add__float(p_MINUS_data, _186);
-                                    Pointer_set__float(_187, g);
-                                    int _197 = Int__PLUS_(offset, 2);
-                                    Long _198 = Long_from_MINUS_int(_197);
-                                    float* _199 = Pointer_add__float(p_MINUS_data, _198);
-                                    Pointer_set__float(_199, b);
-                                    int _209 = Int__PLUS_(offset, 3);
-                                    Long _210 = Long_from_MINUS_int(_209);
-                                    float* _211 = Pointer_add__float(p_MINUS_data, _210);
-                                    Pointer_set__float(_211, density);
+                                    float mat_MINUS_id = _139;
+                                    int _144 = Int__MUL_(idx, 4);
+                                    int offset = _144;
+                                    Long _152 = Long_from_MINUS_int(offset);
+                                    float* _153 = Pointer_add__float(p_MINUS_data, _152);
+                                    Pointer_set__float(_153, mat_MINUS_id);
+                                    int _163 = Int__PLUS_(offset, 1);
+                                    Long _164 = Long_from_MINUS_int(_163);
+                                    float* _165 = Pointer_add__float(p_MINUS_data, _164);
+                                    Pointer_set__float(_165, sdf);
+                                    int _175 = Int__PLUS_(offset, 2);
+                                    Long _176 = Long_from_MINUS_int(_175);
+                                    float* _177 = Pointer_add__float(p_MINUS_data, _176);
+                                    Pointer_set__float(_177, 0.0f);
+                                    int _187 = Int__PLUS_(offset, 3);
+                                    Long _188 = Long_from_MINUS_int(_187);
+                                    float* _189 = Pointer_add__float(p_MINUS_data, _188);
+                                    Pointer_set__float(_189, 1.0f);
                                 }
-                                int _1000035 = Int__PLUS_(x, 1);
-                                x = _1000035;  // Int = Int
+                                int _1000032 = Int__PLUS_(x, 1);
+                                x = _1000032;  // Int = Int
                                 bool _1000022 = Int__LT_(x, res);
                                 _1000020 = _1000022;
                             }
                         }
-                        int _1000038 = Int__PLUS_(y, 1);
-                        y = _1000038;  // Int = Int
+                        int _1000035 = Int__PLUS_(y, 1);
+                        y = _1000035;  // Int = Int
                         bool _1000015 = Int__LT_(y, res);
                         _1000013 = _1000015;
                     }
                 }
-                int _1000041 = Int__PLUS_(z, 1);
-                z = _1000041;  // Int = Int
+                int _1000038 = Int__PLUS_(z, 1);
+                z = _1000038;  // Int = Int
                 bool _1000008 = Int__LT_(z, res);
                 _1000006 = _1000008;
             }
         }
-        Chunk _251 = Chunk_init(qx, qy, qz, voxel_MINUS_data);
-        Chunk _252 = _251;
-        _253 = _252;
+        Chunk _229 = Chunk_init(qx, qy, qz, voxel_MINUS_data);
+        Chunk _230 = _229;
+        _231 = _230;
     }
-    return _253;
+    return _231;
 }
 
 void Chunk_delete(Chunk p) {
@@ -20142,30 +20128,30 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                             Result__Renderer_String _338 = Result_Success__Renderer_String(_337);
                                             _339 = _338;
                                         }
-                                        else UNHANDLED("renderer.carp", 171);
+                                        else UNHANDLED("renderer.carp", 179);
                                         _340 = _339;
                                         String_delete(format);
                                     }
                                     _341 = _340;
                                 }
-                                else UNHANDLED("renderer.carp", 162);
+                                else UNHANDLED("renderer.carp", 170);
                                 _342 = _341;
                             }
                             _343 = _342;
                         }
-                        else UNHANDLED("renderer.carp", 153);
+                        else UNHANDLED("renderer.carp", 161);
                         _344 = _343;
                     }
-                    else UNHANDLED("renderer.carp", 147);
+                    else UNHANDLED("renderer.carp", 155);
                     _345 = _344;
                 }
-                else UNHANDLED("renderer.carp", 142);
+                else UNHANDLED("renderer.carp", 150);
                 _346 = _345;
             }
-            else UNHANDLED("renderer.carp", 138);
+            else UNHANDLED("renderer.carp", 146);
             _347 = _346;
         }
-        else UNHANDLED("renderer.carp", 135);
+        else UNHANDLED("renderer.carp", 143);
         _348 = _347;
     }
     return _348;
@@ -20248,7 +20234,7 @@ void Renderer_draw(Engine* eng, Renderer* ren, Camera* cam) {
                     Renderer_set_MINUS_width_BANG_(ren, curr_MINUS_w);
                     Renderer_set_MINUS_height_BANG_(ren, curr_MINUS_h);
                 }
-                else UNHANDLED("renderer.carp", 241);
+                else UNHANDLED("renderer.carp", 249);
             }
         } else {
             /* () */
@@ -20293,7 +20279,7 @@ void Renderer_draw(Engine* eng, Renderer* ren, Camera* cam) {
                 CameraMat4_delete(vp);
             }
         }
-        else UNHANDLED("renderer.carp", 249);
+        else UNHANDLED("renderer.carp", 257);
     }
 }
 
