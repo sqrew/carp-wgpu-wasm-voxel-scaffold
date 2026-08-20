@@ -200,7 +200,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         }
     }
     
-    return vec4<f32>(color, 1.0);
+    let dummy = textureSampleLevel(liquid_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r +
+                textureSampleLevel(gas_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r;
+    return vec4<f32>(color + dummy * 0.000001, 1.0);
 }
 ")
 
