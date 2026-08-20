@@ -5821,7 +5821,7 @@ void carp_init_globals(int argc, char** argv) {
 #endif
     // Depth 0
     {
-        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    _pad0: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n}\n\n@group(0) @binding(0) var<uniform> u: Uniforms;\n@group(0) @binding(1) var voxel_texture: texture_3d<f32>;\n@group(0) @binding(2) var voxel_sampler: sampler;\n\nstruct VertexOutput {\n    @builtin(position) position: vec4<f32>,\n    @location(0) uv: vec2<f32>,\n}\n\n@vertex\nfn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {\n    var pos: array<vec2<f32>, 3> = array<vec2<f32>, 3>(\n        vec2<f32>(-1.0, -1.0),\n        vec2<f32>( 3.0, -1.0),\n        vec2<f32>(-1.0,  3.0),\n    );\n    var out: VertexOutput;\n    let p = pos[vi];\n    out.position = vec4<f32>(p, 0.0, 1.0);\n    out.uv = (p + 1.0) * 0.5;\n    return out;\n}\n\nfn intersect_box(ro: vec3<f32>, rd: vec3<f32>, box_min: vec3<f32>, box_max: vec3<f32>, t0: ptr<function, f32>, t1: ptr<function, f32>) -> bool {\n    let inv_d = 1.0 / rd;\n    let t_bot = inv_d * (box_min - ro);\n    let t_top = inv_d * (box_max - ro);\n    let t_min = min(t_bot, t_top);\n    let t_max = max(t_bot, t_top);\n    let t_near = max(t_min.x, max(t_min.y, t_min.z));\n    let t_far = min(t_max.x, min(t_max.y, t_max.z));\n    *t0 = t_near;\n    *t1 = t_far;\n    return t_near < t_far && t_far > 0.0;\n}\n\n@fragment\nfn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {\n    let aspect = u.width / u.height;\n    let uv = (in.uv * 2.0 - 1.0) * vec2<f32>(aspect, 1.0);\n    \n    let ro = u.cam_pos.xyz;\n    let rd = normalize(u.cam_dir.xyz * 2.0 + uv.x * u.cam_right.xyz + uv.y * u.cam_up.xyz);\n    \n    let box_min = vec3<f32>(0.0, 0.0, 0.0);\n    let box_max = vec3<f32>(64.0, 64.0, 64.0);\n    \n    var t_near: f32 = 0.0;\n    var t_far: f32 = 0.0;\n    \n    var color = vec3<f32>(0.05, 0.08, 0.15);\n    \n    if (intersect_box(ro, rd, box_min, box_max, &t_near, &t_far)) {\n        let t_start = max(t_near, 0.0);\n        var t = t_start;\n        var hit = false;\n        \n        for (var step = 0; step < 280; step = step + 1) {\n            if (t > t_far) {\n                break;\n            }\n            let p = ro + rd * t;\n            \n            let voxel_coord = vec3<i32>(floor(p));\n            if (any(voxel_coord < vec3<i32>(0)) || any(voxel_coord >= vec3<i32>(64))) {\n                t = t + 0.4;\n                continue;\n            }\n            let val = textureLoad(voxel_texture, voxel_coord, 0);\n            \n            if (val.a > 0.5) {\n                let prev_p = p - rd * 0.4;\n                let prev_coord = vec3<i32>(floor(prev_p));\n                let diff = voxel_coord - prev_coord;\n                var normal = vec3<f32>(0.0);\n                if (diff.x != 0) {\n                    normal.x = -f32(diff.x);\n                } else if (diff.y != 0) {\n                    normal.y = -f32(diff.y);\n                } else if (diff.z != 0) {\n                    normal.z = -f32(diff.z);\n                } else {\n                    normal = normalize(p - vec3<f32>(32.0, 32.0, 32.0));\n                }\n                normal = normalize(normal);\n\n                let light_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));\n                let diffuse = max(dot(normal, light_dir), 0.1);\n                color = val.rgb * (diffuse + 0.4);\n                hit = true;\n                break;\n            }\n            \n            t = t + 0.4;\n        }\n    }\n    \n    let dummy = textureSampleLevel(voxel_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r * 1e-10;\n    return vec4<f32>(color + dummy, 1.0);\n}\n";
+        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    _pad0: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n}\n\n@group(0) @binding(0) var<uniform> u: Uniforms;\n@group(0) @binding(1) var voxel_texture: texture_3d<f32>;\n@group(0) @binding(2) var voxel_sampler: sampler;\n\nstruct VertexOutput {\n    @builtin(position) position: vec4<f32>,\n    @location(0) uv: vec2<f32>,\n}\n\n@vertex\nfn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {\n    var pos: array<vec2<f32>, 3> = array<vec2<f32>, 3>(\n        vec2<f32>(-1.0, -1.0),\n        vec2<f32>( 3.0, -1.0),\n        vec2<f32>(-1.0,  3.0),\n    );\n    var out: VertexOutput;\n    let p = pos[vi];\n    out.position = vec4<f32>(p, 0.0, 1.0);\n    out.uv = (p + 1.0) * 0.5;\n    return out;\n}\n\nfn intersect_box(ro: vec3<f32>, rd: vec3<f32>, box_min: vec3<f32>, box_max: vec3<f32>, t0: ptr<function, f32>, t1: ptr<function, f32>) -> bool {\n    let inv_d = 1.0 / rd;\n    let t_bot = inv_d * (box_min - ro);\n    let t_top = inv_d * (box_max - ro);\n    let t_min = min(t_bot, t_top);\n    let t_max = max(t_bot, t_top);\n    let t_near = max(t_min.x, max(t_min.y, t_min.z));\n    let t_far = min(t_max.x, min(t_max.y, t_max.z));\n    *t0 = t_near;\n    *t1 = t_far;\n    return t_near < t_far && t_far > 0.0;\n}\n\n@fragment\nfn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {\n    let aspect = u.width / u.height;\n    let uv = (in.uv * 2.0 - 1.0) * vec2<f32>(aspect, 1.0);\n    \n    let ro = u.cam_pos.xyz;\n    let rd = normalize(u.cam_dir.xyz * 2.0 + uv.x * u.cam_right.xyz + uv.y * u.cam_up.xyz);\n    \n    let box_min = vec3<f32>(0.0, 0.0, 0.0);\n    let box_max = vec3<f32>(32.0, 32.0, 32.0);\n    \n    var t_near: f32 = 0.0;\n    var t_far: f32 = 0.0;\n    \n    var color = vec3<f32>(0.05, 0.08, 0.15);\n    \n    if (intersect_box(ro, rd, box_min, box_max, &t_near, &t_far)) {\n        let t_start = max(t_near, 0.0);\n        var t = t_start;\n        var hit = false;\n        \n        for (var step = 0; step < 140; step = step + 1) {\n            if (t > t_far) {\n                break;\n            }\n            let p = ro + rd * t;\n            \n            let voxel_coord = vec3<i32>(floor(p));\n            if (any(voxel_coord < vec3<i32>(0)) || any(voxel_coord >= vec3<i32>(32))) {\n                t = t + 0.4;\n                continue;\n            }\n            let val = textureLoad(voxel_texture, voxel_coord, 0);\n            \n            if (val.a > 0.5) {\n                let prev_p = p - rd * 0.4;\n                let prev_coord = vec3<i32>(floor(prev_p));\n                let diff = voxel_coord - prev_coord;\n                var normal = vec3<f32>(0.0);\n                if (diff.x != 0) {\n                    normal.x = -f32(diff.x);\n                } else if (diff.y != 0) {\n                    normal.y = -f32(diff.y);\n                } else if (diff.z != 0) {\n                    normal.z = -f32(diff.z);\n                } else {\n                    normal = normalize(p - vec3<f32>(16.0, 16.0, 16.0));\n                }\n                normal = normalize(normal);\n\n                let light_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));\n                let diffuse = max(dot(normal, light_dir), 0.1);\n                color = val.rgb * (diffuse + 0.4);\n                hit = true;\n                break;\n            }\n            \n            t = t + 0.4;\n        }\n    }\n    \n    let dummy = textureSampleLevel(voxel_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r * 1e-10;\n    return vec4<f32>(color + dummy, 1.0);\n}\n";
         String *_2_ref = &_2;
         voxel_MINUS_wgsl = _2_ref;
     }
@@ -16919,7 +16919,7 @@ int main(int argc, char** argv) {
                 glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
                 static String _80 = "rgba16float";
                 String *_80_ref = &_80;
-                Result__WGPURenderTexture_MUL__String _81 = WGPURender_create_MINUS_3d_MINUS_texture(ctx, 64, 64, 64, _80_ref);
+                Result__WGPURenderTexture_MUL__String _81 = WGPURender_create_MINUS_3d_MINUS_texture(ctx, 32, 32, 32, _80_ref);
                 int _960;
                 if(_81._tag == Result__WGPURenderTexture_MUL__String_Error_tag) {
                     Result__WGPURenderTexture_MUL__String _81_temp = _81;
@@ -17077,15 +17077,15 @@ int main(int argc, char** argv) {
                                     // Case expr:
                                     int _955;
                                     /* let */ {
-                                        int _300 = Int__MUL_(64, 4);
-                                        int _301 = Int__MUL_(64, _300);
-                                        int _302 = Int__MUL_(64, _301);
+                                        int _300 = Int__MUL_(32, 4);
+                                        int _301 = Int__MUL_(32, _300);
+                                        int _302 = Int__MUL_(32, _301);
                                         Array__float _303 = Array_allocate__float(_302);
                                         Array__float voxel_MINUS_data = _303;
                                         Array__float* _308 = &voxel_MINUS_data; // ref
                                         float* _309 = Array_unsafe_MINUS_raw__float(_308);
                                         float* p_MINUS_data = _309;
-                                        Vector3__double _316 = Vector3_init__double(32.0, 32.0, -40.0);
+                                        Vector3__double _316 = Vector3_init__double(16.0, 16.0, -20.0);
                                         Camera _317 = Camera_create(_316);
                                         Camera cam = _317;
                                         double _320 = glfwGetTime();
@@ -17097,33 +17097,33 @@ int main(int argc, char** argv) {
                                         Array__float uniforms = _330;
                                         /* let */ {
                                             int z = 0;
-                                            bool _1000065 = Int__LT_(z, 64);
+                                            bool _1000065 = Int__LT_(z, 32);
                                             bool _1000063 = _1000065;
                                             while (_1000063) {
                                                 /* let */ {
                                                     int y = 0;
-                                                    bool _1000072 = Int__LT_(y, 64);
+                                                    bool _1000072 = Int__LT_(y, 32);
                                                     bool _1000070 = _1000072;
                                                     while (_1000070) {
                                                         /* let */ {
                                                             int x = 0;
-                                                            bool _1000079 = Int__LT_(x, 64);
+                                                            bool _1000079 = Int__LT_(x, 32);
                                                             bool _1000077 = _1000079;
                                                             while (_1000077) {
                                                                 /* let */ {
-                                                                    int _369 = Int__MUL_(z, 4096);
-                                                                    int _374 = Int__MUL_(y, 64);
+                                                                    int _369 = Int__MUL_(z, 1024);
+                                                                    int _374 = Int__MUL_(y, 32);
                                                                     int _376 = Int__PLUS_(_374, x);
                                                                     int _377 = Int__PLUS_(_369, _376);
                                                                     int idx = _377;
                                                                     float _382 = Float_from_MINUS_int(x);
-                                                                    float _384 = Float__MINUS_(_382, 32.0f);
+                                                                    float _384 = Float__MINUS_(_382, 16.0f);
                                                                     float dx = _384;
                                                                     float _389 = Float_from_MINUS_int(y);
-                                                                    float _391 = Float__MINUS_(_389, 32.0f);
+                                                                    float _391 = Float__MINUS_(_389, 16.0f);
                                                                     float dy = _391;
                                                                     float _396 = Float_from_MINUS_int(z);
-                                                                    float _398 = Float__MINUS_(_396, 32.0f);
+                                                                    float _398 = Float__MINUS_(_396, 16.0f);
                                                                     float dz = _398;
                                                                     float _406 = Float__MUL_(dx, dx);
                                                                     float _410 = Float__MUL_(dy, dy);
@@ -17134,9 +17134,9 @@ int main(int argc, char** argv) {
                                                                     float dist = _417;
                                                                     float _441;
                                                                     bool _434;
-                                                                    bool _424 = Float__LT_(dist, 22.0f);
+                                                                    bool _424 = Float__LT_(dist, 11.0f);
                                                                     if (_424) {
-                                                                        bool _429 = Float__GT_(dist, 18.0f);
+                                                                        bool _429 = Float__GT_(dist, 8.0f);
                                                                         bool _430 = _429;
                                                                         _434 = _430;
                                                                     } else {
@@ -17152,13 +17152,13 @@ int main(int argc, char** argv) {
                                                                     }
                                                                     float density = _441;
                                                                     float _446 = Float_from_MINUS_int(x);
-                                                                    float _448 = Float__DIV_(_446, 64.0f);
+                                                                    float _448 = Float__DIV_(_446, 32.0f);
                                                                     float r = _448;
                                                                     float _453 = Float_from_MINUS_int(y);
-                                                                    float _455 = Float__DIV_(_453, 64.0f);
+                                                                    float _455 = Float__DIV_(_453, 32.0f);
                                                                     float g = _455;
                                                                     float _460 = Float_from_MINUS_int(z);
-                                                                    float _462 = Float__DIV_(_460, 64.0f);
+                                                                    float _462 = Float__DIV_(_460, 32.0f);
                                                                     float b = _462;
                                                                     int _467 = Int__MUL_(idx, 4);
                                                                     int offset = _467;
@@ -17180,24 +17180,24 @@ int main(int argc, char** argv) {
                                                                 }
                                                                 int _1000092 = Int__PLUS_(x, 1);
                                                                 x = _1000092;  // Int = Int
-                                                                bool _1000079 = Int__LT_(x, 64);
+                                                                bool _1000079 = Int__LT_(x, 32);
                                                                 _1000077 = _1000079;
                                                             }
                                                         }
                                                         int _1000095 = Int__PLUS_(y, 1);
                                                         y = _1000095;  // Int = Int
-                                                        bool _1000072 = Int__LT_(y, 64);
+                                                        bool _1000072 = Int__LT_(y, 32);
                                                         _1000070 = _1000072;
                                                     }
                                                 }
                                                 int _1000098 = Int__PLUS_(z, 1);
                                                 z = _1000098;  // Int = Int
-                                                bool _1000065 = Int__LT_(z, 64);
+                                                bool _1000065 = Int__LT_(z, 32);
                                                 _1000063 = _1000065;
                                             }
                                         }
                                         Array__float* _558 = &voxel_MINUS_data; // ref
-                                        WGPURender_update_MINUS_3d_MINUS_texture_MINUS_subregion_MINUS_floats(ctx, voxel_MINUS_tex, 0, 0, 0, 64, 64, 64, _558);
+                                        WGPURender_update_MINUS_3d_MINUS_texture_MINUS_subregion_MINUS_floats(ctx, voxel_MINUS_tex, 0, 0, 0, 32, 32, 32, _558);
                                         Camera* _563 = &cam; // ref
                                         Camera_update_MINUS_vectors(_563);
                                         int _569 = glfwWindowShouldClose(win);

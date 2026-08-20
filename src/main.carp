@@ -65,7 +65,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let rd = normalize(u.cam_dir.xyz * 2.0 + uv.x * u.cam_right.xyz + uv.y * u.cam_up.xyz);
     
     let box_min = vec3<f32>(0.0, 0.0, 0.0);
-    let box_max = vec3<f32>(64.0, 64.0, 64.0);
+    let box_max = vec3<f32>(32.0, 32.0, 32.0);
     
     var t_near: f32 = 0.0;
     var t_far: f32 = 0.0;
@@ -77,14 +77,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         var t = t_start;
         var hit = false;
         
-        for (var step = 0; step < 280; step = step + 1) {
+        for (var step = 0; step < 140; step = step + 1) {
             if (t > t_far) {
                 break;
             }
             let p = ro + rd * t;
             
             let voxel_coord = vec3<i32>(floor(p));
-            if (any(voxel_coord < vec3<i32>(0)) || any(voxel_coord >= vec3<i32>(64))) {
+            if (any(voxel_coord < vec3<i32>(0)) || any(voxel_coord >= vec3<i32>(32))) {
                 t = t + 0.4;
                 continue;
             }
@@ -102,7 +102,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 } else if (diff.z != 0) {
                     normal.z = -f32(diff.z);
                 } else {
-                    normal = normalize(p - vec3<f32>(32.0, 32.0, 32.0));
+                    normal = normalize(p - vec3<f32>(16.0, 16.0, 16.0));
                 }
                 normal = normalize(normal);
 
@@ -218,7 +218,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             ; Enable camera capture (mouse lock)
             (GLFW.set-input-mode win GLFW.CURSOR GLFW.CURSOR_DISABLED)
             
-            (match (WGPURender.create-3d-texture ctx 64 64 64 "rgba16float")
+            (match (WGPURender.create-3d-texture ctx 32 32 32 "rgba16float")
               (Result.Error e) (do (println* "Voxel texture failed: " &e) (Engine.cleanup eng) -1)
               (Result.Success voxel-tex)
                 (match (WGPURender.create-sampler ctx)
@@ -247,10 +247,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                                                    (WGPURender.free-render-texture voxel-tex)
                                                    (Engine.cleanup eng) -1)
                               (Result.Success bg)
-                                (let [voxel-data (Array.allocate (* 64 (* 64 (* 64 4))))
+                                (let [voxel-data (Array.allocate (* 32 (* 32 (* 32 4))))
                                       p-data (Array.unsafe-raw &voxel-data)
                                       ;; Camera and loop trackers
-                                      cam (Camera.create (Vector3.init 32.0 32.0 -40.0))
+                                      cam (Camera.create (Vector3.init 16.0 16.0 -20.0))
                                       last-time (GLFW.get-time)
                                       first-mouse true
                                       last-x 640.0
@@ -258,29 +258,29 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                                       uniforms (Array.allocate 20)]
                                   (do
                                     ; 1. Generate voxel grid sequentially
-                                    (for [z 0 64]
-                                      (for [y 0 64]
-                                        (for [x 0 64]
-                                          (let [idx (+ (* z 4096) (+ (* y 64) x))
-                                                dx (- (Float.from-int x) 32.0f)
-                                                dy (- (Float.from-int y) 32.0f)
-                                                dz (- (Float.from-int z) 32.0f)
-                                                dist (Float.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))
-                                                
-                                                ;; Generate a shell of sphere voxels
-                                                density (if (and (< dist 22.0f) (> dist 18.0f)) 1.0f 0.0f)
-                                                r (/ (Float.from-int x) 64.0f)
-                                                g (/ (Float.from-int y) 64.0f)
-                                                b (/ (Float.from-int z) 64.0f)
-                                                offset (* idx 4)]
+                                     (for [z 0 32]
+                                       (for [y 0 32]
+                                         (for [x 0 32]
+                                           (let [idx (+ (* z 1024) (+ (* y 32) x))
+                                                 dx (- (Float.from-int x) 16.0f)
+                                                 dy (- (Float.from-int y) 16.0f)
+                                                 dz (- (Float.from-int z) 16.0f)
+                                                 dist (Float.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))
+                                                 
+                                                 ;; Generate a shell of sphere voxels
+                                                 density (if (and (< dist 11.0f) (> dist 8.0f)) 1.0f 0.0f)
+                                                 r (/ (Float.from-int x) 32.0f)
+                                                 g (/ (Float.from-int y) 32.0f)
+                                                 b (/ (Float.from-int z) 32.0f)
+                                                 offset (* idx 4)]
                                             (do
                                               (Pointer.set (Pointer.add p-data (Long.from-int offset)) r)
                                               (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) g)
                                               (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) b)
                                               (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) density))))))
-                                    
-                                    ; 2. Upload voxel texture data to GPU
-                                    (WGPURender.update-3d-texture-subregion-floats ctx voxel-tex 0 0 0 64 64 64 &voxel-data)
+                                     
+                                     ; 2. Upload voxel texture data to GPU
+                                     (WGPURender.update-3d-texture-subregion-floats ctx voxel-tex 0 0 0 32 32 32 &voxel-data)
                                     (Camera.update-vectors &cam)
                                     
                                     ; 3. Main interactive loop
