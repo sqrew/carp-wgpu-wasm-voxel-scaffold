@@ -1,0 +1,123 @@
+(load "GLFW.carp")
+(load "WGPURender.carp")
+
+(deftemplate glfw-window->voidptr (Fn [(Ptr GLFWwindow)] (Ptr ()))
+  "void* $NAME(GLFWwindow* w)"
+  "$DECL { return (void*)w; }")
+
+(deftemplate ref-to-ptr (Fn [(Ref a)] (Ptr a))
+  "void* $NAME(void* r)"
+  "$DECL { return r; }")
+
+(deftemplate emscripten-sleep (Fn [Int] ())
+  "void $NAME(int ms)"
+  "$DECL {
+#ifdef __EMSCRIPTEN__
+    emscripten_sleep(ms);
+#endif
+  }")
+
+(register-type GLFWwindow)
+
+(deftype Engine [
+  ctx (Ptr WGPUContext)
+  win (Ptr GLFWwindow)
+  surf (Ptr WGPURenderSurface)
+  width Int
+  height Int
+  start-time Double
+])
+
+(defmodule Engine
+  (defn create [title init-w init-h]
+    (match (WGPU.create-context)
+      (Result.Error e) (Result.Error (str* "GPU context creation failed: " e))
+      (Result.Success ctx)
+        (let [glfw-ok (GLFW.init)]
+          (if (= glfw-ok GLFW.FALSE)
+            (do
+              (WGPU.free-context ctx)
+              (Result.Error @"GLFW init failed"))
+            (do
+              (GLFW.window-hint GLFW.CLIENT_API GLFW.NO_API)
+              (let [win (GLFW.create-window init-w init-h (String.cstr title) NULL NULL)]
+                (if (null? win)
+                  (do
+                    (GLFW.terminate)
+                    (WGPU.free-context ctx)
+                    (Result.Error @"Failed to create GLFW window"))
+                  (match (WGPURender.create-surface ctx (glfw-window->voidptr win) init-w init-h)
+                    (Result.Error e)
+                      (do
+                        (GLFW.destroy-window win)
+                        (GLFW.terminate)
+                        (WGPU.free-context ctx)
+                        (Result.Error (str* "Surface failed: " e)))
+                    (Result.Success surf)
+                      (Result.Success (Engine.init ctx win surf init-w init-h (GLFW.get-time)))))))))))
+
+  (defn should-close? [eng]
+    (= (GLFW.window-should-close @(Engine.win eng)) GLFW.TRUE))
+
+  (defn update-time [eng]
+    (Double.to-float (- (GLFW.get-time) @(Engine.start-time eng))))
+
+  (defn poll-events [eng]
+    (GLFW.poll-events))
+
+  (defn handle-resize [eng]
+    (let [win @(Engine.win eng)
+          ctx @(Engine.ctx eng)
+          surf @(Engine.surf eng)
+          w 0
+          h 0]
+      (do
+        (GLFW.get-framebuffer-size win (ref-to-ptr &w) (ref-to-ptr &h))
+        (when (or (/= w @(Engine.width eng)) (/= h @(Engine.height eng)))
+          (do
+            (WGPURender.resize-surface surf ctx w h)
+            (Engine.set-width! eng w)
+            (Engine.set-height! eng h))))))
+
+  (defn begin-frame [eng]
+    (let [surf @(Engine.surf eng)
+          ctx @(Engine.ctx eng)]
+      (match (WGPURender.begin-frame surf ctx)
+        (Result.Error _e) (Maybe.Nothing)
+        (Result.Success frame) (Maybe.Just frame))))
+
+  (defn end-frame [eng frame]
+    (let [surf @(Engine.surf eng)
+          ctx @(Engine.ctx eng)]
+      (do
+        (WGPURender.end-frame frame surf ctx)
+        (WGPURender.free-frame frame))))
+
+  (defn create-pipeline [eng wgsl vs-entry fs-entry]
+    (WGPURender.create-pipeline @(Engine.ctx eng) wgsl vs-entry fs-entry &(WGPURender.surface-format @(Engine.surf eng))))
+
+  (defn create-uniform-buffer [eng size]
+    (WGPURender.create-uniform-buffer @(Engine.ctx eng) size))
+
+  (defn update-uniform-buffer [eng ub data]
+    (WGPURender.update-uniform-buffer @(Engine.ctx eng) ub data))
+
+  (defn create-bind-group [eng pipeline uniform-buffer]
+    (WGPURender.create-render-uniform-bind-group @(Engine.ctx eng) pipeline uniform-buffer))
+
+  (defn free-bind-group [bg]
+    (WGPURender.free-bind-group bg))
+
+  (defn free-pipeline [pipe]
+    (WGPURender.free-pipeline pipe))
+
+  (defn free-uniform-buffer [ub]
+    (WGPURender.free-uniform-buffer ub))
+
+  (defn cleanup [eng]
+    (do
+      (WGPURender.free-surface @(Engine.surf &eng))
+      (GLFW.destroy-window @(Engine.win &eng))
+      (GLFW.terminate)
+      (WGPU.free-context @(Engine.ctx &eng))))
+)

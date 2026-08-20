@@ -1,0 +1,343 @@
+(load "Vector.carp")
+(load "scaffold.carp")
+(load "../../carp-job-system/rayon.carp")
+(use Vector3)
+(use Double)
+
+; ---------------------------------------------------------------------------
+; WGSL Voxel Raymarching Shader
+; ---------------------------------------------------------------------------
+
+(def voxel-wgsl
+  "struct Uniforms {
+    time: f32,
+    width: f32,
+    height: f32,
+    _pad0: f32,
+    cam_pos: vec4<f32>,
+    cam_dir: vec4<f32>,
+    cam_right: vec4<f32>,
+    cam_up: vec4<f32>,
+}
+
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var voxel_texture: texture_3d<f32>;
+@group(0) @binding(2) var voxel_sampler: sampler;
+
+struct VertexOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+}
+
+@vertex
+fn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {
+    var pos: array<vec2<f32>, 3> = array<vec2<f32>, 3>(
+        vec2<f32>(-1.0, -1.0),
+        vec2<f32>( 3.0, -1.0),
+        vec2<f32>(-1.0,  3.0),
+    );
+    var out: VertexOutput;
+    let p = pos[vi];
+    out.position = vec4<f32>(p, 0.0, 1.0);
+    out.uv = (p + 1.0) * 0.5;
+    return out;
+}
+
+fn intersect_box(ro: vec3<f32>, rd: vec3<f32>, box_min: vec3<f32>, box_max: vec3<f32>, t0: ptr<function, f32>, t1: ptr<function, f32>) -> bool {
+    let inv_d = 1.0 / rd;
+    let t_bot = inv_d * (box_min - ro);
+    let t_top = inv_d * (box_max - ro);
+    let t_min = min(t_bot, t_top);
+    let t_max = max(t_bot, t_top);
+    let t_near = max(t_min.x, max(t_min.y, t_min.z));
+    let t_far = min(t_max.x, min(t_max.y, t_max.z));
+    *t0 = t_near;
+    *t1 = t_far;
+    return t_near < t_far && t_far > 0.0;
+}
+
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    let aspect = u.width / u.height;
+    let uv = (in.uv * 2.0 - 1.0) * vec2<f32>(aspect, 1.0);
+    
+    let ro = u.cam_pos.xyz;
+    let rd = normalize(u.cam_dir.xyz + uv.x * u.cam_right.xyz + uv.y * u.cam_up.xyz);
+    
+    let box_min = vec3<f32>(0.0, 0.0, 0.0);
+    let box_max = vec3<f32>(64.0, 64.0, 64.0);
+    
+    var t_near: f32 = 0.0;
+    var t_far: f32 = 0.0;
+    
+    var color = vec3<f32>(0.05, 0.08, 0.15);
+    
+    if (intersect_box(ro, rd, box_min, box_max, &t_near, &t_far)) {
+        let t_start = max(t_near, 0.0);
+        var t = t_start;
+        var hit = false;
+        
+        for (var step = 0; step < 120; step = step + 1) {
+            let p = ro + rd * t;
+            if (any(p < box_min) || any(p > box_max)) {
+                break;
+            }
+            
+            let tex_coord = p / 64.0;
+            let val = textureSampleLevel(voxel_texture, voxel_sampler, tex_coord, 0.0);
+            
+            if (val.a > 0.5) {
+                let normal = vec3<f32>(0.0, 1.0, 0.0);
+                let light_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));
+                let diffuse = max(dot(normal, light_dir), 0.2);
+                color = val.rgb * (diffuse + 0.3);
+                hit = true;
+                break;
+            }
+            
+            t = t + 0.5;
+        }
+    }
+    
+    return vec4<f32>(color, 1.0);
+}
+")
+
+; ---------------------------------------------------------------------------
+; Camera Definition
+; ---------------------------------------------------------------------------
+
+(deftype Camera [
+  pos (Vector3 Double)
+  yaw Double
+  pitch Double
+  front (Vector3 Double)
+  right (Vector3 Double)
+  up (Vector3 Double)
+])
+
+(defmodule Camera
+  (defn create [pos]
+    (Camera.init pos -90.0 0.0 (Vector3.init 0.0 0.0 -1.0) (Vector3.init 1.0 0.0 0.0) (Vector3.init 0.0 1.0 0.0)))
+
+  (defn update-vectors [cam]
+    (let [yaw @(Camera.yaw cam)
+          pitch @(Camera.pitch cam)
+          rad-yaw (* yaw (/ Double.pi 180.0))
+          rad-pitch (* pitch (/ Double.pi 180.0))
+          front-x (* (Double.cos rad-pitch) (Double.cos rad-yaw))
+          front-y (Double.sin rad-pitch)
+          front-z (* (Double.cos rad-pitch) (Double.sin rad-yaw))
+          front (Vector3.normalize &(Vector3.init front-x front-y front-z))
+          right (Vector3.normalize &(Vector3.init (- 0.0 @(Vector3.z &front)) 0.0 @(Vector3.x &front)))
+          up (Vector3.init 0.0 1.0 0.0)]
+      (do
+        (Camera.set-front! cam front)
+        (Camera.set-right! cam right)
+        (Camera.set-up! cam up))))
+)
+
+; ---------------------------------------------------------------------------
+; Main & Input Lifecycles
+; ---------------------------------------------------------------------------
+
+(defn update-camera-input [win cam dt]
+  (let [speed (* 25.0 dt)
+        front @(Camera.front cam)
+        right @(Camera.right cam)
+        up @(Camera.up cam)
+        pos @(Camera.pos cam)]
+    (do
+      (when (= (GLFW.get-key win GLFW.Keycode.W) GLFW.PRESS)
+        (Camera.set-pos! cam (Vector3.add &pos &(Vector3.mul &front speed))))
+      (when (= (GLFW.get-key win GLFW.Keycode.S) GLFW.PRESS)
+        (Camera.set-pos! cam (Vector3.sub &pos &(Vector3.mul &front speed))))
+      (when (= (GLFW.get-key win GLFW.Keycode.A) GLFW.PRESS)
+        (Camera.set-pos! cam (Vector3.sub &pos &(Vector3.mul &right speed))))
+      (when (= (GLFW.get-key win GLFW.Keycode.D) GLFW.PRESS)
+        (Camera.set-pos! cam (Vector3.add &pos &(Vector3.mul &right speed))))
+      (when (= (GLFW.get-key win GLFW.Keycode.E) GLFW.PRESS)
+        (Camera.set-pos! cam (Vector3.add &pos &(Vector3.mul &up speed))))
+      (when (= (GLFW.get-key win GLFW.Keycode.Q) GLFW.PRESS)
+        (Camera.set-pos! cam (Vector3.sub &pos &(Vector3.mul &up speed)))))))
+
+(defn update-camera-look [win cam first-mouse-ptr last-x-ptr last-y-ptr]
+  (let [xpos 0.0
+        ypos 0.0]
+    (do
+      (GLFW.get-cursor-pos win (ref-to-ptr &xpos) (ref-to-ptr &ypos))
+      (if (Pointer.to-value first-mouse-ptr)
+        (do
+          (Pointer.set first-mouse-ptr false)
+          (Pointer.set last-x-ptr xpos)
+          (Pointer.set last-y-ptr ypos))
+        (let [dx (- xpos (Pointer.to-value last-x-ptr))
+              dy (- (Pointer.to-value last-y-ptr) ypos)
+              sensitivity 0.1
+              yaw (+ @(Camera.yaw cam) (* dx sensitivity))
+              pitch (+ @(Camera.pitch cam) (* dy sensitivity))]
+          (do
+            (Pointer.set last-x-ptr xpos)
+            (Pointer.set last-y-ptr ypos)
+            (let [clamped-pitch (if (> pitch 89.0) 89.0 (if (< pitch -89.0) -89.0 pitch))]
+              (do
+                (Camera.set-yaw! cam yaw)
+                (Camera.set-pitch! cam clamped-pitch)
+                (Camera.update-vectors cam)))))))))
+
+(defn main []
+  (let [win-width 1280
+        win-height 720]
+    (match (Engine.create "Carp WebGPU WASM Voxel Scaffold" win-width win-height)
+      (Result.Error e) (do (println* "Engine failed: " &e) -1)
+      (Result.Success eng)
+        (let [ctx @(Engine.ctx &eng)
+              win @(Engine.win &eng)
+              surf @(Engine.surf &eng)]
+          (do
+            ; Enable camera capture (mouse lock)
+            (GLFW.set-input-mode win GLFW.CURSOR GLFW.CURSOR_DISABLED)
+            
+            (match (WGPURender.create-3d-texture ctx 64 64 64 "rgba16float")
+              (Result.Error e) (do (println* "Voxel texture failed: " &e) (Engine.cleanup eng) -1)
+              (Result.Success voxel-tex)
+                (match (WGPURender.create-sampler ctx)
+                  (Result.Error e) (do (println* "Sampler failed: " &e)
+                                       (WGPURender.free-render-texture voxel-tex)
+                                       (Engine.cleanup eng) -1)
+                  (Result.Success voxel-sampler)
+                    (match (WGPURender.create-uniform-buffer ctx 80)
+                      (Result.Error e) (do (println* "Uniforms failed: " &e)
+                                           (WGPURender.free-sampler voxel-sampler)
+                                           (WGPURender.free-render-texture voxel-tex)
+                                           (Engine.cleanup eng) -1)
+                      (Result.Success ub)
+                        (match (Engine.create-pipeline &eng voxel-wgsl "vs_main" "fs_main")
+                          (Result.Error e) (do (println* "Pipeline failed: " &e)
+                                               (Engine.free-uniform-buffer ub)
+                                               (WGPURender.free-sampler voxel-sampler)
+                                               (WGPURender.free-render-texture voxel-tex)
+                                               (Engine.cleanup eng) -1)
+                          (Result.Success pipe)
+                            (match (WGPURender.create-texture-bind-group ctx pipe voxel-tex voxel-sampler)
+                              (Result.Error e) (do (println* "Bind group failed: " &e)
+                                                   (Engine.free-pipeline pipe)
+                                                   (Engine.free-uniform-buffer ub)
+                                                   (WGPURender.free-sampler voxel-sampler)
+                                                   (WGPURender.free-render-texture voxel-tex)
+                                                   (Engine.cleanup eng) -1)
+                              (Result.Success bg)
+                                (let [pool (JobSystem.create-pool 4)
+                                      voxel-data (Array.allocate (* 64 (* 64 (* 64 4))))
+                                      p-data (Array.unsafe-raw &voxel-data)
+                                      z-indices (Array.allocate 64)
+                                      
+                                      ;; Camera and loop trackers
+                                      cam (Camera.create (Vector3.init 32.0 32.0 -40.0))
+                                      last-time (GLFW.get-time)
+                                      first-mouse true
+                                      last-x 640.0
+                                      last-y 360.0
+                                      uniforms (Array.allocate 20)]
+                                  (do
+                                    ; 1. Generate voxel grid in parallel using threads
+                                    (for [i 0 64]
+                                      (Array.aset! &z-indices i i))
+                                    
+                                    (let [gen-slice (fn [p-z]
+                                                      (let [z @p-z]
+                                                        (for [y 0 64]
+                                                          (for [x 0 64]
+                                                            (let [idx (+ (* z 4096) (+ (* y 64) x))
+                                                                  dx (- (Float.from-int x) 32.0f)
+                                                                  dy (- (Float.from-int y) 32.0f)
+                                                                  dz (- (Float.from-int z) 32.0f)
+                                                                  dist (Float.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))
+                                                                  
+                                                                  ;; Generate a shell of sphere voxels
+                                                                  density (if (and (< dist 22.0f) (> dist 18.0f)) 1.0f 0.0f)
+                                                                  r (/ (Float.from-int x) 64.0f)
+                                                                  g (/ (Float.from-int y) 64.0f)
+                                                                  b (/ (Float.from-int z) 64.0f)
+                                                                  offset (* idx 4)]
+                                                              (do
+                                                                (Pointer.set (Pointer.add p-data (Long.from-int offset)) r)
+                                                                (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) g)
+                                                                (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) b)
+                                                                (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) density)))))))]
+                                      (Par.for-each! pool &z-indices &gen-slice))
+                                    
+                                    ; 2. Upload voxel texture data to GPU
+                                    (WGPURender.update-3d-texture-subregion-floats ctx voxel-tex 0 0 0 64 64 64 &voxel-data)
+                                    (Camera.update-vectors &cam)
+                                    
+                                    ; 3. Main interactive loop
+                                    (while (= (GLFW.window-should-close win) GLFW.FALSE)
+                                      (let [curr-time (GLFW.get-time)
+                                            dt (- curr-time last-time)
+                                            time (Engine.update-time &eng)
+                                            c-pos (Camera.pos &cam)
+                                            c-dir (Camera.front &cam)
+                                            c-right (Camera.right &cam)
+                                            c-up (Camera.up &cam)]
+                                        (do
+                                          (set! last-time curr-time)
+                                          
+                                          ; Read input
+                                          (update-camera-input win &cam dt)
+                                          (update-camera-look win &cam (ref-to-ptr &first-mouse) (ref-to-ptr &last-x) (ref-to-ptr &last-y))
+                                          
+                                          ; Handle resizing
+                                          (Engine.handle-resize &eng)
+                                          
+                                          ; Update flat uniforms array (perfect 16-byte WGSL alignment)
+                                          (let [w (Float.from-int @(Engine.width &eng))
+                                                h (Float.from-int @(Engine.height &eng))]
+                                            (do
+                                              (Array.aset! &uniforms 0 time)
+                                              (Array.aset! &uniforms 1 w)
+                                              (Array.aset! &uniforms 2 h)
+                                              (Array.aset! &uniforms 3 0.0f)
+                                              
+                                              (Array.aset! &uniforms 4 (Double.to-float @(Vector3.x c-pos)))
+                                              (Array.aset! &uniforms 5 (Double.to-float @(Vector3.y c-pos)))
+                                              (Array.aset! &uniforms 6 (Double.to-float @(Vector3.z c-pos)))
+                                              (Array.aset! &uniforms 7 1.0f)
+                                              
+                                              (Array.aset! &uniforms 8 (Double.to-float @(Vector3.x c-dir)))
+                                              (Array.aset! &uniforms 9 (Double.to-float @(Vector3.y c-dir)))
+                                              (Array.aset! &uniforms 10 (Double.to-float @(Vector3.z c-dir)))
+                                              (Array.aset! &uniforms 11 0.0f)
+                                              
+                                              (Array.aset! &uniforms 12 (Double.to-float @(Vector3.x c-right)))
+                                              (Array.aset! &uniforms 13 (Double.to-float @(Vector3.y c-right)))
+                                              (Array.aset! &uniforms 14 (Double.to-float @(Vector3.z c-right)))
+                                              (Array.aset! &uniforms 15 0.0f)
+                                              
+                                              (Array.aset! &uniforms 16 (Double.to-float @(Vector3.x c-up)))
+                                              (Array.aset! &uniforms 17 (Double.to-float @(Vector3.y c-up)))
+                                              (Array.aset! &uniforms 18 (Double.to-float @(Vector3.z c-up)))
+                                              (Array.aset! &uniforms 19 0.0f)))
+                                          
+                                          (Engine.update-uniform-buffer &eng ub &uniforms)
+                                          
+                                          ; Render Frame
+                                          (match (Engine.begin-frame &eng)
+                                            (Maybe.Nothing) ()
+                                            (Maybe.Just frame)
+                                              (do
+                                                (WGPURender.run-pass frame pipe bg (Maybe.Nothing))
+                                                (Engine.end-frame &eng frame)))
+                                          
+                                          (Engine.poll-events &eng)
+                                          (emscripten-sleep 16))))
+                                    
+                                    ; 4. Shutdown & Cleanups
+                                    (JobSystem.destroy-pool pool)
+                                    (Engine.free-bind-group bg)
+                                    (Engine.free-pipeline pipe)
+                                    (Engine.free-uniform-buffer ub)
+                                    (WGPURender.free-sampler voxel-sampler)
+                                    (WGPURender.free-render-texture voxel-tex)
+                                    (Engine.cleanup eng)
+                                    0))))))))))))
