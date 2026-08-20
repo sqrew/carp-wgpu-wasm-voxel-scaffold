@@ -12,6 +12,9 @@
   uniforms (Array Float)
   diag Diagnostics
   frame-count Int
+  vel-y Double
+  on-ground Bool
+  flying Bool
 ])
 
 (defmodule EngineState
@@ -36,7 +39,7 @@
                       (Renderer.update-chunk-texture &platform-eng &ren @(Chunk.coord-x chunk) @(Chunk.coord-y chunk) @(Chunk.coord-z chunk) (Chunk.voxel-data chunk)))))
                 (Camera.update-basis! &cam)
                 
-                (Result.Success (EngineState.init platform-eng ren world cam uniforms diag 0)))))))
+                (Result.Success (EngineState.init platform-eng ren world cam uniforms diag 0 0.0 false true)))))))
 
   (defn draw-bounds-wireframe! [ren min-x min-y min-z max-x max-y max-z color]
     (let [w0 (Vector3.init min-x min-y min-z)
@@ -63,6 +66,46 @@
         (Renderer.draw-line! ren &w2 &w6 color)
         (Renderer.draw-line! ren &w3 &w7 color))))
 
+  (defn resolve-camera-collision! [world cam radius vel-y-ptr on-ground-ptr]
+    (let [p-pos (ref-to-ptr (Camera.pos cam))
+          cur-pos (Pointer.to-value p-pos)]
+      (do
+        (Pointer.set on-ground-ptr false)
+        (for [i 0 3]
+          (let [offset-y (if (= i 0) -1.6 (if (= i 1) -0.8 0.0))
+                p (Vector3.add &cur-pos &(Vector3.init 0.0 offset-y 0.0))
+                dist (World.sample-sdf-nearest world &p)]
+            (when (< dist (Double.to-float radius))
+               (let [penetration (- radius (Double.from-float dist))
+                     eps 0.1
+                     px @(Vector3.x &p)
+                     py @(Vector3.y &p)
+                     pz @(Vector3.z &p)
+                     
+                     dx-pos (Vector3.init (+ px eps) py pz)
+                     dx-neg (Vector3.init (- px eps) py pz)
+                     dy-pos (Vector3.init px (+ py eps) pz)
+                     dy-neg (Vector3.init px (- py eps) pz)
+                     dz-pos (Vector3.init px py (+ pz eps))
+                     dz-neg (Vector3.init px py (- pz eps))
+                     
+                     nx (- (World.sample-sdf-nearest world &dx-pos) (World.sample-sdf-nearest world &dx-neg))
+                     ny (- (World.sample-sdf-nearest world &dy-pos) (World.sample-sdf-nearest world &dy-neg))
+                     nz (- (World.sample-sdf-nearest world &dz-pos) (World.sample-sdf-nearest world &dz-neg))
+                     
+                     n-len (Double.sqrt (+ (+ (* (Double.from-float nx) (Double.from-float nx)) (* (Double.from-float ny) (Double.from-float ny))) (* (Double.from-float nz) (Double.from-float nz))))
+                     normal (if (> n-len 0.001)
+                                (Vector3.init (/ (Double.from-float nx) n-len) (/ (Double.from-float ny) n-len) (/ (Double.from-float nz) n-len))
+                                (Vector3.init 0.0 1.0 0.0))]
+                 (do
+                   (set! cur-pos (Vector3.add &@&cur-pos &(Vector3.mul &normal penetration)))
+                   (when (and (= i 0) (> @(Vector3.y &normal) 0.5))
+                     (do
+                       (Pointer.set on-ground-ptr true)
+                       (when (< (Pointer.to-value vel-y-ptr) 0.0)
+                         (Pointer.set vel-y-ptr 0.0)))))))))
+        (Pointer.set p-pos cur-pos))))
+
   (defn tick [state win dt first-mouse-ptr last-x-ptr last-y-ptr]
     (let [platform-eng (EngineState.eng state)
           ren (EngineState.renderer state)
@@ -72,9 +115,33 @@
         (Diagnostics.start-zone! diag "Total Frame Time")
         
         (Diagnostics.start-zone! diag "Input & Camera")
+        ; Toggle flying mode with key F
+        (let [curr-frame @(EngineState.frame-count state)]
+          (when (and (= (GLFW.get-key win GLFW.Keycode.F) GLFW.PRESS) (= (Int.mod curr-frame 20) 0))
+            (let [p-flying (ref-to-ptr (EngineState.flying state))]
+              (Pointer.set p-flying (not (Pointer.to-value p-flying))))))
+
+        ; Apply gravity & jump in walking mode
+        (when (not @(EngineState.flying state))
+          (let [p-vel-y (ref-to-ptr (EngineState.vel-y state))
+                curr-vel-y (Pointer.to-value p-vel-y)
+                p-pos (ref-to-ptr (Camera.pos cam))
+                curr-pos (Pointer.to-value p-pos)]
+            (do
+              (Pointer.set p-vel-y (- curr-vel-y (* 35.0 dt)))
+              (when (and (= (GLFW.get-key win GLFW.Keycode.SPACE) GLFW.PRESS) @(EngineState.on-ground state))
+                (do
+                  (Pointer.set p-vel-y 12.0)
+                  (Pointer.set (ref-to-ptr (EngineState.on-ground state)) false)))
+              (let [new-y (+ @(Vector3.y &curr-pos) (* (Pointer.to-value p-vel-y) dt))]
+                (Pointer.set p-pos (Vector3.init @(Vector3.x &curr-pos) new-y @(Vector3.z &curr-pos)))))))
+
         ; Read inputs
-        (Camera.update-input win cam dt)
+        (Camera.update-input win cam dt @(EngineState.flying state))
         (Camera.update-look win cam first-mouse-ptr last-x-ptr last-y-ptr)
+
+        ; Resolve camera collision with terrain
+        (EngineState.resolve-camera-collision! (EngineState.world state) cam 0.8 (ref-to-ptr (EngineState.vel-y state)) (ref-to-ptr (EngineState.on-ground state)))
         (Diagnostics.end-zone! diag "Input & Camera")
         
         ; Draw world boundary box (red)

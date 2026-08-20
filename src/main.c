@@ -792,10 +792,16 @@ typedef String(*Fn__Vector3__double_MUL__String)(Vector3__double*);
 typedef Vector3__double(*Fn__Vector3__double_MUL__Vector3__double)(Vector3__double*);
 
 // Depth 6
+typedef Vector3__double*(*Fn__Vector3__double_MUL__Vector3__double_MUL_)(Vector3__double*);
+
+// Depth 6
 typedef Vector3__double(*Fn__Vector3__double_MUL__Vector3__double_MUL__Vector3__double)(Vector3__double*, Vector3__double*);
 
 // Depth 6
 typedef double(*Fn__Vector3__double_MUL__Vector3__double_MUL__double)(Vector3__double*, Vector3__double*);
+
+// Depth 6
+typedef void(*Fn__Vector3__double_MUL__Vector3__double_void)(Vector3__double*, Vector3__double);
 
 // Depth 6
 typedef double(*Fn__Vector3__double_MUL__double)(Vector3__double*);
@@ -1179,6 +1185,9 @@ typedef World(*Fn__Array__Chunk_int_World)(Array__Chunk, int);
 
 // Depth 14
 typedef Array__Chunk*(*Fn__World_MUL__Array__Chunk_MUL_)(World*);
+
+// Depth 14
+typedef void(*Fn__World_MUL__Camera_MUL__double_double_MUL__bool_MUL__void)(World*, Camera*, double, double*, bool*);
 
 // Depth 14
 typedef String(*Fn__World_MUL__String)(World*);
@@ -1728,7 +1737,7 @@ typedef void(*Fn__FILE_MUL__void)(FILE*);
 typedef void(*Fn__GLFWwindow_MUL__Camera_MUL__bool_MUL__double_MUL__double_MUL__void)(GLFWwindow*, Camera*, bool*, double*, double*);
 
 // Depth 104
-typedef void(*Fn__GLFWwindow_MUL__Camera_MUL__double_void)(GLFWwindow*, Camera*, double);
+typedef void(*Fn__GLFWwindow_MUL__Camera_MUL__double_bool_void)(GLFWwindow*, Camera*, double, bool);
 
 // Depth 104
 typedef GLFWwindow*(*Fn__GLFWwindow_MUL__GLFWwindow_MUL_)(GLFWwindow*);
@@ -3194,6 +3203,9 @@ struct EngineState {
     Array__float uniforms;
     Diagnostics diag;
     int frame_MINUS_count;
+    double vel_MINUS_y;
+    bool on_MINUS_ground;
+    bool flying;
 };
 
 // Depth 110
@@ -3291,13 +3303,19 @@ typedef String(*Fn__EngineState_MUL__String)(EngineState*);
 typedef World*(*Fn__EngineState_MUL__World_MUL_)(EngineState*);
 
 // Depth 113
+typedef bool*(*Fn__EngineState_MUL__bool_MUL_)(EngineState*);
+
+// Depth 113
+typedef double*(*Fn__EngineState_MUL__double_MUL_)(EngineState*);
+
+// Depth 113
 typedef int*(*Fn__EngineState_MUL__int_MUL_)(EngineState*);
 
 // Depth 113
 typedef void(*Fn__EngineState_MUL__void)(EngineState*);
 
 // Depth 113
-typedef EngineState(*Fn__Engine_Renderer_World_Camera_Array__float_Diagnostics_int_EngineState)(Engine, Renderer, World, Camera, Array__float, Diagnostics, int);
+typedef EngineState(*Fn__Engine_Renderer_World_Camera_Array__float_Diagnostics_int_double_bool_bool_EngineState)(Engine, Renderer, World, Camera, Array__float, Diagnostics, int, double, bool, bool);
 
 // Depth 115
 typedef Result__EngineState_String(*Fn__EngineState_Result__EngineState_String)(EngineState);
@@ -3681,6 +3699,9 @@ bool null_QMARK___GLFWwindow(GLFWwindow* p);
 
 // Depth 500
 bool null_QMARK___WGPUContext(WGPUContext* p);
+
+// Depth 500
+void* ref_MINUS_to_MINUS_ptr__Vector3__double(void* r);
 
 // Depth 500
 void* ref_MINUS_to_MINUS_ptr__bool(void* r);
@@ -4658,7 +4679,7 @@ Camera Camera_update_MINUS_fov(Camera p, Lambda *updater);
 Camera Camera_update_MINUS_front(Camera p, Lambda *updater);
 
 // Depth 500
-void Camera_update_MINUS_input(GLFWwindow* win, Camera* cam, double dt);
+void Camera_update_MINUS_input(GLFWwindow* win, Camera* cam, double dt, bool flying);
 
 // Depth 500
 void Camera_update_MINUS_look(GLFWwindow* win, Camera* cam, bool* first_MINUS_mouse_MINUS_ptr, double* last_MINUS_x_MINUS_ptr, double* last_MINUS_y_MINUS_ptr);
@@ -5257,16 +5278,25 @@ void EngineState_draw_MINUS_bounds_MINUS_wireframe_BANG_(Renderer* ren, double m
 Engine* EngineState_eng(EngineState* p);
 
 // Depth 500
+bool* EngineState_flying(EngineState* p);
+
+// Depth 500
 int* EngineState_frame_MINUS_count(EngineState* p);
 
 // Depth 500
-EngineState EngineState_init(Engine eng, Renderer renderer, World world, Camera camera, Array__float uniforms, Diagnostics diag, int frame_MINUS_count);
+EngineState EngineState_init(Engine eng, Renderer renderer, World world, Camera camera, Array__float uniforms, Diagnostics diag, int frame_MINUS_count, double vel_MINUS_y, bool on_MINUS_ground, bool flying);
+
+// Depth 500
+bool* EngineState_on_MINUS_ground(EngineState* p);
 
 // Depth 500
 String EngineState_prn(EngineState *p);
 
 // Depth 500
 Renderer* EngineState_renderer(EngineState* p);
+
+// Depth 500
+void EngineState_resolve_MINUS_camera_MINUS_collision_BANG_(World* world, Camera* cam, double radius, double* vel_MINUS_y_MINUS_ptr, bool* on_MINUS_ground_MINUS_ptr);
 
 // Depth 500
 EngineState EngineState_set_MINUS_camera(EngineState p, Camera newValue);
@@ -5287,10 +5317,22 @@ EngineState EngineState_set_MINUS_eng(EngineState p, Engine newValue);
 void EngineState_set_MINUS_eng_BANG_(EngineState* pRef, Engine newValue);
 
 // Depth 500
+EngineState EngineState_set_MINUS_flying(EngineState p, bool newValue);
+
+// Depth 500
+void EngineState_set_MINUS_flying_BANG_(EngineState* pRef, bool newValue);
+
+// Depth 500
 EngineState EngineState_set_MINUS_frame_MINUS_count(EngineState p, int newValue);
 
 // Depth 500
 void EngineState_set_MINUS_frame_MINUS_count_BANG_(EngineState* pRef, int newValue);
+
+// Depth 500
+EngineState EngineState_set_MINUS_on_MINUS_ground(EngineState p, bool newValue);
+
+// Depth 500
+void EngineState_set_MINUS_on_MINUS_ground_BANG_(EngineState* pRef, bool newValue);
 
 // Depth 500
 EngineState EngineState_set_MINUS_renderer(EngineState p, Renderer newValue);
@@ -5303,6 +5345,12 @@ EngineState EngineState_set_MINUS_uniforms(EngineState p, Array__float newValue)
 
 // Depth 500
 void EngineState_set_MINUS_uniforms_BANG_(EngineState* pRef, Array__float newValue);
+
+// Depth 500
+EngineState EngineState_set_MINUS_vel_MINUS_y(EngineState p, double newValue);
+
+// Depth 500
+void EngineState_set_MINUS_vel_MINUS_y_BANG_(EngineState* pRef, double newValue);
 
 // Depth 500
 EngineState EngineState_set_MINUS_world(EngineState p, World newValue);
@@ -5329,7 +5377,13 @@ EngineState EngineState_update_MINUS_diag(EngineState p, Lambda *updater);
 EngineState EngineState_update_MINUS_eng(EngineState p, Lambda *updater);
 
 // Depth 500
+EngineState EngineState_update_MINUS_flying(EngineState p, Lambda *updater);
+
+// Depth 500
 EngineState EngineState_update_MINUS_frame_MINUS_count(EngineState p, Lambda *updater);
+
+// Depth 500
+EngineState EngineState_update_MINUS_on_MINUS_ground(EngineState p, Lambda *updater);
 
 // Depth 500
 EngineState EngineState_update_MINUS_renderer(EngineState p, Lambda *updater);
@@ -5338,7 +5392,13 @@ EngineState EngineState_update_MINUS_renderer(EngineState p, Lambda *updater);
 EngineState EngineState_update_MINUS_uniforms(EngineState p, Lambda *updater);
 
 // Depth 500
+EngineState EngineState_update_MINUS_vel_MINUS_y(EngineState p, Lambda *updater);
+
+// Depth 500
 EngineState EngineState_update_MINUS_world(EngineState p, Lambda *updater);
+
+// Depth 500
+double* EngineState_vel_MINUS_y(EngineState* p);
 
 // Depth 500
 World* EngineState_world(EngineState* p);
@@ -6360,6 +6420,9 @@ String Pointer_prn__WGPUUniformBufferWrapper(WGPUUniformBufferWrapper* a);
 String Pointer_prn__WGPUVertexBufferWrapper(WGPUVertexBufferWrapper* a);
 
 // Depth 500
+void Pointer_set__Vector3__double(Vector3__double* p, Vector3__double a);
+
+// Depth 500
 void Pointer_set__bool(bool* p, bool a);
 
 // Depth 500
@@ -6370,6 +6433,9 @@ void Pointer_set__float(float* p, float a);
 
 // Depth 500
 void Pointer_set__int(int* p, int a);
+
+// Depth 500
+Vector3__double Pointer_to_MINUS_value__Vector3__double(Vector3__double* p);
 
 // Depth 500
 bool Pointer_to_MINUS_value__bool(bool* p);
@@ -13328,52 +13394,127 @@ Camera Camera_update_MINUS_front(Camera p, Lambda *updater) {
 }
 
 
-void Camera_update_MINUS_input(GLFWwindow* win, Camera* cam, double dt) {
+void Camera_update_MINUS_input(GLFWwindow* win, Camera* cam, double dt, bool flying) {
     /* let */ {
-        double _11 = Double__MUL_(25.0, dt);
-        double speed = _11;
-        int _19 = glfwGetKey(win, GLFW_KEY_W);
-        bool _21 = Int__EQ_(_19, GLFW_PRESS);
-        if (_21) {
-            Camera_move_MINUS_forward_BANG_(cam, speed);
+        double _12 = Double__MUL_(15.0, dt);
+        double speed = _12;
+        if (flying) {
+            int _23 = glfwGetKey(win, GLFW_KEY_W);
+            bool _25 = Int__EQ_(_23, GLFW_PRESS);
+            if (_25) {
+                Camera_move_MINUS_forward_BANG_(cam, speed);
+            } else {
+                /* () */
+            }
+            int _41 = glfwGetKey(win, GLFW_KEY_S);
+            bool _43 = Int__EQ_(_41, GLFW_PRESS);
+            if (_43) {
+                double _50 = Double__MINUS_(0.0, speed);
+                Camera_move_MINUS_forward_BANG_(cam, _50);
+            } else {
+                /* () */
+            }
+            int _62 = glfwGetKey(win, GLFW_KEY_E);
+            bool _64 = Int__EQ_(_62, GLFW_PRESS);
+            if (_64) {
+                Camera_move_MINUS_up_BANG_(cam, speed);
+            } else {
+                /* () */
+            }
+            int _80 = glfwGetKey(win, GLFW_KEY_Q);
+            bool _82 = Int__EQ_(_80, GLFW_PRESS);
+            if (_82) {
+                double _89 = Double__MINUS_(0.0, speed);
+                Camera_move_MINUS_up_BANG_(cam, _89);
+            } else {
+                /* () */
+            }
+        } else {
+            /* let */ {
+                Vector3__double* _102 = Camera_front(cam);
+                Vector3__double* f = _102;
+                double* _107 = Vector3_x__double(f);
+                double _108 = Double_copy(_107);
+                double fx = _108;
+                double* _113 = Vector3_z__double(f);
+                double _114 = Double_copy(_113);
+                double fz = _114;
+                double _121 = Double__MUL_(fx, fx);
+                double _125 = Double__MUL_(fz, fz);
+                double _126 = Double__PLUS_(_121, _125);
+                double _127 = Double_sqrt(_126);
+                double flen = _127;
+                Vector3__double _154;
+                bool _133 = Double__GT_(flen, 1.0e-3);
+                if (_133) {
+                    double _139 = Double__DIV_(fx, flen);
+                    double _144 = Double__DIV_(fz, flen);
+                    Vector3__double _145 = Vector3_init__double(_139, 0.0, _144);
+                    Vector3__double _146 = _145;
+                    _154 = _146;
+                } else {
+                    Vector3__double _152 = Vector3_init__double(0.0, 0.0, 0.0);
+                    Vector3__double _153 = _152;
+                    _154 = _153;
+                }
+                Vector3__double proj_MINUS_f = _154;
+                int _162 = glfwGetKey(win, GLFW_KEY_W);
+                bool _164 = Int__EQ_(_162, GLFW_PRESS);
+                if (_164) {
+                    /* let */ {
+                        Vector3__double* _171 = Camera_pos(cam);
+                        Vector3__double* _172 = ref_MINUS_to_MINUS_ptr__Vector3__double(_171);
+                        Vector3__double* p_MINUS_pos = _172;
+                        Vector3__double _176 = Pointer_to_MINUS_value__Vector3__double(p_MINUS_pos);
+                        Vector3__double curr_MINUS_pos = _176;
+                        Vector3__double* _183 = &curr_MINUS_pos; // ref
+                        Vector3__double* _188 = &proj_MINUS_f; // ref
+                        Vector3__double _190 = Vector3_mul__double(_188, speed);
+                        Vector3__double* _191 = &_190; // ref
+                        Vector3__double _192 = Vector3_add__double(_183, _191);
+                        Pointer_set__Vector3__double(p_MINUS_pos, _192);
+                        Vector3_delete__double(_190);
+                        Vector3_delete__double(curr_MINUS_pos);
+                    }
+                } else {
+                    /* () */
+                }
+                int _205 = glfwGetKey(win, GLFW_KEY_S);
+                bool _207 = Int__EQ_(_205, GLFW_PRESS);
+                if (_207) {
+                    /* let */ {
+                        Vector3__double* _214 = Camera_pos(cam);
+                        Vector3__double* _215 = ref_MINUS_to_MINUS_ptr__Vector3__double(_214);
+                        Vector3__double* p_MINUS_pos = _215;
+                        Vector3__double _219 = Pointer_to_MINUS_value__Vector3__double(p_MINUS_pos);
+                        Vector3__double curr_MINUS_pos = _219;
+                        Vector3__double* _226 = &curr_MINUS_pos; // ref
+                        Vector3__double* _231 = &proj_MINUS_f; // ref
+                        Vector3__double _233 = Vector3_mul__double(_231, speed);
+                        Vector3__double* _234 = &_233; // ref
+                        Vector3__double _235 = Vector3_sub__double(_226, _234);
+                        Pointer_set__Vector3__double(p_MINUS_pos, _235);
+                        Vector3_delete__double(_233);
+                        Vector3_delete__double(curr_MINUS_pos);
+                    }
+                } else {
+                    /* () */
+                }
+                Vector3_delete__double(proj_MINUS_f);
+            }
+        }
+        int _252 = glfwGetKey(win, GLFW_KEY_A);
+        bool _254 = Int__EQ_(_252, GLFW_PRESS);
+        if (_254) {
+            double _261 = Double__MINUS_(0.0, speed);
+            Camera_move_MINUS_right_BANG_(cam, _261);
         } else {
             /* () */
         }
-        int _37 = glfwGetKey(win, GLFW_KEY_S);
-        bool _39 = Int__EQ_(_37, GLFW_PRESS);
-        if (_39) {
-            double _46 = Double__MINUS_(0.0, speed);
-            Camera_move_MINUS_forward_BANG_(cam, _46);
-        } else {
-            /* () */
-        }
-        int _58 = glfwGetKey(win, GLFW_KEY_A);
-        bool _60 = Int__EQ_(_58, GLFW_PRESS);
-        if (_60) {
-            double _67 = Double__MINUS_(0.0, speed);
-            Camera_move_MINUS_right_BANG_(cam, _67);
-        } else {
-            /* () */
-        }
-        int _79 = glfwGetKey(win, GLFW_KEY_D);
-        bool _81 = Int__EQ_(_79, GLFW_PRESS);
-        if (_81) {
+        int _273 = glfwGetKey(win, GLFW_KEY_D);
+        bool _275 = Int__EQ_(_273, GLFW_PRESS);
+        if (_275) {
             Camera_move_MINUS_right_BANG_(cam, speed);
-        } else {
-            /* () */
-        }
-        int _97 = glfwGetKey(win, GLFW_KEY_E);
-        bool _99 = Int__EQ_(_97, GLFW_PRESS);
-        if (_99) {
-            Camera_move_MINUS_up_BANG_(cam, speed);
-        } else {
-            /* () */
-        }
-        int _115 = glfwGetKey(win, GLFW_KEY_Q);
-        bool _117 = Int__EQ_(_115, GLFW_PRESS);
-        if (_117) {
-            double _124 = Double__MINUS_(0.0, speed);
-            Camera_move_MINUS_up_BANG_(cam, _124);
         } else {
             /* () */
         }
@@ -16194,12 +16335,15 @@ EngineState EngineState_copy(EngineState* pRef) {
     copy.uniforms = Array_copy__float(&(pRef->uniforms));
     copy.diag = Diagnostics_copy(&(pRef->diag));
     /* Ignore non-managed member 'frame_MINUS_count' : Int */
+    /* Ignore non-managed member 'vel_MINUS_y' : Double */
+    /* Ignore non-managed member 'on_MINUS_ground' : Bool */
+    /* Ignore non-managed member 'flying' : Bool */
     return copy;
 }
 
 Result__EngineState_String EngineState_create(String* title, int width, int height) {
     Result__Engine_String _11 = Engine_create(title, width, height);
-    Result__EngineState_String _184;
+    Result__EngineState_String _187;
     if(_11._tag == Result__Engine_String_Error_tag) {
         Result__Engine_String _11_temp = _11;
         String e = _11_temp.u.Error.member0;
@@ -16214,7 +16358,7 @@ Result__EngineState_String EngineState_create(String* title, int width, int heig
         String* _1000004 = &_1000005; // ref
         String _1000003 = String_copy(_1000004);
         Result__EngineState_String _32 = Result_Error__String_EngineState(_1000003);
-        _184 = _32;
+        _187 = _32;
         String_delete(_1000005);
         String_delete(_1000007);
         String_delete(_1000009);
@@ -16225,7 +16369,7 @@ Result__EngineState_String EngineState_create(String* title, int width, int heig
         // Case expr:
         Engine* _40 = &platform_MINUS_eng; // ref
         Result__Renderer_String _41 = Renderer_create(_40);
-        Result__EngineState_String _183;
+        Result__EngineState_String _186;
         if(_41._tag == Result__Renderer_String_Error_tag) {
             Result__Renderer_String _41_temp = _41;
             String e = _41_temp.u.Error.member0;
@@ -16242,7 +16386,7 @@ Result__EngineState_String EngineState_create(String* title, int width, int heig
             String _1000012 = String_copy(_1000013);
             Result__EngineState_String _66 = Result_Error__String_EngineState(_1000012);
             Result__EngineState_String _67 = _66;
-            _183 = _67;
+            _186 = _67;
             String_delete(_1000014);
             String_delete(_1000016);
             String_delete(_1000018);
@@ -16251,7 +16395,7 @@ Result__EngineState_String EngineState_create(String* title, int width, int heig
             Result__Renderer_String _41_temp = _41;
             Renderer ren = _41_temp.u.Success.member0;
             // Case expr:
-            Result__EngineState_String _182;
+            Result__EngineState_String _185;
             /* let */ {
                 World _74 = World_create();
                 World world = _74;
@@ -16299,18 +16443,18 @@ Result__EngineState_String EngineState_create(String* title, int width, int heig
                 }
                 Camera* _168 = &cam; // ref
                 Camera_update_MINUS_basis_BANG_(_168);
-                EngineState _179 = EngineState_init(platform_MINUS_eng, ren, world, cam, uniforms, diag, 0);
-                Result__EngineState_String _180 = Result_Success__EngineState_String(_179);
-                Result__EngineState_String _181 = _180;
-                _182 = _181;
+                EngineState _182 = EngineState_init(platform_MINUS_eng, ren, world, cam, uniforms, diag, 0, 0.0, false, true);
+                Result__EngineState_String _183 = Result_Success__EngineState_String(_182);
+                Result__EngineState_String _184 = _183;
+                _185 = _184;
             }
-            _183 = _182;
+            _186 = _185;
         }
-        else UNHANDLED("engine.carp", 22);
-        _184 = _183;
+        else UNHANDLED("engine.carp", 25);
+        _187 = _186;
     }
-    else UNHANDLED("engine.carp", 19);
-    return _184;
+    else UNHANDLED("engine.carp", 22);
+    return _187;
 }
 
 void EngineState_delete(EngineState p) {
@@ -16321,6 +16465,9 @@ void EngineState_delete(EngineState p) {
     Array_delete__float(p.uniforms);
     Diagnostics_delete(p.diag);
     /* Ignore non-managed member 'frame_MINUS_count' : Int */
+    /* Ignore non-managed member 'vel_MINUS_y' : Double */
+    /* Ignore non-managed member 'on_MINUS_ground' : Bool */
+    /* Ignore non-managed member 'flying' : Bool */
 }
 
 Diagnostics* EngineState_diag(EngineState* p) { return (&(p->diag)); }
@@ -16392,9 +16539,11 @@ void EngineState_draw_MINUS_bounds_MINUS_wireframe_BANG_(Renderer* ren, double m
 
 Engine* EngineState_eng(EngineState* p) { return (&(p->eng)); }
 
+bool* EngineState_flying(EngineState* p) { return (&(p->flying)); }
+
 int* EngineState_frame_MINUS_count(EngineState* p) { return (&(p->frame_MINUS_count)); }
 
-EngineState EngineState_init(Engine eng, Renderer renderer, World world, Camera camera, Array__float uniforms, Diagnostics diag, int frame_MINUS_count) {
+EngineState EngineState_init(Engine eng, Renderer renderer, World world, Camera camera, Array__float uniforms, Diagnostics diag, int frame_MINUS_count, double vel_MINUS_y, bool on_MINUS_ground, bool flying) {
     EngineState instance;
     instance.eng = eng;
     instance.renderer = renderer;
@@ -16403,8 +16552,13 @@ EngineState EngineState_init(Engine eng, Renderer renderer, World world, Camera 
     instance.uniforms = uniforms;
     instance.diag = diag;
     instance.frame_MINUS_count = frame_MINUS_count;
+    instance.vel_MINUS_y = vel_MINUS_y;
+    instance.on_MINUS_ground = on_MINUS_ground;
+    instance.flying = flying;
     return instance;
 }
+
+bool* EngineState_on_MINUS_ground(EngineState* p) { return (&(p->on_MINUS_ground)); }
 
 String EngineState_prn(EngineState *p) {
   // convert members to String here:
@@ -16437,6 +16591,18 @@ String EngineState_prn(EngineState *p) {
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
   temp = Int_prn(p->frame_MINUS_count); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->vel_MINUS_y); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Bool_prn(p->on_MINUS_ground); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Bool_prn(p->flying); 
   size += snprintf(NULL, 0, "%s ", temp);
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
@@ -16480,12 +16646,215 @@ String EngineState_prn(EngineState *p) {
   bufferPtr += tempsize;
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
+  temp = Double_prn(p->vel_MINUS_y);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Bool_prn(p->on_MINUS_ground);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Bool_prn(p->flying);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
   bufferPtr--;
   snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
   return buffer;
 }
 
 Renderer* EngineState_renderer(EngineState* p) { return (&(p->renderer)); }
+
+void EngineState_resolve_MINUS_camera_MINUS_collision_BANG_(World* world, Camera* cam, double radius, double* vel_MINUS_y_MINUS_ptr, bool* on_MINUS_ground_MINUS_ptr) {
+    /* let */ {
+        Vector3__double* _13 = Camera_pos(cam);
+        Vector3__double* _14 = ref_MINUS_to_MINUS_ptr__Vector3__double(_13);
+        Vector3__double* p_MINUS_pos = _14;
+        Vector3__double _18 = Pointer_to_MINUS_value__Vector3__double(p_MINUS_pos);
+        Vector3__double cur_MINUS_pos = _18;
+        Pointer_set__bool(on_MINUS_ground_MINUS_ptr, false);
+        /* let */ {
+            int i = 0;
+            bool _1000008 = Int__LT_(i, 3);
+            bool _1000006 = _1000008;
+            while (_1000006) {
+                /* let */ {
+                    double _59;
+                    bool _41 = Int__EQ_(i, 0);
+                    if (_41) {
+                        double _44 = -1.6;
+                        _59 = _44;
+                    } else {
+                        double _57;
+                        bool _50 = Int__EQ_(i, 1);
+                        if (_50) {
+                            double _53 = -0.8;
+                            _57 = _53;
+                        } else {
+                            double _56 = 0.0;
+                            _57 = _56;
+                        }
+                        double _58 = _57;
+                        _59 = _58;
+                    }
+                    double offset_MINUS_y = _59;
+                    Vector3__double* _64 = &cur_MINUS_pos; // ref
+                    Vector3__double _70 = Vector3_init__double(0.0, offset_MINUS_y, 0.0);
+                    Vector3__double* _71 = &_70; // ref
+                    Vector3__double _72 = Vector3_add__double(_64, _71);
+                    Vector3__double p = _72;
+                    Vector3__double* _78 = &p; // ref
+                    float _79 = World_sample_MINUS_sdf_MINUS_nearest(world, _78);
+                    float dist = _79;
+                    float _86 = Double_to_MINUS_float(radius);
+                    bool _87 = Float__LT_(dist, _86);
+                    if (_87) {
+                        /* let */ {
+                            double _95 = Double_from_MINUS_float(dist);
+                            double _96 = Double__MINUS_(radius, _95);
+                            double penetration = _96;
+                            double eps = 0.1;
+                            Vector3__double* _104 = &p; // ref
+                            double* _105 = Vector3_x__double(_104);
+                            double _106 = Double_copy(_105);
+                            double px = _106;
+                            Vector3__double* _112 = &p; // ref
+                            double* _113 = Vector3_y__double(_112);
+                            double _114 = Double_copy(_113);
+                            double py = _114;
+                            Vector3__double* _120 = &p; // ref
+                            double* _121 = Vector3_z__double(_120);
+                            double _122 = Double_copy(_121);
+                            double pz = _122;
+                            double _128 = Double__PLUS_(px, eps);
+                            Vector3__double _131 = Vector3_init__double(_128, py, pz);
+                            Vector3__double dx_MINUS_pos = _131;
+                            double _137 = Double__MINUS_(px, eps);
+                            Vector3__double _140 = Vector3_init__double(_137, py, pz);
+                            Vector3__double dx_MINUS_neg = _140;
+                            double _147 = Double__PLUS_(py, eps);
+                            Vector3__double _149 = Vector3_init__double(px, _147, pz);
+                            Vector3__double dy_MINUS_pos = _149;
+                            double _156 = Double__MINUS_(py, eps);
+                            Vector3__double _158 = Vector3_init__double(px, _156, pz);
+                            Vector3__double dy_MINUS_neg = _158;
+                            double _166 = Double__PLUS_(pz, eps);
+                            Vector3__double _167 = Vector3_init__double(px, py, _166);
+                            Vector3__double dz_MINUS_pos = _167;
+                            double _175 = Double__MINUS_(pz, eps);
+                            Vector3__double _176 = Vector3_init__double(px, py, _175);
+                            Vector3__double dz_MINUS_neg = _176;
+                            Vector3__double* _183 = &dx_MINUS_pos; // ref
+                            float _184 = World_sample_MINUS_sdf_MINUS_nearest(world, _183);
+                            Vector3__double* _189 = &dx_MINUS_neg; // ref
+                            float _190 = World_sample_MINUS_sdf_MINUS_nearest(world, _189);
+                            float _191 = Float__MINUS_(_184, _190);
+                            float nx = _191;
+                            Vector3__double* _198 = &dy_MINUS_pos; // ref
+                            float _199 = World_sample_MINUS_sdf_MINUS_nearest(world, _198);
+                            Vector3__double* _204 = &dy_MINUS_neg; // ref
+                            float _205 = World_sample_MINUS_sdf_MINUS_nearest(world, _204);
+                            float _206 = Float__MINUS_(_199, _205);
+                            float ny = _206;
+                            Vector3__double* _213 = &dz_MINUS_pos; // ref
+                            float _214 = World_sample_MINUS_sdf_MINUS_nearest(world, _213);
+                            Vector3__double* _219 = &dz_MINUS_neg; // ref
+                            float _220 = World_sample_MINUS_sdf_MINUS_nearest(world, _219);
+                            float _221 = Float__MINUS_(_214, _220);
+                            float nz = _221;
+                            double _229 = Double_from_MINUS_float(nx);
+                            double _232 = Double_from_MINUS_float(nx);
+                            double _233 = Double__MUL_(_229, _232);
+                            double _237 = Double_from_MINUS_float(ny);
+                            double _240 = Double_from_MINUS_float(ny);
+                            double _241 = Double__MUL_(_237, _240);
+                            double _242 = Double__PLUS_(_233, _241);
+                            double _246 = Double_from_MINUS_float(nz);
+                            double _249 = Double_from_MINUS_float(nz);
+                            double _250 = Double__MUL_(_246, _249);
+                            double _251 = Double__PLUS_(_242, _250);
+                            double _252 = Double_sqrt(_251);
+                            double n_MINUS_len = _252;
+                            Vector3__double _288;
+                            bool _258 = Double__GT_(n_MINUS_len, 1.0e-3);
+                            if (_258) {
+                                double _264 = Double_from_MINUS_float(nx);
+                                double _266 = Double__DIV_(_264, n_MINUS_len);
+                                double _270 = Double_from_MINUS_float(ny);
+                                double _272 = Double__DIV_(_270, n_MINUS_len);
+                                double _276 = Double_from_MINUS_float(nz);
+                                double _278 = Double__DIV_(_276, n_MINUS_len);
+                                Vector3__double _279 = Vector3_init__double(_266, _272, _278);
+                                Vector3__double _280 = _279;
+                                _288 = _280;
+                            } else {
+                                Vector3__double _286 = Vector3_init__double(0.0, 1.0, 0.0);
+                                Vector3__double _287 = _286;
+                                _288 = _287;
+                            }
+                            Vector3__double normal = _288;
+                            Vector3__double* _298 = &cur_MINUS_pos; // ref
+                            Vector3__double _299 = Vector3_copy__double(_298);
+                            Vector3__double* _300 = &_299; // ref
+                            Vector3__double* _305 = &normal; // ref
+                            Vector3__double _307 = Vector3_mul__double(_305, penetration);
+                            Vector3__double* _308 = &_307; // ref
+                            Vector3__double _309 = Vector3_add__double(_300, _308);
+                            Vector3_delete__double(cur_MINUS_pos);
+                            cur_MINUS_pos = _309;  // (Vector3 Double) = (Vector3 Double)
+                            bool _332;
+                            bool _316 = Int__EQ_(i, 0);
+                            if (_316) {
+                                Vector3__double* _323 = &normal; // ref
+                                double* _324 = Vector3_y__double(_323);
+                                double _325 = Double_copy(_324);
+                                bool _327 = Double__GT_(_325, 0.5);
+                                bool _328 = _327;
+                                _332 = _328;
+                            } else {
+                                bool _331 = false;
+                                _332 = _331;
+                            }
+                            if (_332) {
+                                Pointer_set__bool(on_MINUS_ground_MINUS_ptr, true);
+                                double _342 = Pointer_to_MINUS_value__double(vel_MINUS_y_MINUS_ptr);
+                                bool _344 = Double__LT_(_342, 0.0);
+                                if (_344) {
+                                    Pointer_set__double(vel_MINUS_y_MINUS_ptr, 0.0);
+                                } else {
+                                    /* () */
+                                }
+                            } else {
+                                /* () */
+                            }
+                            Vector3_delete__double(_299);
+                            Vector3_delete__double(_307);
+                            Vector3_delete__double(dx_MINUS_neg);
+                            Vector3_delete__double(dx_MINUS_pos);
+                            Vector3_delete__double(dy_MINUS_neg);
+                            Vector3_delete__double(dy_MINUS_pos);
+                            Vector3_delete__double(dz_MINUS_neg);
+                            Vector3_delete__double(dz_MINUS_pos);
+                            Vector3_delete__double(normal);
+                        }
+                    } else {
+                        /* () */
+                    }
+                    Vector3_delete__double(_70);
+                    Vector3_delete__double(p);
+                }
+                int _1000038 = Int__PLUS_(i, 1);
+                i = _1000038;  // Int = Int
+                bool _1000008 = Int__LT_(i, 3);
+                _1000006 = _1000008;
+            }
+        }
+        Pointer_set__Vector3__double(p_MINUS_pos, cur_MINUS_pos);
+    }
+}
 
 EngineState EngineState_set_MINUS_camera(EngineState p, Camera newValue) {
     Camera_delete(p.camera);
@@ -16526,6 +16895,19 @@ void EngineState_set_MINUS_eng_BANG_(EngineState* pRef, Engine newValue) {
 }
 
 
+EngineState EngineState_set_MINUS_flying(EngineState p, bool newValue) {
+    /* Ignore non-managed member 'flying' : Bool */
+    p.flying = newValue;
+    return p;
+}
+
+
+void EngineState_set_MINUS_flying_BANG_(EngineState* pRef, bool newValue) {
+    /* Ignore non-managed member 'flying' : Bool */
+    pRef->flying = newValue;
+}
+
+
 EngineState EngineState_set_MINUS_frame_MINUS_count(EngineState p, int newValue) {
     /* Ignore non-managed member 'frame_MINUS_count' : Int */
     p.frame_MINUS_count = newValue;
@@ -16536,6 +16918,19 @@ EngineState EngineState_set_MINUS_frame_MINUS_count(EngineState p, int newValue)
 void EngineState_set_MINUS_frame_MINUS_count_BANG_(EngineState* pRef, int newValue) {
     /* Ignore non-managed member 'frame_MINUS_count' : Int */
     pRef->frame_MINUS_count = newValue;
+}
+
+
+EngineState EngineState_set_MINUS_on_MINUS_ground(EngineState p, bool newValue) {
+    /* Ignore non-managed member 'on_MINUS_ground' : Bool */
+    p.on_MINUS_ground = newValue;
+    return p;
+}
+
+
+void EngineState_set_MINUS_on_MINUS_ground_BANG_(EngineState* pRef, bool newValue) {
+    /* Ignore non-managed member 'on_MINUS_ground' : Bool */
+    pRef->on_MINUS_ground = newValue;
 }
 
 
@@ -16562,6 +16957,19 @@ EngineState EngineState_set_MINUS_uniforms(EngineState p, Array__float newValue)
 void EngineState_set_MINUS_uniforms_BANG_(EngineState* pRef, Array__float newValue) {
     Array_delete__float(pRef->uniforms);
     pRef->uniforms = newValue;
+}
+
+
+EngineState EngineState_set_MINUS_vel_MINUS_y(EngineState p, double newValue) {
+    /* Ignore non-managed member 'vel_MINUS_y' : Double */
+    p.vel_MINUS_y = newValue;
+    return p;
+}
+
+
+void EngineState_set_MINUS_vel_MINUS_y_BANG_(EngineState* pRef, double newValue) {
+    /* Ignore non-managed member 'vel_MINUS_y' : Double */
+    pRef->vel_MINUS_y = newValue;
 }
 
 
@@ -16612,6 +17020,18 @@ String EngineState_str(EngineState *p) {
   size += snprintf(NULL, 0, "%s ", temp);
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
+  temp = Double_prn(p->vel_MINUS_y); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Bool_prn(p->on_MINUS_ground); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Bool_prn(p->flying); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
 
   String buffer = CARP_MALLOC(size);
   String bufferPtr = buffer;
@@ -16652,6 +17072,21 @@ String EngineState_str(EngineState *p) {
   bufferPtr += tempsize;
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
+  temp = Double_prn(p->vel_MINUS_y);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Bool_prn(p->on_MINUS_ground);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Bool_prn(p->flying);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
   bufferPtr--;
   snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
   return buffer;
@@ -16673,128 +17108,225 @@ void EngineState_tick(EngineState* state, GLFWwindow* win, double dt, bool* firs
         static String _34 = "Input & Camera";
         String *_34_ref = &_34;
         Diagnostics_start_MINUS_zone_BANG_(diag, _34_ref);
-        Camera_update_MINUS_input(win, cam, dt);
-        Camera_update_MINUS_look(win, cam, first_MINUS_mouse_MINUS_ptr, last_MINUS_x_MINUS_ptr, last_MINUS_y_MINUS_ptr);
-        static String _50 = "Input & Camera";
-        String *_50_ref = &_50;
-        Diagnostics_end_MINUS_zone_BANG_(diag, _50_ref);
         /* let */ {
-            Vector3__double _58 = Vector3_init__double(1.0, 0.1, 0.1);
-            Vector3__double red_MINUS_color = _58;
-            Vector3__double* _70 = &red_MINUS_color; // ref
-            EngineState_draw_MINUS_bounds_MINUS_wireframe_BANG_(ren, 0.0, 0.0, 0.0, 128.0, 64.0, 128.0, _70);
+            int* _41 = EngineState_frame_MINUS_count(state);
+            int _42 = Int_copy(_41);
+            int curr_MINUS_frame = _42;
+            bool _65;
+            int _50 = glfwGetKey(win, GLFW_KEY_F);
+            bool _52 = Int__EQ_(_50, GLFW_PRESS);
+            if (_52) {
+                int _58 = Int_mod(curr_MINUS_frame, 20);
+                bool _60 = Int__EQ_(_58, 0);
+                bool _61 = _60;
+                _65 = _61;
+            } else {
+                bool _64 = false;
+                _65 = _64;
+            }
+            if (_65) {
+                /* let */ {
+                    bool* _72 = EngineState_flying(state);
+                    bool* _73 = ref_MINUS_to_MINUS_ptr__bool(_72);
+                    bool* p_MINUS_flying = _73;
+                    bool _80 = Pointer_to_MINUS_value__bool(p_MINUS_flying);
+                    bool _81 = not(_80);
+                    Pointer_set__bool(p_MINUS_flying, _81);
+                }
+            } else {
+                /* () */
+            }
+        }
+        bool* _95 = EngineState_flying(state);
+        bool _96 = Bool_copy(_95);
+        bool _97 = not(_96);
+        if (_97) {
+            /* let */ {
+                double* _104 = EngineState_vel_MINUS_y(state);
+                double* _105 = ref_MINUS_to_MINUS_ptr__double(_104);
+                double* p_MINUS_vel_MINUS_y = _105;
+                double _109 = Pointer_to_MINUS_value__double(p_MINUS_vel_MINUS_y);
+                double curr_MINUS_vel_MINUS_y = _109;
+                Vector3__double* _114 = Camera_pos(cam);
+                Vector3__double* _115 = ref_MINUS_to_MINUS_ptr__Vector3__double(_114);
+                Vector3__double* p_MINUS_pos = _115;
+                Vector3__double _119 = Pointer_to_MINUS_value__Vector3__double(p_MINUS_pos);
+                Vector3__double curr_MINUS_pos = _119;
+                double _129 = Double__MUL_(35.0, dt);
+                double _130 = Double__MINUS_(curr_MINUS_vel_MINUS_y, _129);
+                Pointer_set__double(p_MINUS_vel_MINUS_y, _130);
+                bool _151;
+                int _138 = glfwGetKey(win, GLFW_KEY_SPACE);
+                bool _140 = Int__EQ_(_138, GLFW_PRESS);
+                if (_140) {
+                    bool* _145 = EngineState_on_MINUS_ground(state);
+                    bool _146 = Bool_copy(_145);
+                    bool _147 = _146;
+                    _151 = _147;
+                } else {
+                    bool _150 = false;
+                    _151 = _150;
+                }
+                if (_151) {
+                    Pointer_set__double(p_MINUS_vel_MINUS_y, 12.0);
+                    bool* _161 = EngineState_on_MINUS_ground(state);
+                    bool* _162 = ref_MINUS_to_MINUS_ptr__bool(_161);
+                    Pointer_set__bool(_162, false);
+                } else {
+                    /* () */
+                }
+                /* let */ {
+                    Vector3__double* _177 = &curr_MINUS_pos; // ref
+                    double* _178 = Vector3_y__double(_177);
+                    double _179 = Double_copy(_178);
+                    double _183 = Pointer_to_MINUS_value__double(p_MINUS_vel_MINUS_y);
+                    double _185 = Double__MUL_(_183, dt);
+                    double _186 = Double__PLUS_(_179, _185);
+                    double new_MINUS_y = _186;
+                    Vector3__double* _195 = &curr_MINUS_pos; // ref
+                    double* _196 = Vector3_x__double(_195);
+                    double _197 = Double_copy(_196);
+                    Vector3__double* _203 = &curr_MINUS_pos; // ref
+                    double* _204 = Vector3_z__double(_203);
+                    double _205 = Double_copy(_204);
+                    Vector3__double _206 = Vector3_init__double(_197, new_MINUS_y, _205);
+                    Pointer_set__Vector3__double(p_MINUS_pos, _206);
+                }
+                Vector3_delete__double(curr_MINUS_pos);
+            }
+        } else {
+            /* () */
+        }
+        bool* _223 = EngineState_flying(state);
+        bool _224 = Bool_copy(_223);
+        Camera_update_MINUS_input(win, cam, dt, _224);
+        Camera_update_MINUS_look(win, cam, first_MINUS_mouse_MINUS_ptr, last_MINUS_x_MINUS_ptr, last_MINUS_y_MINUS_ptr);
+        World* _236 = EngineState_world(state);
+        double* _242 = EngineState_vel_MINUS_y(state);
+        double* _243 = ref_MINUS_to_MINUS_ptr__double(_242);
+        bool* _247 = EngineState_on_MINUS_ground(state);
+        bool* _248 = ref_MINUS_to_MINUS_ptr__bool(_247);
+        EngineState_resolve_MINUS_camera_MINUS_collision_BANG_(_236, cam, 0.8, _243, _248);
+        static String _252 = "Input & Camera";
+        String *_252_ref = &_252;
+        Diagnostics_end_MINUS_zone_BANG_(diag, _252_ref);
+        /* let */ {
+            Vector3__double _260 = Vector3_init__double(1.0, 0.1, 0.1);
+            Vector3__double red_MINUS_color = _260;
+            Vector3__double* _272 = &red_MINUS_color; // ref
+            EngineState_draw_MINUS_bounds_MINUS_wireframe_BANG_(ren, 0.0, 0.0, 0.0, 128.0, 64.0, 128.0, _272);
             Vector3_delete__double(red_MINUS_color);
         }
         /* let */ {
-            Vector3__double* _77 = Camera_pos(cam);
-            Vector3__double* ro = _77;
-            Vector3__double* _81 = Camera_front(cam);
-            Vector3__double* rd = _81;
-            World* _85 = EngineState_world(state);
-            World* world = _85;
-            Maybe__Vector3__double _92 = World_raycast(world, ro, rd, 80.0);
-            Maybe__Vector3__double hit_MINUS_opt = _92;
+            Vector3__double* _279 = Camera_pos(cam);
+            Vector3__double* ro = _279;
+            Vector3__double* _283 = Camera_front(cam);
+            Vector3__double* rd = _283;
+            World* _287 = EngineState_world(state);
+            World* world = _287;
+            Maybe__Vector3__double _294 = World_raycast(world, ro, rd, 80.0);
+            Maybe__Vector3__double hit_MINUS_opt = _294;
             if(hit_MINUS_opt._tag == Maybe__Vector3__double_Nothing_tag) {
-                Maybe__Vector3__double _95_temp = hit_MINUS_opt;
+                Maybe__Vector3__double _297_temp = hit_MINUS_opt;
                 // Case expr:
                 /* () */
             }
             else if(hit_MINUS_opt._tag == Maybe__Vector3__double_Just_tag) {
-                Maybe__Vector3__double _95_temp = hit_MINUS_opt;
-                Vector3__double hit_MINUS_pos = _95_temp.u.Just.member0;
+                Maybe__Vector3__double _297_temp = hit_MINUS_opt;
+                Vector3__double hit_MINUS_pos = _297_temp.u.Just.member0;
                 // Case expr:
                 /* let */ {
-                    Vector3__double _109 = Vector3_init__double(1.0, 1.0, 0.0);
-                    Vector3__double yellow = _109;
-                    Vector3__double* _115 = &hit_MINUS_pos; // ref
-                    double* _116 = Vector3_x__double(_115);
-                    double _117 = Double_copy(_116);
-                    double hx = _117;
-                    Vector3__double* _123 = &hit_MINUS_pos; // ref
-                    double* _124 = Vector3_y__double(_123);
-                    double _125 = Double_copy(_124);
-                    double hy = _125;
-                    Vector3__double* _131 = &hit_MINUS_pos; // ref
-                    double* _132 = Vector3_z__double(_131);
-                    double _133 = Double_copy(_132);
-                    double hz = _133;
-                    double _140 = Double__MINUS_(hx, 0.5);
-                    double _144 = Double__MINUS_(hy, 0.5);
-                    double _148 = Double__MINUS_(hz, 0.5);
-                    double _152 = Double__PLUS_(hx, 0.5);
-                    double _156 = Double__PLUS_(hy, 0.5);
-                    double _160 = Double__PLUS_(hz, 0.5);
-                    Vector3__double* _163 = &yellow; // ref
-                    EngineState_draw_MINUS_bounds_MINUS_wireframe_BANG_(ren, _140, _144, _148, _152, _156, _160, _163);
+                    Vector3__double _311 = Vector3_init__double(1.0, 1.0, 0.0);
+                    Vector3__double yellow = _311;
+                    Vector3__double* _317 = &hit_MINUS_pos; // ref
+                    double* _318 = Vector3_x__double(_317);
+                    double _319 = Double_copy(_318);
+                    double hx = _319;
+                    Vector3__double* _325 = &hit_MINUS_pos; // ref
+                    double* _326 = Vector3_y__double(_325);
+                    double _327 = Double_copy(_326);
+                    double hy = _327;
+                    Vector3__double* _333 = &hit_MINUS_pos; // ref
+                    double* _334 = Vector3_z__double(_333);
+                    double _335 = Double_copy(_334);
+                    double hz = _335;
+                    double _342 = Double__MINUS_(hx, 0.5);
+                    double _346 = Double__MINUS_(hy, 0.5);
+                    double _350 = Double__MINUS_(hz, 0.5);
+                    double _354 = Double__PLUS_(hx, 0.5);
+                    double _358 = Double__PLUS_(hy, 0.5);
+                    double _362 = Double__PLUS_(hz, 0.5);
+                    Vector3__double* _365 = &yellow; // ref
+                    EngineState_draw_MINUS_bounds_MINUS_wireframe_BANG_(ren, _342, _346, _350, _354, _358, _362, _365);
                     Vector3_delete__double(yellow);
                 }
                 /* let */ {
-                    int _172 = glfwGetMouseButton(win, 0);
-                    bool _174 = Int__EQ_(_172, GLFW_PRESS);
-                    bool left_MINUS_pressed = _174;
-                    int _180 = glfwGetMouseButton(win, 1);
-                    bool _182 = Int__EQ_(_180, GLFW_PRESS);
-                    bool right_MINUS_pressed = _182;
-                    bool _193;
+                    int _374 = glfwGetMouseButton(win, 0);
+                    bool _376 = Int__EQ_(_374, GLFW_PRESS);
+                    bool left_MINUS_pressed = _376;
+                    int _382 = glfwGetMouseButton(win, 1);
+                    bool _384 = Int__EQ_(_382, GLFW_PRESS);
+                    bool right_MINUS_pressed = _384;
+                    bool _395;
                     if (left_MINUS_pressed) {
-                        bool _189 = true;
-                        _193 = _189;
+                        bool _391 = true;
+                        _395 = _391;
                     } else {
-                        bool _192 = right_MINUS_pressed;
-                        _193 = _192;
+                        bool _394 = right_MINUS_pressed;
+                        _395 = _394;
                     }
-                    if (_193) {
+                    if (_395) {
                         /* let */ {
                             double radius = 3.0;
                             float mat_MINUS_id = 2.0f;
                             bool carve_QMARK_ = left_MINUS_pressed;
-                            Vector3__double* _207 = &hit_MINUS_pos; // ref
-                            Array__ChunkCoord _211 = World_edit_MINUS_sdf_BANG___float(world, _207, radius, mat_MINUS_id, carve_QMARK_);
-                            Array__ChunkCoord modified_MINUS_coords = _211;
+                            Vector3__double* _409 = &hit_MINUS_pos; // ref
+                            Array__ChunkCoord _413 = World_edit_MINUS_sdf_BANG___float(world, _409, radius, mat_MINUS_id, carve_QMARK_);
+                            Array__ChunkCoord modified_MINUS_coords = _413;
                             /* let */ {
                                 int j = 0;
-                                Array__ChunkCoord* _224 = &modified_MINUS_coords; // ref
-                                int _225 = Array_length__ChunkCoord(_224);
-                                bool _1000021 = Int__LT_(j, _225);
-                                bool _1000019 = _1000021;
-                                while (_1000019) {
+                                Array__ChunkCoord* _426 = &modified_MINUS_coords; // ref
+                                int _427 = Array_length__ChunkCoord(_426);
+                                bool _1000041 = Int__LT_(j, _427);
+                                bool _1000039 = _1000041;
+                                while (_1000039) {
                                     /* let */ {
-                                        Array__ChunkCoord* _233 = &modified_MINUS_coords; // ref
-                                        ChunkCoord* _235 = Array_unsafe_MINUS_nth__ChunkCoord(_233, j);
-                                        ChunkCoord* coord = _235;
-                                        int* _240 = ChunkCoord_x(coord);
-                                        int _241 = Int_copy(_240);
-                                        int qx = _241;
-                                        int* _246 = ChunkCoord_y(coord);
-                                        int _247 = Int_copy(_246);
-                                        int qy = _247;
-                                        int* _252 = ChunkCoord_z(coord);
-                                        int _253 = Int_copy(_252);
-                                        int qz = _253;
-                                        Maybe__Chunk _260 = World_find_MINUS_chunk(world, qx, qy, qz);
-                                        Maybe__Chunk chunk_MINUS_opt = _260;
+                                        Array__ChunkCoord* _435 = &modified_MINUS_coords; // ref
+                                        ChunkCoord* _437 = Array_unsafe_MINUS_nth__ChunkCoord(_435, j);
+                                        ChunkCoord* coord = _437;
+                                        int* _442 = ChunkCoord_x(coord);
+                                        int _443 = Int_copy(_442);
+                                        int qx = _443;
+                                        int* _448 = ChunkCoord_y(coord);
+                                        int _449 = Int_copy(_448);
+                                        int qy = _449;
+                                        int* _454 = ChunkCoord_z(coord);
+                                        int _455 = Int_copy(_454);
+                                        int qz = _455;
+                                        Maybe__Chunk _462 = World_find_MINUS_chunk(world, qx, qy, qz);
+                                        Maybe__Chunk chunk_MINUS_opt = _462;
                                         if(chunk_MINUS_opt._tag == Maybe__Chunk_Nothing_tag) {
-                                            Maybe__Chunk _263_temp = chunk_MINUS_opt;
+                                            Maybe__Chunk _465_temp = chunk_MINUS_opt;
                                             // Case expr:
                                             /* () */
                                         }
                                         else if(chunk_MINUS_opt._tag == Maybe__Chunk_Just_tag) {
-                                            Maybe__Chunk _263_temp = chunk_MINUS_opt;
-                                            Chunk chunk = _263_temp.u.Just.member0;
+                                            Maybe__Chunk _465_temp = chunk_MINUS_opt;
+                                            Chunk chunk = _465_temp.u.Just.member0;
                                             // Case expr:
-                                            Chunk* _279 = &chunk; // ref
-                                            Array__float* _280 = Chunk_voxel_MINUS_data(_279);
-                                            Renderer_update_MINUS_chunk_MINUS_texture(platform_MINUS_eng, ren, qx, qy, qz, _280);
+                                            Chunk* _481 = &chunk; // ref
+                                            Array__float* _482 = Chunk_voxel_MINUS_data(_481);
+                                            Renderer_update_MINUS_chunk_MINUS_texture(platform_MINUS_eng, ren, qx, qy, qz, _482);
                                             Chunk_delete(chunk);
                                         }
-                                        else UNHANDLED("engine.carp", 115);
+                                        else UNHANDLED("engine.carp", 182);
                                     }
-                                    int _1000028 = Int__PLUS_(j, 1);
-                                    j = _1000028;  // Int = Int
-                                    Array__ChunkCoord* _224 = &modified_MINUS_coords; // ref
-                                    int _225 = Array_length__ChunkCoord(_224);
-                                    bool _1000021 = Int__LT_(j, _225);
-                                    _1000019 = _1000021;
+                                    int _1000048 = Int__PLUS_(j, 1);
+                                    j = _1000048;  // Int = Int
+                                    Array__ChunkCoord* _426 = &modified_MINUS_coords; // ref
+                                    int _427 = Array_length__ChunkCoord(_426);
+                                    bool _1000041 = Int__LT_(j, _427);
+                                    _1000039 = _1000041;
                                 }
                             }
                             Array_delete__ChunkCoord(modified_MINUS_coords);
@@ -16805,34 +17337,34 @@ void EngineState_tick(EngineState* state, GLFWwindow* win, double dt, bool* firs
                 }
                 Vector3_delete__double(hit_MINUS_pos);
             }
-            else UNHANDLED("engine.carp", 89);
+            else UNHANDLED("engine.carp", 156);
         }
         Engine_handle_MINUS_resize(platform_MINUS_eng);
-        static String _310 = "Renderer & Draw";
-        String *_310_ref = &_310;
-        Diagnostics_start_MINUS_zone_BANG_(diag, _310_ref);
-        Array__float* _318 = EngineState_uniforms(state);
-        Renderer_update_MINUS_uniforms(platform_MINUS_eng, ren, cam, _318);
+        static String _512 = "Renderer & Draw";
+        String *_512_ref = &_512;
+        Diagnostics_start_MINUS_zone_BANG_(diag, _512_ref);
+        Array__float* _520 = EngineState_uniforms(state);
+        Renderer_update_MINUS_uniforms(platform_MINUS_eng, ren, cam, _520);
         Renderer_draw(platform_MINUS_eng, ren, cam);
-        static String _327 = "Renderer & Draw";
-        String *_327_ref = &_327;
-        Diagnostics_end_MINUS_zone_BANG_(diag, _327_ref);
+        static String _529 = "Renderer & Draw";
+        String *_529_ref = &_529;
+        Diagnostics_end_MINUS_zone_BANG_(diag, _529_ref);
         Engine_poll_MINUS_events__Engine_MUL_(platform_MINUS_eng);
-        static String _334 = "Total Frame Time";
-        String *_334_ref = &_334;
-        Diagnostics_end_MINUS_zone_BANG_(diag, _334_ref);
+        static String _536 = "Total Frame Time";
+        String *_536_ref = &_536;
+        Diagnostics_end_MINUS_zone_BANG_(diag, _536_ref);
         /* let */ {
-            int* _341 = EngineState_frame_MINUS_count(state);
-            int* _342 = ref_MINUS_to_MINUS_ptr__int(_341);
-            int* p_MINUS_frames = _342;
-            int _346 = Pointer_to_MINUS_value__int(p_MINUS_frames);
-            int curr_MINUS_frames = _346;
-            int _350 = Int_inc(curr_MINUS_frames);
-            int next_MINUS_frames = _350;
+            int* _543 = EngineState_frame_MINUS_count(state);
+            int* _544 = ref_MINUS_to_MINUS_ptr__int(_543);
+            int* p_MINUS_frames = _544;
+            int _548 = Pointer_to_MINUS_value__int(p_MINUS_frames);
+            int curr_MINUS_frames = _548;
+            int _552 = Int_inc(curr_MINUS_frames);
+            int next_MINUS_frames = _552;
             Pointer_set__int(p_MINUS_frames, next_MINUS_frames);
-            int _362 = Int_mod(next_MINUS_frames, 300);
-            bool _364 = Int__EQ_(_362, 0);
-            if (_364) {
+            int _564 = Int_mod(next_MINUS_frames, 300);
+            bool _566 = Int__EQ_(_564, 0);
+            if (_566) {
                 Diagnostics_print_MINUS_stats_BANG_(diag);
             } else {
                 /* () */
@@ -16861,8 +17393,20 @@ EngineState EngineState_update_MINUS_eng(EngineState p, Lambda *updater) {
 }
 
 
+EngineState EngineState_update_MINUS_flying(EngineState p, Lambda *updater) {
+    p.flying = (*updater).env ? ((Fn__LambdaEnv_bool_bool)(*updater).callback)((*updater).env, p.flying) : ((Fn__bool_bool)(*updater).callback)(p.flying);
+    return p;
+}
+
+
 EngineState EngineState_update_MINUS_frame_MINUS_count(EngineState p, Lambda *updater) {
     p.frame_MINUS_count = (*updater).env ? ((Fn__LambdaEnv_int_int)(*updater).callback)((*updater).env, p.frame_MINUS_count) : ((Fn__int_int)(*updater).callback)(p.frame_MINUS_count);
+    return p;
+}
+
+
+EngineState EngineState_update_MINUS_on_MINUS_ground(EngineState p, Lambda *updater) {
+    p.on_MINUS_ground = (*updater).env ? ((Fn__LambdaEnv_bool_bool)(*updater).callback)((*updater).env, p.on_MINUS_ground) : ((Fn__bool_bool)(*updater).callback)(p.on_MINUS_ground);
     return p;
 }
 
@@ -16879,11 +17423,19 @@ EngineState EngineState_update_MINUS_uniforms(EngineState p, Lambda *updater) {
 }
 
 
+EngineState EngineState_update_MINUS_vel_MINUS_y(EngineState p, Lambda *updater) {
+    p.vel_MINUS_y = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.vel_MINUS_y) : ((Fn__double_double)(*updater).callback)(p.vel_MINUS_y);
+    return p;
+}
+
+
 EngineState EngineState_update_MINUS_world(EngineState p, Lambda *updater) {
     p.world = (*updater).env ? ((Fn__LambdaEnv_World_World)(*updater).callback)((*updater).env, p.world) : ((Fn__World_World)(*updater).callback)(p.world);
     return p;
 }
 
+
+double* EngineState_vel_MINUS_y(EngineState* p) { return (&(p->vel_MINUS_y)); }
 
 World* EngineState_world(EngineState* p) { return (&(p->world)); }
 
@@ -20408,10 +20960,12 @@ String Pointer_prn__WGPUVertexBufferWrapper(WGPUVertexBufferWrapper* a) {
     return _6;
 }
 
+void Pointer_set__Vector3__double(Vector3__double* p, Vector3__double a) { *p = a; }
 void Pointer_set__bool(bool* p, bool a) { *p = a; }
 void Pointer_set__double(double* p, double a) { *p = a; }
 void Pointer_set__float(float* p, float a) { *p = a; }
 void Pointer_set__int(int* p, int a) { *p = a; }
+ Vector3__double Pointer_to_MINUS_value__Vector3__double(Vector3__double* p) { return *p; }
  bool Pointer_to_MINUS_value__bool(bool* p) { return *p; }
  double Pointer_to_MINUS_value__double(double* p) { return *p; }
  float Pointer_to_MINUS_value__float(float* p) { return *p; }
@@ -26005,6 +26559,7 @@ bool null_QMARK___WGPUContext(WGPUContext* p) {
     return _12;
 }
 
+void* ref_MINUS_to_MINUS_ptr__Vector3__double(void* r) { return r; }
 void* ref_MINUS_to_MINUS_ptr__bool(void* r) { return r; }
 void* ref_MINUS_to_MINUS_ptr__double(void* r) { return r; }
 void* ref_MINUS_to_MINUS_ptr__int(void* r) { return r; }

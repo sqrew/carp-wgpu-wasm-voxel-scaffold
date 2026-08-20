@@ -2,21 +2,41 @@
 (load "scaffold.carp")
 
 (defmodule Camera
-  (defn update-input [win cam dt]
-    (let [speed (* 25.0 dt)]
+  (defn update-input [win cam dt flying]
+    (let [speed (* 15.0 dt)]
       (do
-        (when (= (GLFW.get-key win GLFW.Keycode.W) GLFW.PRESS)
-          (Camera.move-forward! cam speed))
-        (when (= (GLFW.get-key win GLFW.Keycode.S) GLFW.PRESS)
-          (Camera.move-forward! cam (- 0.0 speed)))
+        (if flying
+            (do
+              (when (= (GLFW.get-key win GLFW.Keycode.W) GLFW.PRESS)
+                (Camera.move-forward! cam speed))
+              (when (= (GLFW.get-key win GLFW.Keycode.S) GLFW.PRESS)
+                (Camera.move-forward! cam (- 0.0 speed)))
+              (when (= (GLFW.get-key win GLFW.Keycode.E) GLFW.PRESS)
+                (Camera.move-up! cam speed))
+              (when (= (GLFW.get-key win GLFW.Keycode.Q) GLFW.PRESS)
+                (Camera.move-up! cam (- 0.0 speed))))
+            (do
+              ;; Walking mode: project forward vector onto X-Z plane
+              (let [f (Camera.front cam)
+                    fx @(Vector3.x f)
+                    fz @(Vector3.z f)
+                    flen (Double.sqrt (+ (* fx fx) (* fz fz)))
+                    proj-f (if (> flen 0.001)
+                               (Vector3.init (/ fx flen) 0.0 (/ fz flen))
+                               (Vector3.init 0.0 0.0 0.0))]
+                (do
+                  (when (= (GLFW.get-key win GLFW.Keycode.W) GLFW.PRESS)
+                    (let [p-pos (ref-to-ptr (Camera.pos cam))
+                          curr-pos (Pointer.to-value p-pos)]
+                      (Pointer.set p-pos (Vector3.add &curr-pos &(Vector3.mul &proj-f speed)))))
+                  (when (= (GLFW.get-key win GLFW.Keycode.S) GLFW.PRESS)
+                    (let [p-pos (ref-to-ptr (Camera.pos cam))
+                          curr-pos (Pointer.to-value p-pos)]
+                      (Pointer.set p-pos (Vector3.sub &curr-pos &(Vector3.mul &proj-f speed)))))))))
         (when (= (GLFW.get-key win GLFW.Keycode.A) GLFW.PRESS)
           (Camera.move-right! cam (- 0.0 speed)))
         (when (= (GLFW.get-key win GLFW.Keycode.D) GLFW.PRESS)
-          (Camera.move-right! cam speed))
-        (when (= (GLFW.get-key win GLFW.Keycode.E) GLFW.PRESS)
-          (Camera.move-up! cam speed))
-        (when (= (GLFW.get-key win GLFW.Keycode.Q) GLFW.PRESS)
-          (Camera.move-up! cam (- 0.0 speed))))))
+          (Camera.move-right! cam speed)))))
 
   (defn update-look [win cam first-mouse-ptr last-x-ptr last-y-ptr]
     (let [xpos 0.0
