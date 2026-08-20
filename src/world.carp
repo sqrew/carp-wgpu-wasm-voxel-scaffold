@@ -25,12 +25,16 @@
           (for [y 0 res]
             (for [x 0 res]
               (let [idx (+ (* z 1024) (+ (* y 32) x))
-                    dx (- (Float.from-int x) 16.0f)
-                    dy (- (Float.from-int y) 16.0f)
-                    dz (- (Float.from-int z) 16.0f)
+                    gx (+ (* qx 32) x)
+                    gy (+ (* qy 32) y)
+                    gz (+ (* qz 32) z)
+                    dx (- (Float.from-int gx) 64.0f)
+                    dy (- (Float.from-int gy) 32.0f)
+                    dz (- (Float.from-int gz) 64.0f)
                     dist (Float.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))
                     
-                    sdf (- (Float.abs (- dist 9.0f)) 1.0f)
+                    ;; Large hollow sphere shell centered in the middle of the world
+                    sdf (- (Float.abs (- dist 25.0f)) 2.0f)
                     mat-id 2.0f
                     offset (* idx 4)]
                 (do
@@ -45,6 +49,9 @@
   (defn create []
     (let [world-chunks []]
       (do
-        (Array.push-back! &world-chunks (Chunk.create 0 0 0))
+        (for [z 0 4]
+          (for [y 0 2]
+            (for [x 0 4]
+              (Array.push-back! &world-chunks (Chunk.create x y z)))))
         (World.init world-chunks 32))))
 )

@@ -26,11 +26,14 @@
             (let [world (World.create)
                   cam (Camera.new (Vector3.init 16.0 16.0 -20.0) -90.0 0.0 1.7777777777777777)
                   uniforms (Array.allocate 20)
-                  diag (Diagnostics.new @"diagnostics.log")
-                  first-chunk (Array.unsafe-nth (World.chunks &world) 0)]
+                  diag (Diagnostics.new @"diagnostics.log")]
               (do
-                ; Upload initial voxel data
-                (Renderer.update-texture &platform-eng &ren (Chunk.voxel-data first-chunk))
+                ; Upload all chunks to world texture
+                (let [chunks (World.chunks &world)
+                      num-chunks (Array.length chunks)]
+                  (for [i 0 num-chunks]
+                    (let [chunk (Array.unsafe-nth chunks i)]
+                      (Renderer.update-chunk-texture &platform-eng &ren @(Chunk.coord-x chunk) @(Chunk.coord-y chunk) @(Chunk.coord-z chunk) (Chunk.voxel-data chunk)))))
                 (Camera.update-basis! &cam)
                 
                 (Result.Success (EngineState.init platform-eng ren world cam uniforms diag 0)))))))
@@ -76,7 +79,7 @@
         
         ; Draw chunk boundary box (red)
         (let [red-color (Vector3.init 1.0 0.1 0.1)]
-          (EngineState.draw-bounds-wireframe! ren 0.0 0.0 0.0 32.0 32.0 32.0 &red-color))
+          (EngineState.draw-bounds-wireframe! ren 0.0 0.0 0.0 128.0 64.0 128.0 &red-color))
         
         ; Handle resizing
         (Engine.handle-resize platform-eng)

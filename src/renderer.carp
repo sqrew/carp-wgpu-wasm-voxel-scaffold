@@ -59,7 +59,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let rd = normalize(u.cam_dir.xyz * 2.0 + uv.x * u.cam_right.xyz + uv.y * u.cam_up.xyz);
     
     let box_min = vec3<f32>(0.0, 0.0, 0.0);
-    let box_max = vec3<f32>(32.0, 32.0, 32.0);
+    let box_max = vec3<f32>(128.0, 64.0, 128.0);
     
     var t_near: f32 = 0.0;
     var t_far: f32 = 0.0;
@@ -77,8 +77,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             }
             let p = ro + rd * t;
             
-            // Normalized coords in [0, 1]
-            let uvw = p / 32.0;
+            // Normalized coords in [0, 1] matching the 128x64x128 world bounds
+            let dims = vec3<f32>(128.0, 64.0, 128.0);
+            let uvw = p / dims;
             
             // Sample SDF value from green channel (G)
             let val = textureSampleLevel(voxel_texture, voxel_sampler, uvw, 0.0);
@@ -88,12 +89,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 // Hit! Calculate normals using finite differences
                 let eps = 0.05;
                 let n = vec3<f32>(
-                    textureSampleLevel(voxel_texture, voxel_sampler, uvw + vec3<f32>(eps, 0.0, 0.0)/32.0, 0.0).g - 
-                    textureSampleLevel(voxel_texture, voxel_sampler, uvw - vec3<f32>(eps, 0.0, 0.0)/32.0, 0.0).g,
-                    textureSampleLevel(voxel_texture, voxel_sampler, uvw + vec3<f32>(0.0, eps, 0.0)/32.0, 0.0).g - 
-                    textureSampleLevel(voxel_texture, voxel_sampler, uvw - vec3<f32>(0.0, eps, 0.0)/32.0, 0.0).g,
-                    textureSampleLevel(voxel_texture, voxel_sampler, uvw + vec3<f32>(0.0, 0.0, eps)/32.0, 0.0).g - 
-                    textureSampleLevel(voxel_texture, voxel_sampler, uvw - vec3<f32>(0.0, 0.0, eps)/32.0, 0.0).g
+                    textureSampleLevel(voxel_texture, voxel_sampler, uvw + vec3<f32>(eps, 0.0, 0.0)/dims, 0.0).g - 
+                    textureSampleLevel(voxel_texture, voxel_sampler, uvw - vec3<f32>(eps, 0.0, 0.0)/dims, 0.0).g,
+                    textureSampleLevel(voxel_texture, voxel_sampler, uvw + vec3<f32>(0.0, eps, 0.0)/dims, 0.0).g - 
+                    textureSampleLevel(voxel_texture, voxel_sampler, uvw - vec3<f32>(0.0, eps, 0.0)/dims, 0.0).g,
+                    textureSampleLevel(voxel_texture, voxel_sampler, uvw + vec3<f32>(0.0, 0.0, eps)/dims, 0.0).g - 
+                    textureSampleLevel(voxel_texture, voxel_sampler, uvw - vec3<f32>(0.0, 0.0, eps)/dims, 0.0).g
                 );
                 let normal = normalize(n);
                 
@@ -123,7 +124,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 }
 ")
 
-
 (deftype Renderer [
   pipeline (Ptr WGPURenderPipelineWrapper)
   bind-group WGPUBindGroup
@@ -140,7 +140,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 (defmodule Renderer
   (defn create [eng]
     (let [ctx @(Engine.ctx eng)]
-      (match (WGPURender.create-3d-texture ctx 32 32 32 "rgba16float")
+      (match (WGPURender.create-3d-texture ctx 128 64 128 "rgba16float")
         (Result.Error e) (Result.Error (str* "Voxel texture failed: " e))
         (Result.Success voxel-tex)
           (match (WGPURender.create-sampler ctx)
@@ -184,8 +184,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                                                          (Engine.free-bind-group bg)
                                                          (WGPURender.free-depth-texture depth-tex)
                                                          (Result.Error (str* "LinePass creation failed: " e)))
-                              (Result.Success lp)
-                                (Result.Success (Renderer.init pipe bg ub voxel-tex voxel-sampler lp [] depth-tex w h)))))))))))))
+                                    (Result.Success lp)
+                                      (Result.Success (Renderer.init pipe bg ub voxel-tex voxel-sampler lp [] depth-tex w h)))))))))))))
 
   (defn update-uniforms [eng ren cam uniforms]
     (let [c-pos (Camera.pos cam)
@@ -223,9 +223,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         
         (Engine.update-uniform-buffer eng @(Renderer.uniform-buffer ren) uniforms))))
 
-  (defn update-texture [eng ren chunk-data]
-    (let [ctx @(Engine.ctx eng)]
-      (WGPURender.update-3d-texture-subregion-floats ctx @(Renderer.voxel-texture ren) 0 0 0 32 32 32 chunk-data)))
+  (defn update-chunk-texture [eng ren qx qy qz chunk-data]
+    (let [ctx @(Engine.ctx eng)
+          offset-x (* qx 32)
+          offset-y (* qy 32)
+          offset-z (* qz 32)]
+      (WGPURender.update-3d-texture-subregion-floats ctx @(Renderer.voxel-texture ren) offset-x offset-y offset-z 32 32 32 chunk-data)))
 
   (defn draw-line! [ren start end color]
     (Array.push-back! (Renderer.lines ren) (Line.init @start @end @color)))
