@@ -219,7 +219,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                                                (WGPURender.free-render-texture voxel-tex)
                                                (Engine.cleanup eng) -1)
                           (Result.Success pipe)
-                            (match (WGPURender.create-texture-bind-group ctx pipe voxel-tex voxel-sampler)
+                            (match (Engine.create-voxel-bind-group &eng pipe voxel-tex voxel-sampler ub)
                               (Result.Error e) (do (println* "Bind group failed: " &e)
                                                    (Engine.free-pipeline pipe)
                                                    (Engine.free-uniform-buffer ub)

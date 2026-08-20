@@ -19,6 +19,42 @@
 
 (register-type GLFWwindow)
 
+(deftemplate create-voxel-scaffold-bind-group (Fn [(Ptr WGPUContext) (Ptr WGPURenderPipelineWrapper) (Ptr WGPURenderTexture) WGPUSampler (Ptr WGPUUniformBufferWrapper)] WGPUBindGroup)
+  "WGPUBindGroup $NAME(WGPUContext* ctx, WGPURenderPipelineWrapper* pipe, WGPURenderTexture* texture, WGPUSampler sampler, WGPUUniformBufferWrapper* ub)"
+  "$DECL {
+      if (!ctx || !pipe || !texture || !sampler || !ub) {
+          return NULL;
+      }
+      WGPUBindGroupLayout layout = wgpuRenderPipelineGetBindGroupLayout(pipe->pipeline, 0);
+      if (!layout) {
+          return NULL;
+      }
+      WGPUBindGroupEntry entries[3] = {
+          {
+              .binding = 0,
+              .buffer  = ub->buffer,
+              .offset  = 0,
+              .size    = ub->size,
+          },
+          {
+              .binding     = 1,
+              .textureView = texture->view,
+          },
+          {
+              .binding = 2,
+              .sampler = sampler,
+          }
+      };
+      WGPUBindGroupDescriptor desc = {
+          .layout     = layout,
+          .entryCount = 3,
+          .entries    = entries,
+      };
+      WGPUBindGroup bg = wgpuDeviceCreateBindGroup(ctx->device, &desc);
+      wgpuBindGroupLayoutRelease(layout);
+      return bg;
+  }")
+
 (deftype Engine [
   ctx (Ptr WGPUContext)
   win (Ptr GLFWwindow)
@@ -104,6 +140,12 @@
 
   (defn create-bind-group [eng pipeline uniform-buffer]
     (WGPURender.create-render-uniform-bind-group @(Engine.ctx eng) pipeline uniform-buffer))
+
+  (defn create-voxel-bind-group [eng pipeline texture sampler uniforms]
+    (let [bg (create-voxel-scaffold-bind-group @(Engine.ctx eng) pipeline texture sampler uniforms)]
+      (if (WGPURender.bindgroup-null?- bg)
+        (Result.Error @"Failed to create voxel scaffold bind group")
+        (Result.Success bg))))
 
   (defn free-bind-group [bg]
     (WGPURender.free-bind-group bg))
