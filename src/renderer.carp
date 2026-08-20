@@ -81,11 +81,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             let dims = vec3<f32>(128.0, 64.0, 128.0);
             let uvw = clamp(p / dims, vec3<f32>(0.002), vec3<f32>(0.998));
             
-            // Sample SDF value from green channel (G)
+            // Sample SDF value from green channel (G) and scale by 0.5 (Lipschitz constant bound for Simplex noise)
             let val = textureSampleLevel(voxel_texture, voxel_sampler, uvw, 0.0);
-            let dist = val.g * 0.75;
+            let dist = val.g * 0.5;
             
-            if (dist < 0.015) {
+            if (dist < 0.008) {
                 // Hit! Calculate normals using finite differences
                 let eps = 0.5;
                 let n = vec3<f32>(
@@ -116,7 +116,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             }
             
             // Step forward by the SDF value
-            t = t + max(0.015, dist);
+            t = t + max(0.008, dist);
         }
     }
     
