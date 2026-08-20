@@ -62,7 +62,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let uv = (in.uv * 2.0 - 1.0) * vec2<f32>(aspect, 1.0);
     
     let ro = u.cam_pos.xyz;
-    let rd = normalize(u.cam_dir.xyz + uv.x * u.cam_right.xyz + uv.y * u.cam_up.xyz);
+    let rd = normalize(u.cam_dir.xyz * 2.0 + uv.x * u.cam_right.xyz + uv.y * u.cam_up.xyz);
     
     let box_min = vec3<f32>(0.0, 0.0, 0.0);
     let box_max = vec3<f32>(64.0, 64.0, 64.0);
@@ -77,7 +77,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         var t = t_start;
         var hit = false;
         
-        for (var step = 0; step < 120; step = step + 1) {
+        for (var step = 0; step < 250; step = step + 1) {
             let p = ro + rd * t;
             if (any(p < box_min) || any(p > box_max)) {
                 break;
@@ -95,7 +95,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 break;
             }
             
-            t = t + 0.5;
+            t = t + 0.2;
         }
     }
     
