@@ -35,14 +35,24 @@
                     nz (* (Double.from-int gz) 0.015)
                     height (+ 20.0 (* 16.0 (Noise.noise2d noise-state nx nz)))
                     
+                    ;; Sample height at neighbors to estimate horizontal gradient
+                    hx-pos (+ 20.0 (* 16.0 (Noise.noise2d noise-state (* (Double.from-int (+ gx 1)) 0.015) nz)))
+                    hx-neg (+ 20.0 (* 16.0 (Noise.noise2d noise-state (* (Double.from-int (- gx 1)) 0.015) nz)))
+                    hz-pos (+ 20.0 (* 16.0 (Noise.noise2d noise-state nx (* (Double.from-int (+ gz 1)) 0.015))))
+                    hz-neg (+ 20.0 (* 16.0 (Noise.noise2d noise-state nx (* (Double.from-int (- gz 1)) 0.015))))
+                    
+                    dh-dx (/ (- hx-pos hx-neg) 2.0)
+                    dh-dz (/ (- hz-pos hz-neg) 2.0)
+                    grad-len (Double.sqrt (+ 1.0 (+ (* dh-dx dh-dx) (* dh-dz dh-dz))))
+                    
                     ;; Add some 3D noise details (like secondary layers/hills)
                     nx2 (* (Double.from-int gx) 0.04)
                     ny2 (* (Double.from-int gy) 0.04)
                     nz2 (* (Double.from-int gz) 0.04)
                     detail (* 3.0 (Noise.noise3d noise-state nx2 ny2 nz2))
                     
-                    ;; Calculate base terrain SDF
-                    base-sdf (Double.to-float (- (Double.from-int gy) (+ height detail)))
+                    ;; Calculate normalized base terrain SDF
+                    base-sdf (Double.to-float (/ (- (Double.from-int gy) (+ height detail)) grad-len))
                     
                     ;; Add 3D noise caves!
                     cx (* (Double.from-int gx) 0.08)

@@ -8300,7 +8300,7 @@ void carp_init_globals(int argc, char** argv) {
 #endif
     // Depth 0
     {
-        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    _pad0: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n}\n\n@group(0) @binding(0) var<uniform> u: Uniforms;\n@group(0) @binding(1) var voxel_texture: texture_3d<f32>;\n@group(0) @binding(2) var voxel_sampler: sampler;\n\nstruct VertexOutput {\n    @builtin(position) position: vec4<f32>,\n    @location(0) uv: vec2<f32>,\n}\n\n@vertex\nfn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {\n    var pos: array<vec2<f32>, 3> = array<vec2<f32>, 3>(\n        vec2<f32>(-1.0, -1.0),\n        vec2<f32>( 3.0, -1.0),\n        vec2<f32>(-1.0,  3.0),\n    );\n    var out: VertexOutput;\n    let p = pos[vi];\n    out.position = vec4<f32>(p, 0.0, 1.0);\n    out.uv = (p + 1.0) * 0.5;\n    return out;\n}\n\nfn intersect_box(ro: vec3<f32>, rd: vec3<f32>, box_min: vec3<f32>, box_max: vec3<f32>, t0: ptr<function, f32>, t1: ptr<function, f32>) -> bool {\n    let inv_d = 1.0 / rd;\n    let t_bot = inv_d * (box_min - ro);\n    let t_top = inv_d * (box_max - ro);\n    let t_min = min(t_bot, t_top);\n    let t_max = max(t_bot, t_top);\n    let t_near = max(t_min.x, max(t_min.y, t_min.z));\n    let t_far = min(t_max.x, min(t_max.y, t_max.z));\n    *t0 = t_near;\n    *t1 = t_far;\n    return t_near < t_far && t_far > 0.0;\n}\n\n@fragment\nfn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {\n    let aspect = u.width / u.height;\n    let uv = (in.uv * 2.0 - 1.0) * vec2<f32>(aspect, 1.0);\n    \n    let ro = u.cam_pos.xyz;\n    let rd = normalize(u.cam_dir.xyz * 2.0 + uv.x * u.cam_right.xyz + uv.y * u.cam_up.xyz);\n    \n    let box_min = vec3<f32>(0.0, 0.0, 0.0);\n    let box_max = vec3<f32>(128.0, 64.0, 128.0);\n    \n    var t_near: f32 = 0.0;\n    var t_far: f32 = 0.0;\n    \n    var color = vec3<f32>(0.05, 0.08, 0.15);\n    \n    if (intersect_box(ro, rd, box_min, box_max, &t_near, &t_far)) {\n        let t_start = max(t_near, 0.0);\n        var t = t_start;\n        var hit = false;\n        \n        for (var step = 0; step < 200; step = step + 1) {\n            if (t > t_far) {\n                break;\n            }\n            let p = ro + rd * t;\n            \n            // Clamp normalized coordinates slightly inside [0, 1] to avoid border interpolation artifacts\n            let dims = vec3<f32>(128.0, 64.0, 128.0);\n            let uvw = clamp(p / dims, vec3<f32>(0.002), vec3<f32>(0.998));\n            \n            // Sample SDF value from green channel (G)\n            let val = textureSampleLevel(voxel_texture, voxel_sampler, uvw, 0.0);\n            let dist = val.g;\n            \n            if (dist < 0.015) {\n                // Hit! Calculate normals using finite differences\n                let eps = 0.5;\n                let n = vec3<f32>(\n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw + vec3<f32>(eps, 0.0, 0.0)/dims, 0.0).g - \n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw - vec3<f32>(eps, 0.0, 0.0)/dims, 0.0).g,\n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw + vec3<f32>(0.0, eps, 0.0)/dims, 0.0).g - \n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw - vec3<f32>(0.0, eps, 0.0)/dims, 0.0).g,\n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw + vec3<f32>(0.0, 0.0, eps)/dims, 0.0).g - \n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw - vec3<f32>(0.0, 0.0, eps)/dims, 0.0).g\n                );\n                let normal = normalize(n);\n                \n                // Color based on material ID (R channel)\n                var base_color = vec3<f32>(0.5, 0.5, 0.5);\n                if (val.r > 1.5) {\n                    base_color = vec3<f32>(0.2, 0.8, 0.3); // Organic green terrain\n                } else if (val.r > 0.5) {\n                    base_color = vec3<f32>(0.8, 0.7, 0.5); // Stone/sand\n                } else {\n                    base_color = vec3<f32>(0.3, 0.3, 0.3);\n                }\n                \n                let light_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));\n                let diffuse = max(dot(normal, light_dir), 0.1);\n                color = base_color * (diffuse + 0.3);\n                hit = true;\n                break;\n            }\n            \n            // Step forward by the SDF value\n            t = t + max(0.015, dist);\n        }\n    }\n    \n    return vec4<f32>(color, 1.0);\n}\n";
+        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    _pad0: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n}\n\n@group(0) @binding(0) var<uniform> u: Uniforms;\n@group(0) @binding(1) var voxel_texture: texture_3d<f32>;\n@group(0) @binding(2) var voxel_sampler: sampler;\n\nstruct VertexOutput {\n    @builtin(position) position: vec4<f32>,\n    @location(0) uv: vec2<f32>,\n}\n\n@vertex\nfn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {\n    var pos: array<vec2<f32>, 3> = array<vec2<f32>, 3>(\n        vec2<f32>(-1.0, -1.0),\n        vec2<f32>( 3.0, -1.0),\n        vec2<f32>(-1.0,  3.0),\n    );\n    var out: VertexOutput;\n    let p = pos[vi];\n    out.position = vec4<f32>(p, 0.0, 1.0);\n    out.uv = (p + 1.0) * 0.5;\n    return out;\n}\n\nfn intersect_box(ro: vec3<f32>, rd: vec3<f32>, box_min: vec3<f32>, box_max: vec3<f32>, t0: ptr<function, f32>, t1: ptr<function, f32>) -> bool {\n    let inv_d = 1.0 / rd;\n    let t_bot = inv_d * (box_min - ro);\n    let t_top = inv_d * (box_max - ro);\n    let t_min = min(t_bot, t_top);\n    let t_max = max(t_bot, t_top);\n    let t_near = max(t_min.x, max(t_min.y, t_min.z));\n    let t_far = min(t_max.x, min(t_max.y, t_max.z));\n    *t0 = t_near;\n    *t1 = t_far;\n    return t_near < t_far && t_far > 0.0;\n}\n\n@fragment\nfn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {\n    let aspect = u.width / u.height;\n    let uv = (in.uv * 2.0 - 1.0) * vec2<f32>(aspect, 1.0);\n    \n    let ro = u.cam_pos.xyz;\n    let rd = normalize(u.cam_dir.xyz * 2.0 + uv.x * u.cam_right.xyz + uv.y * u.cam_up.xyz);\n    \n    let box_min = vec3<f32>(0.0, 0.0, 0.0);\n    let box_max = vec3<f32>(128.0, 64.0, 128.0);\n    \n    var t_near: f32 = 0.0;\n    var t_far: f32 = 0.0;\n    \n    var color = vec3<f32>(0.05, 0.08, 0.15);\n    \n    if (intersect_box(ro, rd, box_min, box_max, &t_near, &t_far)) {\n        let t_start = max(t_near, 0.0);\n        var t = t_start;\n        var hit = false;\n        \n        for (var step = 0; step < 200; step = step + 1) {\n            if (t > t_far) {\n                break;\n            }\n            let p = ro + rd * t;\n            \n            // Clamp normalized coordinates slightly inside [0, 1] to avoid border interpolation artifacts\n            let dims = vec3<f32>(128.0, 64.0, 128.0);\n            let uvw = clamp(p / dims, vec3<f32>(0.002), vec3<f32>(0.998));\n            \n            // Sample SDF value from green channel (G)\n            let val = textureSampleLevel(voxel_texture, voxel_sampler, uvw, 0.0);\n            let dist = val.g * 0.75;\n            \n            if (dist < 0.015) {\n                // Hit! Calculate normals using finite differences\n                let eps = 0.5;\n                let n = vec3<f32>(\n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw + vec3<f32>(eps, 0.0, 0.0)/dims, 0.0).g - \n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw - vec3<f32>(eps, 0.0, 0.0)/dims, 0.0).g,\n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw + vec3<f32>(0.0, eps, 0.0)/dims, 0.0).g - \n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw - vec3<f32>(0.0, eps, 0.0)/dims, 0.0).g,\n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw + vec3<f32>(0.0, 0.0, eps)/dims, 0.0).g - \n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw - vec3<f32>(0.0, 0.0, eps)/dims, 0.0).g\n                );\n                let normal = normalize(n);\n                \n                // Color based on material ID (R channel)\n                var base_color = vec3<f32>(0.5, 0.5, 0.5);\n                if (val.r > 1.5) {\n                    base_color = vec3<f32>(0.2, 0.8, 0.3); // Organic green terrain\n                } else if (val.r > 0.5) {\n                    base_color = vec3<f32>(0.8, 0.7, 0.5); // Stone/sand\n                } else {\n                    base_color = vec3<f32>(0.3, 0.3, 0.3);\n                }\n                \n                let light_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));\n                let diffuse = max(dot(normal, light_dir), 0.1);\n                color = base_color * (diffuse + 0.3);\n                hit = true;\n                break;\n            }\n            \n            // Step forward by the SDF value\n            t = t + max(0.015, dist);\n        }\n    }\n    \n    return vec4<f32>(color, 1.0);\n}\n";
         String *_2_ref = &_2;
         voxel_MINUS_wgsl = _2_ref;
     }
@@ -14443,7 +14443,7 @@ Chunk Chunk_copy(Chunk* pRef) {
 }
 
 Chunk Chunk_create(NoiseState* noise_MINUS_state, int qx, int qy, int qz) {
-    Chunk _333;
+    Chunk _448;
     /* let */ {
         int res = 32;
         int _18 = Int__MUL_(res, 4);
@@ -14495,78 +14495,119 @@ Chunk Chunk_create(NoiseState* noise_MINUS_state, int qx, int qy, int qz) {
                                     double _126 = Double__MUL_(16.0, _125);
                                     double _127 = Double__PLUS_(20.0, _126);
                                     double height = _127;
-                                    double _132 = Double_from_MINUS_int(gx);
-                                    double _134 = Double__MUL_(_132, 4.0e-2);
-                                    double nx2 = _134;
-                                    double _139 = Double_from_MINUS_int(gy);
-                                    double _141 = Double__MUL_(_139, 4.0e-2);
-                                    double ny2 = _141;
-                                    double _146 = Double_from_MINUS_int(gz);
-                                    double _148 = Double__MUL_(_146, 4.0e-2);
-                                    double nz2 = _148;
-                                    double _157 = Noise_noise3d(noise_MINUS_state, nx2, ny2, nz2);
-                                    double _158 = Double__MUL_(3.0, _157);
-                                    double detail = _158;
-                                    double _164 = Double_from_MINUS_int(gy);
-                                    double _168 = Double__PLUS_(height, detail);
-                                    double _169 = Double__MINUS_(_164, _168);
-                                    float _170 = Double_to_MINUS_float(_169);
-                                    float base_MINUS_sdf = _170;
-                                    double _175 = Double_from_MINUS_int(gx);
-                                    double _177 = Double__MUL_(_175, 8.0e-2);
-                                    double cx = _177;
-                                    double _182 = Double_from_MINUS_int(gy);
-                                    double _184 = Double__MUL_(_182, 8.0e-2);
-                                    double cy = _184;
-                                    double _189 = Double_from_MINUS_int(gz);
-                                    double _191 = Double__MUL_(_189, 8.0e-2);
-                                    double cz = _191;
-                                    double _198 = Noise_noise3d(noise_MINUS_state, cx, cy, cz);
-                                    double cave_MINUS_val = _198;
-                                    double _204 = Double__MINUS_(0.35, cave_MINUS_val);
-                                    float _205 = Double_to_MINUS_float(_204);
-                                    float cave_MINUS_sdf = _205;
-                                    float _221;
-                                    bool _211 = Double__GT_(cave_MINUS_val, 0.45);
-                                    if (_211) {
-                                        float _216 = max__float(base_MINUS_sdf, cave_MINUS_sdf);
-                                        float _217 = _216;
-                                        _221 = _217;
+                                    int _140 = Int__PLUS_(gx, 1);
+                                    double _141 = Double_from_MINUS_int(_140);
+                                    double _143 = Double__MUL_(_141, 1.5e-2);
+                                    double _145 = Noise_noise2d(noise_MINUS_state, _143, nz);
+                                    double _146 = Double__MUL_(16.0, _145);
+                                    double _147 = Double__PLUS_(20.0, _146);
+                                    double hx_MINUS_pos = _147;
+                                    int _160 = Int__MINUS_(gx, 1);
+                                    double _161 = Double_from_MINUS_int(_160);
+                                    double _163 = Double__MUL_(_161, 1.5e-2);
+                                    double _165 = Noise_noise2d(noise_MINUS_state, _163, nz);
+                                    double _166 = Double__MUL_(16.0, _165);
+                                    double _167 = Double__PLUS_(20.0, _166);
+                                    double hx_MINUS_neg = _167;
+                                    int _181 = Int__PLUS_(gz, 1);
+                                    double _182 = Double_from_MINUS_int(_181);
+                                    double _184 = Double__MUL_(_182, 1.5e-2);
+                                    double _185 = Noise_noise2d(noise_MINUS_state, nx, _184);
+                                    double _186 = Double__MUL_(16.0, _185);
+                                    double _187 = Double__PLUS_(20.0, _186);
+                                    double hz_MINUS_pos = _187;
+                                    int _201 = Int__MINUS_(gz, 1);
+                                    double _202 = Double_from_MINUS_int(_201);
+                                    double _204 = Double__MUL_(_202, 1.5e-2);
+                                    double _205 = Noise_noise2d(noise_MINUS_state, nx, _204);
+                                    double _206 = Double__MUL_(16.0, _205);
+                                    double _207 = Double__PLUS_(20.0, _206);
+                                    double hz_MINUS_neg = _207;
+                                    double _213 = Double__MINUS_(hx_MINUS_pos, hx_MINUS_neg);
+                                    double _215 = Double__DIV_(_213, 2.0);
+                                    double dh_MINUS_dx = _215;
+                                    double _221 = Double__MINUS_(hz_MINUS_pos, hz_MINUS_neg);
+                                    double _223 = Double__DIV_(_221, 2.0);
+                                    double dh_MINUS_dz = _223;
+                                    double _232 = Double__MUL_(dh_MINUS_dx, dh_MINUS_dx);
+                                    double _236 = Double__MUL_(dh_MINUS_dz, dh_MINUS_dz);
+                                    double _237 = Double__PLUS_(_232, _236);
+                                    double _238 = Double__PLUS_(1.0, _237);
+                                    double _239 = Double_sqrt(_238);
+                                    double grad_MINUS_len = _239;
+                                    double _244 = Double_from_MINUS_int(gx);
+                                    double _246 = Double__MUL_(_244, 4.0e-2);
+                                    double nx2 = _246;
+                                    double _251 = Double_from_MINUS_int(gy);
+                                    double _253 = Double__MUL_(_251, 4.0e-2);
+                                    double ny2 = _253;
+                                    double _258 = Double_from_MINUS_int(gz);
+                                    double _260 = Double__MUL_(_258, 4.0e-2);
+                                    double nz2 = _260;
+                                    double _269 = Noise_noise3d(noise_MINUS_state, nx2, ny2, nz2);
+                                    double _270 = Double__MUL_(3.0, _269);
+                                    double detail = _270;
+                                    double _277 = Double_from_MINUS_int(gy);
+                                    double _281 = Double__PLUS_(height, detail);
+                                    double _282 = Double__MINUS_(_277, _281);
+                                    double _284 = Double__DIV_(_282, grad_MINUS_len);
+                                    float _285 = Double_to_MINUS_float(_284);
+                                    float base_MINUS_sdf = _285;
+                                    double _290 = Double_from_MINUS_int(gx);
+                                    double _292 = Double__MUL_(_290, 8.0e-2);
+                                    double cx = _292;
+                                    double _297 = Double_from_MINUS_int(gy);
+                                    double _299 = Double__MUL_(_297, 8.0e-2);
+                                    double cy = _299;
+                                    double _304 = Double_from_MINUS_int(gz);
+                                    double _306 = Double__MUL_(_304, 8.0e-2);
+                                    double cz = _306;
+                                    double _313 = Noise_noise3d(noise_MINUS_state, cx, cy, cz);
+                                    double cave_MINUS_val = _313;
+                                    double _319 = Double__MINUS_(0.35, cave_MINUS_val);
+                                    float _320 = Double_to_MINUS_float(_319);
+                                    float cave_MINUS_sdf = _320;
+                                    float _336;
+                                    bool _326 = Double__GT_(cave_MINUS_val, 0.45);
+                                    if (_326) {
+                                        float _331 = max__float(base_MINUS_sdf, cave_MINUS_sdf);
+                                        float _332 = _331;
+                                        _336 = _332;
                                     } else {
-                                        float _220 = base_MINUS_sdf;
-                                        _221 = _220;
+                                        float _335 = base_MINUS_sdf;
+                                        _336 = _335;
                                     }
-                                    float sdf = _221;
-                                    double _227 = Double_from_MINUS_int(gy);
-                                    double _228 = Double__MINUS_(height, _227);
-                                    double depth = _228;
-                                    float _241;
-                                    bool _234 = Double__LT_(depth, 1.5);
-                                    if (_234) {
-                                        float _237 = 2.0f;
-                                        _241 = _237;
+                                    float sdf = _336;
+                                    double _342 = Double_from_MINUS_int(gy);
+                                    double _343 = Double__MINUS_(height, _342);
+                                    double depth = _343;
+                                    float _356;
+                                    bool _349 = Double__LT_(depth, 1.5);
+                                    if (_349) {
+                                        float _352 = 2.0f;
+                                        _356 = _352;
                                     } else {
-                                        float _240 = 1.0f;
-                                        _241 = _240;
+                                        float _355 = 1.0f;
+                                        _356 = _355;
                                     }
-                                    float mat_MINUS_id = _241;
-                                    int _246 = Int__MUL_(idx, 4);
-                                    int offset = _246;
-                                    Long _254 = Long_from_MINUS_int(offset);
-                                    float* _255 = Pointer_add__float(p_MINUS_data, _254);
-                                    Pointer_set__float(_255, mat_MINUS_id);
-                                    int _265 = Int__PLUS_(offset, 1);
-                                    Long _266 = Long_from_MINUS_int(_265);
-                                    float* _267 = Pointer_add__float(p_MINUS_data, _266);
-                                    Pointer_set__float(_267, sdf);
-                                    int _277 = Int__PLUS_(offset, 2);
-                                    Long _278 = Long_from_MINUS_int(_277);
-                                    float* _279 = Pointer_add__float(p_MINUS_data, _278);
-                                    Pointer_set__float(_279, 0.0f);
-                                    int _289 = Int__PLUS_(offset, 3);
-                                    Long _290 = Long_from_MINUS_int(_289);
-                                    float* _291 = Pointer_add__float(p_MINUS_data, _290);
-                                    Pointer_set__float(_291, 1.0f);
+                                    float mat_MINUS_id = _356;
+                                    int _361 = Int__MUL_(idx, 4);
+                                    int offset = _361;
+                                    Long _369 = Long_from_MINUS_int(offset);
+                                    float* _370 = Pointer_add__float(p_MINUS_data, _369);
+                                    Pointer_set__float(_370, mat_MINUS_id);
+                                    int _380 = Int__PLUS_(offset, 1);
+                                    Long _381 = Long_from_MINUS_int(_380);
+                                    float* _382 = Pointer_add__float(p_MINUS_data, _381);
+                                    Pointer_set__float(_382, sdf);
+                                    int _392 = Int__PLUS_(offset, 2);
+                                    Long _393 = Long_from_MINUS_int(_392);
+                                    float* _394 = Pointer_add__float(p_MINUS_data, _393);
+                                    Pointer_set__float(_394, 0.0f);
+                                    int _404 = Int__PLUS_(offset, 3);
+                                    Long _405 = Long_from_MINUS_int(_404);
+                                    float* _406 = Pointer_add__float(p_MINUS_data, _405);
+                                    Pointer_set__float(_406, 1.0f);
                                 }
                                 int _1000035 = Int__PLUS_(x, 1);
                                 x = _1000035;  // Int = Int
@@ -14586,11 +14627,11 @@ Chunk Chunk_create(NoiseState* noise_MINUS_state, int qx, int qy, int qz) {
                 _1000006 = _1000008;
             }
         }
-        Chunk _331 = Chunk_init(qx, qy, qz, voxel_MINUS_data);
-        Chunk _332 = _331;
-        _333 = _332;
+        Chunk _446 = Chunk_init(qx, qy, qz, voxel_MINUS_data);
+        Chunk _447 = _446;
+        _448 = _447;
     }
-    return _333;
+    return _448;
 }
 
 void Chunk_delete(Chunk p) {
@@ -27510,7 +27551,7 @@ float World_sample_MINUS_sdf_MINUS_nearest(World* world, Vector3__double* p) {
                 _215 = _214;
                 Chunk_delete(chunk);
             }
-            else UNHANDLED("world.carp", 105);
+            else UNHANDLED("world.carp", 115);
             float _216 = _215;
             _220 = _216;
         } else {
