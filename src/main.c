@@ -2134,10 +2134,10 @@ typedef WGPUBindGroup(*Fn__WGPUContext_MUL__WGPURenderPipelineWrapper_MUL__WGPUB
 typedef WGPUBindGroup(*Fn__WGPUContext_MUL__WGPURenderPipelineWrapper_MUL__WGPURenderTexture_MUL__WGPUDepthTexture_MUL__WGPURenderTexture_MUL__WGPUSampler_WGPUBindGroup)(WGPUContext*, WGPURenderPipelineWrapper*, WGPURenderTexture*, WGPUDepthTexture*, WGPURenderTexture*, WGPUSampler);
 
 // Depth 104
-typedef WGPUBindGroup(*Fn__WGPUContext_MUL__WGPURenderPipelineWrapper_MUL__WGPURenderTexture_MUL__WGPUSampler_WGPUBindGroup)(WGPUContext*, WGPURenderPipelineWrapper*, WGPURenderTexture*, WGPUSampler);
+typedef WGPUBindGroup(*Fn__WGPUContext_MUL__WGPURenderPipelineWrapper_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPUSampler_WGPUUniformBufferWrapper_MUL__WGPUBindGroup)(WGPUContext*, WGPURenderPipelineWrapper*, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*, WGPUSampler, WGPUUniformBufferWrapper*);
 
 // Depth 104
-typedef WGPUBindGroup(*Fn__WGPUContext_MUL__WGPURenderPipelineWrapper_MUL__WGPURenderTexture_MUL__WGPUSampler_WGPUUniformBufferWrapper_MUL__WGPUBindGroup)(WGPUContext*, WGPURenderPipelineWrapper*, WGPURenderTexture*, WGPUSampler, WGPUUniformBufferWrapper*);
+typedef WGPUBindGroup(*Fn__WGPUContext_MUL__WGPURenderPipelineWrapper_MUL__WGPURenderTexture_MUL__WGPUSampler_WGPUBindGroup)(WGPUContext*, WGPURenderPipelineWrapper*, WGPURenderTexture*, WGPUSampler);
 
 // Depth 104
 typedef WGPUBindGroup(*Fn__WGPUContext_MUL__WGPURenderPipelineWrapper_MUL__WGPUUniformBufferWrapper_MUL__WGPUBindGroup)(WGPUContext*, WGPURenderPipelineWrapper*, WGPUUniformBufferWrapper*);
@@ -2417,6 +2417,8 @@ struct Renderer {
     WGPUBindGroup bind_MINUS_group;
     WGPUUniformBufferWrapper* uniform_MINUS_buffer;
     WGPURenderTexture* voxel_MINUS_texture;
+    WGPURenderTexture* liquid_MINUS_texture;
+    WGPURenderTexture* gas_MINUS_texture;
     WGPUSampler voxel_MINUS_sampler;
     LinePassRenderer line_MINUS_pass;
     Array__Line lines;
@@ -2537,7 +2539,7 @@ typedef WGPUContext**(*Fn__Engine_MUL__WGPUContext_MUL__MUL_)(Engine*);
 typedef void(*Fn__Engine_MUL__WGPUFrameState_MUL__void)(Engine*, WGPUFrameState*);
 
 // Depth 106
-typedef Result__WGPUBindGroup_String(*Fn__Engine_MUL__WGPURenderPipelineWrapper_MUL__WGPURenderTexture_MUL__WGPUSampler_WGPUUniformBufferWrapper_MUL__Result__WGPUBindGroup_String)(Engine*, WGPURenderPipelineWrapper*, WGPURenderTexture*, WGPUSampler, WGPUUniformBufferWrapper*);
+typedef Result__WGPUBindGroup_String(*Fn__Engine_MUL__WGPURenderPipelineWrapper_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPUSampler_WGPUUniformBufferWrapper_MUL__Result__WGPUBindGroup_String)(Engine*, WGPURenderPipelineWrapper*, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*, WGPUSampler, WGPUUniformBufferWrapper*);
 
 // Depth 106
 typedef WGPURenderSurface**(*Fn__Engine_MUL__WGPURenderSurface_MUL__MUL_)(Engine*);
@@ -3079,7 +3081,7 @@ typedef Result__LinePassRenderer_String(*Fn__String_Result__LinePassRenderer_Str
 typedef Result__LinePassRenderer_String(*Fn__WGPUContext_MUL__String_MUL__int_Result__LinePassRenderer_String)(WGPUContext*, String*, int);
 
 // Depth 108
-typedef Renderer(*Fn__WGPURenderPipelineWrapper_MUL__WGPUBindGroup_WGPUUniformBufferWrapper_MUL__WGPURenderTexture_MUL__WGPUSampler_LinePassRenderer_Array__Line_WGPUDepthTexture_MUL__int_int_Renderer)(WGPURenderPipelineWrapper*, WGPUBindGroup, WGPUUniformBufferWrapper*, WGPURenderTexture*, WGPUSampler, LinePassRenderer, Array__Line, WGPUDepthTexture*, int, int);
+typedef Renderer(*Fn__WGPURenderPipelineWrapper_MUL__WGPUBindGroup_WGPUUniformBufferWrapper_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPUSampler_LinePassRenderer_Array__Line_WGPUDepthTexture_MUL__int_int_Renderer)(WGPURenderPipelineWrapper*, WGPUBindGroup, WGPUUniformBufferWrapper*, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*, WGPUSampler, LinePassRenderer, Array__Line, WGPUDepthTexture*, int, int);
 
 // Depth 109
 typedef Array__ActiveTimer(*Fn__Array__ActiveTimer_Array__ActiveTimer)(Array__ActiveTimer);
@@ -3746,7 +3748,7 @@ Vector3__Lambda_mul__double_13_env_ty* Vector3__Lambda_mul__double_13_env_ty_cop
 void Vector3__Lambda_mul__double_13_env_ty_delete(Vector3__Lambda_mul__double_13_env_ty* p);
 
 // Depth 500
-WGPUBindGroup create_MINUS_voxel_MINUS_scaffold_MINUS_bind_MINUS_group(WGPUContext* ctx, WGPURenderPipelineWrapper* pipe, WGPURenderTexture* texture, WGPUSampler sampler, WGPUUniformBufferWrapper* ub);
+WGPUBindGroup create_MINUS_voxel_MINUS_scaffold_MINUS_bind_MINUS_group(WGPUContext* ctx, WGPURenderPipelineWrapper* pipe, WGPURenderTexture* solid_tex, WGPURenderTexture* liquid_tex, WGPURenderTexture* gas_tex, WGPUSampler sampler, WGPUUniformBufferWrapper* ub);
 
 // Depth 500
 void emscripten_MINUS_sleep(int ms);
@@ -5249,7 +5251,7 @@ Result__WGPURenderPipelineWrapper_MUL__String Engine_create_MINUS_pipeline(Engin
 Result__WGPUUniformBufferWrapper_MUL__String Engine_create_MINUS_uniform_MINUS_buffer(Engine* eng, int size);
 
 // Depth 500
-Result__WGPUBindGroup_String Engine_create_MINUS_voxel_MINUS_bind_MINUS_group(Engine* eng, WGPURenderPipelineWrapper* pipeline, WGPURenderTexture* texture, WGPUSampler sampler, WGPUUniformBufferWrapper* uniforms);
+Result__WGPUBindGroup_String Engine_create_MINUS_voxel_MINUS_bind_MINUS_group(Engine* eng, WGPURenderPipelineWrapper* pipeline, WGPURenderTexture* solid_MINUS_tex, WGPURenderTexture* liquid_MINUS_tex, WGPURenderTexture* gas_MINUS_tex, WGPUSampler sampler, WGPUUniformBufferWrapper* uniforms);
 
 // Depth 500
 WGPUContext** Engine_ctx(Engine* p);
@@ -6773,16 +6775,22 @@ void Renderer_draw(Engine* eng, Renderer* ren, Camera* cam);
 void Renderer_draw_MINUS_line_BANG_(Renderer* ren, Vector3__double* start, Vector3__double* end, Vector3__double* color);
 
 // Depth 500
+WGPURenderTexture** Renderer_gas_MINUS_texture(Renderer* p);
+
+// Depth 500
 int* Renderer_height(Renderer* p);
 
 // Depth 500
-Renderer Renderer_init(WGPURenderPipelineWrapper* pipeline, WGPUBindGroup bind_MINUS_group, WGPUUniformBufferWrapper* uniform_MINUS_buffer, WGPURenderTexture* voxel_MINUS_texture, WGPUSampler voxel_MINUS_sampler, LinePassRenderer line_MINUS_pass, Array__Line lines, WGPUDepthTexture* depth_MINUS_texture, int width, int height);
+Renderer Renderer_init(WGPURenderPipelineWrapper* pipeline, WGPUBindGroup bind_MINUS_group, WGPUUniformBufferWrapper* uniform_MINUS_buffer, WGPURenderTexture* voxel_MINUS_texture, WGPURenderTexture* liquid_MINUS_texture, WGPURenderTexture* gas_MINUS_texture, WGPUSampler voxel_MINUS_sampler, LinePassRenderer line_MINUS_pass, Array__Line lines, WGPUDepthTexture* depth_MINUS_texture, int width, int height);
 
 // Depth 500
 LinePassRenderer* Renderer_line_MINUS_pass(Renderer* p);
 
 // Depth 500
 Array__Line* Renderer_lines(Renderer* p);
+
+// Depth 500
+WGPURenderTexture** Renderer_liquid_MINUS_texture(Renderer* p);
 
 // Depth 500
 WGPURenderPipelineWrapper** Renderer_pipeline(Renderer* p);
@@ -6803,6 +6811,12 @@ Renderer Renderer_set_MINUS_depth_MINUS_texture(Renderer p, WGPUDepthTexture* ne
 void Renderer_set_MINUS_depth_MINUS_texture_BANG_(Renderer* pRef, WGPUDepthTexture* newValue);
 
 // Depth 500
+Renderer Renderer_set_MINUS_gas_MINUS_texture(Renderer p, WGPURenderTexture* newValue);
+
+// Depth 500
+void Renderer_set_MINUS_gas_MINUS_texture_BANG_(Renderer* pRef, WGPURenderTexture* newValue);
+
+// Depth 500
 Renderer Renderer_set_MINUS_height(Renderer p, int newValue);
 
 // Depth 500
@@ -6819,6 +6833,12 @@ Renderer Renderer_set_MINUS_lines(Renderer p, Array__Line newValue);
 
 // Depth 500
 void Renderer_set_MINUS_lines_BANG_(Renderer* pRef, Array__Line newValue);
+
+// Depth 500
+Renderer Renderer_set_MINUS_liquid_MINUS_texture(Renderer p, WGPURenderTexture* newValue);
+
+// Depth 500
+void Renderer_set_MINUS_liquid_MINUS_texture_BANG_(Renderer* pRef, WGPURenderTexture* newValue);
 
 // Depth 500
 Renderer Renderer_set_MINUS_pipeline(Renderer p, WGPURenderPipelineWrapper* newValue);
@@ -6866,6 +6886,9 @@ void Renderer_update_MINUS_chunk_MINUS_texture(Engine* eng, Renderer* ren, int q
 Renderer Renderer_update_MINUS_depth_MINUS_texture(Renderer p, Lambda *updater);
 
 // Depth 500
+Renderer Renderer_update_MINUS_gas_MINUS_texture(Renderer p, Lambda *updater);
+
+// Depth 500
 Renderer Renderer_update_MINUS_height(Renderer p, Lambda *updater);
 
 // Depth 500
@@ -6873,6 +6896,9 @@ Renderer Renderer_update_MINUS_line_MINUS_pass(Renderer p, Lambda *updater);
 
 // Depth 500
 Renderer Renderer_update_MINUS_lines(Renderer p, Lambda *updater);
+
+// Depth 500
+Renderer Renderer_update_MINUS_liquid_MINUS_texture(Renderer p, Lambda *updater);
 
 // Depth 500
 Renderer Renderer_update_MINUS_pipeline(Renderer p, Lambda *updater);
@@ -8338,7 +8364,7 @@ void carp_init_globals(int argc, char** argv) {
 #endif
     // Depth 0
     {
-        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    _pad0: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n}\n\n@group(0) @binding(0) var<uniform> u: Uniforms;\n@group(0) @binding(1) var voxel_texture: texture_3d<f32>;\n@group(0) @binding(2) var voxel_sampler: sampler;\n\nstruct VertexOutput {\n    @builtin(position) position: vec4<f32>,\n    @location(0) uv: vec2<f32>,\n}\n\n@vertex\nfn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {\n    var pos: array<vec2<f32>, 3> = array<vec2<f32>, 3>(\n        vec2<f32>(-1.0, -1.0),\n        vec2<f32>( 3.0, -1.0),\n        vec2<f32>(-1.0,  3.0),\n    );\n    var out: VertexOutput;\n    let p = pos[vi];\n    out.position = vec4<f32>(p, 0.0, 1.0);\n    out.uv = (p + 1.0) * 0.5;\n    return out;\n}\n\nfn intersect_box(ro: vec3<f32>, rd: vec3<f32>, box_min: vec3<f32>, box_max: vec3<f32>, t0: ptr<function, f32>, t1: ptr<function, f32>) -> bool {\n    let inv_d = 1.0 / rd;\n    let t_bot = inv_d * (box_min - ro);\n    let t_top = inv_d * (box_max - ro);\n    let t_min = min(t_bot, t_top);\n    let t_max = max(t_bot, t_top);\n    let t_near = max(t_min.x, max(t_min.y, t_min.z));\n    let t_far = min(t_max.x, min(t_max.y, t_max.z));\n    *t0 = t_near;\n    *t1 = t_far;\n    return t_near < t_far && t_far > 0.0;\n}\n\nfn getShadow(ro: vec3<f32>, rd: vec3<f32>, mint: f32, maxt: f32, k: f32) -> f32 {\n    var res: f32 = 1.0;\n    var t = mint;\n    let dims = vec3<f32>(128.0, 64.0, 128.0);\n    for (var i = 0; i < 40; i = i + 1) {\n        let p = ro + rd * t;\n        let uvw = clamp(p / dims, vec3<f32>(0.002), vec3<f32>(0.998));\n        let h = textureSampleLevel(voxel_texture, voxel_sampler, uvw, 0.0).g * 0.5;\n        if (h < 0.008) {\n            return 0.0;\n        }\n        res = min(res, k * h / t);\n        t += max(0.05, h);\n        if (t > maxt) {\n            break;\n        }\n    }\n    return clamp(res, 0.2, 1.0);\n}\n\nfn getAO(p: vec3<f32>, n: vec3<f32>) -> f32 {\n    var occ = 0.0;\n    var sca = 1.0;\n    let dims = vec3<f32>(128.0, 64.0, 128.0);\n    for (var i = 0; i < 5; i = i + 1) {\n        let hr = 0.05 + 0.15 * f32(i) / 4.0;\n        let aopos = p + n * hr;\n        let uvw = clamp(aopos / dims, vec3<f32>(0.002), vec3<f32>(0.998));\n        let d = textureSampleLevel(voxel_texture, voxel_sampler, uvw, 0.0).g * 0.5;\n        occ += -(d - hr) * sca;\n        sca *= 0.95;\n    }\n    return clamp(1.0 - occ * 4.0, 0.0, 1.0);\n}\n\n@fragment\nfn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {\n    let aspect = u.width / u.height;\n    let uv = (in.uv * 2.0 - 1.0) * vec2<f32>(aspect, 1.0);\n    \n    let ro = u.cam_pos.xyz;\n    let rd = normalize(u.cam_dir.xyz * 2.0 + uv.x * u.cam_right.xyz + uv.y * u.cam_up.xyz);\n    \n    let box_min = vec3<f32>(0.0, 0.0, 0.0);\n    let box_max = vec3<f32>(128.0, 64.0, 128.0);\n    \n    var t_near: f32 = 0.0;\n    var t_far: f32 = 0.0;\n    \n    // Create sky gradient based on ray direction Y component\n    let sky_dir_y = max(0.0, rd.y);\n    let space_color = vec3<f32>(0.05, 0.08, 0.15);\n    let horizon_color = vec3<f32>(0.15, 0.22, 0.35);\n    var color = mix(space_color, horizon_color, sky_dir_y);\n    \n    // Add a glowing sun\n    let sun_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));\n    let sun_cos = dot(rd, sun_dir);\n    if (sun_cos > 0.0) {\n        let sun_glow = pow(sun_cos, 120.0) * 1.5;\n        let sun_disk = pow(sun_cos, 1200.0) * 4.0;\n        color += vec3<f32>(1.0, 0.9, 0.7) * (sun_glow + sun_disk);\n    }\n    \n    if (intersect_box(ro, rd, box_min, box_max, &t_near, &t_far)) {\n        let t_start = max(t_near, 0.0);\n        var t = t_start;\n        var hit = false;\n        var hit_color = vec3<f32>(0.0);\n        \n        for (var step = 0; step < 200; step = step + 1) {\n            if (t > t_far) {\n                break;\n            }\n            let p = ro + rd * t;\n            \n            // Clamp normalized coordinates slightly inside [0, 1] to avoid border interpolation artifacts\n            let dims = vec3<f32>(128.0, 64.0, 128.0);\n            let uvw = clamp(p / dims, vec3<f32>(0.002), vec3<f32>(0.998));\n            \n            // Sample SDF value from green channel (G) and scale by 0.5 (Lipschitz constant bound for Simplex noise)\n            let val = textureSampleLevel(voxel_texture, voxel_sampler, uvw, 0.0);\n            let dist = val.g * 0.5;\n            \n            if (dist < 0.008) {\n                // Hit! Calculate normals using finite differences\n                let eps = 0.5;\n                let n = vec3<f32>(\n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw + vec3<f32>(eps, 0.0, 0.0)/dims, 0.0).g - \n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw - vec3<f32>(eps, 0.0, 0.0)/dims, 0.0).g,\n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw + vec3<f32>(0.0, eps, 0.0)/dims, 0.0).g - \n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw - vec3<f32>(0.0, eps, 0.0)/dims, 0.0).g,\n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw + vec3<f32>(0.0, 0.0, eps)/dims, 0.0).g - \n                    textureSampleLevel(voxel_texture, voxel_sampler, uvw - vec3<f32>(0.0, 0.0, eps)/dims, 0.0).g\n                );\n                let normal = normalize(n);\n                \n                // Fetch discrete material ID using textureLoad at the nearest integer coordinate (avoids trilinear bleeding!)\n                let ip = vec3<i32>(clamp(p, vec3<f32>(0.0), vec3<f32>(127.0, 63.0, 127.0)));\n                let raw_voxel = textureLoad(voxel_texture, ip, 0);\n                let mat_id = raw_voxel.r;\n                \n                // Color based on material ID\n                var base_color = vec3<f32>(0.5, 0.5, 0.5);\n                if (mat_id > 2.5) {\n                    base_color = vec3<f32>(0.65, 0.35, 0.2); // Warm brick-red/wood\n                } else if (mat_id > 1.5) {\n                    base_color = vec3<f32>(0.2, 0.8, 0.3);   // Organic green terrain\n                } else if (mat_id > 0.5) {\n                    base_color = vec3<f32>(0.8, 0.7, 0.5);   // Stone/sand\n                } else {\n                    base_color = vec3<f32>(0.3, 0.3, 0.3);\n                }\n                \n                let light_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));\n                let diffuse = max(dot(normal, light_dir), 0.1);\n                \n                // Raymarched Shadows (soft shadows)\n                let shadow_pos = p + normal * 0.05;\n                let sha = getShadow(shadow_pos, light_dir, 0.05, 40.0, 16.0);\n                \n                // Ambient Occlusion\n                let ao = getAO(p, normal);\n                \n                // Combine Shading\n                let ambient = vec3<f32>(0.1, 0.12, 0.2) * ao;\n                let direct = vec3<f32>(1.0, 0.95, 0.85) * diffuse * sha;\n                \n                hit_color = base_color * (direct + ambient);\n                hit = true;\n                break;\n            }\n            \n            // Step forward by the SDF value\n            t = t + max(0.008, dist);\n        }\n        \n        if (hit) {\n            // Apply exponential atmospheric distance fog\n            let fog_density = 0.015;\n            let fog_factor = 1.0 - exp(-fog_density * t);\n            \n            // The fog color is the horizon color mixed with the space color\n            let fog_color = mix(space_color, horizon_color, max(0.0, rd.y));\n            color = mix(hit_color, fog_color, clamp(fog_factor, 0.0, 1.0));\n        }\n    }\n    \n    return vec4<f32>(color, 1.0);\n}\n";
+        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    _pad0: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n}\n\n@group(0) @binding(0) var<uniform> u: Uniforms;\n@group(0) @binding(1) var solid_texture: texture_3d<f32>;\n@group(0) @binding(2) var voxel_sampler: sampler;\n@group(0) @binding(3) var liquid_texture: texture_3d<f32>;\n@group(0) @binding(4) var gas_texture: texture_3d<f32>;\n\nstruct VertexOutput {\n    @builtin(position) position: vec4<f32>,\n    @location(0) uv: vec2<f32>,\n}\n\n@vertex\nfn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {\n    var pos: array<vec2<f32>, 3> = array<vec2<f32>, 3>(\n        vec2<f32>(-1.0, -1.0),\n        vec2<f32>( 3.0, -1.0),\n        vec2<f32>(-1.0,  3.0),\n    );\n    var out: VertexOutput;\n    let p = pos[vi];\n    out.position = vec4<f32>(p, 0.0, 1.0);\n    out.uv = (p + 1.0) * 0.5;\n    return out;\n}\n\nfn intersect_box(ro: vec3<f32>, rd: vec3<f32>, box_min: vec3<f32>, box_max: vec3<f32>, t0: ptr<function, f32>, t1: ptr<function, f32>) -> bool {\n    let inv_d = 1.0 / rd;\n    let t_bot = inv_d * (box_min - ro);\n    let t_top = inv_d * (box_max - ro);\n    let t_min = min(t_bot, t_top);\n    let t_max = max(t_bot, t_top);\n    let t_near = max(t_min.x, max(t_min.y, t_min.z));\n    let t_far = min(t_max.x, min(t_max.y, t_max.z));\n    *t0 = t_near;\n    *t1 = t_far;\n    return t_near < t_far && t_far > 0.0;\n}\n\nfn getShadow(ro: vec3<f32>, rd: vec3<f32>, mint: f32, maxt: f32, k: f32) -> f32 {\n    var res: f32 = 1.0;\n    var t = mint;\n    let dims = vec3<f32>(128.0, 64.0, 128.0);\n    for (var i = 0; i < 40; i = i + 1) {\n        let p = ro + rd * t;\n        let uvw = clamp(p / dims, vec3<f32>(0.002), vec3<f32>(0.998));\n        let h = textureSampleLevel(solid_texture, voxel_sampler, uvw, 0.0).g * 0.5;\n        if (h < 0.008) {\n            return 0.0;\n        }\n        res = min(res, k * h / t);\n        t += max(0.05, h);\n        if (t > maxt) {\n            break;\n        }\n    }\n    return clamp(res, 0.2, 1.0);\n}\n\nfn getAO(p: vec3<f32>, n: vec3<f32>) -> f32 {\n    var occ = 0.0;\n    var sca = 1.0;\n    let dims = vec3<f32>(128.0, 64.0, 128.0);\n    for (var i = 0; i < 5; i = i + 1) {\n        let hr = 0.05 + 0.15 * f32(i) / 4.0;\n        let aopos = p + n * hr;\n        let uvw = clamp(aopos / dims, vec3<f32>(0.002), vec3<f32>(0.998));\n        let d = textureSampleLevel(solid_texture, voxel_sampler, uvw, 0.0).g * 0.5;\n        occ += -(d - hr) * sca;\n        sca *= 0.95;\n    }\n    return clamp(1.0 - occ * 4.0, 0.0, 1.0);\n}\n\n@fragment\nfn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {\n    let aspect = u.width / u.height;\n    let uv = (in.uv * 2.0 - 1.0) * vec2<f32>(aspect, 1.0);\n    \n    let ro = u.cam_pos.xyz;\n    let rd = normalize(u.cam_dir.xyz * 2.0 + uv.x * u.cam_right.xyz + uv.y * u.cam_up.xyz);\n    \n    let box_min = vec3<f32>(0.0, 0.0, 0.0);\n    let box_max = vec3<f32>(128.0, 64.0, 128.0);\n    \n    var t_near: f32 = 0.0;\n    var t_far: f32 = 0.0;\n    \n    // Create sky gradient based on ray direction Y component\n    let sky_dir_y = max(0.0, rd.y);\n    let space_color = vec3<f32>(0.05, 0.08, 0.15);\n    let horizon_color = vec3<f32>(0.15, 0.22, 0.35);\n    var color = mix(space_color, horizon_color, sky_dir_y);\n    \n    // Add a glowing sun\n    let sun_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));\n    let sun_cos = dot(rd, sun_dir);\n    if (sun_cos > 0.0) {\n        let sun_glow = pow(sun_cos, 120.0) * 1.5;\n        let sun_disk = pow(sun_cos, 1200.0) * 4.0;\n        color += vec3<f32>(1.0, 0.9, 0.7) * (sun_glow + sun_disk);\n    }\n    \n    if (intersect_box(ro, rd, box_min, box_max, &t_near, &t_far)) {\n        let t_start = max(t_near, 0.0);\n        var t = t_start;\n        var hit = false;\n        var hit_color = vec3<f32>(0.0);\n        \n        for (var step = 0; step < 200; step = step + 1) {\n            if (t > t_far) {\n                break;\n            }\n            let p = ro + rd * t;\n            \n            // Clamp normalized coordinates slightly inside [0, 1] to avoid border interpolation artifacts\n            let dims = vec3<f32>(128.0, 64.0, 128.0);\n            let uvw = clamp(p / dims, vec3<f32>(0.002), vec3<f32>(0.998));\n            \n            // Sample SDF value from green channel (G) and scale by 0.5 (Lipschitz constant bound for Simplex noise)\n            let val = textureSampleLevel(solid_texture, voxel_sampler, uvw, 0.0);\n            let dist = val.g * 0.5;\n            \n            if (dist < 0.008) {\n                // Hit! Calculate normals using finite differences\n                let eps = 0.5;\n                let n = vec3<f32>(\n                    textureSampleLevel(solid_texture, voxel_sampler, uvw + vec3<f32>(eps, 0.0, 0.0)/dims, 0.0).g - \n                    textureSampleLevel(solid_texture, voxel_sampler, uvw - vec3<f32>(eps, 0.0, 0.0)/dims, 0.0).g,\n                    textureSampleLevel(solid_texture, voxel_sampler, uvw + vec3<f32>(0.0, eps, 0.0)/dims, 0.0).g - \n                    textureSampleLevel(solid_texture, voxel_sampler, uvw - vec3<f32>(0.0, eps, 0.0)/dims, 0.0).g,\n                    textureSampleLevel(solid_texture, voxel_sampler, uvw + vec3<f32>(0.0, 0.0, eps)/dims, 0.0).g - \n                    textureSampleLevel(solid_texture, voxel_sampler, uvw - vec3<f32>(0.0, 0.0, eps)/dims, 0.0).g\n                );\n                let normal = normalize(n);\n                \n                // Fetch discrete material ID using textureLoad at the nearest integer coordinate (avoids trilinear bleeding!)\n                let ip = vec3<i32>(clamp(p, vec3<f32>(0.0), vec3<f32>(127.0, 63.0, 127.0)));\n                let raw_voxel = textureLoad(solid_texture, ip, 0);\n                let mat_id = raw_voxel.r;\n                \n                // Color based on material ID\n                var base_color = vec3<f32>(0.5, 0.5, 0.5);\n                if (mat_id > 2.5) {\n                    base_color = vec3<f32>(0.65, 0.35, 0.2); // Warm brick-red/wood\n                } else if (mat_id > 1.5) {\n                    base_color = vec3<f32>(0.2, 0.8, 0.3);   // Organic green terrain\n                } else if (mat_id > 0.5) {\n                    base_color = vec3<f32>(0.8, 0.7, 0.5);   // Stone/sand\n                } else {\n                    base_color = vec3<f32>(0.3, 0.3, 0.3);\n                }\n                \n                let light_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));\n                let diffuse = max(dot(normal, light_dir), 0.1);\n                \n                // Raymarched Shadows (soft shadows)\n                let shadow_pos = p + normal * 0.05;\n                let sha = getShadow(shadow_pos, light_dir, 0.05, 40.0, 16.0);\n                \n                // Ambient Occlusion\n                let ao = getAO(p, normal);\n                \n                // Combine Shading\n                let ambient = vec3<f32>(0.1, 0.12, 0.2) * ao;\n                let direct = vec3<f32>(1.0, 0.95, 0.85) * diffuse * sha;\n                \n                hit_color = base_color * (direct + ambient);\n                hit = true;\n                break;\n            }\n            \n            // Step forward by the SDF value\n            t = t + max(0.008, dist);\n        }\n        \n        if (hit) {\n            // Apply exponential atmospheric distance fog\n            let fog_density = 0.015;\n            let fog_factor = 1.0 - exp(-fog_density * t);\n            \n            // The fog color is the horizon color mixed with the space color\n            let fog_color = mix(space_color, horizon_color, max(0.0, rd.y));\n            color = mix(hit_color, fog_color, clamp(fog_factor, 0.0, 1.0));\n        }\n    }\n    \n    return vec4<f32>(color, 1.0);\n}\n";
         String *_2_ref = &_2;
         voxel_MINUS_wgsl = _2_ref;
     }
@@ -16238,7 +16264,7 @@ Maybe__WGPUFrameState_MUL_ Engine_begin_MINUS_frame(Engine* eng) {
             Maybe__WGPUFrameState_MUL_ _33 = Maybe_Just__WGPUFrameState_MUL_(frame);
             _34 = _33;
         }
-        else UNHANDLED("scaffold.carp", 121);
+        else UNHANDLED("scaffold.carp", 129);
         _35 = _34;
     }
     return _35;
@@ -16366,7 +16392,7 @@ Result__Engine_String Engine_create(String* title, int init_MINUS_w, int init_MI
                             Result__Engine_String _140 = Result_Success__Engine_String(_139);
                             _141 = _140;
                         }
-                        else UNHANDLED("scaffold.carp", 85);
+                        else UNHANDLED("scaffold.carp", 93);
                         Result__Engine_String _142 = _141;
                         _143 = _142;
                     }
@@ -16379,7 +16405,7 @@ Result__Engine_String Engine_create(String* title, int init_MINUS_w, int init_MI
         }
         _148 = _147;
     }
-    else UNHANDLED("scaffold.carp", 69);
+    else UNHANDLED("scaffold.carp", 77);
     return _148;
 }
 
@@ -16409,30 +16435,30 @@ Result__WGPUUniformBufferWrapper_MUL__String Engine_create_MINUS_uniform_MINUS_b
     return _12;
 }
 
-Result__WGPUBindGroup_String Engine_create_MINUS_voxel_MINUS_bind_MINUS_group(Engine* eng, WGPURenderPipelineWrapper* pipeline, WGPURenderTexture* texture, WGPUSampler sampler, WGPUUniformBufferWrapper* uniforms) {
-    Result__WGPUBindGroup_String _39;
+Result__WGPUBindGroup_String Engine_create_MINUS_voxel_MINUS_bind_MINUS_group(Engine* eng, WGPURenderPipelineWrapper* pipeline, WGPURenderTexture* solid_MINUS_tex, WGPURenderTexture* liquid_MINUS_tex, WGPURenderTexture* gas_MINUS_tex, WGPUSampler sampler, WGPUUniformBufferWrapper* uniforms) {
+    Result__WGPUBindGroup_String _43;
     /* let */ {
-        WGPUContext** _14 = Engine_ctx(eng);
-        WGPUContext* _15 = Pointer_copy__WGPUContext(_14);
-        WGPUBindGroup _20 = create_MINUS_voxel_MINUS_scaffold_MINUS_bind_MINUS_group(_15, pipeline, texture, sampler, uniforms);
-        WGPUBindGroup bg = _20;
-        Result__WGPUBindGroup_String _38;
-        bool _25 = wgpu_bindgroup_is_null(bg);
-        if (_25) {
-            static String _29 = "Failed to create voxel scaffold bind group";
-            String *_29_ref = &_29;
-            String _30 = String_copy(_29_ref);
-            Result__WGPUBindGroup_String _31 = Result_Error__String_WGPUBindGroup(_30);
-            Result__WGPUBindGroup_String _32 = _31;
-            _38 = _32;
+        WGPUContext** _16 = Engine_ctx(eng);
+        WGPUContext* _17 = Pointer_copy__WGPUContext(_16);
+        WGPUBindGroup _24 = create_MINUS_voxel_MINUS_scaffold_MINUS_bind_MINUS_group(_17, pipeline, solid_MINUS_tex, liquid_MINUS_tex, gas_MINUS_tex, sampler, uniforms);
+        WGPUBindGroup bg = _24;
+        Result__WGPUBindGroup_String _42;
+        bool _29 = wgpu_bindgroup_is_null(bg);
+        if (_29) {
+            static String _33 = "Failed to create voxel scaffold bind group";
+            String *_33_ref = &_33;
+            String _34 = String_copy(_33_ref);
+            Result__WGPUBindGroup_String _35 = Result_Error__String_WGPUBindGroup(_34);
+            Result__WGPUBindGroup_String _36 = _35;
+            _42 = _36;
         } else {
-            Result__WGPUBindGroup_String _36 = Result_Success__WGPUBindGroup_String(bg);
-            Result__WGPUBindGroup_String _37 = _36;
-            _38 = _37;
+            Result__WGPUBindGroup_String _40 = Result_Success__WGPUBindGroup_String(bg);
+            Result__WGPUBindGroup_String _41 = _40;
+            _42 = _41;
         }
-        _39 = _38;
+        _43 = _42;
     }
-    return _39;
+    return _43;
 }
 
 WGPUContext** Engine_ctx(Engine* p) { return (&(p->ctx)); }
@@ -22762,6 +22788,12 @@ void Renderer_cleanup__Engine_MUL_(Engine* eng, Renderer* ren) {
     WGPURenderTexture** _53 = Renderer_voxel_MINUS_texture(ren);
     WGPURenderTexture* _54 = Pointer_copy__WGPURenderTexture(_53);
     wgpu_render_texture_free(_54);
+    WGPURenderTexture** _60 = Renderer_liquid_MINUS_texture(ren);
+    WGPURenderTexture* _61 = Pointer_copy__WGPURenderTexture(_60);
+    wgpu_render_texture_free(_61);
+    WGPURenderTexture** _67 = Renderer_gas_MINUS_texture(ren);
+    WGPURenderTexture* _68 = Pointer_copy__WGPURenderTexture(_67);
+    wgpu_render_texture_free(_68);
 }
 
 void Renderer_clear_MINUS_lines_BANG_(Renderer* ren) {
@@ -22791,6 +22823,8 @@ Renderer Renderer_copy(Renderer* pRef) {
     /* Ignore non-managed member 'bind_MINUS_group' : WGPUBindGroup */
     /* Ignore non-managed member 'uniform_MINUS_buffer' : (Ptr WGPUUniformBufferWrapper) */
     /* Ignore non-managed member 'voxel_MINUS_texture' : (Ptr WGPURenderTexture) */
+    /* Ignore non-managed member 'liquid_MINUS_texture' : (Ptr WGPURenderTexture) */
+    /* Ignore non-managed member 'gas_MINUS_texture' : (Ptr WGPURenderTexture) */
     /* Ignore non-managed member 'voxel_MINUS_sampler' : WGPUSampler */
     copy.line_MINUS_pass = LinePassRenderer_copy(&(pRef->line_MINUS_pass));
     copy.lines = Array_copy__Line(&(pRef->lines));
@@ -22801,7 +22835,7 @@ Renderer Renderer_copy(Renderer* pRef) {
 }
 
 Result__Renderer_String Renderer_create(Engine* eng) {
-    Result__Renderer_String _348;
+    Result__Renderer_String _467;
     /* let */ {
         WGPUContext** _9 = Engine_ctx(eng);
         WGPUContext* _10 = Pointer_copy__WGPUContext(_9);
@@ -22809,7 +22843,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
         static String _18 = "rgba16float";
         String *_18_ref = &_18;
         Result__WGPURenderTexture_MUL__String _19 = WGPURender_create_MINUS_3d_MINUS_texture(ctx, 128, 64, 128, _18_ref);
-        Result__Renderer_String _347;
+        Result__Renderer_String _466;
         if(_19._tag == Result__WGPURenderTexture_MUL__String_Error_tag) {
             Result__WGPURenderTexture_MUL__String _19_temp = _19;
             String e = _19_temp.u.Error.member0;
@@ -22824,7 +22858,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
             String* _1000005 = &_1000006; // ref
             String _1000004 = String_copy(_1000005);
             Result__Renderer_String _40 = Result_Error__String_Renderer(_1000004);
-            _347 = _40;
+            _466 = _40;
             String_delete(_1000006);
             String_delete(_1000008);
             String_delete(_1000010);
@@ -22833,234 +22867,311 @@ Result__Renderer_String Renderer_create(Engine* eng) {
             Result__WGPURenderTexture_MUL__String _19_temp = _19;
             WGPURenderTexture* voxel_MINUS_tex = _19_temp.u.Success.member0;
             // Case expr:
-            Result__WGPUSampler_String _47 = WGPURender_create_MINUS_sampler(ctx);
-            Result__Renderer_String _346;
-            if(_47._tag == Result__WGPUSampler_String_Error_tag) {
-                Result__WGPUSampler_String _47_temp = _47;
-                String e = _47_temp.u.Error.member0;
+            static String _50 = "rgba16float";
+            String *_50_ref = &_50;
+            Result__WGPURenderTexture_MUL__String _51 = WGPURender_create_MINUS_3d_MINUS_texture(ctx, 128, 64, 128, _50_ref);
+            Result__Renderer_String _465;
+            if(_51._tag == Result__WGPURenderTexture_MUL__String_Error_tag) {
+                Result__WGPURenderTexture_MUL__String _51_temp = _51;
+                String e = _51_temp.u.Error.member0;
                 // Case expr:
                 wgpu_render_texture_free(voxel_MINUS_tex);
-                static String _61 = "Sampler failed: ";
-                String *_61_ref = &_61;
-                String _1000017 = String_str(_61_ref);
+                static String _65 = "Liquid texture failed: ";
+                String *_65_ref = &_65;
+                String _1000017 = String_str(_65_ref);
                 String* _1000016 = &_1000017; // ref
                 String _1000019 = StringCopy_str(e);
                 String* _1000018 = &_1000019; // ref
                 String _1000015 = String_append(_1000016, _1000018);
                 String* _1000014 = &_1000015; // ref
                 String _1000013 = String_copy(_1000014);
-                Result__Renderer_String _72 = Result_Error__String_Renderer(_1000013);
-                Result__Renderer_String _73 = _72;
-                _346 = _73;
+                Result__Renderer_String _76 = Result_Error__String_Renderer(_1000013);
+                Result__Renderer_String _77 = _76;
+                _465 = _77;
                 String_delete(_1000015);
                 String_delete(_1000017);
                 String_delete(_1000019);
             }
-            else if(_47._tag == Result__WGPUSampler_String_Success_tag) {
-                Result__WGPUSampler_String _47_temp = _47;
-                WGPUSampler voxel_MINUS_sampler = _47_temp.u.Success.member0;
+            else if(_51._tag == Result__WGPURenderTexture_MUL__String_Success_tag) {
+                Result__WGPURenderTexture_MUL__String _51_temp = _51;
+                WGPURenderTexture* liquid_MINUS_tex = _51_temp.u.Success.member0;
                 // Case expr:
-                Result__WGPUUniformBufferWrapper_MUL__String _81 = WGPURender_create_MINUS_uniform_MINUS_buffer(ctx, 80);
-                Result__Renderer_String _345;
-                if(_81._tag == Result__WGPUUniformBufferWrapper_MUL__String_Error_tag) {
-                    Result__WGPUUniformBufferWrapper_MUL__String _81_temp = _81;
-                    String e = _81_temp.u.Error.member0;
+                static String _87 = "rgba16float";
+                String *_87_ref = &_87;
+                Result__WGPURenderTexture_MUL__String _88 = WGPURender_create_MINUS_3d_MINUS_texture(ctx, 128, 64, 128, _87_ref);
+                Result__Renderer_String _464;
+                if(_88._tag == Result__WGPURenderTexture_MUL__String_Error_tag) {
+                    Result__WGPURenderTexture_MUL__String _88_temp = _88;
+                    String e = _88_temp.u.Error.member0;
                     // Case expr:
-                    wgpuSamplerRelease(voxel_MINUS_sampler);
                     wgpu_render_texture_free(voxel_MINUS_tex);
-                    static String _98 = "Uniforms failed: ";
-                    String *_98_ref = &_98;
-                    String _1000026 = String_str(_98_ref);
+                    wgpu_render_texture_free(liquid_MINUS_tex);
+                    static String _105 = "Gas texture failed: ";
+                    String *_105_ref = &_105;
+                    String _1000026 = String_str(_105_ref);
                     String* _1000025 = &_1000026; // ref
                     String _1000028 = StringCopy_str(e);
                     String* _1000027 = &_1000028; // ref
                     String _1000024 = String_append(_1000025, _1000027);
                     String* _1000023 = &_1000024; // ref
                     String _1000022 = String_copy(_1000023);
-                    Result__Renderer_String _109 = Result_Error__String_Renderer(_1000022);
-                    Result__Renderer_String _110 = _109;
-                    _345 = _110;
+                    Result__Renderer_String _116 = Result_Error__String_Renderer(_1000022);
+                    Result__Renderer_String _117 = _116;
+                    _464 = _117;
                     String_delete(_1000024);
                     String_delete(_1000026);
                     String_delete(_1000028);
                 }
-                else if(_81._tag == Result__WGPUUniformBufferWrapper_MUL__String_Success_tag) {
-                    Result__WGPUUniformBufferWrapper_MUL__String _81_temp = _81;
-                    WGPUUniformBufferWrapper* ub = _81_temp.u.Success.member0;
+                else if(_88._tag == Result__WGPURenderTexture_MUL__String_Success_tag) {
+                    Result__WGPURenderTexture_MUL__String _88_temp = _88;
+                    WGPURenderTexture* gas_MINUS_tex = _88_temp.u.Success.member0;
                     // Case expr:
-                    static String _118 = "vs_main";
-                    String *_118_ref = &_118;
-                    static String _119 = "fs_main";
-                    String *_119_ref = &_119;
-                    Result__WGPURenderPipelineWrapper_MUL__String _120 = Engine_create_MINUS_pipeline(eng, voxel_MINUS_wgsl, _118_ref, _119_ref);
-                    Result__Renderer_String _344;
-                    if(_120._tag == Result__WGPURenderPipelineWrapper_MUL__String_Error_tag) {
-                        Result__WGPURenderPipelineWrapper_MUL__String _120_temp = _120;
-                        String e = _120_temp.u.Error.member0;
+                    Result__WGPUSampler_String _124 = WGPURender_create_MINUS_sampler(ctx);
+                    Result__Renderer_String _463;
+                    if(_124._tag == Result__WGPUSampler_String_Error_tag) {
+                        Result__WGPUSampler_String _124_temp = _124;
+                        String e = _124_temp.u.Error.member0;
                         // Case expr:
-                        Engine_free_MINUS_uniform_MINUS_buffer(ub);
-                        wgpuSamplerRelease(voxel_MINUS_sampler);
                         wgpu_render_texture_free(voxel_MINUS_tex);
-                        static String _140 = "Pipeline failed: ";
-                        String *_140_ref = &_140;
-                        String _1000035 = String_str(_140_ref);
+                        wgpu_render_texture_free(liquid_MINUS_tex);
+                        wgpu_render_texture_free(gas_MINUS_tex);
+                        static String _144 = "Sampler failed: ";
+                        String *_144_ref = &_144;
+                        String _1000035 = String_str(_144_ref);
                         String* _1000034 = &_1000035; // ref
                         String _1000037 = StringCopy_str(e);
                         String* _1000036 = &_1000037; // ref
                         String _1000033 = String_append(_1000034, _1000036);
                         String* _1000032 = &_1000033; // ref
                         String _1000031 = String_copy(_1000032);
-                        Result__Renderer_String _151 = Result_Error__String_Renderer(_1000031);
-                        Result__Renderer_String _152 = _151;
-                        _344 = _152;
+                        Result__Renderer_String _155 = Result_Error__String_Renderer(_1000031);
+                        Result__Renderer_String _156 = _155;
+                        _463 = _156;
                         String_delete(_1000033);
                         String_delete(_1000035);
                         String_delete(_1000037);
                     }
-                    else if(_120._tag == Result__WGPURenderPipelineWrapper_MUL__String_Success_tag) {
-                        Result__WGPURenderPipelineWrapper_MUL__String _120_temp = _120;
-                        WGPURenderPipelineWrapper* pipe = _120_temp.u.Success.member0;
+                    else if(_124._tag == Result__WGPUSampler_String_Success_tag) {
+                        Result__WGPUSampler_String _124_temp = _124;
+                        WGPUSampler voxel_MINUS_sampler = _124_temp.u.Success.member0;
                         // Case expr:
-                        Result__WGPUBindGroup_String _163 = Engine_create_MINUS_voxel_MINUS_bind_MINUS_group(eng, pipe, voxel_MINUS_tex, voxel_MINUS_sampler, ub);
-                        Result__Renderer_String _343;
-                        if(_163._tag == Result__WGPUBindGroup_String_Error_tag) {
-                            Result__WGPUBindGroup_String _163_temp = _163;
-                            String e = _163_temp.u.Error.member0;
+                        Result__WGPUUniformBufferWrapper_MUL__String _164 = WGPURender_create_MINUS_uniform_MINUS_buffer(ctx, 80);
+                        Result__Renderer_String _462;
+                        if(_164._tag == Result__WGPUUniformBufferWrapper_MUL__String_Error_tag) {
+                            Result__WGPUUniformBufferWrapper_MUL__String _164_temp = _164;
+                            String e = _164_temp.u.Error.member0;
                             // Case expr:
-                            Engine_free_MINUS_pipeline(pipe);
-                            Engine_free_MINUS_uniform_MINUS_buffer(ub);
                             wgpuSamplerRelease(voxel_MINUS_sampler);
                             wgpu_render_texture_free(voxel_MINUS_tex);
-                            static String _186 = "Bind group failed: ";
-                            String *_186_ref = &_186;
-                            String _1000044 = String_str(_186_ref);
+                            wgpu_render_texture_free(liquid_MINUS_tex);
+                            wgpu_render_texture_free(gas_MINUS_tex);
+                            static String _187 = "Uniforms failed: ";
+                            String *_187_ref = &_187;
+                            String _1000044 = String_str(_187_ref);
                             String* _1000043 = &_1000044; // ref
                             String _1000046 = StringCopy_str(e);
                             String* _1000045 = &_1000046; // ref
                             String _1000042 = String_append(_1000043, _1000045);
                             String* _1000041 = &_1000042; // ref
                             String _1000040 = String_copy(_1000041);
-                            Result__Renderer_String _197 = Result_Error__String_Renderer(_1000040);
-                            Result__Renderer_String _198 = _197;
-                            _343 = _198;
+                            Result__Renderer_String _198 = Result_Error__String_Renderer(_1000040);
+                            Result__Renderer_String _199 = _198;
+                            _462 = _199;
                             String_delete(_1000042);
                             String_delete(_1000044);
                             String_delete(_1000046);
                         }
-                        else if(_163._tag == Result__WGPUBindGroup_String_Success_tag) {
-                            Result__WGPUBindGroup_String _163_temp = _163;
-                            WGPUBindGroup bg = _163_temp.u.Success.member0;
+                        else if(_164._tag == Result__WGPUUniformBufferWrapper_MUL__String_Success_tag) {
+                            Result__WGPUUniformBufferWrapper_MUL__String _164_temp = _164;
+                            WGPUUniformBufferWrapper* ub = _164_temp.u.Success.member0;
                             // Case expr:
-                            Result__Renderer_String _342;
-                            /* let */ {
-                                int* _207 = Engine_width(eng);
-                                int _208 = Int_copy(_207);
-                                int w = _208;
-                                int* _213 = Engine_height(eng);
-                                int _214 = Int_copy(_213);
-                                int h = _214;
-                                Result__WGPUDepthTexture_MUL__String _221 = WGPURender_create_MINUS_depth_MINUS_texture(ctx, w, h);
-                                Result__Renderer_String _341;
-                                if(_221._tag == Result__WGPUDepthTexture_MUL__String_Error_tag) {
-                                    Result__WGPUDepthTexture_MUL__String _221_temp = _221;
-                                    String e = _221_temp.u.Error.member0;
+                            static String _207 = "vs_main";
+                            String *_207_ref = &_207;
+                            static String _208 = "fs_main";
+                            String *_208_ref = &_208;
+                            Result__WGPURenderPipelineWrapper_MUL__String _209 = Engine_create_MINUS_pipeline(eng, voxel_MINUS_wgsl, _207_ref, _208_ref);
+                            Result__Renderer_String _461;
+                            if(_209._tag == Result__WGPURenderPipelineWrapper_MUL__String_Error_tag) {
+                                Result__WGPURenderPipelineWrapper_MUL__String _209_temp = _209;
+                                String e = _209_temp.u.Error.member0;
+                                // Case expr:
+                                Engine_free_MINUS_uniform_MINUS_buffer(ub);
+                                wgpuSamplerRelease(voxel_MINUS_sampler);
+                                wgpu_render_texture_free(voxel_MINUS_tex);
+                                wgpu_render_texture_free(liquid_MINUS_tex);
+                                wgpu_render_texture_free(gas_MINUS_tex);
+                                static String _235 = "Pipeline failed: ";
+                                String *_235_ref = &_235;
+                                String _1000053 = String_str(_235_ref);
+                                String* _1000052 = &_1000053; // ref
+                                String _1000055 = StringCopy_str(e);
+                                String* _1000054 = &_1000055; // ref
+                                String _1000051 = String_append(_1000052, _1000054);
+                                String* _1000050 = &_1000051; // ref
+                                String _1000049 = String_copy(_1000050);
+                                Result__Renderer_String _246 = Result_Error__String_Renderer(_1000049);
+                                Result__Renderer_String _247 = _246;
+                                _461 = _247;
+                                String_delete(_1000051);
+                                String_delete(_1000053);
+                                String_delete(_1000055);
+                            }
+                            else if(_209._tag == Result__WGPURenderPipelineWrapper_MUL__String_Success_tag) {
+                                Result__WGPURenderPipelineWrapper_MUL__String _209_temp = _209;
+                                WGPURenderPipelineWrapper* pipe = _209_temp.u.Success.member0;
+                                // Case expr:
+                                Result__WGPUBindGroup_String _260 = Engine_create_MINUS_voxel_MINUS_bind_MINUS_group(eng, pipe, voxel_MINUS_tex, liquid_MINUS_tex, gas_MINUS_tex, voxel_MINUS_sampler, ub);
+                                Result__Renderer_String _460;
+                                if(_260._tag == Result__WGPUBindGroup_String_Error_tag) {
+                                    Result__WGPUBindGroup_String _260_temp = _260;
+                                    String e = _260_temp.u.Error.member0;
                                     // Case expr:
                                     Engine_free_MINUS_pipeline(pipe);
                                     Engine_free_MINUS_uniform_MINUS_buffer(ub);
                                     wgpuSamplerRelease(voxel_MINUS_sampler);
                                     wgpu_render_texture_free(voxel_MINUS_tex);
-                                    Engine_free_MINUS_bind_MINUS_group(bg);
-                                    static String _247 = "Depth texture failed: ";
-                                    String *_247_ref = &_247;
-                                    String _1000054 = String_str(_247_ref);
-                                    String* _1000053 = &_1000054; // ref
-                                    String _1000056 = StringCopy_str(e);
-                                    String* _1000055 = &_1000056; // ref
-                                    String _1000052 = String_append(_1000053, _1000055);
-                                    String* _1000051 = &_1000052; // ref
-                                    String _1000050 = String_copy(_1000051);
-                                    Result__Renderer_String _258 = Result_Error__String_Renderer(_1000050);
-                                    Result__Renderer_String _259 = _258;
-                                    _341 = _259;
-                                    String_delete(_1000052);
-                                    String_delete(_1000054);
-                                    String_delete(_1000056);
+                                    wgpu_render_texture_free(liquid_MINUS_tex);
+                                    wgpu_render_texture_free(gas_MINUS_tex);
+                                    static String _289 = "Bind group failed: ";
+                                    String *_289_ref = &_289;
+                                    String _1000062 = String_str(_289_ref);
+                                    String* _1000061 = &_1000062; // ref
+                                    String _1000064 = StringCopy_str(e);
+                                    String* _1000063 = &_1000064; // ref
+                                    String _1000060 = String_append(_1000061, _1000063);
+                                    String* _1000059 = &_1000060; // ref
+                                    String _1000058 = String_copy(_1000059);
+                                    Result__Renderer_String _300 = Result_Error__String_Renderer(_1000058);
+                                    Result__Renderer_String _301 = _300;
+                                    _460 = _301;
+                                    String_delete(_1000060);
+                                    String_delete(_1000062);
+                                    String_delete(_1000064);
                                 }
-                                else if(_221._tag == Result__WGPUDepthTexture_MUL__String_Success_tag) {
-                                    Result__WGPUDepthTexture_MUL__String _221_temp = _221;
-                                    WGPUDepthTexture* depth_MINUS_tex = _221_temp.u.Success.member0;
+                                else if(_260._tag == Result__WGPUBindGroup_String_Success_tag) {
+                                    Result__WGPUBindGroup_String _260_temp = _260;
+                                    WGPUBindGroup bg = _260_temp.u.Success.member0;
                                     // Case expr:
-                                    Result__Renderer_String _340;
+                                    Result__Renderer_String _459;
                                     /* let */ {
-                                        WGPURenderSurface** _269 = Engine_surf(eng);
-                                        WGPURenderSurface* _270 = Pointer_copy__WGPURenderSurface(_269);
-                                        String _271 = WGPURender_surface_MINUS_format(_270);
-                                        String format = _271;
-                                        String* _278 = &format; // ref
-                                        Result__LinePassRenderer_String _280 = LinePass_create(ctx, _278, 1000);
-                                        Result__Renderer_String _339;
-                                        if(_280._tag == Result__LinePassRenderer_String_Error_tag) {
-                                            Result__LinePassRenderer_String _280_temp = _280;
-                                            String e = _280_temp.u.Error.member0;
+                                        int* _310 = Engine_width(eng);
+                                        int _311 = Int_copy(_310);
+                                        int w = _311;
+                                        int* _316 = Engine_height(eng);
+                                        int _317 = Int_copy(_316);
+                                        int h = _317;
+                                        Result__WGPUDepthTexture_MUL__String _324 = WGPURender_create_MINUS_depth_MINUS_texture(ctx, w, h);
+                                        Result__Renderer_String _458;
+                                        if(_324._tag == Result__WGPUDepthTexture_MUL__String_Error_tag) {
+                                            Result__WGPUDepthTexture_MUL__String _324_temp = _324;
+                                            String e = _324_temp.u.Error.member0;
                                             // Case expr:
                                             Engine_free_MINUS_pipeline(pipe);
                                             Engine_free_MINUS_uniform_MINUS_buffer(ub);
                                             wgpuSamplerRelease(voxel_MINUS_sampler);
                                             wgpu_render_texture_free(voxel_MINUS_tex);
+                                            wgpu_render_texture_free(liquid_MINUS_tex);
+                                            wgpu_render_texture_free(gas_MINUS_tex);
                                             Engine_free_MINUS_bind_MINUS_group(bg);
-                                            wgpu_depth_texture_free(depth_MINUS_tex);
-                                            static String _309 = "LinePass creation failed: ";
-                                            String *_309_ref = &_309;
-                                            String _1000064 = String_str(_309_ref);
-                                            String* _1000063 = &_1000064; // ref
-                                            String _1000066 = StringCopy_str(e);
-                                            String* _1000065 = &_1000066; // ref
-                                            String _1000062 = String_append(_1000063, _1000065);
-                                            String* _1000061 = &_1000062; // ref
-                                            String _1000060 = String_copy(_1000061);
-                                            Result__Renderer_String _320 = Result_Error__String_Renderer(_1000060);
-                                            Result__Renderer_String _321 = _320;
-                                            _339 = _321;
-                                            String_delete(_1000062);
-                                            String_delete(_1000064);
-                                            String_delete(_1000066);
+                                            static String _356 = "Depth texture failed: ";
+                                            String *_356_ref = &_356;
+                                            String _1000072 = String_str(_356_ref);
+                                            String* _1000071 = &_1000072; // ref
+                                            String _1000074 = StringCopy_str(e);
+                                            String* _1000073 = &_1000074; // ref
+                                            String _1000070 = String_append(_1000071, _1000073);
+                                            String* _1000069 = &_1000070; // ref
+                                            String _1000068 = String_copy(_1000069);
+                                            Result__Renderer_String _367 = Result_Error__String_Renderer(_1000068);
+                                            Result__Renderer_String _368 = _367;
+                                            _458 = _368;
+                                            String_delete(_1000070);
+                                            String_delete(_1000072);
+                                            String_delete(_1000074);
                                         }
-                                        else if(_280._tag == Result__LinePassRenderer_String_Success_tag) {
-                                            Result__LinePassRenderer_String _280_temp = _280;
-                                            LinePassRenderer lp = _280_temp.u.Success.member0;
+                                        else if(_324._tag == Result__WGPUDepthTexture_MUL__String_Success_tag) {
+                                            Result__WGPUDepthTexture_MUL__String _324_temp = _324;
+                                            WGPUDepthTexture* depth_MINUS_tex = _324_temp.u.Success.member0;
                                             // Case expr:
-                                            Array _333 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(Line) * 0) };
-                                            Renderer _337 = Renderer_init(pipe, bg, ub, voxel_MINUS_tex, voxel_MINUS_sampler, lp, _333, depth_MINUS_tex, w, h);
-                                            Result__Renderer_String _338 = Result_Success__Renderer_String(_337);
-                                            _339 = _338;
+                                            Result__Renderer_String _457;
+                                            /* let */ {
+                                                WGPURenderSurface** _378 = Engine_surf(eng);
+                                                WGPURenderSurface* _379 = Pointer_copy__WGPURenderSurface(_378);
+                                                String _380 = WGPURender_surface_MINUS_format(_379);
+                                                String format = _380;
+                                                String* _387 = &format; // ref
+                                                Result__LinePassRenderer_String _389 = LinePass_create(ctx, _387, 1000);
+                                                Result__Renderer_String _456;
+                                                if(_389._tag == Result__LinePassRenderer_String_Error_tag) {
+                                                    Result__LinePassRenderer_String _389_temp = _389;
+                                                    String e = _389_temp.u.Error.member0;
+                                                    // Case expr:
+                                                    Engine_free_MINUS_pipeline(pipe);
+                                                    Engine_free_MINUS_uniform_MINUS_buffer(ub);
+                                                    wgpuSamplerRelease(voxel_MINUS_sampler);
+                                                    wgpu_render_texture_free(voxel_MINUS_tex);
+                                                    wgpu_render_texture_free(liquid_MINUS_tex);
+                                                    wgpu_render_texture_free(gas_MINUS_tex);
+                                                    Engine_free_MINUS_bind_MINUS_group(bg);
+                                                    wgpu_depth_texture_free(depth_MINUS_tex);
+                                                    static String _424 = "LinePass creation failed: ";
+                                                    String *_424_ref = &_424;
+                                                    String _1000082 = String_str(_424_ref);
+                                                    String* _1000081 = &_1000082; // ref
+                                                    String _1000084 = StringCopy_str(e);
+                                                    String* _1000083 = &_1000084; // ref
+                                                    String _1000080 = String_append(_1000081, _1000083);
+                                                    String* _1000079 = &_1000080; // ref
+                                                    String _1000078 = String_copy(_1000079);
+                                                    Result__Renderer_String _435 = Result_Error__String_Renderer(_1000078);
+                                                    Result__Renderer_String _436 = _435;
+                                                    _456 = _436;
+                                                    String_delete(_1000080);
+                                                    String_delete(_1000082);
+                                                    String_delete(_1000084);
+                                                }
+                                                else if(_389._tag == Result__LinePassRenderer_String_Success_tag) {
+                                                    Result__LinePassRenderer_String _389_temp = _389;
+                                                    LinePassRenderer lp = _389_temp.u.Success.member0;
+                                                    // Case expr:
+                                                    Array _450 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(Line) * 0) };
+                                                    Renderer _454 = Renderer_init(pipe, bg, ub, voxel_MINUS_tex, liquid_MINUS_tex, gas_MINUS_tex, voxel_MINUS_sampler, lp, _450, depth_MINUS_tex, w, h);
+                                                    Result__Renderer_String _455 = Result_Success__Renderer_String(_454);
+                                                    _456 = _455;
+                                                }
+                                                else UNHANDLED("renderer.carp", 280);
+                                                _457 = _456;
+                                                String_delete(format);
+                                            }
+                                            _458 = _457;
                                         }
-                                        else UNHANDLED("renderer.carp", 257);
-                                        _340 = _339;
-                                        String_delete(format);
+                                        else UNHANDLED("renderer.carp", 269);
+                                        _459 = _458;
                                     }
-                                    _341 = _340;
+                                    _460 = _459;
                                 }
-                                else UNHANDLED("renderer.carp", 248);
-                                _342 = _341;
+                                else UNHANDLED("renderer.carp", 258);
+                                _461 = _460;
                             }
-                            _343 = _342;
+                            else UNHANDLED("renderer.carp", 250);
+                            _462 = _461;
                         }
-                        else UNHANDLED("renderer.carp", 239);
-                        _344 = _343;
+                        else UNHANDLED("renderer.carp", 243);
+                        _463 = _462;
                     }
-                    else UNHANDLED("renderer.carp", 233);
-                    _345 = _344;
+                    else UNHANDLED("renderer.carp", 237);
+                    _464 = _463;
                 }
-                else UNHANDLED("renderer.carp", 228);
-                _346 = _345;
+                else UNHANDLED("renderer.carp", 232);
+                _465 = _464;
             }
-            else UNHANDLED("renderer.carp", 224);
-            _347 = _346;
+            else UNHANDLED("renderer.carp", 228);
+            _466 = _465;
         }
-        else UNHANDLED("renderer.carp", 221);
-        _348 = _347;
+        else UNHANDLED("renderer.carp", 225);
+        _467 = _466;
     }
-    return _348;
+    return _467;
 }
 
 void Renderer_delete(Renderer p) {
@@ -23068,6 +23179,8 @@ void Renderer_delete(Renderer p) {
     /* Ignore non-managed member 'bind_MINUS_group' : WGPUBindGroup */
     /* Ignore non-managed member 'uniform_MINUS_buffer' : (Ptr WGPUUniformBufferWrapper) */
     /* Ignore non-managed member 'voxel_MINUS_texture' : (Ptr WGPURenderTexture) */
+    /* Ignore non-managed member 'liquid_MINUS_texture' : (Ptr WGPURenderTexture) */
+    /* Ignore non-managed member 'gas_MINUS_texture' : (Ptr WGPURenderTexture) */
     /* Ignore non-managed member 'voxel_MINUS_sampler' : WGPUSampler */
     LinePassRenderer_delete(p.line_MINUS_pass);
     Array_delete__Line(p.lines);
@@ -23140,7 +23253,7 @@ void Renderer_draw(Engine* eng, Renderer* ren, Camera* cam) {
                     Renderer_set_MINUS_width_BANG_(ren, curr_MINUS_w);
                     Renderer_set_MINUS_height_BANG_(ren, curr_MINUS_h);
                 }
-                else UNHANDLED("renderer.carp", 330);
+                else UNHANDLED("renderer.carp", 355);
             }
         } else {
             /* () */
@@ -23185,7 +23298,7 @@ void Renderer_draw(Engine* eng, Renderer* ren, Camera* cam) {
                 CameraMat4_delete(vp);
             }
         }
-        else UNHANDLED("renderer.carp", 338);
+        else UNHANDLED("renderer.carp", 363);
     }
 }
 
@@ -23198,14 +23311,18 @@ void Renderer_draw_MINUS_line_BANG_(Renderer* ren, Vector3__double* start, Vecto
     Array_push_MINUS_back_BANG___Line(_10, _21);
 }
 
+WGPURenderTexture** Renderer_gas_MINUS_texture(Renderer* p) { return (&(p->gas_MINUS_texture)); }
+
 int* Renderer_height(Renderer* p) { return (&(p->height)); }
 
-Renderer Renderer_init(WGPURenderPipelineWrapper* pipeline, WGPUBindGroup bind_MINUS_group, WGPUUniformBufferWrapper* uniform_MINUS_buffer, WGPURenderTexture* voxel_MINUS_texture, WGPUSampler voxel_MINUS_sampler, LinePassRenderer line_MINUS_pass, Array__Line lines, WGPUDepthTexture* depth_MINUS_texture, int width, int height) {
+Renderer Renderer_init(WGPURenderPipelineWrapper* pipeline, WGPUBindGroup bind_MINUS_group, WGPUUniformBufferWrapper* uniform_MINUS_buffer, WGPURenderTexture* voxel_MINUS_texture, WGPURenderTexture* liquid_MINUS_texture, WGPURenderTexture* gas_MINUS_texture, WGPUSampler voxel_MINUS_sampler, LinePassRenderer line_MINUS_pass, Array__Line lines, WGPUDepthTexture* depth_MINUS_texture, int width, int height) {
     Renderer instance;
     instance.pipeline = pipeline;
     instance.bind_MINUS_group = bind_MINUS_group;
     instance.uniform_MINUS_buffer = uniform_MINUS_buffer;
     instance.voxel_MINUS_texture = voxel_MINUS_texture;
+    instance.liquid_MINUS_texture = liquid_MINUS_texture;
+    instance.gas_MINUS_texture = gas_MINUS_texture;
     instance.voxel_MINUS_sampler = voxel_MINUS_sampler;
     instance.line_MINUS_pass = line_MINUS_pass;
     instance.lines = lines;
@@ -23218,6 +23335,8 @@ Renderer Renderer_init(WGPURenderPipelineWrapper* pipeline, WGPUBindGroup bind_M
 LinePassRenderer* Renderer_line_MINUS_pass(Renderer* p) { return (&(p->line_MINUS_pass)); }
 
 Array__Line* Renderer_lines(Renderer* p) { return (&(p->lines)); }
+
+WGPURenderTexture** Renderer_liquid_MINUS_texture(Renderer* p) { return (&(p->liquid_MINUS_texture)); }
 
 WGPURenderPipelineWrapper** Renderer_pipeline(Renderer* p) { return (&(p->pipeline)); }
 
@@ -23238,6 +23357,14 @@ String Renderer_prn(Renderer *p) {
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
   temp = Pointer_prn__WGPURenderTexture(p->voxel_MINUS_texture); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPURenderTexture(p->liquid_MINUS_texture); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPURenderTexture(p->gas_MINUS_texture); 
   size += snprintf(NULL, 0, "%s ", temp);
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
@@ -23281,6 +23408,16 @@ String Renderer_prn(Renderer *p) {
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
   temp = Pointer_prn__WGPURenderTexture(p->voxel_MINUS_texture);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPURenderTexture(p->liquid_MINUS_texture);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPURenderTexture(p->gas_MINUS_texture);
   tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
   bufferPtr += tempsize;
   if(temp) { CARP_FREE(temp); temp = NULL; }
@@ -23343,6 +23480,19 @@ void Renderer_set_MINUS_depth_MINUS_texture_BANG_(Renderer* pRef, WGPUDepthTextu
 }
 
 
+Renderer Renderer_set_MINUS_gas_MINUS_texture(Renderer p, WGPURenderTexture* newValue) {
+    /* Ignore non-managed member 'gas_MINUS_texture' : (Ptr WGPURenderTexture) */
+    p.gas_MINUS_texture = newValue;
+    return p;
+}
+
+
+void Renderer_set_MINUS_gas_MINUS_texture_BANG_(Renderer* pRef, WGPURenderTexture* newValue) {
+    /* Ignore non-managed member 'gas_MINUS_texture' : (Ptr WGPURenderTexture) */
+    pRef->gas_MINUS_texture = newValue;
+}
+
+
 Renderer Renderer_set_MINUS_height(Renderer p, int newValue) {
     /* Ignore non-managed member 'height' : Int */
     p.height = newValue;
@@ -23379,6 +23529,19 @@ Renderer Renderer_set_MINUS_lines(Renderer p, Array__Line newValue) {
 void Renderer_set_MINUS_lines_BANG_(Renderer* pRef, Array__Line newValue) {
     Array_delete__Line(pRef->lines);
     pRef->lines = newValue;
+}
+
+
+Renderer Renderer_set_MINUS_liquid_MINUS_texture(Renderer p, WGPURenderTexture* newValue) {
+    /* Ignore non-managed member 'liquid_MINUS_texture' : (Ptr WGPURenderTexture) */
+    p.liquid_MINUS_texture = newValue;
+    return p;
+}
+
+
+void Renderer_set_MINUS_liquid_MINUS_texture_BANG_(Renderer* pRef, WGPURenderTexture* newValue) {
+    /* Ignore non-managed member 'liquid_MINUS_texture' : (Ptr WGPURenderTexture) */
+    pRef->liquid_MINUS_texture = newValue;
 }
 
 
@@ -23467,6 +23630,14 @@ String Renderer_str(Renderer *p) {
   size += snprintf(NULL, 0, "%s ", temp);
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
+  temp = Pointer_prn__WGPURenderTexture(p->liquid_MINUS_texture); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPURenderTexture(p->gas_MINUS_texture); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
   // Failed to find str function for voxel_MINUS_sampler : WGPUSampler
 
   temp = LinePassRenderer_prn(&p->line_MINUS_pass); 
@@ -23507,6 +23678,16 @@ String Renderer_str(Renderer *p) {
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
   temp = Pointer_prn__WGPURenderTexture(p->voxel_MINUS_texture);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPURenderTexture(p->liquid_MINUS_texture);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPURenderTexture(p->gas_MINUS_texture);
   tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
   bufferPtr += tempsize;
   if(temp) { CARP_FREE(temp); temp = NULL; }
@@ -23574,6 +23755,12 @@ Renderer Renderer_update_MINUS_depth_MINUS_texture(Renderer p, Lambda *updater) 
 }
 
 
+Renderer Renderer_update_MINUS_gas_MINUS_texture(Renderer p, Lambda *updater) {
+    p.gas_MINUS_texture = (*updater).env ? ((Fn__LambdaEnv_WGPURenderTexture_MUL__WGPURenderTexture_MUL_)(*updater).callback)((*updater).env, p.gas_MINUS_texture) : ((Fn__WGPURenderTexture_MUL__WGPURenderTexture_MUL_)(*updater).callback)(p.gas_MINUS_texture);
+    return p;
+}
+
+
 Renderer Renderer_update_MINUS_height(Renderer p, Lambda *updater) {
     p.height = (*updater).env ? ((Fn__LambdaEnv_int_int)(*updater).callback)((*updater).env, p.height) : ((Fn__int_int)(*updater).callback)(p.height);
     return p;
@@ -23588,6 +23775,12 @@ Renderer Renderer_update_MINUS_line_MINUS_pass(Renderer p, Lambda *updater) {
 
 Renderer Renderer_update_MINUS_lines(Renderer p, Lambda *updater) {
     p.lines = (*updater).env ? ((Fn__LambdaEnv_Array__Line_Array__Line)(*updater).callback)((*updater).env, p.lines) : ((Fn__Array__Line_Array__Line)(*updater).callback)(p.lines);
+    return p;
+}
+
+
+Renderer Renderer_update_MINUS_liquid_MINUS_texture(Renderer p, Lambda *updater) {
+    p.liquid_MINUS_texture = (*updater).env ? ((Fn__LambdaEnv_WGPURenderTexture_MUL__WGPURenderTexture_MUL_)(*updater).callback)((*updater).env, p.liquid_MINUS_texture) : ((Fn__WGPURenderTexture_MUL__WGPURenderTexture_MUL_)(*updater).callback)(p.liquid_MINUS_texture);
     return p;
 }
 
@@ -28264,15 +28457,15 @@ ZoneStats ZoneStats_update_MINUS_sum_MINUS_sq_MINUS_ms(ZoneStats p, Lambda *upda
 }
 
 
-WGPUBindGroup create_MINUS_voxel_MINUS_scaffold_MINUS_bind_MINUS_group(WGPUContext* ctx, WGPURenderPipelineWrapper* pipe, WGPURenderTexture* texture, WGPUSampler sampler, WGPUUniformBufferWrapper* ub) {
-      if (!ctx || !pipe || !texture || !sampler || !ub) {
+WGPUBindGroup create_MINUS_voxel_MINUS_scaffold_MINUS_bind_MINUS_group(WGPUContext* ctx, WGPURenderPipelineWrapper* pipe, WGPURenderTexture* solid_tex, WGPURenderTexture* liquid_tex, WGPURenderTexture* gas_tex, WGPUSampler sampler, WGPUUniformBufferWrapper* ub) {
+      if (!ctx || !pipe || !solid_tex || !liquid_tex || !gas_tex || !sampler || !ub) {
           return NULL;
       }
       WGPUBindGroupLayout layout = wgpuRenderPipelineGetBindGroupLayout(pipe->pipeline, 0);
       if (!layout) {
           return NULL;
       }
-      WGPUBindGroupEntry entries[3] = {
+      WGPUBindGroupEntry entries[5] = {
           {
               .binding = 0,
               .buffer  = ub->buffer,
@@ -28281,16 +28474,24 @@ WGPUBindGroup create_MINUS_voxel_MINUS_scaffold_MINUS_bind_MINUS_group(WGPUConte
           },
           {
               .binding     = 1,
-              .textureView = texture->view,
+              .textureView = solid_tex->view,
           },
           {
               .binding = 2,
               .sampler = sampler,
+          },
+          {
+              .binding     = 3,
+              .textureView = liquid_tex->view,
+          },
+          {
+              .binding     = 4,
+              .textureView = gas_tex->view,
           }
       };
       WGPUBindGroupDescriptor desc = {
           .layout     = layout,
-          .entryCount = 3,
+          .entryCount = 5,
           .entries    = entries,
       };
       WGPUBindGroup bg = wgpuDeviceCreateBindGroup(ctx->device, &desc);
