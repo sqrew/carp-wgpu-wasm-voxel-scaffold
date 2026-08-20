@@ -85,9 +85,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             let val = textureSampleLevel(voxel_texture, voxel_sampler, uvw, 0.0);
             let dist = val.g;
             
-            if (dist < 0.005) {
+            if (dist < 0.015) {
                 // Hit! Calculate normals using finite differences
-                let eps = 0.05;
+                let eps = 0.5;
                 let n = vec3<f32>(
                     textureSampleLevel(voxel_texture, voxel_sampler, uvw + vec3<f32>(eps, 0.0, 0.0)/dims, 0.0).g - 
                     textureSampleLevel(voxel_texture, voxel_sampler, uvw - vec3<f32>(eps, 0.0, 0.0)/dims, 0.0).g,
@@ -116,7 +116,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             }
             
             // Step forward by the SDF value
-            t = t + max(0.05, dist);
+            t = t + max(0.015, dist);
         }
     }
     
