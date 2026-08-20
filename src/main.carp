@@ -227,11 +227,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                                                    (WGPURender.free-render-texture voxel-tex)
                                                    (Engine.cleanup eng) -1)
                               (Result.Success bg)
-                                (let [pool (JobSystem.create-pool 4)
-                                      voxel-data (Array.allocate (* 64 (* 64 (* 64 4))))
+                                (let [voxel-data (Array.allocate (* 64 (* 64 (* 64 4))))
                                       p-data (Array.unsafe-raw &voxel-data)
-                                      z-indices (Array.allocate 64)
-                                      
                                       ;; Camera and loop trackers
                                       cam (Camera.create (Vector3.init 32.0 32.0 -40.0))
                                       last-time (GLFW.get-time)
@@ -240,32 +237,27 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                                       last-y 360.0
                                       uniforms (Array.allocate 20)]
                                   (do
-                                    ; 1. Generate voxel grid in parallel using threads
-                                    (for [i 0 64]
-                                      (Array.aset! &z-indices i i))
-                                    
-                                    (let [gen-slice (fn [p-z]
-                                                      (let [z @p-z]
-                                                        (for [y 0 64]
-                                                          (for [x 0 64]
-                                                            (let [idx (+ (* z 4096) (+ (* y 64) x))
-                                                                  dx (- (Float.from-int x) 32.0f)
-                                                                  dy (- (Float.from-int y) 32.0f)
-                                                                  dz (- (Float.from-int z) 32.0f)
-                                                                  dist (Float.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))
-                                                                  
-                                                                  ;; Generate a shell of sphere voxels
-                                                                  density (if (and (< dist 22.0f) (> dist 18.0f)) 1.0f 0.0f)
-                                                                  r (/ (Float.from-int x) 64.0f)
-                                                                  g (/ (Float.from-int y) 64.0f)
-                                                                  b (/ (Float.from-int z) 64.0f)
-                                                                  offset (* idx 4)]
-                                                              (do
-                                                                (Pointer.set (Pointer.add p-data (Long.from-int offset)) r)
-                                                                (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) g)
-                                                                (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) b)
-                                                                (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) density)))))))]
-                                      (Par.for-each! pool &z-indices &gen-slice))
+                                    ; 1. Generate voxel grid sequentially
+                                    (for [z 0 64]
+                                      (for [y 0 64]
+                                        (for [x 0 64]
+                                          (let [idx (+ (* z 4096) (+ (* y 64) x))
+                                                dx (- (Float.from-int x) 32.0f)
+                                                dy (- (Float.from-int y) 32.0f)
+                                                dz (- (Float.from-int z) 32.0f)
+                                                dist (Float.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))
+                                                
+                                                ;; Generate a shell of sphere voxels
+                                                density (if (and (< dist 22.0f) (> dist 18.0f)) 1.0f 0.0f)
+                                                r (/ (Float.from-int x) 64.0f)
+                                                g (/ (Float.from-int y) 64.0f)
+                                                b (/ (Float.from-int z) 64.0f)
+                                                offset (* idx 4)]
+                                            (do
+                                              (Pointer.set (Pointer.add p-data (Long.from-int offset)) r)
+                                              (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) g)
+                                              (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) b)
+                                              (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) density))))))
                                     
                                     ; 2. Upload voxel texture data to GPU
                                     (WGPURender.update-3d-texture-subregion-floats ctx voxel-tex 0 0 0 64 64 64 &voxel-data)
@@ -333,11 +325,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                                           (emscripten-sleep 16))))
                                     
                                     ; 4. Shutdown & Cleanups
-                                    (JobSystem.destroy-pool pool)
                                     (Engine.free-bind-group bg)
                                     (Engine.free-pipeline pipe)
                                     (Engine.free-uniform-buffer ub)
                                     (WGPURender.free-sampler voxel-sampler)
                                     (WGPURender.free-render-texture voxel-tex)
                                     (Engine.cleanup eng)
-                                    0))))))))))))
+                                     0))))))))))))
