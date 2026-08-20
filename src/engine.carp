@@ -15,6 +15,8 @@
   vel-y Double
   on-ground Bool
   flying Bool
+  current-mat Float
+  edit-radius Double
 ])
 
 (defmodule EngineState
@@ -39,7 +41,7 @@
                       (Renderer.update-chunk-texture &platform-eng &ren @(Chunk.coord-x chunk) @(Chunk.coord-y chunk) @(Chunk.coord-z chunk) (Chunk.voxel-data chunk)))))
                 (Camera.update-basis! &cam)
                 
-                (Result.Success (EngineState.init platform-eng ren world cam uniforms diag 0 0.0 false true)))))))
+                (Result.Success (EngineState.init platform-eng ren world cam uniforms diag 0 0.0 false true 2.0f 3.0)))))))
 
   (defn draw-bounds-wireframe! [ren min-x min-y min-z max-x max-y max-z color]
     (let [w0 (Vector3.init min-x min-y min-z)
@@ -115,11 +117,28 @@
         (Diagnostics.start-zone! diag "Total Frame Time")
         
         (Diagnostics.start-zone! diag "Input & Camera")
-        ; Toggle flying mode with key F
+        ; Keyboard and toggle inputs
         (let [curr-frame @(EngineState.frame-count state)]
-          (when (and (= (GLFW.get-key win GLFW.Keycode.F) GLFW.PRESS) (= (Int.mod curr-frame 20) 0))
-            (let [p-flying (ref-to-ptr (EngineState.flying state))]
-              (Pointer.set p-flying (not (Pointer.to-value p-flying))))))
+          (do
+            (when (and (= (GLFW.get-key win GLFW.Keycode.F) GLFW.PRESS) (= (Int.mod curr-frame 20) 0))
+              (let [p-flying (ref-to-ptr (EngineState.flying state))]
+                (Pointer.set p-flying (not (Pointer.to-value p-flying)))))
+            
+            (when (and (= (GLFW.get-key win GLFW.Keycode.K) GLFW.PRESS) (= (Int.mod curr-frame 20) 0))
+              (let [p-mat (ref-to-ptr (EngineState.current-mat state))
+                    curr-mat (Pointer.to-value p-mat)]
+                (if (= curr-mat 1.0f)
+                    (Pointer.set p-mat 2.0f)
+                    (if (= curr-mat 2.0f)
+                        (Pointer.set p-mat 3.0f)
+                        (Pointer.set p-mat 1.0f)))))
+            
+            (when (= (GLFW.get-key win GLFW.Keycode.NUM_1) GLFW.PRESS)
+              (Pointer.set (ref-to-ptr (EngineState.edit-radius state)) 1.5))
+            (when (= (GLFW.get-key win GLFW.Keycode.NUM_2) GLFW.PRESS)
+              (Pointer.set (ref-to-ptr (EngineState.edit-radius state)) 3.0))
+            (when (= (GLFW.get-key win GLFW.Keycode.NUM_3) GLFW.PRESS)
+              (Pointer.set (ref-to-ptr (EngineState.edit-radius state)) 6.0))))
 
         ; Apply gravity & jump in walking mode
         (when (not @(EngineState.flying state))
@@ -168,8 +187,8 @@
                 (let [left-pressed (= (GLFW.get-mouse-button win 0) GLFW.PRESS)
                       right-pressed (= (GLFW.get-mouse-button win 1) GLFW.PRESS)]
                   (when (or left-pressed right-pressed)
-                    (let [radius 3.0
-                          mat-id 2.0f
+                    (let [radius @(EngineState.edit-radius state)
+                          mat-id @(EngineState.current-mat state)
                           carve? left-pressed
                           modified-coords (World.edit-sdf! world &hit-pos radius mat-id carve?)]
                       (do
