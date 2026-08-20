@@ -1,0 +1,57 @@
+(load "scaffold.carp")
+(load "camera.carp")
+(load "world.carp")
+(load "renderer.carp")
+
+(deftype EngineState [
+  eng Engine
+  renderer Renderer
+  world World
+  camera Camera
+  uniforms (Array Float)
+])
+
+(defmodule EngineState
+  (defn create [title width height]
+    (match (Engine.create title width height)
+      (Result.Error e) (Result.Error (str* "Engine platform failed: " e))
+      (Result.Success platform-eng)
+        (match (Renderer.create &platform-eng)
+          (Result.Error e) (do (Engine.cleanup platform-eng)
+                               (Result.Error (str* "Renderer failed: " e)))
+          (Result.Success ren)
+            (let [world (World.create)
+                  cam (Camera.create (Vector3.init 16.0 16.0 -20.0))
+                  uniforms (Array.allocate 20)
+                  first-chunk (Array.unsafe-nth (World.chunks &world) 0)]
+              (do
+                ; Upload initial voxel data
+                (Renderer.update-texture &platform-eng &ren (Chunk.voxel-data first-chunk))
+                (Camera.update-vectors &cam)
+                
+                (Result.Success (EngineState.init platform-eng ren world cam uniforms)))))))
+
+  (defn tick [state win dt first-mouse-ptr last-x-ptr last-y-ptr]
+    (let [platform-eng (EngineState.eng state)
+          ren (EngineState.renderer state)
+          cam (EngineState.camera state)]
+      (do
+        ; Read inputs
+        (Camera.update-input win cam dt)
+        (Camera.update-look win cam first-mouse-ptr last-x-ptr last-y-ptr)
+        
+        ; Handle resizing
+        (Engine.handle-resize platform-eng)
+        
+        ; Render frame
+        (Renderer.update-uniforms platform-eng ren cam (EngineState.uniforms state))
+        (Renderer.draw platform-eng ren)
+        
+        ; Poll events
+        (Engine.poll-events platform-eng))))
+
+  (defn cleanup [state]
+    (do
+      (Renderer.cleanup (EngineState.eng state) (EngineState.renderer state))
+      (Engine.cleanup @(EngineState.eng state))))
+)

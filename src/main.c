@@ -56,6 +56,7 @@ typedef struct ByteOrder ByteOrder;
 typedef struct Camera Camera;
 typedef struct Chunk Chunk;
 typedef struct Engine Engine;
+typedef struct EngineState EngineState;
 typedef struct Maybe__Long Maybe__Long;
 typedef struct Maybe__String Maybe__String;
 typedef struct Maybe__Uint16 Maybe__Uint16;
@@ -79,6 +80,7 @@ typedef struct Result__Array__Uint16_int Result__Array__Uint16_int;
 typedef struct Result__Array__Uint32_int Result__Array__Uint32_int;
 typedef struct Result__Array__Uint64_int Result__Array__Uint64_int;
 typedef struct Result__Char_String Result__Char_String;
+typedef struct Result__EngineState_String Result__EngineState_String;
 typedef struct Result__Engine_String Result__Engine_String;
 typedef struct Result__FILE_MUL__String Result__FILE_MUL__String;
 typedef struct Result__Renderer_String Result__Renderer_String;
@@ -924,6 +926,9 @@ typedef Array__Char(*Fn__int_Fn___Char_MUL__Array__Char)(int, Lambda*);
 typedef Array__float(*Fn__int_float_MUL__Array__float)(int, float*);
 
 // Depth 8
+typedef Camera(*Fn__Camera_Camera)(Camera);
+
+// Depth 8
 typedef String(*Fn__Camera_MUL__String)(Camera*);
 
 // Depth 8
@@ -1006,6 +1011,9 @@ typedef Array__Chunk*(*Fn__World_MUL__Array__Chunk_MUL_)(World*);
 
 // Depth 14
 typedef String(*Fn__World_MUL__String)(World*);
+
+// Depth 14
+typedef World(*Fn__World_World)(World);
 
 // Depth 14
 typedef World(*Fn___World)();
@@ -2037,6 +2045,15 @@ struct Result__Renderer_String {
 #define Result__Renderer_String_Success_tag 0
 #define Result__Renderer_String_Error_tag 1
 
+// Depth 105
+struct EngineState {
+    Engine eng;
+    Renderer renderer;
+    World world;
+    Camera camera;
+    Array__float uniforms;
+};
+
 // Depth 106
 struct Result__Array__Uint16_int {
     union {
@@ -2113,6 +2130,12 @@ typedef Maybe__Uint32(*Fn__ByteOrder_Array__uint8_t_MUL__Maybe__Uint32)(ByteOrde
 typedef Maybe__Uint64(*Fn__ByteOrder_Array__uint8_t_MUL__Maybe__Uint64)(ByteOrder, Array__uint8_t*);
 
 // Depth 106
+typedef Engine(*Fn__Engine_Engine)(Engine);
+
+// Depth 106
+typedef Engine(*Fn__Engine_MUL__Engine)(Engine*);
+
+// Depth 106
 typedef GLFWwindow**(*Fn__Engine_MUL__GLFWwindow_MUL__MUL_)(Engine*);
 
 // Depth 106
@@ -2186,6 +2209,9 @@ typedef WGPUSampler*(*Fn__Renderer_MUL__WGPUSampler_MUL_)(Renderer*);
 
 // Depth 106
 typedef WGPUUniformBufferWrapper**(*Fn__Renderer_MUL__WGPUUniformBufferWrapper_MUL__MUL_)(Renderer*);
+
+// Depth 106
+typedef Renderer(*Fn__Renderer_Renderer)(Renderer);
 
 // Depth 106
 typedef FILE*(*Fn__Result__FILE_MUL__String_FILE_MUL_)(Result__FILE_MUL__String);
@@ -2431,6 +2457,22 @@ struct Pair__Array__Uint64_int {
 };
 
 // Depth 107
+struct Result__EngineState_String {
+    union {
+    struct {
+        EngineState member0;
+    } Success;
+    struct {
+        String member0;
+    } Error;
+    char __dummy;
+    } u;
+    char _tag;
+};
+#define Result__EngineState_String_Success_tag 0
+#define Result__EngineState_String_Error_tag 1
+
+// Depth 107
 typedef Array__Uint16(*Fn__Array__Uint16_MUL__Array__Uint16)(Array__Uint16*);
 
 // Depth 107
@@ -2518,7 +2560,31 @@ typedef Array__Uint32(*Fn__int_Array__Uint32)(int);
 typedef Array__Uint64(*Fn__int_Array__Uint64)(int);
 
 // Depth 108
+typedef Array__float*(*Fn__EngineState_MUL__Array__float_MUL_)(EngineState*);
+
+// Depth 108
+typedef Camera*(*Fn__EngineState_MUL__Camera_MUL_)(EngineState*);
+
+// Depth 108
+typedef Engine*(*Fn__EngineState_MUL__Engine_MUL_)(EngineState*);
+
+// Depth 108
+typedef void(*Fn__EngineState_MUL__GLFWwindow_MUL__double_bool_MUL__double_MUL__double_MUL__void)(EngineState*, GLFWwindow*, double, bool*, double*, double*);
+
+// Depth 108
+typedef Renderer*(*Fn__EngineState_MUL__Renderer_MUL_)(EngineState*);
+
+// Depth 108
+typedef String(*Fn__EngineState_MUL__String)(EngineState*);
+
+// Depth 108
+typedef void(*Fn__EngineState_MUL__void)(EngineState*);
+
+// Depth 108
 typedef Result__Renderer_String(*Fn__Engine_MUL__Result__Renderer_String)(Engine*);
+
+// Depth 108
+typedef EngineState(*Fn__Engine_Renderer_World_Camera_Array__float_EngineState)(Engine, Renderer, World, Camera, Array__float);
 
 // Depth 108
 typedef Result__Engine_String(*Fn__Engine_Result__Engine_String)(Engine);
@@ -2688,6 +2754,15 @@ typedef Result__Array__Uint32_int(*Fn__int_Result__Array__Uint32_int)(int);
 // Depth 109
 typedef Result__Array__Uint64_int(*Fn__int_Result__Array__Uint64_int)(int);
 
+// Depth 110
+typedef Result__EngineState_String(*Fn__EngineState_Result__EngineState_String)(EngineState);
+
+// Depth 110
+typedef Result__EngineState_String(*Fn__String_MUL__int_int_Result__EngineState_String)(String*, int, int);
+
+// Depth 110
+typedef Result__EngineState_String(*Fn__String_Result__EngineState_String)(String);
+
 // Depth 504
 struct Pattern__Lambda_global_MINUS_match_MINUS_str_16_env_ty {
     String* data;
@@ -2739,10 +2814,19 @@ typedef Array__Chunk(*Fn__LambdaEnv_Array__Chunk_Array__Chunk)(LambdaEnv, Array_
 typedef Array__float(*Fn__LambdaEnv_Array__float_Array__float)(LambdaEnv, Array__float);
 
 // Depth 505
+typedef Camera(*Fn__LambdaEnv_Camera_Camera)(LambdaEnv, Camera);
+
+// Depth 505
+typedef Engine(*Fn__LambdaEnv_Engine_Engine)(LambdaEnv, Engine);
+
+// Depth 505
 typedef GLFWwindow*(*Fn__LambdaEnv_GLFWwindow_MUL__GLFWwindow_MUL_)(LambdaEnv, GLFWwindow*);
 
 // Depth 505
 typedef JobHandle*(*Fn__LambdaEnv_JobHandle_MUL__JobHandle_MUL_)(LambdaEnv, JobHandle*);
+
+// Depth 505
+typedef Renderer(*Fn__LambdaEnv_Renderer_Renderer)(LambdaEnv, Renderer);
 
 // Depth 505
 typedef bool(*Fn__LambdaEnv_Result__Uint16_Array__uint8_t_MUL__bool)(LambdaEnv, Result__Uint16_Array__uint8_t*);
@@ -2779,6 +2863,9 @@ typedef WGPUSampler(*Fn__LambdaEnv_WGPUSampler_WGPUSampler)(LambdaEnv, WGPUSampl
 
 // Depth 505
 typedef WGPUUniformBufferWrapper*(*Fn__LambdaEnv_WGPUUniformBufferWrapper_MUL__WGPUUniformBufferWrapper_MUL_)(LambdaEnv, WGPUUniformBufferWrapper*);
+
+// Depth 505
+typedef World(*Fn__LambdaEnv_World_World)(LambdaEnv, World);
 
 // Depth 505
 typedef double(*Fn__LambdaEnv_double_double)(LambdaEnv, double);
@@ -4110,6 +4197,92 @@ GLFWwindow** Engine_win(Engine* p);
 // Depth 1000
 
 // Depth 500
+Camera* EngineState_camera(EngineState* p);
+
+// Depth 500
+void EngineState_cleanup(EngineState* state);
+
+// Depth 500
+EngineState EngineState_copy(EngineState* pRef);
+
+// Depth 500
+Result__EngineState_String EngineState_create(String* title, int width, int height);
+
+// Depth 500
+void EngineState_delete(EngineState p);
+
+// Depth 500
+Engine* EngineState_eng(EngineState* p);
+
+// Depth 500
+EngineState EngineState_init(Engine eng, Renderer renderer, World world, Camera camera, Array__float uniforms);
+
+// Depth 500
+String EngineState_prn(EngineState *p);
+
+// Depth 500
+Renderer* EngineState_renderer(EngineState* p);
+
+// Depth 500
+EngineState EngineState_set_MINUS_camera(EngineState p, Camera newValue);
+
+// Depth 500
+void EngineState_set_MINUS_camera_BANG_(EngineState* pRef, Camera newValue);
+
+// Depth 500
+EngineState EngineState_set_MINUS_eng(EngineState p, Engine newValue);
+
+// Depth 500
+void EngineState_set_MINUS_eng_BANG_(EngineState* pRef, Engine newValue);
+
+// Depth 500
+EngineState EngineState_set_MINUS_renderer(EngineState p, Renderer newValue);
+
+// Depth 500
+void EngineState_set_MINUS_renderer_BANG_(EngineState* pRef, Renderer newValue);
+
+// Depth 500
+EngineState EngineState_set_MINUS_uniforms(EngineState p, Array__float newValue);
+
+// Depth 500
+void EngineState_set_MINUS_uniforms_BANG_(EngineState* pRef, Array__float newValue);
+
+// Depth 500
+EngineState EngineState_set_MINUS_world(EngineState p, World newValue);
+
+// Depth 500
+void EngineState_set_MINUS_world_BANG_(EngineState* pRef, World newValue);
+
+// Depth 500
+String EngineState_str(EngineState *p);
+
+// Depth 500
+void EngineState_tick(EngineState* state, GLFWwindow* win, double dt, bool* first_MINUS_mouse_MINUS_ptr, double* last_MINUS_x_MINUS_ptr, double* last_MINUS_y_MINUS_ptr);
+
+// Depth 500
+Array__float* EngineState_uniforms(EngineState* p);
+
+// Depth 500
+EngineState EngineState_update_MINUS_camera(EngineState p, Lambda *updater);
+
+// Depth 500
+EngineState EngineState_update_MINUS_eng(EngineState p, Lambda *updater);
+
+// Depth 500
+EngineState EngineState_update_MINUS_renderer(EngineState p, Lambda *updater);
+
+// Depth 500
+EngineState EngineState_update_MINUS_uniforms(EngineState p, Lambda *updater);
+
+// Depth 500
+EngineState EngineState_update_MINUS_world(EngineState p, Lambda *updater);
+
+// Depth 500
+World* EngineState_world(EngineState* p);
+
+// Depth 1000
+
+// Depth 500
 float Float_add_MINUS_ref(float* x, float* y);
 
 // Depth 500
@@ -5055,6 +5228,9 @@ Result__Char_String Result_Error__String_Char(String member0);
 Result__Engine_String Result_Error__String_Engine(String member0);
 
 // Depth 500
+Result__EngineState_String Result_Error__String_EngineState(String member0);
+
+// Depth 500
 Result__FILE_MUL__String Result_Error__String_FILE_MUL_(String member0);
 
 // Depth 500
@@ -5128,6 +5304,9 @@ Result__Array__Uint64_int Result_Success__Array__Uint64_int(Array__Uint64 member
 
 // Depth 500
 Result__Char_String Result_Success__Char_String(Char member0);
+
+// Depth 500
+Result__EngineState_String Result_Success__EngineState_String(EngineState member0);
 
 // Depth 500
 Result__Engine_String Result_Success__Engine_String(Engine member0);
@@ -5215,6 +5394,9 @@ void Result_delete__Array__Uint64_int(Result__Array__Uint64_int p);
 
 // Depth 500
 void Result_delete__Char_String(Result__Char_String p);
+
+// Depth 500
+void Result_delete__EngineState_String(Result__EngineState_String p);
 
 // Depth 500
 void Result_delete__Engine_String(Result__Engine_String p);
@@ -12251,6 +12433,375 @@ int* Engine_width(Engine* p) { return (&(p->width)); }
 
 GLFWwindow** Engine_win(Engine* p) { return (&(p->win)); }
 
+Camera* EngineState_camera(EngineState* p) { return (&(p->camera)); }
+
+void EngineState_cleanup(EngineState* state) {
+    Engine* _8 = EngineState_eng(state);
+    Renderer* _11 = EngineState_renderer(state);
+    Renderer_cleanup__Engine_MUL_(_8, _11);
+    Engine* _17 = EngineState_eng(state);
+    Engine _18 = Engine_copy(_17);
+    Engine_cleanup(_18);
+}
+
+EngineState EngineState_copy(EngineState* pRef) {
+    EngineState copy = *pRef;
+    copy.eng = Engine_copy(&(pRef->eng));
+    copy.renderer = Renderer_copy(&(pRef->renderer));
+    copy.world = World_copy(&(pRef->world));
+    copy.camera = Camera_copy(&(pRef->camera));
+    copy.uniforms = Array_copy__float(&(pRef->uniforms));
+    return copy;
+}
+
+Result__EngineState_String EngineState_create(String* title, int width, int height) {
+    Result__Engine_String _11 = Engine_create(title, width, height);
+    Result__EngineState_String _126;
+    if(_11._tag == Result__Engine_String_Error_tag) {
+        Result__Engine_String _11_temp = _11;
+        String e = _11_temp.u.Error.member0;
+        // Case expr:
+        static String _21 = "Engine platform failed: ";
+        String *_21_ref = &_21;
+        String _1000007 = String_str(_21_ref);
+        String* _1000006 = &_1000007; // ref
+        String _1000009 = StringCopy_str(e);
+        String* _1000008 = &_1000009; // ref
+        String _1000005 = String_append(_1000006, _1000008);
+        String* _1000004 = &_1000005; // ref
+        String _1000003 = String_copy(_1000004);
+        Result__EngineState_String _32 = Result_Error__String_EngineState(_1000003);
+        _126 = _32;
+        String_delete(_1000005);
+        String_delete(_1000007);
+        String_delete(_1000009);
+    }
+    else if(_11._tag == Result__Engine_String_Success_tag) {
+        Result__Engine_String _11_temp = _11;
+        Engine platform_MINUS_eng = _11_temp.u.Success.member0;
+        // Case expr:
+        Engine* _40 = &platform_MINUS_eng; // ref
+        Result__Renderer_String _41 = Renderer_create(_40);
+        Result__EngineState_String _125;
+        if(_41._tag == Result__Renderer_String_Error_tag) {
+            Result__Renderer_String _41_temp = _41;
+            String e = _41_temp.u.Error.member0;
+            // Case expr:
+            Engine_cleanup(platform_MINUS_eng);
+            static String _55 = "Renderer failed: ";
+            String *_55_ref = &_55;
+            String _1000016 = String_str(_55_ref);
+            String* _1000015 = &_1000016; // ref
+            String _1000018 = StringCopy_str(e);
+            String* _1000017 = &_1000018; // ref
+            String _1000014 = String_append(_1000015, _1000017);
+            String* _1000013 = &_1000014; // ref
+            String _1000012 = String_copy(_1000013);
+            Result__EngineState_String _66 = Result_Error__String_EngineState(_1000012);
+            Result__EngineState_String _67 = _66;
+            _125 = _67;
+            String_delete(_1000014);
+            String_delete(_1000016);
+            String_delete(_1000018);
+        }
+        else if(_41._tag == Result__Renderer_String_Success_tag) {
+            Result__Renderer_String _41_temp = _41;
+            Renderer ren = _41_temp.u.Success.member0;
+            // Case expr:
+            Result__EngineState_String _124;
+            /* let */ {
+                World _74 = World_create();
+                World world = _74;
+                Vector3__double _81 = Vector3_init__double(16.0, 16.0, -20.0);
+                Camera _82 = Camera_create(_81);
+                Camera cam = _82;
+                Array__float _86 = Array_allocate__float(20);
+                Array__float uniforms = _86;
+                World* _92 = &world; // ref
+                Array__Chunk* _93 = World_chunks(_92);
+                Chunk* _95 = Array_unsafe_MINUS_nth__Chunk(_93, 0);
+                Chunk* first_MINUS_chunk = _95;
+                Engine* _101 = &platform_MINUS_eng; // ref
+                Renderer* _104 = &ren; // ref
+                Array__float* _107 = Chunk_voxel_MINUS_data(first_MINUS_chunk);
+                Renderer_update_MINUS_texture(_101, _104, _107);
+                Camera* _112 = &cam; // ref
+                Camera_update_MINUS_vectors(_112);
+                EngineState _121 = EngineState_init(platform_MINUS_eng, ren, world, cam, uniforms);
+                Result__EngineState_String _122 = Result_Success__EngineState_String(_121);
+                Result__EngineState_String _123 = _122;
+                _124 = _123;
+            }
+            _125 = _124;
+        }
+        else UNHANDLED("engine.carp", 19);
+        _126 = _125;
+    }
+    else UNHANDLED("engine.carp", 16);
+    return _126;
+}
+
+void EngineState_delete(EngineState p) {
+    Engine_delete(p.eng);
+    Renderer_delete(p.renderer);
+    World_delete(p.world);
+    Camera_delete(p.camera);
+    Array_delete__float(p.uniforms);
+}
+
+Engine* EngineState_eng(EngineState* p) { return (&(p->eng)); }
+
+EngineState EngineState_init(Engine eng, Renderer renderer, World world, Camera camera, Array__float uniforms) {
+    EngineState instance;
+    instance.eng = eng;
+    instance.renderer = renderer;
+    instance.world = world;
+    instance.camera = camera;
+    instance.uniforms = uniforms;
+    return instance;
+}
+
+String EngineState_prn(EngineState *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "EngineState");
+  temp = Engine_prn(&p->eng); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Renderer_prn(&p->renderer); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = World_prn(&p->world); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Camera_prn(&p->camera); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__float(&p->uniforms); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "EngineState");
+  temp = Engine_prn(&p->eng);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Renderer_prn(&p->renderer);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = World_prn(&p->world);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Camera_prn(&p->camera);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__float(&p->uniforms);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+Renderer* EngineState_renderer(EngineState* p) { return (&(p->renderer)); }
+
+EngineState EngineState_set_MINUS_camera(EngineState p, Camera newValue) {
+    Camera_delete(p.camera);
+    p.camera = newValue;
+    return p;
+}
+
+
+void EngineState_set_MINUS_camera_BANG_(EngineState* pRef, Camera newValue) {
+    Camera_delete(pRef->camera);
+    pRef->camera = newValue;
+}
+
+
+EngineState EngineState_set_MINUS_eng(EngineState p, Engine newValue) {
+    Engine_delete(p.eng);
+    p.eng = newValue;
+    return p;
+}
+
+
+void EngineState_set_MINUS_eng_BANG_(EngineState* pRef, Engine newValue) {
+    Engine_delete(pRef->eng);
+    pRef->eng = newValue;
+}
+
+
+EngineState EngineState_set_MINUS_renderer(EngineState p, Renderer newValue) {
+    Renderer_delete(p.renderer);
+    p.renderer = newValue;
+    return p;
+}
+
+
+void EngineState_set_MINUS_renderer_BANG_(EngineState* pRef, Renderer newValue) {
+    Renderer_delete(pRef->renderer);
+    pRef->renderer = newValue;
+}
+
+
+EngineState EngineState_set_MINUS_uniforms(EngineState p, Array__float newValue) {
+    Array_delete__float(p.uniforms);
+    p.uniforms = newValue;
+    return p;
+}
+
+
+void EngineState_set_MINUS_uniforms_BANG_(EngineState* pRef, Array__float newValue) {
+    Array_delete__float(pRef->uniforms);
+    pRef->uniforms = newValue;
+}
+
+
+EngineState EngineState_set_MINUS_world(EngineState p, World newValue) {
+    World_delete(p.world);
+    p.world = newValue;
+    return p;
+}
+
+
+void EngineState_set_MINUS_world_BANG_(EngineState* pRef, World newValue) {
+    World_delete(pRef->world);
+    pRef->world = newValue;
+}
+
+
+String EngineState_str(EngineState *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "EngineState");
+  temp = Engine_prn(&p->eng); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Renderer_prn(&p->renderer); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = World_prn(&p->world); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Camera_prn(&p->camera); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__float(&p->uniforms); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "EngineState");
+  temp = Engine_prn(&p->eng);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Renderer_prn(&p->renderer);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = World_prn(&p->world);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Camera_prn(&p->camera);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__float(&p->uniforms);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+void EngineState_tick(EngineState* state, GLFWwindow* win, double dt, bool* first_MINUS_mouse_MINUS_ptr, double* last_MINUS_x_MINUS_ptr, double* last_MINUS_y_MINUS_ptr) {
+    /* let */ {
+        Engine* _13 = EngineState_eng(state);
+        Engine* platform_MINUS_eng = _13;
+        Renderer* _17 = EngineState_renderer(state);
+        Renderer* ren = _17;
+        Camera* _21 = EngineState_camera(state);
+        Camera* cam = _21;
+        Camera_update_MINUS_input(win, cam, dt);
+        Camera_update_MINUS_look(win, cam, first_MINUS_mouse_MINUS_ptr, last_MINUS_x_MINUS_ptr, last_MINUS_y_MINUS_ptr);
+        Engine_handle_MINUS_resize(platform_MINUS_eng);
+        Array__float* _45 = EngineState_uniforms(state);
+        Renderer_update_MINUS_uniforms(platform_MINUS_eng, ren, cam, _45);
+        Renderer_draw(platform_MINUS_eng, ren);
+        Engine_poll_MINUS_events__Engine_MUL_(platform_MINUS_eng);
+    }
+}
+
+Array__float* EngineState_uniforms(EngineState* p) { return (&(p->uniforms)); }
+
+EngineState EngineState_update_MINUS_camera(EngineState p, Lambda *updater) {
+    p.camera = (*updater).env ? ((Fn__LambdaEnv_Camera_Camera)(*updater).callback)((*updater).env, p.camera) : ((Fn__Camera_Camera)(*updater).callback)(p.camera);
+    return p;
+}
+
+
+EngineState EngineState_update_MINUS_eng(EngineState p, Lambda *updater) {
+    p.eng = (*updater).env ? ((Fn__LambdaEnv_Engine_Engine)(*updater).callback)((*updater).env, p.eng) : ((Fn__Engine_Engine)(*updater).callback)(p.eng);
+    return p;
+}
+
+
+EngineState EngineState_update_MINUS_renderer(EngineState p, Lambda *updater) {
+    p.renderer = (*updater).env ? ((Fn__LambdaEnv_Renderer_Renderer)(*updater).callback)((*updater).env, p.renderer) : ((Fn__Renderer_Renderer)(*updater).callback)(p.renderer);
+    return p;
+}
+
+
+EngineState EngineState_update_MINUS_uniforms(EngineState p, Lambda *updater) {
+    p.uniforms = (*updater).env ? ((Fn__LambdaEnv_Array__float_Array__float)(*updater).callback)((*updater).env, p.uniforms) : ((Fn__Array__float_Array__float)(*updater).callback)(p.uniforms);
+    return p;
+}
+
+
+EngineState EngineState_update_MINUS_world(EngineState p, Lambda *updater) {
+    p.world = (*updater).env ? ((Fn__LambdaEnv_World_World)(*updater).callback)((*updater).env, p.world) : ((Fn__World_World)(*updater).callback)(p.world);
+    return p;
+}
+
+
+World* EngineState_world(EngineState* p) { return (&(p->world)); }
+
 float Float_add_MINUS_ref(float* x, float* y) {
     float _8 = Float_copy(x);
     float _11 = Float_copy(y);
@@ -15280,6 +15831,13 @@ Result__Engine_String Result_Error__String_Engine(String member0) {
     return instance;
 }
 
+Result__EngineState_String Result_Error__String_EngineState(String member0) {
+  Result__EngineState_String instance;
+    instance.u.Error.member0 = member0;
+    instance._tag = Result__EngineState_String_Error_tag;
+    return instance;
+}
+
 Result__FILE_MUL__String Result_Error__String_FILE_MUL_(String member0) {
   Result__FILE_MUL__String instance;
     instance.u.Error.member0 = member0;
@@ -15452,6 +16010,13 @@ Result__Char_String Result_Success__Char_String(Char member0) {
   Result__Char_String instance;
     instance.u.Success.member0 = member0;
     instance._tag = Result__Char_String_Success_tag;
+    return instance;
+}
+
+Result__EngineState_String Result_Success__EngineState_String(EngineState member0) {
+  Result__EngineState_String instance;
+    instance.u.Success.member0 = member0;
+    instance._tag = Result__EngineState_String_Success_tag;
     return instance;
 }
 
@@ -15683,6 +16248,16 @@ void Result_delete__Char_String(Result__Char_String p) {
     /* Ignore non-managed member 'u.Success.member0' : Char */
   }
   else if(p._tag == Result__Char_String_Error_tag) {
+    String_delete(p.u.Error.member0);
+  }
+
+}
+
+void Result_delete__EngineState_String(Result__EngineState_String p) {
+  if(p._tag == Result__EngineState_String_Success_tag) {
+    EngineState_delete(p.u.Success.member0);
+  }
+  else if(p._tag == Result__EngineState_String_Error_tag) {
     String_delete(p.u.Error.member0);
   }
 
@@ -18672,16 +19247,16 @@ int id__int(int x) {
 
 int main(int argc, char** argv) {
     carp_init_globals(argc, argv);
-    int _252;
+    int _128;
     /* let */ {
         int win_MINUS_width = 1280;
         int win_MINUS_height = 720;
         static String _11 = "Carp WebGPU WASM Voxel Scaffold";
         String *_11_ref = &_11;
-        Result__Engine_String _14 = Engine_create(_11_ref, win_MINUS_width, win_MINUS_height);
-        int _251;
-        if(_14._tag == Result__Engine_String_Error_tag) {
-            Result__Engine_String _14_temp = _14;
+        Result__EngineState_String _14 = EngineState_create(_11_ref, win_MINUS_width, win_MINUS_height);
+        int _127;
+        if(_14._tag == Result__EngineState_String_Error_tag) {
+            Result__EngineState_String _14_temp = _14;
             String e = _14_temp.u.Error.member0;
             // Case expr:
             static String _24 = "Engine failed: ";
@@ -18695,137 +19270,65 @@ int main(int argc, char** argv) {
             String* _1000006 = &_1000007; // ref
             IO_println(_1000006);
             int _38 = -1;
-            _251 = _38;
+            _127 = _38;
             String_delete(_1000007);
             String_delete(_1000009);
             String_delete(_1000011);
             String_delete(e);
         }
-        else if(_14._tag == Result__Engine_String_Success_tag) {
-            Result__Engine_String _14_temp = _14;
-            Engine eng = _14_temp.u.Success.member0;
+        else if(_14._tag == Result__EngineState_String_Success_tag) {
+            Result__EngineState_String _14_temp = _14;
+            EngineState state = _14_temp.u.Success.member0;
             // Case expr:
-            int _250;
+            int _126;
             /* let */ {
-                Engine* _48 = &eng; // ref
-                GLFWwindow** _49 = Engine_win(_48);
-                GLFWwindow* _50 = Pointer_copy__GLFWwindow(_49);
-                GLFWwindow* win = _50;
+                EngineState* _49 = &state; // ref
+                Engine* _50 = EngineState_eng(_49);
+                GLFWwindow** _51 = Engine_win(_50);
+                GLFWwindow* _52 = Pointer_copy__GLFWwindow(_51);
+                GLFWwindow* win = _52;
+                double _55 = glfwGetTime();
+                double last_MINUS_time = _55;
+                bool first_MINUS_mouse = true;
+                double last_MINUS_x = 640.0;
+                double last_MINUS_y = 360.0;
                 glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-                Engine* _62 = &eng; // ref
-                Result__Renderer_String _63 = Renderer_create(_62);
-                int _248;
-                if(_63._tag == Result__Renderer_String_Error_tag) {
-                    Result__Renderer_String _63_temp = _63;
-                    String e = _63_temp.u.Error.member0;
-                    // Case expr:
-                    static String _73 = "Renderer failed: ";
-                    String *_73_ref = &_73;
-                    String _1000020 = String_str(_73_ref);
-                    String* _1000019 = &_1000020; // ref
-                    String* _80 = &e; // ref
-                    String _1000022 = String_str(_80);
-                    String* _1000021 = &_1000022; // ref
-                    String _1000018 = String_append(_1000019, _1000021);
-                    String* _1000017 = &_1000018; // ref
-                    IO_println(_1000017);
-                    Engine_cleanup(eng);
-                    int _90 = -1;
-                    _248 = _90;
-                    String_delete(_1000018);
-                    String_delete(_1000020);
-                    String_delete(_1000022);
-                    String_delete(e);
-                }
-                else if(_63._tag == Result__Renderer_String_Success_tag) {
-                    Result__Renderer_String _63_temp = _63;
-                    Renderer ren = _63_temp.u.Success.member0;
-                    // Case expr:
-                    int _247;
+                int _73 = glfwWindowShouldClose(win);
+                bool _75 = Int__EQ_(_73, GLFW_FALSE);
+                bool _118 = _75;
+                while (_118) {
                     /* let */ {
-                        World _97 = World_create();
-                        World world = _97;
-                        World* _103 = &world; // ref
-                        Array__Chunk* _104 = World_chunks(_103);
-                        Chunk* _106 = Array_unsafe_MINUS_nth__Chunk(_104, 0);
-                        Chunk* first_MINUS_chunk = _106;
-                        Vector3__double _113 = Vector3_init__double(16.0, 16.0, -20.0);
-                        Camera _114 = Camera_create(_113);
-                        Camera cam = _114;
-                        double _117 = glfwGetTime();
-                        double last_MINUS_time = _117;
-                        bool first_MINUS_mouse = true;
-                        double last_MINUS_x = 640.0;
-                        double last_MINUS_y = 360.0;
-                        Array__float _127 = Array_allocate__float(20);
-                        Array__float uniforms = _127;
-                        Engine* _133 = &eng; // ref
-                        Renderer* _136 = &ren; // ref
-                        Array__float* _139 = Chunk_voxel_MINUS_data(first_MINUS_chunk);
-                        Renderer_update_MINUS_texture(_133, _136, _139);
-                        Camera* _144 = &cam; // ref
-                        Camera_update_MINUS_vectors(_144);
-                        int _150 = glfwWindowShouldClose(win);
-                        bool _152 = Int__EQ_(_150, GLFW_FALSE);
-                        bool _233 = _152;
-                        while (_233) {
-                            /* let */ {
-                                double _156 = glfwGetTime();
-                                double curr_MINUS_time = _156;
-                                double _161 = Double__MINUS_(curr_MINUS_time, last_MINUS_time);
-                                double dt = _161;
-                                last_MINUS_time = curr_MINUS_time;  // Double = Double
-                                Camera* _172 = &cam; // ref
-                                Camera_update_MINUS_input(win, _172, dt);
-                                Camera* _179 = &cam; // ref
-                                bool* _183 = &first_MINUS_mouse; // ref
-                                bool* _184 = ref_MINUS_to_MINUS_ptr__bool(_183);
-                                double* _188 = &last_MINUS_x; // ref
-                                double* _189 = ref_MINUS_to_MINUS_ptr__double(_188);
-                                double* _193 = &last_MINUS_y; // ref
-                                double* _194 = ref_MINUS_to_MINUS_ptr__double(_193);
-                                Camera_update_MINUS_look(win, _179, _184, _189, _194);
-                                Engine* _199 = &eng; // ref
-                                Engine_handle_MINUS_resize(_199);
-                                Engine* _204 = &eng; // ref
-                                Renderer* _207 = &ren; // ref
-                                Camera* _210 = &cam; // ref
-                                Array__float* _213 = &uniforms; // ref
-                                Renderer_update_MINUS_uniforms(_204, _207, _210, _213);
-                                Engine* _218 = &eng; // ref
-                                Renderer* _221 = &ren; // ref
-                                Renderer_draw(_218, _221);
-                                Engine* _226 = &eng; // ref
-                                Engine_poll_MINUS_events__Engine_MUL_(_226);
-                                emscripten_MINUS_sleep(16);
-                            }
-                            int _150 = glfwWindowShouldClose(win);
-                            bool _152 = Int__EQ_(_150, GLFW_FALSE);
-                            _233 = _152;
-                        }
-                        Engine* _237 = &eng; // ref
-                        Renderer* _240 = &ren; // ref
-                        Renderer_cleanup__Engine_MUL_(_237, _240);
-                        Engine_cleanup(eng);
-                        int _246 = 0;
-                        _247 = _246;
-                        Array_delete__float(uniforms);
-                        Camera_delete(cam);
-                        World_delete(world);
+                        double _79 = glfwGetTime();
+                        double curr_MINUS_time = _79;
+                        double _84 = Double__MINUS_(curr_MINUS_time, last_MINUS_time);
+                        double dt = _84;
+                        last_MINUS_time = curr_MINUS_time;  // Double = Double
+                        EngineState* _94 = &state; // ref
+                        bool* _100 = &first_MINUS_mouse; // ref
+                        bool* _101 = ref_MINUS_to_MINUS_ptr__bool(_100);
+                        double* _105 = &last_MINUS_x; // ref
+                        double* _106 = ref_MINUS_to_MINUS_ptr__double(_105);
+                        double* _110 = &last_MINUS_y; // ref
+                        double* _111 = ref_MINUS_to_MINUS_ptr__double(_110);
+                        EngineState_tick(_94, win, dt, _101, _106, _111);
+                        emscripten_MINUS_sleep(16);
                     }
-                    _248 = _247;
-                    Renderer_delete(ren);
+                    int _73 = glfwWindowShouldClose(win);
+                    bool _75 = Int__EQ_(_73, GLFW_FALSE);
+                    _118 = _75;
                 }
-                else UNHANDLED("main.carp", 24);
-                int _249 = _248;
-                _250 = _249;
+                EngineState* _122 = &state; // ref
+                EngineState_cleanup(_122);
+                int _125 = 0;
+                _126 = _125;
             }
-            _251 = _250;
+            _127 = _126;
+            EngineState_delete(state);
         }
-        else UNHANDLED("main.carp", 16);
-        _252 = _251;
+        else UNHANDLED("main.carp", 14);
+        _128 = _127;
     }
-    return _252;
+    return _128;
 }
 
 int max__int(int a, int b) {

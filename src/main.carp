@@ -3,63 +3,33 @@
 (load "camera.carp")
 (load "world.carp")
 (load "renderer.carp")
+(load "engine.carp")
 (load "../../carp-job-system/rayon.carp")
 (use Vector3)
 (use Double)
 
-
-
-
 (defn main []
   (let [win-width 1280
         win-height 720]
-    (match (Engine.create "Carp WebGPU WASM Voxel Scaffold" win-width win-height)
+    (match (EngineState.create "Carp WebGPU WASM Voxel Scaffold" win-width win-height)
       (Result.Error e) (do (println* "Engine failed: " &e) -1)
-      (Result.Success eng)
-        (let [win @(Engine.win &eng)]
+      (Result.Success state)
+        (let [win @(Engine.win (EngineState.eng &state))
+              last-time (GLFW.get-time)
+              first-mouse true
+              last-x 640.0
+              last-y 360.0]
           (do
             ; Enable camera capture (mouse lock)
             (GLFW.set-input-mode win GLFW.CURSOR GLFW.CURSOR_DISABLED)
             
-            (match (Renderer.create &eng)
-              (Result.Error e) (do (println* "Renderer failed: " &e) (Engine.cleanup eng) -1)
-              (Result.Success ren)
-                (let [world (World.create)
-                      first-chunk (Array.unsafe-nth (World.chunks &world) 0)
-                      ;; Camera and loop trackers
-                      cam (Camera.create (Vector3.init 16.0 16.0 -20.0))
-                      last-time (GLFW.get-time)
-                      first-mouse true
-                      last-x 640.0
-                      last-y 360.0
-                      uniforms (Array.allocate 20)]
-                  (do
-                    ; 1. Upload voxel texture data to GPU
-                    (Renderer.update-texture &eng &ren (Chunk.voxel-data first-chunk))
-                    (Camera.update-vectors &cam)
-                    
-                    ; 3. Main interactive loop
-                    (while (= (GLFW.window-should-close win) GLFW.FALSE)
-                      (let [curr-time (GLFW.get-time)
-                            dt (- curr-time last-time)]
-                        (do
-                          (set! last-time curr-time)
-                          
-                          ; Read input
-                          (Camera.update-input win &cam dt)
-                          (Camera.update-look win &cam (ref-to-ptr &first-mouse) (ref-to-ptr &last-x) (ref-to-ptr &last-y))
-                          
-                          ; Handle resizing
-                          (Engine.handle-resize &eng)
-                          
-                          ; Update uniforms and draw
-                          (Renderer.update-uniforms &eng &ren &cam &uniforms)
-                          (Renderer.draw &eng &ren)
-                          
-                          (Engine.poll-events &eng)
-                          (emscripten-sleep 16))))
-                    
-                    ; 4. Shutdown & Cleanups
-                    (Renderer.cleanup &eng &ren)
-                    (Engine.cleanup eng)
-                    0))))))))
+            (while (= (GLFW.window-should-close win) GLFW.FALSE)
+              (let [curr-time (GLFW.get-time)
+                    dt (- curr-time last-time)]
+                (do
+                  (set! last-time curr-time)
+                  (EngineState.tick &state win dt (ref-to-ptr &first-mouse) (ref-to-ptr &last-x) (ref-to-ptr &last-y))
+                  (emscripten-sleep 16))))
+            
+            (EngineState.cleanup &state)
+            0)))))
