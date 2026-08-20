@@ -24888,7 +24888,7 @@ Array__ChunkCoord World_edit_MINUS_sdf_BANG___float(World* world, Vector3__doubl
                                                         double _280 = Double__PLUS_(_275, _279);
                                                         double _281 = Double_sqrt(_280);
                                                         double dist_MINUS_to_MINUS_hit = _281;
-                                                        double _289 = Double__PLUS_(radius, 2.0);
+                                                        double _289 = Double__PLUS_(radius, 16.0);
                                                         bool _290 = Double__LT_(dist_MINUS_to_MINUS_hit, _289);
                                                         if (_290) {
                                                             /* let */ {

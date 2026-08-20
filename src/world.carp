@@ -141,7 +141,7 @@
                               vy (- gy hy)
                               vz (- gz hz)
                               dist-to-hit (Double.sqrt (+ (+ (* vx vx) (* vy vy)) (* vz vz)))]
-                          (when (< dist-to-hit (+ radius 2.0))
+                          (when (< dist-to-hit (+ radius 16.0))
                             (let [sphere-sdf (Double.to-float (- dist-to-hit radius))
                                   old-sdf (Pointer.to-value (Pointer.add p-data (Long.from-int (+ offset 1))))
                                   new-sdf (if carve?
