@@ -77,7 +77,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         var t = t_start;
         var hit = false;
         
-        for (var step = 0; step < 250; step = step + 1) {
+        for (var step = 0; step < 280; step = step + 1) {
+            if (t > t_far) {
+                break;
+            }
             let p = ro + rd * t;
             if (any(p < box_min) || any(p > box_max)) {
                 break;
@@ -98,7 +101,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 break;
             }
             
-            t = t + 0.15;
+            t = t + 0.4;
         }
     }
     
