@@ -41,6 +41,7 @@
 
 
 //Types:
+typedef struct ActiveTimer ActiveTimer;
 typedef struct Binary__Lambda_byte_MINUS_converter__ByteOrder_Array__uint8_t_Uint16_29_env_ty Binary__Lambda_byte_MINUS_converter__ByteOrder_Array__uint8_t_Uint16_29_env_ty;
 typedef struct Binary__Lambda_byte_MINUS_converter__ByteOrder_Array__uint8_t_Uint32_29_env_ty Binary__Lambda_byte_MINUS_converter__ByteOrder_Array__uint8_t_Uint32_29_env_ty;
 typedef struct Binary__Lambda_byte_MINUS_converter__ByteOrder_Array__uint8_t_Uint64_29_env_ty Binary__Lambda_byte_MINUS_converter__ByteOrder_Array__uint8_t_Uint64_29_env_ty;
@@ -55,8 +56,10 @@ typedef struct Binary__Lambda_unsafe_MINUS_bytes_MINUS__GT_int64_MINUS_seq_19_en
 typedef struct ByteOrder ByteOrder;
 typedef struct Camera Camera;
 typedef struct Chunk Chunk;
+typedef struct Diagnostics Diagnostics;
 typedef struct Engine Engine;
 typedef struct EngineState EngineState;
+typedef struct LogLevel LogLevel;
 typedef struct Maybe__Long Maybe__Long;
 typedef struct Maybe__String Maybe__String;
 typedef struct Maybe__Uint16 Maybe__Uint16;
@@ -109,6 +112,7 @@ typedef struct Vector3__Lambda_mul__double_13_env_ty Vector3__Lambda_mul__double
 typedef struct Vector3__bool Vector3__bool;
 typedef struct Vector3__double Vector3__double;
 typedef struct World World;
+typedef struct ZoneStats ZoneStats;
 
 
 // Depth 0
@@ -311,6 +315,9 @@ struct Vector3__double {
 };
 
 // Depth 4
+typedef Array Array__ActiveTimer;
+
+// Depth 4
 typedef Array Array__Array__uint8_t;
 
 // Depth 4
@@ -345,6 +352,9 @@ typedef Array Array__Uint64;
 
 // Depth 4
 typedef Array Array__WGPUBuffer;
+
+// Depth 4
+typedef Array Array__ZoneStats;
 
 // Depth 4
 typedef Array Array__float;
@@ -1031,6 +1041,24 @@ struct ByteOrder {
 #define ByteOrder_BigEndian_tag 1
 
 // Depth 101
+struct LogLevel {
+    union {
+    // Debug
+    // Info
+    // Warning
+    // Error
+    // Critical
+    char __dummy;
+    } u;
+    char _tag;
+};
+#define LogLevel_Debug_tag 0
+#define LogLevel_Info_tag 1
+#define LogLevel_Warning_tag 2
+#define LogLevel_Error_tag 3
+#define LogLevel_Critical_tag 4
+
+// Depth 101
 struct Opaque {
     union {
     char __dummy;
@@ -1397,6 +1425,12 @@ struct Result__WGPUVertexBufferWrapper_MUL__String {
 #define Result__WGPUVertexBufferWrapper_MUL__String_Error_tag 1
 
 // Depth 103
+struct ActiveTimer {
+    String name;
+    Uint64 start_MINUS_ns;
+};
+
+// Depth 103
 struct Binary__Lambda_int16_MINUS_seq_MINUS__GT_bytes_16_env_ty {
     ByteOrder order;
 };
@@ -1453,6 +1487,19 @@ struct Renderer {
     WGPUUniformBufferWrapper* uniform_MINUS_buffer;
     WGPURenderTexture* voxel_MINUS_texture;
     WGPUSampler voxel_MINUS_sampler;
+};
+
+// Depth 103
+struct ZoneStats {
+    String name;
+    int count;
+    Uint64 sum_MINUS_ns;
+    Uint64 min_MINUS_ns;
+    Uint64 max_MINUS_ns;
+    Uint64 last_MINUS_ns;
+    double sum_MINUS_ms;
+    double sum_MINUS_sq_MINUS_ms;
+    int spikes_MINUS_count;
 };
 
 // Depth 104
@@ -1606,6 +1653,12 @@ typedef bool(*Fn__JobHandle_MUL__bool)(JobHandle*);
 typedef void(*Fn__JobHandle_MUL__void)(JobHandle*);
 
 // Depth 104
+typedef String(*Fn__LogLevel_MUL__String)(LogLevel*);
+
+// Depth 104
+typedef String*(*Fn__LogLevel_String_MUL_)(LogLevel);
+
+// Depth 104
 typedef Int16(*Fn__Long_Int16)(Long);
 
 // Depth 104
@@ -1652,6 +1705,9 @@ typedef FILE*(*Fn__String_MUL__String_MUL__FILE_MUL_)(String*, String*);
 
 // Depth 104
 typedef int(*Fn__String_MUL__int_int_FILE_MUL__int)(String*, int, int, FILE*);
+
+// Depth 104
+typedef void(*Fn__String_MUL__int_int_FILE_MUL__void)(String*, int, int, FILE*);
 
 // Depth 104
 typedef void(*Fn__ThreadPool_MUL__Fn__void_MUL__void_void_MUL__JobHandle_MUL__void)(ThreadPool*, Lambda, void*, JobHandle*);
@@ -1712,6 +1768,9 @@ typedef uint8_t(*Fn__Uint64_MUL__uint8_t)(Uint64*);
 
 // Depth 104
 typedef String(*Fn__Uint64_String)(Uint64);
+
+// Depth 104
+typedef Uint64(*Fn__Uint64_Uint64)(Uint64);
 
 // Depth 104
 typedef Uint64(*Fn__Uint64_Uint64_Uint64)(Uint64, Uint64);
@@ -1969,6 +2028,9 @@ typedef bool(*Fn__WGPUVertexBufferWrapper_MUL__bool)(WGPUVertexBufferWrapper*);
 typedef ByteOrder(*Fn___ByteOrder)();
 
 // Depth 104
+typedef LogLevel(*Fn___LogLevel)();
+
+// Depth 104
 typedef Uint16(*Fn___Uint16)();
 
 // Depth 104
@@ -2045,15 +2107,6 @@ struct Result__Renderer_String {
 #define Result__Renderer_String_Success_tag 0
 #define Result__Renderer_String_Error_tag 1
 
-// Depth 105
-struct EngineState {
-    Engine eng;
-    Renderer renderer;
-    World world;
-    Camera camera;
-    Array__float uniforms;
-};
-
 // Depth 106
 struct Result__Array__Uint16_int {
     union {
@@ -2101,6 +2154,18 @@ struct Result__Array__Uint64_int {
 };
 #define Result__Array__Uint64_int_Success_tag 0
 #define Result__Array__Uint64_int_Error_tag 1
+
+// Depth 106
+typedef ActiveTimer(*Fn__ActiveTimer_MUL__ActiveTimer)(ActiveTimer*);
+
+// Depth 106
+typedef String(*Fn__ActiveTimer_MUL__String)(ActiveTimer*);
+
+// Depth 106
+typedef String*(*Fn__ActiveTimer_MUL__String_MUL_)(ActiveTimer*);
+
+// Depth 106
+typedef Uint64*(*Fn__ActiveTimer_MUL__Uint64_MUL_)(ActiveTimer*);
 
 // Depth 106
 typedef Result__Uint16_Array__uint8_t(*Fn__Array__uint8_t_MUL__Result__Uint16_Array__uint8_t)(Array__uint8_t*);
@@ -2325,6 +2390,12 @@ typedef Result__WGPUUniformBufferWrapper_MUL__String(*Fn__String_Result__WGPUUni
 typedef Result__WGPUVertexBufferWrapper_MUL__String(*Fn__String_Result__WGPUVertexBufferWrapper_MUL__String)(String);
 
 // Depth 106
+typedef ActiveTimer(*Fn__String_Uint64_ActiveTimer)(String, Uint64);
+
+// Depth 106
+typedef ZoneStats(*Fn__String_int_Uint64_Uint64_Uint64_Uint64_double_double_int_ZoneStats)(String, int, Uint64, Uint64, Uint64, Uint64, double, double, int);
+
+// Depth 106
 typedef Maybe__Uint16(*Fn__Uint16_Maybe__Uint16)(Uint16);
 
 // Depth 106
@@ -2421,6 +2492,30 @@ typedef Result__WGPUUniformBufferWrapper_MUL__String(*Fn__WGPUUniformBufferWrapp
 typedef Result__WGPUVertexBufferWrapper_MUL__String(*Fn__WGPUVertexBufferWrapper_MUL__Result__WGPUVertexBufferWrapper_MUL__String)(WGPUVertexBufferWrapper*);
 
 // Depth 106
+typedef String(*Fn__ZoneStats_MUL__String)(ZoneStats*);
+
+// Depth 106
+typedef String*(*Fn__ZoneStats_MUL__String_MUL_)(ZoneStats*);
+
+// Depth 106
+typedef Uint64*(*Fn__ZoneStats_MUL__Uint64_MUL_)(ZoneStats*);
+
+// Depth 106
+typedef void(*Fn__ZoneStats_MUL__Uint64_void)(ZoneStats*, Uint64);
+
+// Depth 106
+typedef double*(*Fn__ZoneStats_MUL__double_MUL_)(ZoneStats*);
+
+// Depth 106
+typedef void(*Fn__ZoneStats_MUL__double_void)(ZoneStats*, double);
+
+// Depth 106
+typedef int*(*Fn__ZoneStats_MUL__int_MUL_)(ZoneStats*);
+
+// Depth 106
+typedef void(*Fn__ZoneStats_MUL__int_void)(ZoneStats*, int);
+
+// Depth 106
 typedef Maybe__Uint16(*Fn___Maybe__Uint16)();
 
 // Depth 106
@@ -2455,22 +2550,6 @@ struct Pair__Array__Uint64_int {
     Array__Uint64 a;
     int b;
 };
-
-// Depth 107
-struct Result__EngineState_String {
-    union {
-    struct {
-        EngineState member0;
-    } Success;
-    struct {
-        String member0;
-    } Error;
-    char __dummy;
-    } u;
-    char _tag;
-};
-#define Result__EngineState_String_Success_tag 0
-#define Result__EngineState_String_Error_tag 1
 
 // Depth 107
 typedef Array__Uint16(*Fn__Array__Uint16_MUL__Array__Uint16)(Array__Uint16*);
@@ -2560,31 +2639,17 @@ typedef Array__Uint32(*Fn__int_Array__Uint32)(int);
 typedef Array__Uint64(*Fn__int_Array__Uint64)(int);
 
 // Depth 108
-typedef Array__float*(*Fn__EngineState_MUL__Array__float_MUL_)(EngineState*);
-
-// Depth 108
-typedef Camera*(*Fn__EngineState_MUL__Camera_MUL_)(EngineState*);
-
-// Depth 108
-typedef Engine*(*Fn__EngineState_MUL__Engine_MUL_)(EngineState*);
-
-// Depth 108
-typedef void(*Fn__EngineState_MUL__GLFWwindow_MUL__double_bool_MUL__double_MUL__double_MUL__void)(EngineState*, GLFWwindow*, double, bool*, double*, double*);
-
-// Depth 108
-typedef Renderer*(*Fn__EngineState_MUL__Renderer_MUL_)(EngineState*);
-
-// Depth 108
-typedef String(*Fn__EngineState_MUL__String)(EngineState*);
-
-// Depth 108
-typedef void(*Fn__EngineState_MUL__void)(EngineState*);
+struct Diagnostics {
+    String log_MINUS_file_MINUS_path;
+    bool has_MINUS_error;
+    int last_MINUS_error_MINUS_code;
+    String last_MINUS_error_MINUS_msg;
+    Array__ActiveTimer active_MINUS_timers;
+    Array__ZoneStats zone_MINUS_stats_MINUS_arr;
+};
 
 // Depth 108
 typedef Result__Renderer_String(*Fn__Engine_MUL__Result__Renderer_String)(Engine*);
-
-// Depth 108
-typedef EngineState(*Fn__Engine_Renderer_World_Camera_Array__float_EngineState)(Engine, Renderer, World, Camera, Array__float);
 
 // Depth 108
 typedef Result__Engine_String(*Fn__Engine_Result__Engine_String)(Engine);
@@ -2600,6 +2665,27 @@ typedef Result__Engine_String(*Fn__String_Result__Engine_String)(String);
 
 // Depth 108
 typedef Result__Renderer_String(*Fn__String_Result__Renderer_String)(String);
+
+// Depth 109
+typedef Array__ActiveTimer(*Fn__Array__ActiveTimer_Array__ActiveTimer)(Array__ActiveTimer);
+
+// Depth 109
+typedef void(*Fn__Array__ActiveTimer_MUL__ActiveTimer_void)(Array__ActiveTimer*, ActiveTimer);
+
+// Depth 109
+typedef Array__ActiveTimer(*Fn__Array__ActiveTimer_MUL__Array__ActiveTimer)(Array__ActiveTimer*);
+
+// Depth 109
+typedef String(*Fn__Array__ActiveTimer_MUL__String)(Array__ActiveTimer*);
+
+// Depth 109
+typedef int(*Fn__Array__ActiveTimer_MUL__int)(Array__ActiveTimer*);
+
+// Depth 109
+typedef ActiveTimer*(*Fn__Array__ActiveTimer_MUL__int_ActiveTimer_MUL_)(Array__ActiveTimer*, int);
+
+// Depth 109
+typedef void(*Fn__Array__ActiveTimer_MUL__int_ActiveTimer_void)(Array__ActiveTimer*, int, ActiveTimer);
 
 // Depth 109
 typedef Array__Result__Uint16_Array__uint8_t(*Fn__Array__Result__Uint16_Array__uint8_t_MUL__Array__Result__Uint16_Array__uint8_t)(Array__Result__Uint16_Array__uint8_t*);
@@ -2663,6 +2749,21 @@ typedef Result__Array__Uint64_int(*Fn__Array__Uint64_Result__Array__Uint64_int)(
 
 // Depth 109
 typedef Pair__Array__Uint64_int(*Fn__Array__Uint64_int_Pair__Array__Uint64_int)(Array__Uint64, int);
+
+// Depth 109
+typedef Array__ZoneStats(*Fn__Array__ZoneStats_Array__ZoneStats)(Array__ZoneStats);
+
+// Depth 109
+typedef String(*Fn__Array__ZoneStats_MUL__String)(Array__ZoneStats*);
+
+// Depth 109
+typedef void(*Fn__Array__ZoneStats_MUL__ZoneStats_void)(Array__ZoneStats*, ZoneStats);
+
+// Depth 109
+typedef int(*Fn__Array__ZoneStats_MUL__int)(Array__ZoneStats*);
+
+// Depth 109
+typedef ZoneStats*(*Fn__Array__ZoneStats_MUL__int_ZoneStats_MUL_)(Array__ZoneStats*, int);
 
 // Depth 109
 typedef Pair__Array__Uint16_int(*Fn__ByteOrder_Array__uint8_t_MUL__Pair__Array__Uint16_int)(ByteOrder, Array__uint8_t*);
@@ -2737,6 +2838,9 @@ typedef Array__Uint64*(*Fn__Pair__Array__Uint64_int_MUL__Array__Uint64_MUL_)(Pai
 typedef int*(*Fn__Pair__Array__Uint64_int_MUL__int_MUL_)(Pair__Array__Uint64_int*);
 
 // Depth 109
+typedef Array__ActiveTimer(*Fn__int_Array__ActiveTimer_Array__ActiveTimer)(int, Array__ActiveTimer);
+
+// Depth 109
 typedef Array__Result__Uint16_Array__uint8_t(*Fn__int_Array__Result__Uint16_Array__uint8_t)(int);
 
 // Depth 109
@@ -2755,12 +2859,114 @@ typedef Result__Array__Uint32_int(*Fn__int_Result__Array__Uint32_int)(int);
 typedef Result__Array__Uint64_int(*Fn__int_Result__Array__Uint64_int)(int);
 
 // Depth 110
+struct EngineState {
+    Engine eng;
+    Renderer renderer;
+    World world;
+    Camera camera;
+    Array__float uniforms;
+    Diagnostics diag;
+    int frame_MINUS_count;
+};
+
+// Depth 111
+typedef Diagnostics(*Fn__Diagnostics_Diagnostics)(Diagnostics);
+
+// Depth 111
+typedef Array__ActiveTimer*(*Fn__Diagnostics_MUL__Array__ActiveTimer_MUL_)(Diagnostics*);
+
+// Depth 111
+typedef void(*Fn__Diagnostics_MUL__Array__ActiveTimer_void)(Diagnostics*, Array__ActiveTimer);
+
+// Depth 111
+typedef Array__ZoneStats*(*Fn__Diagnostics_MUL__Array__ZoneStats_MUL_)(Diagnostics*);
+
+// Depth 111
+typedef void(*Fn__Diagnostics_MUL__LogLevel_String_MUL__void)(Diagnostics*, LogLevel, String*);
+
+// Depth 111
+typedef String(*Fn__Diagnostics_MUL__String)(Diagnostics*);
+
+// Depth 111
+typedef String*(*Fn__Diagnostics_MUL__String_MUL_)(Diagnostics*);
+
+// Depth 111
+typedef int(*Fn__Diagnostics_MUL__String_MUL__int)(Diagnostics*, String*);
+
+// Depth 111
+typedef void(*Fn__Diagnostics_MUL__String_MUL__void)(Diagnostics*, String*);
+
+// Depth 111
+typedef void(*Fn__Diagnostics_MUL__String_void)(Diagnostics*, String);
+
+// Depth 111
+typedef void(*Fn__Diagnostics_MUL__bool_void)(Diagnostics*, bool);
+
+// Depth 111
+typedef void(*Fn__Diagnostics_MUL__int_void)(Diagnostics*, int);
+
+// Depth 111
+typedef void(*Fn__Diagnostics_MUL__void)(Diagnostics*);
+
+// Depth 111
+typedef Diagnostics(*Fn__String_Diagnostics)(String);
+
+// Depth 111
+typedef Diagnostics(*Fn__String_bool_int_String_Array__ActiveTimer_Array__ZoneStats_Diagnostics)(String, bool, int, String, Array__ActiveTimer, Array__ZoneStats);
+
+// Depth 112
+struct Result__EngineState_String {
+    union {
+    struct {
+        EngineState member0;
+    } Success;
+    struct {
+        String member0;
+    } Error;
+    char __dummy;
+    } u;
+    char _tag;
+};
+#define Result__EngineState_String_Success_tag 0
+#define Result__EngineState_String_Error_tag 1
+
+// Depth 113
+typedef Array__float*(*Fn__EngineState_MUL__Array__float_MUL_)(EngineState*);
+
+// Depth 113
+typedef Camera*(*Fn__EngineState_MUL__Camera_MUL_)(EngineState*);
+
+// Depth 113
+typedef Diagnostics*(*Fn__EngineState_MUL__Diagnostics_MUL_)(EngineState*);
+
+// Depth 113
+typedef Engine*(*Fn__EngineState_MUL__Engine_MUL_)(EngineState*);
+
+// Depth 113
+typedef void(*Fn__EngineState_MUL__GLFWwindow_MUL__double_bool_MUL__double_MUL__double_MUL__void)(EngineState*, GLFWwindow*, double, bool*, double*, double*);
+
+// Depth 113
+typedef Renderer*(*Fn__EngineState_MUL__Renderer_MUL_)(EngineState*);
+
+// Depth 113
+typedef String(*Fn__EngineState_MUL__String)(EngineState*);
+
+// Depth 113
+typedef int*(*Fn__EngineState_MUL__int_MUL_)(EngineState*);
+
+// Depth 113
+typedef void(*Fn__EngineState_MUL__void)(EngineState*);
+
+// Depth 113
+typedef EngineState(*Fn__Engine_Renderer_World_Camera_Array__float_Diagnostics_int_EngineState)(Engine, Renderer, World, Camera, Array__float, Diagnostics, int);
+
+// Depth 115
 typedef Result__EngineState_String(*Fn__EngineState_Result__EngineState_String)(EngineState);
 
-// Depth 110
+// Depth 115
 typedef Result__EngineState_String(*Fn__String_MUL__int_int_Result__EngineState_String)(String*, int, int);
 
-// Depth 110
+// Depth 115
 typedef Result__EngineState_String(*Fn__String_Result__EngineState_String)(String);
 
 // Depth 504
@@ -2808,13 +3014,22 @@ typedef int(*Fn__CChar_MUL__int)(CChar*);
 typedef int(*Fn__CChar_MUL__int_int_FILE_MUL__int)(CChar*, int, int, FILE*);
 
 // Depth 505
+typedef Array__ActiveTimer(*Fn__LambdaEnv_Array__ActiveTimer_Array__ActiveTimer)(LambdaEnv, Array__ActiveTimer);
+
+// Depth 505
 typedef Array__Chunk(*Fn__LambdaEnv_Array__Chunk_Array__Chunk)(LambdaEnv, Array__Chunk);
+
+// Depth 505
+typedef Array__ZoneStats(*Fn__LambdaEnv_Array__ZoneStats_Array__ZoneStats)(LambdaEnv, Array__ZoneStats);
 
 // Depth 505
 typedef Array__float(*Fn__LambdaEnv_Array__float_Array__float)(LambdaEnv, Array__float);
 
 // Depth 505
 typedef Camera(*Fn__LambdaEnv_Camera_Camera)(LambdaEnv, Camera);
+
+// Depth 505
+typedef Diagnostics(*Fn__LambdaEnv_Diagnostics_Diagnostics)(LambdaEnv, Diagnostics);
 
 // Depth 505
 typedef Engine(*Fn__LambdaEnv_Engine_Engine)(LambdaEnv, Engine);
@@ -2839,6 +3054,12 @@ typedef bool(*Fn__LambdaEnv_Result__Uint64_Array__uint8_t_MUL__bool)(LambdaEnv, 
 
 // Depth 505
 typedef bool(*Fn__LambdaEnv_String_MUL__bool)(LambdaEnv, String*);
+
+// Depth 505
+typedef String(*Fn__LambdaEnv_String_String)(LambdaEnv, String);
+
+// Depth 505
+typedef Uint64(*Fn__LambdaEnv_Uint64_Uint64)(LambdaEnv, Uint64);
 
 // Depth 505
 typedef Vector3__double(*Fn__LambdaEnv_Vector3__double_Vector3__double)(LambdaEnv, Vector3__double);
@@ -2866,6 +3087,9 @@ typedef WGPUUniformBufferWrapper*(*Fn__LambdaEnv_WGPUUniformBufferWrapper_MUL__W
 
 // Depth 505
 typedef World(*Fn__LambdaEnv_World_World)(LambdaEnv, World);
+
+// Depth 505
+typedef bool(*Fn__LambdaEnv_bool_bool)(LambdaEnv, bool);
 
 // Depth 505
 typedef double(*Fn__LambdaEnv_double_double)(LambdaEnv, double);
@@ -3107,6 +3331,47 @@ String* voxel_MINUS_wgsl;
 // Depth 1000
 
 // Depth 500
+ActiveTimer ActiveTimer_copy(ActiveTimer* pRef);
+
+// Depth 500
+void ActiveTimer_delete(ActiveTimer p);
+
+// Depth 500
+ActiveTimer ActiveTimer_init(String name, Uint64 start_MINUS_ns);
+
+// Depth 500
+String* ActiveTimer_name(ActiveTimer* p);
+
+// Depth 500
+String ActiveTimer_prn(ActiveTimer *p);
+
+// Depth 500
+ActiveTimer ActiveTimer_set_MINUS_name(ActiveTimer p, String newValue);
+
+// Depth 500
+void ActiveTimer_set_MINUS_name_BANG_(ActiveTimer* pRef, String newValue);
+
+// Depth 500
+ActiveTimer ActiveTimer_set_MINUS_start_MINUS_ns(ActiveTimer p, Uint64 newValue);
+
+// Depth 500
+void ActiveTimer_set_MINUS_start_MINUS_ns_BANG_(ActiveTimer* pRef, Uint64 newValue);
+
+// Depth 500
+Uint64* ActiveTimer_start_MINUS_ns(ActiveTimer* p);
+
+// Depth 500
+String ActiveTimer_str(ActiveTimer *p);
+
+// Depth 500
+ActiveTimer ActiveTimer_update_MINUS_name(ActiveTimer p, Lambda *updater);
+
+// Depth 500
+ActiveTimer ActiveTimer_update_MINUS_start_MINUS_ns(ActiveTimer p, Lambda *updater);
+
+// Depth 1000
+
+// Depth 500
 Array Array_allocate__Array__uint8_t (int n);
 
 // Depth 500
@@ -3141,6 +3406,9 @@ Array Array_allocate__int (int n);
 
 // Depth 500
 Array Array_allocate__uint8_t (int n);
+
+// Depth 500
+void Array_aset_BANG___ActiveTimer (Array *aRef, int n, ActiveTimer newValue);
 
 // Depth 500
 void Array_aset_BANG___Char (Array *aRef, int n, Char newValue);
@@ -3263,6 +3531,9 @@ Array__uint8_t Array_copy_MINUS_map__Uint64_uint8_t(Lambda* f, Array__Uint64* a)
 Array__String Array_copy_MINUS_map__uint8_t_String(Lambda* f, Array__uint8_t* a);
 
 // Depth 500
+Array Array_copy__ActiveTimer (Array* a);
+
+// Depth 500
 Array Array_copy__Chunk (Array* a);
 
 // Depth 500
@@ -3284,10 +3555,16 @@ Array Array_copy__Uint32 (Array* a);
 Array Array_copy__Uint64 (Array* a);
 
 // Depth 500
+Array Array_copy__ZoneStats (Array* a);
+
+// Depth 500
 Array Array_copy__float (Array* a);
 
 // Depth 500
 Array Array_copy__uint8_t (Array* a);
+
+// Depth 500
+void Array_delete__ActiveTimer (Array a);
 
 // Depth 500
 void Array_delete__Array__uint8_t (Array a);
@@ -3326,6 +3603,9 @@ void Array_delete__Uint64 (Array a);
 void Array_delete__WGPUBuffer (Array a);
 
 // Depth 500
+void Array_delete__ZoneStats (Array a);
+
+// Depth 500
 void Array_delete__float (Array a);
 
 // Depth 500
@@ -3348,6 +3628,9 @@ Array Array_endo_MINUS_filter__String(Lambda *predicate, Array a);
 
 // Depth 500
 Array Array_endo_MINUS_map__uint8_t(Lambda *f, Array a);
+
+// Depth 500
+int Array_length__ActiveTimer (Array *a);
 
 // Depth 500
 int Array_length__Array__uint8_t (Array *a);
@@ -3383,6 +3666,9 @@ int Array_length__Uint64 (Array *a);
 int Array_length__WGPUBuffer (Array *a);
 
 // Depth 500
+int Array_length__ZoneStats (Array *a);
+
+// Depth 500
 int Array_length__float (Array *a);
 
 // Depth 500
@@ -3398,16 +3684,31 @@ Maybe__uint8_t Array_nth__uint8_t(Array__uint8_t* xs, int index);
 Array__Array__uint8_t Array_partition__uint8_t(Array__uint8_t* arr, int n);
 
 // Depth 500
+Array Array_pop_MINUS_back__ActiveTimer(Array a);
+
+// Depth 500
 Array__Char Array_prefix__Array__Char(Array__Char* xs, int end_MINUS_index);
+
+// Depth 500
+String Array_prn__ActiveTimer(Array__ActiveTimer* x);
 
 // Depth 500
 String Array_prn__Chunk(Array__Chunk* x);
 
 // Depth 500
+String Array_prn__ZoneStats(Array__ZoneStats* x);
+
+// Depth 500
 String Array_prn__float(Array__float* x);
 
 // Depth 500
+void Array_push_MINUS_back_BANG___ActiveTimer(Array *aRef, ActiveTimer value);
+
+// Depth 500
 void Array_push_MINUS_back_BANG___Chunk(Array *aRef, Chunk value);
+
+// Depth 500
+void Array_push_MINUS_back_BANG___ZoneStats(Array *aRef, ZoneStats value);
 
 // Depth 500
 Array Array_push_MINUS_back__Array__uint8_t(Array a, Array__uint8_t value);
@@ -3428,6 +3729,9 @@ Array Array_push_MINUS_back__uint8_t(Array a, uint8_t value);
 int Array_reduce__int_int(Lambda* f, int x, Array__int* xs);
 
 // Depth 500
+Array__ActiveTimer Array_remove_MINUS_nth__ActiveTimer(int i, Array__ActiveTimer arr);
+
+// Depth 500
 Array__Char Array_repeat__Char(int n, Lambda* f);
 
 // Depth 500
@@ -3446,13 +3750,22 @@ Array__Char Array_slice__Char(Array__Char* xs, int start_MINUS_index, int end_MI
 Array__uint8_t Array_slice__uint8_t(Array__uint8_t* xs, int start_MINUS_index, int end_MINUS_index);
 
 // Depth 500
+String Array_str__ActiveTimer (Array* a);
+
+// Depth 500
 String Array_str__Chunk (Array* a);
+
+// Depth 500
+String Array_str__ZoneStats (Array* a);
 
 // Depth 500
 String Array_str__float (Array* a);
 
 // Depth 500
 Array__Char Array_suffix__Char(Array__Char* xs, int start_MINUS_index);
+
+// Depth 500
+ActiveTimer* Array_unsafe_MINUS_nth__ActiveTimer (Array *aRef, int n);
 
 // Depth 500
 Array__uint8_t* Array_unsafe_MINUS_nth__Array__uint8_t (Array *aRef, int n);
@@ -3486,6 +3799,9 @@ Uint32* Array_unsafe_MINUS_nth__Uint32 (Array *aRef, int n);
 
 // Depth 500
 Uint64* Array_unsafe_MINUS_nth__Uint64 (Array *aRef, int n);
+
+// Depth 500
+ZoneStats* Array_unsafe_MINUS_nth__ZoneStats (Array *aRef, int n);
 
 // Depth 500
 int* Array_unsafe_MINUS_nth__int (Array *aRef, int n);
@@ -3993,6 +4309,125 @@ Array__float* Chunk_voxel_MINUS_data(Chunk* p);
 // Depth 1000
 
 // Depth 500
+Array__ActiveTimer* Diagnostics_active_MINUS_timers(Diagnostics* p);
+
+// Depth 500
+void Diagnostics_clear_MINUS_error_BANG_(Diagnostics* diag);
+
+// Depth 500
+Diagnostics Diagnostics_copy(Diagnostics* pRef);
+
+// Depth 500
+void Diagnostics_delete(Diagnostics p);
+
+// Depth 500
+void Diagnostics_end_MINUS_zone_BANG_(Diagnostics* diag, String* name_MINUS_ref);
+
+// Depth 500
+int Diagnostics_find_MINUS_zone_MINUS_stats_MINUS_index(Diagnostics* diag, String* name_MINUS_ref);
+
+// Depth 500
+bool* Diagnostics_has_MINUS_error(Diagnostics* p);
+
+// Depth 500
+Diagnostics Diagnostics_init(String log_MINUS_file_MINUS_path, bool has_MINUS_error, int last_MINUS_error_MINUS_code, String last_MINUS_error_MINUS_msg, Array__ActiveTimer active_MINUS_timers, Array__ZoneStats zone_MINUS_stats_MINUS_arr);
+
+// Depth 500
+int* Diagnostics_last_MINUS_error_MINUS_code(Diagnostics* p);
+
+// Depth 500
+String* Diagnostics_last_MINUS_error_MINUS_msg(Diagnostics* p);
+
+// Depth 500
+void Diagnostics_log_BANG___String(Diagnostics* diag, LogLevel level, String* msg);
+
+// Depth 500
+String* Diagnostics_log_MINUS_file_MINUS_path(Diagnostics* p);
+
+// Depth 500
+Diagnostics Diagnostics_new(String log_MINUS_path);
+
+// Depth 500
+String Diagnostics_ns_MINUS__GT_ms_MINUS_str(Uint64 ns);
+
+// Depth 500
+void Diagnostics_print_MINUS_stats_BANG_(Diagnostics* diag);
+
+// Depth 500
+String Diagnostics_prn(Diagnostics *p);
+
+// Depth 500
+void Diagnostics_report_MINUS_error_BANG_(Diagnostics* diag, int code, String* msg);
+
+// Depth 500
+Diagnostics Diagnostics_set_MINUS_active_MINUS_timers(Diagnostics p, Array__ActiveTimer newValue);
+
+// Depth 500
+void Diagnostics_set_MINUS_active_MINUS_timers_BANG_(Diagnostics* pRef, Array__ActiveTimer newValue);
+
+// Depth 500
+Diagnostics Diagnostics_set_MINUS_has_MINUS_error(Diagnostics p, bool newValue);
+
+// Depth 500
+void Diagnostics_set_MINUS_has_MINUS_error_BANG_(Diagnostics* pRef, bool newValue);
+
+// Depth 500
+Diagnostics Diagnostics_set_MINUS_last_MINUS_error_MINUS_code(Diagnostics p, int newValue);
+
+// Depth 500
+void Diagnostics_set_MINUS_last_MINUS_error_MINUS_code_BANG_(Diagnostics* pRef, int newValue);
+
+// Depth 500
+Diagnostics Diagnostics_set_MINUS_last_MINUS_error_MINUS_msg(Diagnostics p, String newValue);
+
+// Depth 500
+void Diagnostics_set_MINUS_last_MINUS_error_MINUS_msg_BANG_(Diagnostics* pRef, String newValue);
+
+// Depth 500
+Diagnostics Diagnostics_set_MINUS_log_MINUS_file_MINUS_path(Diagnostics p, String newValue);
+
+// Depth 500
+void Diagnostics_set_MINUS_log_MINUS_file_MINUS_path_BANG_(Diagnostics* pRef, String newValue);
+
+// Depth 500
+Diagnostics Diagnostics_set_MINUS_zone_MINUS_stats_MINUS_arr(Diagnostics p, Array__ZoneStats newValue);
+
+// Depth 500
+void Diagnostics_set_MINUS_zone_MINUS_stats_MINUS_arr_BANG_(Diagnostics* pRef, Array__ZoneStats newValue);
+
+// Depth 500
+void Diagnostics_start_MINUS_zone_BANG_(Diagnostics* diag, String* name);
+
+// Depth 500
+String Diagnostics_str(Diagnostics *p);
+
+// Depth 500
+Diagnostics Diagnostics_update_MINUS_active_MINUS_timers(Diagnostics p, Lambda *updater);
+
+// Depth 500
+Diagnostics Diagnostics_update_MINUS_has_MINUS_error(Diagnostics p, Lambda *updater);
+
+// Depth 500
+Diagnostics Diagnostics_update_MINUS_last_MINUS_error_MINUS_code(Diagnostics p, Lambda *updater);
+
+// Depth 500
+Diagnostics Diagnostics_update_MINUS_last_MINUS_error_MINUS_msg(Diagnostics p, Lambda *updater);
+
+// Depth 500
+Diagnostics Diagnostics_update_MINUS_log_MINUS_file_MINUS_path(Diagnostics p, Lambda *updater);
+
+// Depth 500
+Diagnostics Diagnostics_update_MINUS_zone_MINUS_stats_MINUS_arr(Diagnostics p, Lambda *updater);
+
+// Depth 500
+void Diagnostics_write_MINUS_log_MINUS_file_BANG_(Diagnostics* diag, String* msg);
+
+// Depth 500
+Array__ZoneStats* Diagnostics_zone_MINUS_stats_MINUS_arr(Diagnostics* p);
+
+// Depth 1000
+
+// Depth 500
 double Double_add_MINUS_ref(double* x, double* y);
 
 // Depth 500
@@ -4212,10 +4647,16 @@ Result__EngineState_String EngineState_create(String* title, int width, int heig
 void EngineState_delete(EngineState p);
 
 // Depth 500
+Diagnostics* EngineState_diag(EngineState* p);
+
+// Depth 500
 Engine* EngineState_eng(EngineState* p);
 
 // Depth 500
-EngineState EngineState_init(Engine eng, Renderer renderer, World world, Camera camera, Array__float uniforms);
+int* EngineState_frame_MINUS_count(EngineState* p);
+
+// Depth 500
+EngineState EngineState_init(Engine eng, Renderer renderer, World world, Camera camera, Array__float uniforms, Diagnostics diag, int frame_MINUS_count);
 
 // Depth 500
 String EngineState_prn(EngineState *p);
@@ -4230,10 +4671,22 @@ EngineState EngineState_set_MINUS_camera(EngineState p, Camera newValue);
 void EngineState_set_MINUS_camera_BANG_(EngineState* pRef, Camera newValue);
 
 // Depth 500
+EngineState EngineState_set_MINUS_diag(EngineState p, Diagnostics newValue);
+
+// Depth 500
+void EngineState_set_MINUS_diag_BANG_(EngineState* pRef, Diagnostics newValue);
+
+// Depth 500
 EngineState EngineState_set_MINUS_eng(EngineState p, Engine newValue);
 
 // Depth 500
 void EngineState_set_MINUS_eng_BANG_(EngineState* pRef, Engine newValue);
+
+// Depth 500
+EngineState EngineState_set_MINUS_frame_MINUS_count(EngineState p, int newValue);
+
+// Depth 500
+void EngineState_set_MINUS_frame_MINUS_count_BANG_(EngineState* pRef, int newValue);
 
 // Depth 500
 EngineState EngineState_set_MINUS_renderer(EngineState p, Renderer newValue);
@@ -4266,7 +4719,13 @@ Array__float* EngineState_uniforms(EngineState* p);
 EngineState EngineState_update_MINUS_camera(EngineState p, Lambda *updater);
 
 // Depth 500
+EngineState EngineState_update_MINUS_diag(EngineState p, Lambda *updater);
+
+// Depth 500
 EngineState EngineState_update_MINUS_eng(EngineState p, Lambda *updater);
+
+// Depth 500
+EngineState EngineState_update_MINUS_frame_MINUS_count(EngineState p, Lambda *updater);
 
 // Depth 500
 EngineState EngineState_update_MINUS_renderer(EngineState p, Lambda *updater);
@@ -4670,6 +5129,41 @@ void JobSystem_submit_MINUS_raw_BANG_(thread_pool_t *pool, void (*work)(void*), 
 
 // Depth 500
 void JobSystem_wait(job_handle_t *handle);
+
+// Depth 1000
+
+// Depth 500
+LogLevel LogLevel_Critical();
+
+// Depth 500
+LogLevel LogLevel_Debug();
+
+// Depth 500
+LogLevel LogLevel_Error();
+
+// Depth 500
+LogLevel LogLevel_Info();
+
+// Depth 500
+LogLevel LogLevel_Warning();
+
+// Depth 500
+LogLevel LogLevel_copy(LogLevel* pRef);
+
+// Depth 500
+void LogLevel_delete(LogLevel p);
+
+// Depth 500
+int LogLevel_get_MINUS_tag(LogLevel *p);
+
+// Depth 500
+String LogLevel_prn(LogLevel *p);
+
+// Depth 500
+String LogLevel_str(LogLevel *p);
+
+// Depth 500
+String* LogLevel_to_MINUS_string(LogLevel level);
 
 // Depth 1000
 
@@ -5083,6 +5577,9 @@ double Pointer_to_MINUS_value__double(double* p);
 
 // Depth 500
 float Pointer_to_MINUS_value__float(float* p);
+
+// Depth 500
+int Pointer_to_MINUS_value__int(int* p);
 
 // Depth 1000
 
@@ -6438,6 +6935,131 @@ World World_update_MINUS_voxel_MINUS_resolution(World p, Lambda *updater);
 // Depth 500
 int* World_voxel_MINUS_resolution(World* p);
 
+// Depth 1000
+
+// Depth 500
+ZoneStats ZoneStats_copy(ZoneStats* pRef);
+
+// Depth 500
+int* ZoneStats_count(ZoneStats* p);
+
+// Depth 500
+void ZoneStats_delete(ZoneStats p);
+
+// Depth 500
+ZoneStats ZoneStats_init(String name, int count, Uint64 sum_MINUS_ns, Uint64 min_MINUS_ns, Uint64 max_MINUS_ns, Uint64 last_MINUS_ns, double sum_MINUS_ms, double sum_MINUS_sq_MINUS_ms, int spikes_MINUS_count);
+
+// Depth 500
+Uint64* ZoneStats_last_MINUS_ns(ZoneStats* p);
+
+// Depth 500
+Uint64* ZoneStats_max_MINUS_ns(ZoneStats* p);
+
+// Depth 500
+Uint64* ZoneStats_min_MINUS_ns(ZoneStats* p);
+
+// Depth 500
+String* ZoneStats_name(ZoneStats* p);
+
+// Depth 500
+String ZoneStats_prn(ZoneStats *p);
+
+// Depth 500
+ZoneStats ZoneStats_set_MINUS_count(ZoneStats p, int newValue);
+
+// Depth 500
+void ZoneStats_set_MINUS_count_BANG_(ZoneStats* pRef, int newValue);
+
+// Depth 500
+ZoneStats ZoneStats_set_MINUS_last_MINUS_ns(ZoneStats p, Uint64 newValue);
+
+// Depth 500
+void ZoneStats_set_MINUS_last_MINUS_ns_BANG_(ZoneStats* pRef, Uint64 newValue);
+
+// Depth 500
+ZoneStats ZoneStats_set_MINUS_max_MINUS_ns(ZoneStats p, Uint64 newValue);
+
+// Depth 500
+void ZoneStats_set_MINUS_max_MINUS_ns_BANG_(ZoneStats* pRef, Uint64 newValue);
+
+// Depth 500
+ZoneStats ZoneStats_set_MINUS_min_MINUS_ns(ZoneStats p, Uint64 newValue);
+
+// Depth 500
+void ZoneStats_set_MINUS_min_MINUS_ns_BANG_(ZoneStats* pRef, Uint64 newValue);
+
+// Depth 500
+ZoneStats ZoneStats_set_MINUS_name(ZoneStats p, String newValue);
+
+// Depth 500
+void ZoneStats_set_MINUS_name_BANG_(ZoneStats* pRef, String newValue);
+
+// Depth 500
+ZoneStats ZoneStats_set_MINUS_spikes_MINUS_count(ZoneStats p, int newValue);
+
+// Depth 500
+void ZoneStats_set_MINUS_spikes_MINUS_count_BANG_(ZoneStats* pRef, int newValue);
+
+// Depth 500
+ZoneStats ZoneStats_set_MINUS_sum_MINUS_ms(ZoneStats p, double newValue);
+
+// Depth 500
+void ZoneStats_set_MINUS_sum_MINUS_ms_BANG_(ZoneStats* pRef, double newValue);
+
+// Depth 500
+ZoneStats ZoneStats_set_MINUS_sum_MINUS_ns(ZoneStats p, Uint64 newValue);
+
+// Depth 500
+void ZoneStats_set_MINUS_sum_MINUS_ns_BANG_(ZoneStats* pRef, Uint64 newValue);
+
+// Depth 500
+ZoneStats ZoneStats_set_MINUS_sum_MINUS_sq_MINUS_ms(ZoneStats p, double newValue);
+
+// Depth 500
+void ZoneStats_set_MINUS_sum_MINUS_sq_MINUS_ms_BANG_(ZoneStats* pRef, double newValue);
+
+// Depth 500
+int* ZoneStats_spikes_MINUS_count(ZoneStats* p);
+
+// Depth 500
+String ZoneStats_str(ZoneStats *p);
+
+// Depth 500
+double* ZoneStats_sum_MINUS_ms(ZoneStats* p);
+
+// Depth 500
+Uint64* ZoneStats_sum_MINUS_ns(ZoneStats* p);
+
+// Depth 500
+double* ZoneStats_sum_MINUS_sq_MINUS_ms(ZoneStats* p);
+
+// Depth 500
+ZoneStats ZoneStats_update_MINUS_count(ZoneStats p, Lambda *updater);
+
+// Depth 500
+ZoneStats ZoneStats_update_MINUS_last_MINUS_ns(ZoneStats p, Lambda *updater);
+
+// Depth 500
+ZoneStats ZoneStats_update_MINUS_max_MINUS_ns(ZoneStats p, Lambda *updater);
+
+// Depth 500
+ZoneStats ZoneStats_update_MINUS_min_MINUS_ns(ZoneStats p, Lambda *updater);
+
+// Depth 500
+ZoneStats ZoneStats_update_MINUS_name(ZoneStats p, Lambda *updater);
+
+// Depth 500
+ZoneStats ZoneStats_update_MINUS_spikes_MINUS_count(ZoneStats p, Lambda *updater);
+
+// Depth 500
+ZoneStats ZoneStats_update_MINUS_sum_MINUS_ms(ZoneStats p, Lambda *updater);
+
+// Depth 500
+ZoneStats ZoneStats_update_MINUS_sum_MINUS_ns(ZoneStats p, Lambda *updater);
+
+// Depth 500
+ZoneStats ZoneStats_update_MINUS_sum_MINUS_sq_MINUS_ms(ZoneStats p, Lambda *updater);
+
 
 //Init globals:
 void carp_init_globals(int argc, char** argv) {
@@ -6587,6 +7209,135 @@ bool _GT__EQ___int(int a, int b) {
     return _19;
 }
 
+ActiveTimer ActiveTimer_copy(ActiveTimer* pRef) {
+    ActiveTimer copy = *pRef;
+    copy.name = String_copy(&(pRef->name));
+    /* Ignore non-managed member 'start_MINUS_ns' : Uint64 */
+    return copy;
+}
+
+void ActiveTimer_delete(ActiveTimer p) {
+    String_delete(p.name);
+    /* Ignore non-managed member 'start_MINUS_ns' : Uint64 */
+}
+
+ActiveTimer ActiveTimer_init(String name, Uint64 start_MINUS_ns) {
+    ActiveTimer instance;
+    instance.name = name;
+    instance.start_MINUS_ns = start_MINUS_ns;
+    return instance;
+}
+
+String* ActiveTimer_name(ActiveTimer* p) { return (&(p->name)); }
+
+String ActiveTimer_prn(ActiveTimer *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "ActiveTimer");
+  temp = String_prn(&p->name); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Uint64_prn(p->start_MINUS_ns); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "ActiveTimer");
+  temp = String_prn(&p->name);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Uint64_prn(p->start_MINUS_ns);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+ActiveTimer ActiveTimer_set_MINUS_name(ActiveTimer p, String newValue) {
+    String_delete(p.name);
+    p.name = newValue;
+    return p;
+}
+
+
+void ActiveTimer_set_MINUS_name_BANG_(ActiveTimer* pRef, String newValue) {
+    String_delete(pRef->name);
+    pRef->name = newValue;
+}
+
+
+ActiveTimer ActiveTimer_set_MINUS_start_MINUS_ns(ActiveTimer p, Uint64 newValue) {
+    /* Ignore non-managed member 'start_MINUS_ns' : Uint64 */
+    p.start_MINUS_ns = newValue;
+    return p;
+}
+
+
+void ActiveTimer_set_MINUS_start_MINUS_ns_BANG_(ActiveTimer* pRef, Uint64 newValue) {
+    /* Ignore non-managed member 'start_MINUS_ns' : Uint64 */
+    pRef->start_MINUS_ns = newValue;
+}
+
+
+Uint64* ActiveTimer_start_MINUS_ns(ActiveTimer* p) { return (&(p->start_MINUS_ns)); }
+
+String ActiveTimer_str(ActiveTimer *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "ActiveTimer");
+  temp = String_prn(&p->name); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Uint64_prn(p->start_MINUS_ns); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "ActiveTimer");
+  temp = String_prn(&p->name);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Uint64_prn(p->start_MINUS_ns);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+ActiveTimer ActiveTimer_update_MINUS_name(ActiveTimer p, Lambda *updater) {
+    p.name = (*updater).env ? ((Fn__LambdaEnv_String_String)(*updater).callback)((*updater).env, p.name) : ((Fn__String_String)(*updater).callback)(p.name);
+    return p;
+}
+
+
+ActiveTimer ActiveTimer_update_MINUS_start_MINUS_ns(ActiveTimer p, Lambda *updater) {
+    p.start_MINUS_ns = (*updater).env ? ((Fn__LambdaEnv_Uint64_Uint64)(*updater).callback)((*updater).env, p.start_MINUS_ns) : ((Fn__Uint64_Uint64)(*updater).callback)(p.start_MINUS_ns);
+    return p;
+}
+
+
 Array Array_allocate__Array__uint8_t (int n) {
     Array a;
     a.len = n;
@@ -6681,6 +7432,15 @@ Array Array_allocate__uint8_t (int n) {
     a.capacity = n;
     a.data = CARP_MALLOC(n*sizeof(uint8_t));
     return a;
+}
+
+void Array_aset_BANG___ActiveTimer (Array *aRef, int n, ActiveTimer newValue) {
+    Array a = *aRef;
+    assert(n >= 0);
+    assert(n < a.len);
+    ActiveTimer_delete(((ActiveTimer*)a.data)[n]);
+
+    ((ActiveTimer*)a.data)[n] = newValue;
 }
 
 void Array_aset_BANG___Char (Array *aRef, int n, Char newValue) {
@@ -7450,6 +8210,17 @@ Array__String Array_copy_MINUS_map__uint8_t_String(Lambda* f, Array__uint8_t* a)
     return _52;
 }
 
+Array Array_copy__ActiveTimer (Array* a){
+    Array copy;
+    copy.len = a->len;
+    copy.capacity = a->capacity;
+    copy.data = CARP_MALLOC(sizeof(ActiveTimer) * a->capacity);
+    for(int i = 0; i < a->len; i++) {
+        ((ActiveTimer*)(copy.data))[i] = ActiveTimer_copy(&(((ActiveTimer*)a->data)[i]));
+    }
+    return copy;
+}
+
 Array Array_copy__Chunk (Array* a){
     Array copy;
     copy.len = a->len;
@@ -7521,6 +8292,17 @@ Array Array_copy__Uint64 (Array* a){
     return copy;
 }
 
+Array Array_copy__ZoneStats (Array* a){
+    Array copy;
+    copy.len = a->len;
+    copy.capacity = a->capacity;
+    copy.data = CARP_MALLOC(sizeof(ZoneStats) * a->capacity);
+    for(int i = 0; i < a->len; i++) {
+        ((ZoneStats*)(copy.data))[i] = ZoneStats_copy(&(((ZoneStats*)a->data)[i]));
+    }
+    return copy;
+}
+
 Array Array_copy__float (Array* a){
     Array copy;
     copy.len = a->len;
@@ -7537,6 +8319,13 @@ Array Array_copy__uint8_t (Array* a){
     copy.data = CARP_MALLOC(sizeof(uint8_t) * a->capacity);
     memcpy(copy.data, a->data, sizeof(uint8_t) * a->len);
     return copy;
+}
+
+void Array_delete__ActiveTimer (Array a){
+    for(int i = 0; i < a.len; i++) {
+        ActiveTimer_delete(((ActiveTimer*)a.data)[i]);
+    }
+    CARP_FREE(a.data);
 }
 
 void Array_delete__Array__uint8_t (Array a){
@@ -7619,6 +8408,13 @@ void Array_delete__Uint64 (Array a){
 void Array_delete__WGPUBuffer (Array a){
     for(int i = 0; i < a.len; i++) {
         /* Ignore non-managed type inside Array: 'WGPUBuffer' */
+    }
+    CARP_FREE(a.data);
+}
+
+void Array_delete__ZoneStats (Array a){
+    for(int i = 0; i < a.len; i++) {
+        ZoneStats_delete(((ZoneStats*)a.data)[i]);
     }
     CARP_FREE(a.data);
 }
@@ -7727,6 +8523,7 @@ Array Array_endo_MINUS_map__uint8_t(Lambda *f, Array a) {
     return a;
 }
 
+int Array_length__ActiveTimer (Array *a) { return (*a).len; }
 int Array_length__Array__uint8_t (Array *a) { return (*a).len; }
 int Array_length__Char (Array *a) { return (*a).len; }
 int Array_length__PatternMatchResult (Array *a) { return (*a).len; }
@@ -7738,6 +8535,7 @@ int Array_length__Uint16 (Array *a) { return (*a).len; }
 int Array_length__Uint32 (Array *a) { return (*a).len; }
 int Array_length__Uint64 (Array *a) { return (*a).len; }
 int Array_length__WGPUBuffer (Array *a) { return (*a).len; }
+int Array_length__ZoneStats (Array *a) { return (*a).len; }
 int Array_length__float (Array *a) { return (*a).len; }
 int Array_length__int (Array *a) { return (*a).len; }
 int Array_length__uint8_t (Array *a) { return (*a).len; }
@@ -7803,9 +8601,27 @@ Array__Array__uint8_t Array_partition__uint8_t(Array__uint8_t* arr, int n) {
     return _67;
 }
 
+Array Array_pop_MINUS_back__ActiveTimer(Array a) { 
+  assert(a.len > 0);
+  a.len--;
+      ActiveTimer_delete(((ActiveTimer*)a.data)[a.len]);
+
+    if(a.len < (a.capacity / 4)) {
+        a.capacity = a.len * 2;
+        a.data = CARP_REALLOC(a.data, sizeof(ActiveTimer) * a .capacity);
+    }
+
+  return a;
+}
+
 Array__Char Array_prefix__Array__Char(Array__Char* xs, int end_MINUS_index) {
     Array__Char _9 = Array_slice__Char(xs, 0, end_MINUS_index);
     return _9;
+}
+
+String Array_prn__ActiveTimer(Array__ActiveTimer* x) {
+    String _6 = Array_str__ActiveTimer(x);
+    return _6;
 }
 
 String Array_prn__Chunk(Array__Chunk* x) {
@@ -7813,9 +8629,23 @@ String Array_prn__Chunk(Array__Chunk* x) {
     return _6;
 }
 
+String Array_prn__ZoneStats(Array__ZoneStats* x) {
+    String _6 = Array_str__ZoneStats(x);
+    return _6;
+}
+
 String Array_prn__float(Array__float* x) {
     String _6 = Array_str__float(x);
     return _6;
+}
+
+void Array_push_MINUS_back_BANG___ActiveTimer(Array *aRef, ActiveTimer value) { 
+    aRef->len++;
+    if(aRef->len > aRef->capacity) {
+        aRef->capacity = aRef->len * 2;
+        aRef->data = CARP_REALLOC(aRef->data, sizeof(ActiveTimer) * aRef->capacity);
+    }
+    ((ActiveTimer*)aRef->data)[aRef->len - 1] = value;
 }
 
 void Array_push_MINUS_back_BANG___Chunk(Array *aRef, Chunk value) { 
@@ -7825,6 +8655,15 @@ void Array_push_MINUS_back_BANG___Chunk(Array *aRef, Chunk value) {
         aRef->data = CARP_REALLOC(aRef->data, sizeof(Chunk) * aRef->capacity);
     }
     ((Chunk*)aRef->data)[aRef->len - 1] = value;
+}
+
+void Array_push_MINUS_back_BANG___ZoneStats(Array *aRef, ZoneStats value) { 
+    aRef->len++;
+    if(aRef->len > aRef->capacity) {
+        aRef->capacity = aRef->len * 2;
+        aRef->data = CARP_REALLOC(aRef->data, sizeof(ZoneStats) * aRef->capacity);
+    }
+    ((ZoneStats*)aRef->data)[aRef->len - 1] = value;
 }
 
 Array Array_push_MINUS_back__Array__uint8_t(Array a, Array__uint8_t value) { 
@@ -7901,6 +8740,35 @@ int Array_reduce__int_int(Lambda* f, int x, Array__int* xs) {
         _47 = _46;
     }
     return _47;
+}
+
+Array__ActiveTimer Array_remove_MINUS_nth__ActiveTimer(int i, Array__ActiveTimer arr) {
+    /* let */ {
+        int j = i;
+        Array__ActiveTimer* _17 = &arr; // ref
+        int _18 = Array_length__ActiveTimer(_17);
+        int _19 = Int_dec(_18);
+        bool _1000007 = Int__LT_(j, _19);
+        bool _1000005 = _1000007;
+        while (_1000005) {
+            Array__ActiveTimer* _25 = &arr; // ref
+            Array__ActiveTimer* _31 = &arr; // ref
+            int _34 = Int_inc(j);
+            ActiveTimer* _35 = Array_unsafe_MINUS_nth__ActiveTimer(_31, _34);
+            ActiveTimer _36 = ActiveTimer_copy(_35);
+            Array_aset_BANG___ActiveTimer(_25, j, _36);
+            int _1000012 = Int__PLUS_(j, 1);
+            j = _1000012;  // Int = Int
+            Array__ActiveTimer* _17 = &arr; // ref
+            int _18 = Array_length__ActiveTimer(_17);
+            int _19 = Int_dec(_18);
+            bool _1000007 = Int__LT_(j, _19);
+            _1000005 = _1000007;
+        }
+    }
+    Array__ActiveTimer _50 = Array_pop_MINUS_back__ActiveTimer(arr);
+    Array__ActiveTimer _51 = _50;
+    return _51;
 }
 
 Array__Char Array_repeat__Char(int n, Lambda* f) {
@@ -8067,6 +8935,41 @@ Array__uint8_t Array_slice__uint8_t(Array__uint8_t* xs, int start_MINUS_index, i
     return _45;
 }
 
+String Array_str__ActiveTimer (Array* a) {
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize;
+  int size = 3; // opening and closing brackets and terminator
+  for(int i = 0; i < a->len; i++) {
+    temp = ActiveTimer_prn(&((ActiveTimer*)a->data)[i]);
+    size += snprintf(NULL, 0, "%s ", temp);
+    if(temp) {
+      CARP_FREE(temp);
+      temp = NULL;
+    }
+  }
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  snprintf(buffer, size, "[");
+  bufferPtr += 1;
+
+  for(int i = 0; i < a->len; i++) {
+    temp = ActiveTimer_prn(&((ActiveTimer*)a->data)[i]);
+    tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+    bufferPtr += tempsize;
+    if(temp) {
+      CARP_FREE(temp);
+      temp = NULL;
+    }
+  }
+
+  if(a->len > 0) { bufferPtr -= 1; }
+  snprintf(bufferPtr, size - (bufferPtr - buffer), "]");
+  return buffer;
+}
+
 String Array_str__Chunk (Array* a) {
   String temp = NULL;
   int tempsize = 0;
@@ -8089,6 +8992,41 @@ String Array_str__Chunk (Array* a) {
 
   for(int i = 0; i < a->len; i++) {
     temp = Chunk_prn(&((Chunk*)a->data)[i]);
+    tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+    bufferPtr += tempsize;
+    if(temp) {
+      CARP_FREE(temp);
+      temp = NULL;
+    }
+  }
+
+  if(a->len > 0) { bufferPtr -= 1; }
+  snprintf(bufferPtr, size - (bufferPtr - buffer), "]");
+  return buffer;
+}
+
+String Array_str__ZoneStats (Array* a) {
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize;
+  int size = 3; // opening and closing brackets and terminator
+  for(int i = 0; i < a->len; i++) {
+    temp = ZoneStats_prn(&((ZoneStats*)a->data)[i]);
+    size += snprintf(NULL, 0, "%s ", temp);
+    if(temp) {
+      CARP_FREE(temp);
+      temp = NULL;
+    }
+  }
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  snprintf(buffer, size, "[");
+  bufferPtr += 1;
+
+  for(int i = 0; i < a->len; i++) {
+    temp = ZoneStats_prn(&((ZoneStats*)a->data)[i]);
     tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
     bufferPtr += tempsize;
     if(temp) {
@@ -8141,6 +9079,13 @@ Array__Char Array_suffix__Char(Array__Char* xs, int start_MINUS_index) {
     int _10 = Array_length__Char(xs);
     Array__Char _11 = Array_slice__Char(xs, start_MINUS_index, _10);
     return _11;
+}
+
+ActiveTimer* Array_unsafe_MINUS_nth__ActiveTimer (Array *aRef, int n) {
+    Array a = *aRef;
+    assert(n >= 0);
+    assert(n < a.len);
+    return &(((ActiveTimer*)a.data)[n]);
 }
 
 Array__uint8_t* Array_unsafe_MINUS_nth__Array__uint8_t (Array *aRef, int n) {
@@ -8218,6 +9163,13 @@ Uint64* Array_unsafe_MINUS_nth__Uint64 (Array *aRef, int n) {
     assert(n >= 0);
     assert(n < a.len);
     return &(((Uint64*)a.data)[n]);
+}
+
+ZoneStats* Array_unsafe_MINUS_nth__ZoneStats (Array *aRef, int n) {
+    Array a = *aRef;
+    assert(n >= 0);
+    assert(n < a.len);
+    return &(((ZoneStats*)a.data)[n]);
 }
 
 int* Array_unsafe_MINUS_nth__int (Array *aRef, int n) {
@@ -11676,6 +12628,1006 @@ Chunk Chunk_update_MINUS_voxel_MINUS_data(Chunk p, Lambda *updater) {
 
 Array__float* Chunk_voxel_MINUS_data(Chunk* p) { return (&(p->voxel_MINUS_data)); }
 
+Array__ActiveTimer* Diagnostics_active_MINUS_timers(Diagnostics* p) { return (&(p->active_MINUS_timers)); }
+
+void Diagnostics_clear_MINUS_error_BANG_(Diagnostics* diag) {
+    Diagnostics_set_MINUS_has_MINUS_error_BANG_(diag, false);
+    Diagnostics_set_MINUS_last_MINUS_error_MINUS_code_BANG_(diag, 0);
+    static String _16 = "";
+    String *_16_ref = &_16;
+    String _17 = String_copy(_16_ref);
+    Diagnostics_set_MINUS_last_MINUS_error_MINUS_msg_BANG_(diag, _17);
+}
+
+Diagnostics Diagnostics_copy(Diagnostics* pRef) {
+    Diagnostics copy = *pRef;
+    copy.log_MINUS_file_MINUS_path = String_copy(&(pRef->log_MINUS_file_MINUS_path));
+    /* Ignore non-managed member 'has_MINUS_error' : Bool */
+    /* Ignore non-managed member 'last_MINUS_error_MINUS_code' : Int */
+    copy.last_MINUS_error_MINUS_msg = String_copy(&(pRef->last_MINUS_error_MINUS_msg));
+    copy.active_MINUS_timers = Array_copy__ActiveTimer(&(pRef->active_MINUS_timers));
+    copy.zone_MINUS_stats_MINUS_arr = Array_copy__ZoneStats(&(pRef->zone_MINUS_stats_MINUS_arr));
+    return copy;
+}
+
+void Diagnostics_delete(Diagnostics p) {
+    String_delete(p.log_MINUS_file_MINUS_path);
+    /* Ignore non-managed member 'has_MINUS_error' : Bool */
+    /* Ignore non-managed member 'last_MINUS_error_MINUS_code' : Int */
+    String_delete(p.last_MINUS_error_MINUS_msg);
+    Array_delete__ActiveTimer(p.active_MINUS_timers);
+    Array_delete__ZoneStats(p.zone_MINUS_stats_MINUS_arr);
+}
+
+void Diagnostics_end_MINUS_zone_BANG_(Diagnostics* diag, String* name_MINUS_ref) {
+    /* let */ {
+        Uint64 _8 = System_nanotime();
+        Uint64 end_MINUS_time = _8;
+        Array__ActiveTimer* _12 = Diagnostics_active_MINUS_timers(diag);
+        Array__ActiveTimer* timers = _12;
+        int _16 = Array_length__ActiveTimer(timers);
+        int len = _16;
+        int found_MINUS_idx = -1;
+        /* let */ {
+            int _25 = Int_dec(len);
+            int i = _25;
+            bool _42;
+            bool _32 = _GT__EQ___int(i, 0);
+            if (_32) {
+                bool _37 = Int__EQ_(found_MINUS_idx, -1);
+                bool _38 = _37;
+                _42 = _38;
+            } else {
+                bool _41 = false;
+                _42 = _41;
+            }
+            bool _71 = _42;
+            while (_71) {
+                ActiveTimer* _50 = Array_unsafe_MINUS_nth__ActiveTimer(timers, i);
+                String* _51 = ActiveTimer_name(_50);
+                bool _53 = String__EQ_(_51, name_MINUS_ref);
+                if (_53) {
+                    found_MINUS_idx = i;  // Int = Int
+                } else {
+                    /* () */
+                }
+                int _68 = Int_dec(i);
+                i = _68;  // Int = Int
+                bool _42;
+                bool _32 = _GT__EQ___int(i, 0);
+                if (_32) {
+                    bool _37 = Int__EQ_(found_MINUS_idx, -1);
+                    bool _38 = _37;
+                    _42 = _38;
+                } else {
+                    bool _41 = false;
+                    _42 = _41;
+                }
+                _71 = _42;
+            }
+        }
+        bool _77 = Int__EQ_(found_MINUS_idx, -1);
+        if (_77) {
+            LogLevel _82 = LogLevel_Warning();
+            static String _89 = "Tried to end non-existent profiling zone: ";
+            String *_89_ref = &_89;
+            String _1000021 = String_str(_89_ref);
+            String* _1000020 = &_1000021; // ref
+            String _96 = String_copy(name_MINUS_ref);
+            String _1000023 = StringCopy_str(_96);
+            String* _1000022 = &_1000023; // ref
+            String _1000019 = String_append(_1000020, _1000022);
+            String* _1000018 = &_1000019; // ref
+            String _1000017 = String_copy(_1000018);
+            String* _102 = &_1000017; // ref
+            Diagnostics_log_BANG___String(diag, _82, _102);
+            String_delete(_1000017);
+            String_delete(_1000019);
+            String_delete(_1000021);
+            String_delete(_1000023);
+        } else {
+            /* let */ {
+                ActiveTimer* _112 = Array_unsafe_MINUS_nth__ActiveTimer(timers, found_MINUS_idx);
+                ActiveTimer _113 = ActiveTimer_copy(_112);
+                ActiveTimer timer = _113;
+                ActiveTimer* _119 = &timer; // ref
+                Uint64* _120 = ActiveTimer_start_MINUS_ns(_119);
+                Uint64 _121 = Uint64_copy(_120);
+                Uint64 start_MINUS_time = _121;
+                Uint64 _126 = Uint64__MINUS_(end_MINUS_time, start_MINUS_time);
+                Uint64 duration_MINUS_ns = _126;
+                int _131 = Diagnostics_find_MINUS_zone_MINUS_stats_MINUS_index(diag, name_MINUS_ref);
+                int stats_MINUS_idx = _131;
+                Array__ActiveTimer _140 = Array_copy__ActiveTimer(timers);
+                Array__ActiveTimer _141 = Array_remove_MINUS_nth__ActiveTimer(found_MINUS_idx, _140);
+                Diagnostics_set_MINUS_active_MINUS_timers_BANG_(diag, _141);
+                /* let */ {
+                    Long _149 = Uint64_to_MINUS_long(duration_MINUS_ns);
+                    double _150 = Double_from_MINUS_long(_149);
+                    double _152 = Double__DIV_(_150, 1000000.0);
+                    double dur_MINUS_ms = _152;
+                    int _165;
+                    bool _158 = Double__GT_(dur_MINUS_ms, 16.67);
+                    if (_158) {
+                        int _161 = 1;
+                        _165 = _161;
+                    } else {
+                        int _164 = 0;
+                        _165 = _164;
+                    }
+                    int is_MINUS_spike = _165;
+                    bool _171 = Int__EQ_(stats_MINUS_idx, -1);
+                    if (_171) {
+                        /* let */ {
+                            String _178 = String_copy(name_MINUS_ref);
+                            double _188 = Double__MUL_(dur_MINUS_ms, dur_MINUS_ms);
+                            ZoneStats _190 = ZoneStats_init(_178, 1, duration_MINUS_ns, duration_MINUS_ns, duration_MINUS_ns, duration_MINUS_ns, dur_MINUS_ms, _188, is_MINUS_spike);
+                            ZoneStats new_MINUS_stats = _190;
+                            Array__ZoneStats* _195 = Diagnostics_zone_MINUS_stats_MINUS_arr(diag);
+                            Array_push_MINUS_back_BANG___ZoneStats(_195, new_MINUS_stats);
+                        }
+                    } else {
+                        /* let */ {
+                            Array__ZoneStats* _206 = Diagnostics_zone_MINUS_stats_MINUS_arr(diag);
+                            ZoneStats* _208 = Array_unsafe_MINUS_nth__ZoneStats(_206, stats_MINUS_idx);
+                            ZoneStats* stats = _208;
+                            int* _213 = ZoneStats_count(stats);
+                            int _214 = Int_copy(_213);
+                            int cnt = _214;
+                            Uint64* _219 = ZoneStats_sum_MINUS_ns(stats);
+                            Uint64 _220 = Uint64_copy(_219);
+                            Uint64 total_MINUS_ns = _220;
+                            Uint64* _225 = ZoneStats_min_MINUS_ns(stats);
+                            Uint64 _226 = Uint64_copy(_225);
+                            Uint64 min_MINUS_val = _226;
+                            Uint64* _231 = ZoneStats_max_MINUS_ns(stats);
+                            Uint64 _232 = Uint64_copy(_231);
+                            Uint64 max_MINUS_val = _232;
+                            double* _237 = ZoneStats_sum_MINUS_ms(stats);
+                            double _238 = Double_copy(_237);
+                            double total_MINUS_ms = _238;
+                            double* _243 = ZoneStats_sum_MINUS_sq_MINUS_ms(stats);
+                            double _244 = Double_copy(_243);
+                            double total_MINUS_sq_MINUS_ms = _244;
+                            int* _249 = ZoneStats_spikes_MINUS_count(stats);
+                            int _250 = Int_copy(_249);
+                            int spikes = _250;
+                            int _257 = Int_inc(cnt);
+                            ZoneStats_set_MINUS_count_BANG_(stats, _257);
+                            Uint64 _264 = Uint64__PLUS_(total_MINUS_ns, duration_MINUS_ns);
+                            ZoneStats_set_MINUS_sum_MINUS_ns_BANG_(stats, _264);
+                            ZoneStats_set_MINUS_last_MINUS_ns_BANG_(stats, duration_MINUS_ns);
+                            double _275 = Double__PLUS_(total_MINUS_ms, dur_MINUS_ms);
+                            ZoneStats_set_MINUS_sum_MINUS_ms_BANG_(stats, _275);
+                            double _284 = Double__MUL_(dur_MINUS_ms, dur_MINUS_ms);
+                            double _285 = Double__PLUS_(total_MINUS_sq_MINUS_ms, _284);
+                            ZoneStats_set_MINUS_sum_MINUS_sq_MINUS_ms_BANG_(stats, _285);
+                            int _292 = Int__PLUS_(spikes, is_MINUS_spike);
+                            ZoneStats_set_MINUS_spikes_MINUS_count_BANG_(stats, _292);
+                            bool _298 = Uint64__LT_(duration_MINUS_ns, min_MINUS_val);
+                            if (_298) {
+                                ZoneStats_set_MINUS_min_MINUS_ns_BANG_(stats, duration_MINUS_ns);
+                            } else {
+                                /* () */
+                            }
+                            bool _313 = Uint64__GT_(duration_MINUS_ns, max_MINUS_val);
+                            if (_313) {
+                                ZoneStats_set_MINUS_max_MINUS_ns_BANG_(stats, duration_MINUS_ns);
+                            } else {
+                                /* () */
+                            }
+                        }
+                    }
+                }
+                ActiveTimer_delete(timer);
+            }
+        }
+    }
+}
+
+int Diagnostics_find_MINUS_zone_MINUS_stats_MINUS_index(Diagnostics* diag, String* name_MINUS_ref) {
+    int _60;
+    /* let */ {
+        Array__ZoneStats* _9 = Diagnostics_zone_MINUS_stats_MINUS_arr(diag);
+        Array__ZoneStats* arr = _9;
+        int _13 = Array_length__ZoneStats(arr);
+        int len = _13;
+        int found_MINUS_idx = -1;
+        /* let */ {
+            int i = 0;
+            bool _1000008 = Int__LT_(i, len);
+            bool _1000006 = _1000008;
+            while (_1000006) {
+                ZoneStats* _34 = Array_unsafe_MINUS_nth__ZoneStats(arr, i);
+                String* _35 = ZoneStats_name(_34);
+                bool _37 = String__EQ_(_35, name_MINUS_ref);
+                if (_37) {
+                    found_MINUS_idx = i;  // Int = Int
+                } else {
+                    /* () */
+                }
+                int _1000017 = Int__PLUS_(i, 1);
+                i = _1000017;  // Int = Int
+                bool _1000008 = Int__LT_(i, len);
+                _1000006 = _1000008;
+            }
+        }
+        int _59 = found_MINUS_idx;
+        _60 = _59;
+    }
+    return _60;
+}
+
+bool* Diagnostics_has_MINUS_error(Diagnostics* p) { return (&(p->has_MINUS_error)); }
+
+Diagnostics Diagnostics_init(String log_MINUS_file_MINUS_path, bool has_MINUS_error, int last_MINUS_error_MINUS_code, String last_MINUS_error_MINUS_msg, Array__ActiveTimer active_MINUS_timers, Array__ZoneStats zone_MINUS_stats_MINUS_arr) {
+    Diagnostics instance;
+    instance.log_MINUS_file_MINUS_path = log_MINUS_file_MINUS_path;
+    instance.has_MINUS_error = has_MINUS_error;
+    instance.last_MINUS_error_MINUS_code = last_MINUS_error_MINUS_code;
+    instance.last_MINUS_error_MINUS_msg = last_MINUS_error_MINUS_msg;
+    instance.active_MINUS_timers = active_MINUS_timers;
+    instance.zone_MINUS_stats_MINUS_arr = zone_MINUS_stats_MINUS_arr;
+    return instance;
+}
+
+int* Diagnostics_last_MINUS_error_MINUS_code(Diagnostics* p) { return (&(p->last_MINUS_error_MINUS_code)); }
+
+String* Diagnostics_last_MINUS_error_MINUS_msg(Diagnostics* p) { return (&(p->last_MINUS_error_MINUS_msg)); }
+
+void Diagnostics_log_BANG___String(Diagnostics* diag, LogLevel level, String* msg) {
+    /* let */ {
+        Uint64 _9 = System_nanotime();
+        Uint64 timestamp = _9;
+        String* _13 = LogLevel_to_MINUS_string(level);
+        String* level_MINUS_str = _13;
+        static String _20 = "[";
+        String *_20_ref = &_20;
+        String _1000007 = String_str(_20_ref);
+        String* _1000006 = &_1000007; // ref
+        String _29 = Uint64_str(timestamp);
+        String _1000011 = StringCopy_str(_29);
+        String* _1000010 = &_1000011; // ref
+        static String _36 = "] [";
+        String *_36_ref = &_36;
+        String _1000015 = String_str(_36_ref);
+        String* _1000014 = &_1000015; // ref
+        String _1000019 = String_str(level_MINUS_str);
+        String* _1000018 = &_1000019; // ref
+        static String _50 = "] ";
+        String *_50_ref = &_50;
+        String _1000023 = String_str(_50_ref);
+        String* _1000022 = &_1000023; // ref
+        String _59 = String_copy(msg);
+        String _1000027 = StringCopy_str(_59);
+        String* _1000026 = &_1000027; // ref
+        static String _64 = "\n";
+        String *_64_ref = &_64;
+        String _1000029 = String_str(_64_ref);
+        String* _1000028 = &_1000029; // ref
+        String _1000025 = String_append(_1000026, _1000028);
+        String* _1000024 = &_1000025; // ref
+        String _1000021 = String_append(_1000022, _1000024);
+        String* _1000020 = &_1000021; // ref
+        String _1000017 = String_append(_1000018, _1000020);
+        String* _1000016 = &_1000017; // ref
+        String _1000013 = String_append(_1000014, _1000016);
+        String* _1000012 = &_1000013; // ref
+        String _1000009 = String_append(_1000010, _1000012);
+        String* _1000008 = &_1000009; // ref
+        String _1000005 = String_append(_1000006, _1000008);
+        String* _1000004 = &_1000005; // ref
+        String _1000003 = String_copy(_1000004);
+        String formatted_MINUS_msg = _1000003;
+        String* _85 = &formatted_MINUS_msg; // ref
+        IO_print(_85);
+        String* _91 = &formatted_MINUS_msg; // ref
+        Diagnostics_write_MINUS_log_MINUS_file_BANG_(diag, _91);
+        String_delete(_1000005);
+        String_delete(_1000007);
+        String_delete(_1000009);
+        String_delete(_1000011);
+        String_delete(_1000013);
+        String_delete(_1000015);
+        String_delete(_1000017);
+        String_delete(_1000019);
+        String_delete(_1000021);
+        String_delete(_1000023);
+        String_delete(_1000025);
+        String_delete(_1000027);
+        String_delete(_1000029);
+        String_delete(formatted_MINUS_msg);
+    }
+}
+
+String* Diagnostics_log_MINUS_file_MINUS_path(Diagnostics* p) { return (&(p->log_MINUS_file_MINUS_path)); }
+
+Diagnostics Diagnostics_new(String log_MINUS_path) {
+    Diagnostics _30;
+    /* let */ {
+        Array _10 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(ActiveTimer) * 0) };
+        Array__ActiveTimer _11 = _10; // From the 'the' function.
+        Array__ActiveTimer act_MINUS_timers = _11;
+        Array _17 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(ZoneStats) * 0) };
+        Array__ZoneStats _18 = _17; // From the 'the' function.
+        Array__ZoneStats stats_MINUS_arr = _18;
+        static String _25 = "";
+        String *_25_ref = &_25;
+        String _26 = String_copy(_25_ref);
+        Diagnostics _29 = Diagnostics_init(log_MINUS_path, false, 0, _26, act_MINUS_timers, stats_MINUS_arr);
+        _30 = _29;
+    }
+    return _30;
+}
+
+String Diagnostics_ns_MINUS__GT_ms_MINUS_str(Uint64 ns) {
+    String _18;
+    /* let */ {
+        Long _10 = Uint64_to_MINUS_long(ns);
+        double _11 = Double_from_MINUS_long(_10);
+        double _13 = Double__DIV_(_11, 1000000.0);
+        double ms = _13;
+        String _17 = Double_str(ms);
+        _18 = _17;
+    }
+    return _18;
+}
+
+void Diagnostics_print_MINUS_stats_BANG_(Diagnostics* diag) {
+    /* let */ {
+        Array__ZoneStats* _8 = Diagnostics_zone_MINUS_stats_MINUS_arr(diag);
+        Array__ZoneStats* arr = _8;
+        int _12 = Array_length__ZoneStats(arr);
+        int len = _12;
+        static String _14 = "--- PERFORMANCE PROFILE REPORT ---\n";
+        String *_14_ref = &_14;
+        String* header = _14_ref;
+        double total_MINUS_frame_MINUS_ms = 0.0;
+        /* let */ {
+            int i = 0;
+            bool _1000008 = Int__LT_(i, len);
+            bool _1000006 = _1000008;
+            while (_1000006) {
+                /* let */ {
+                    ZoneStats* _34 = Array_unsafe_MINUS_nth__ZoneStats(arr, i);
+                    ZoneStats* stats = _34;
+                    String* _40 = ZoneStats_name(stats);
+                    static String _41 = "Total Frame Time";
+                    String *_41_ref = &_41;
+                    bool _42 = String__EQ_(_40, _41_ref);
+                    if (_42) {
+                        double* _49 = ZoneStats_sum_MINUS_ms(stats);
+                        double _50 = Double_copy(_49);
+                        total_MINUS_frame_MINUS_ms = _50;  // Double = Double
+                    } else {
+                        /* () */
+                    }
+                }
+                int _1000018 = Int__PLUS_(i, 1);
+                i = _1000018;  // Int = Int
+                bool _1000008 = Int__LT_(i, len);
+                _1000006 = _1000008;
+            }
+        }
+        LogLevel _71 = LogLevel_Info();
+        Diagnostics_log_BANG___String(diag, _71, header);
+        /* let */ {
+            int i = 0;
+            bool _1000023 = Int__LT_(i, len);
+            bool _1000021 = _1000023;
+            while (_1000021) {
+                /* let */ {
+                    ZoneStats* _89 = Array_unsafe_MINUS_nth__ZoneStats(arr, i);
+                    ZoneStats* stats = _89;
+                    String* _94 = ZoneStats_name(stats);
+                    String _95 = String_copy(_94);
+                    String name_MINUS_str = _95;
+                    int* _100 = ZoneStats_count(stats);
+                    int _101 = Int_copy(_100);
+                    int cnt = _101;
+                    Uint64* _106 = ZoneStats_sum_MINUS_ns(stats);
+                    Uint64 _107 = Uint64_copy(_106);
+                    Uint64 total_MINUS_ns = _107;
+                    Uint64* _112 = ZoneStats_min_MINUS_ns(stats);
+                    Uint64 _113 = Uint64_copy(_112);
+                    Uint64 min_MINUS_ns = _113;
+                    Uint64* _118 = ZoneStats_max_MINUS_ns(stats);
+                    Uint64 _119 = Uint64_copy(_118);
+                    Uint64 max_MINUS_ns = _119;
+                    Uint64* _124 = ZoneStats_last_MINUS_ns(stats);
+                    Uint64 _125 = Uint64_copy(_124);
+                    Uint64 last_MINUS_ns = _125;
+                    Long _132 = Long_from_MINUS_int(cnt);
+                    Uint64 _133 = Uint64_from_MINUS_long(_132);
+                    Uint64 _134 = Uint64__DIV_(total_MINUS_ns, _133);
+                    Uint64 avg_MINUS_ns = _134;
+                    double* _139 = ZoneStats_sum_MINUS_ms(stats);
+                    double _140 = Double_copy(_139);
+                    double total_MINUS_ms = _140;
+                    double* _145 = ZoneStats_sum_MINUS_sq_MINUS_ms(stats);
+                    double _146 = Double_copy(_145);
+                    double total_MINUS_sq_MINUS_ms = _146;
+                    double _152 = Double_from_MINUS_int(cnt);
+                    double _153 = Double__DIV_(total_MINUS_ms, _152);
+                    double mean_MINUS_ms = _153;
+                    double _160 = Double_from_MINUS_int(cnt);
+                    double _161 = Double__DIV_(total_MINUS_sq_MINUS_ms, _160);
+                    double _165 = Double__MUL_(mean_MINUS_ms, mean_MINUS_ms);
+                    double _166 = Double__MINUS_(_161, _165);
+                    double var_MINUS_ms = _166;
+                    double _179;
+                    bool _172 = Double__LT_(var_MINUS_ms, 0.0);
+                    if (_172) {
+                        double _175 = 0.0;
+                        _179 = _175;
+                    } else {
+                        double _178 = var_MINUS_ms;
+                        _179 = _178;
+                    }
+                    double clamped_MINUS_var = _179;
+                    double _183 = Double_sqrt(clamped_MINUS_var);
+                    double stddev_MINUS_ms = _183;
+                    double _202;
+                    bool _189 = Double__GT_(total_MINUS_frame_MINUS_ms, 0.0);
+                    if (_189) {
+                        double _195 = Double__DIV_(total_MINUS_ms, total_MINUS_frame_MINUS_ms);
+                        double _197 = Double__MUL_(_195, 100.0);
+                        double _198 = _197;
+                        _202 = _198;
+                    } else {
+                        double _201 = 0.0;
+                        _202 = _201;
+                    }
+                    double pct = _202;
+                    int* _207 = ZoneStats_spikes_MINUS_count(stats);
+                    int _208 = Int_copy(_207);
+                    int spikes_MINUS_cnt = _208;
+                    static String _215 = "Zone: ";
+                    String *_215_ref = &_215;
+                    String _1000037 = String_str(_215_ref);
+                    String* _1000036 = &_1000037; // ref
+                    String _1000041 = StringCopy_str(name_MINUS_str);
+                    String* _1000040 = &_1000041; // ref
+                    static String _229 = " | Runs: ";
+                    String *_229_ref = &_229;
+                    String _1000045 = String_str(_229_ref);
+                    String* _1000044 = &_1000045; // ref
+                    String _238 = Int_str(cnt);
+                    String _1000049 = StringCopy_str(_238);
+                    String* _1000048 = &_1000049; // ref
+                    static String _245 = " | Last: ";
+                    String *_245_ref = &_245;
+                    String _1000053 = String_str(_245_ref);
+                    String* _1000052 = &_1000053; // ref
+                    String _254 = Diagnostics_ns_MINUS__GT_ms_MINUS_str(last_MINUS_ns);
+                    String _1000057 = StringCopy_str(_254);
+                    String* _1000056 = &_1000057; // ref
+                    static String _261 = "ms";
+                    String *_261_ref = &_261;
+                    String _1000061 = String_str(_261_ref);
+                    String* _1000060 = &_1000061; // ref
+                    static String _268 = " | Avg: ";
+                    String *_268_ref = &_268;
+                    String _1000065 = String_str(_268_ref);
+                    String* _1000064 = &_1000065; // ref
+                    String _277 = Diagnostics_ns_MINUS__GT_ms_MINUS_str(avg_MINUS_ns);
+                    String _1000069 = StringCopy_str(_277);
+                    String* _1000068 = &_1000069; // ref
+                    static String _284 = "ms";
+                    String *_284_ref = &_284;
+                    String _1000073 = String_str(_284_ref);
+                    String* _1000072 = &_1000073; // ref
+                    static String _291 = " | Jitter: ";
+                    String *_291_ref = &_291;
+                    String _1000077 = String_str(_291_ref);
+                    String* _1000076 = &_1000077; // ref
+                    String _300 = Double_str(stddev_MINUS_ms);
+                    String _1000081 = StringCopy_str(_300);
+                    String* _1000080 = &_1000081; // ref
+                    static String _307 = "ms";
+                    String *_307_ref = &_307;
+                    String _1000085 = String_str(_307_ref);
+                    String* _1000084 = &_1000085; // ref
+                    static String _314 = " | Min: ";
+                    String *_314_ref = &_314;
+                    String _1000089 = String_str(_314_ref);
+                    String* _1000088 = &_1000089; // ref
+                    String _323 = Diagnostics_ns_MINUS__GT_ms_MINUS_str(min_MINUS_ns);
+                    String _1000093 = StringCopy_str(_323);
+                    String* _1000092 = &_1000093; // ref
+                    static String _330 = "ms";
+                    String *_330_ref = &_330;
+                    String _1000097 = String_str(_330_ref);
+                    String* _1000096 = &_1000097; // ref
+                    static String _337 = " | Max: ";
+                    String *_337_ref = &_337;
+                    String _1000101 = String_str(_337_ref);
+                    String* _1000100 = &_1000101; // ref
+                    String _346 = Diagnostics_ns_MINUS__GT_ms_MINUS_str(max_MINUS_ns);
+                    String _1000105 = StringCopy_str(_346);
+                    String* _1000104 = &_1000105; // ref
+                    static String _353 = "ms";
+                    String *_353_ref = &_353;
+                    String _1000109 = String_str(_353_ref);
+                    String* _1000108 = &_1000109; // ref
+                    static String _360 = " | Spikes (>16.6ms): ";
+                    String *_360_ref = &_360;
+                    String _1000113 = String_str(_360_ref);
+                    String* _1000112 = &_1000113; // ref
+                    String _369 = Int_str(spikes_MINUS_cnt);
+                    String _1000117 = StringCopy_str(_369);
+                    String* _1000116 = &_1000117; // ref
+                    static String _376 = " | % of Frame: ";
+                    String *_376_ref = &_376;
+                    String _1000121 = String_str(_376_ref);
+                    String* _1000120 = &_1000121; // ref
+                    String _385 = Double_str(pct);
+                    String _1000125 = StringCopy_str(_385);
+                    String* _1000124 = &_1000125; // ref
+                    static String _390 = "%";
+                    String *_390_ref = &_390;
+                    String _1000127 = String_str(_390_ref);
+                    String* _1000126 = &_1000127; // ref
+                    String _1000123 = String_append(_1000124, _1000126);
+                    String* _1000122 = &_1000123; // ref
+                    String _1000119 = String_append(_1000120, _1000122);
+                    String* _1000118 = &_1000119; // ref
+                    String _1000115 = String_append(_1000116, _1000118);
+                    String* _1000114 = &_1000115; // ref
+                    String _1000111 = String_append(_1000112, _1000114);
+                    String* _1000110 = &_1000111; // ref
+                    String _1000107 = String_append(_1000108, _1000110);
+                    String* _1000106 = &_1000107; // ref
+                    String _1000103 = String_append(_1000104, _1000106);
+                    String* _1000102 = &_1000103; // ref
+                    String _1000099 = String_append(_1000100, _1000102);
+                    String* _1000098 = &_1000099; // ref
+                    String _1000095 = String_append(_1000096, _1000098);
+                    String* _1000094 = &_1000095; // ref
+                    String _1000091 = String_append(_1000092, _1000094);
+                    String* _1000090 = &_1000091; // ref
+                    String _1000087 = String_append(_1000088, _1000090);
+                    String* _1000086 = &_1000087; // ref
+                    String _1000083 = String_append(_1000084, _1000086);
+                    String* _1000082 = &_1000083; // ref
+                    String _1000079 = String_append(_1000080, _1000082);
+                    String* _1000078 = &_1000079; // ref
+                    String _1000075 = String_append(_1000076, _1000078);
+                    String* _1000074 = &_1000075; // ref
+                    String _1000071 = String_append(_1000072, _1000074);
+                    String* _1000070 = &_1000071; // ref
+                    String _1000067 = String_append(_1000068, _1000070);
+                    String* _1000066 = &_1000067; // ref
+                    String _1000063 = String_append(_1000064, _1000066);
+                    String* _1000062 = &_1000063; // ref
+                    String _1000059 = String_append(_1000060, _1000062);
+                    String* _1000058 = &_1000059; // ref
+                    String _1000055 = String_append(_1000056, _1000058);
+                    String* _1000054 = &_1000055; // ref
+                    String _1000051 = String_append(_1000052, _1000054);
+                    String* _1000050 = &_1000051; // ref
+                    String _1000047 = String_append(_1000048, _1000050);
+                    String* _1000046 = &_1000047; // ref
+                    String _1000043 = String_append(_1000044, _1000046);
+                    String* _1000042 = &_1000043; // ref
+                    String _1000039 = String_append(_1000040, _1000042);
+                    String* _1000038 = &_1000039; // ref
+                    String _1000035 = String_append(_1000036, _1000038);
+                    String* _1000034 = &_1000035; // ref
+                    String _1000033 = String_copy(_1000034);
+                    String msg = _1000033;
+                    LogLevel _444 = LogLevel_Info();
+                    String* _447 = &msg; // ref
+                    Diagnostics_log_BANG___String(diag, _444, _447);
+                    String_delete(_1000035);
+                    String_delete(_1000037);
+                    String_delete(_1000039);
+                    String_delete(_1000041);
+                    String_delete(_1000043);
+                    String_delete(_1000045);
+                    String_delete(_1000047);
+                    String_delete(_1000049);
+                    String_delete(_1000051);
+                    String_delete(_1000053);
+                    String_delete(_1000055);
+                    String_delete(_1000057);
+                    String_delete(_1000059);
+                    String_delete(_1000061);
+                    String_delete(_1000063);
+                    String_delete(_1000065);
+                    String_delete(_1000067);
+                    String_delete(_1000069);
+                    String_delete(_1000071);
+                    String_delete(_1000073);
+                    String_delete(_1000075);
+                    String_delete(_1000077);
+                    String_delete(_1000079);
+                    String_delete(_1000081);
+                    String_delete(_1000083);
+                    String_delete(_1000085);
+                    String_delete(_1000087);
+                    String_delete(_1000089);
+                    String_delete(_1000091);
+                    String_delete(_1000093);
+                    String_delete(_1000095);
+                    String_delete(_1000097);
+                    String_delete(_1000099);
+                    String_delete(_1000101);
+                    String_delete(_1000103);
+                    String_delete(_1000105);
+                    String_delete(_1000107);
+                    String_delete(_1000109);
+                    String_delete(_1000111);
+                    String_delete(_1000113);
+                    String_delete(_1000115);
+                    String_delete(_1000117);
+                    String_delete(_1000119);
+                    String_delete(_1000121);
+                    String_delete(_1000123);
+                    String_delete(_1000125);
+                    String_delete(_1000127);
+                    String_delete(msg);
+                }
+                int _1000130 = Int__PLUS_(i, 1);
+                i = _1000130;  // Int = Int
+                bool _1000023 = Int__LT_(i, len);
+                _1000021 = _1000023;
+            }
+        }
+        LogLevel _463 = LogLevel_Info();
+        static String _464 = "----------------------------------\n";
+        String *_464_ref = &_464;
+        Diagnostics_log_BANG___String(diag, _463, _464_ref);
+    }
+}
+
+String Diagnostics_prn(Diagnostics *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "Diagnostics");
+  temp = String_prn(&p->log_MINUS_file_MINUS_path); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Bool_prn(p->has_MINUS_error); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->last_MINUS_error_MINUS_code); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = String_prn(&p->last_MINUS_error_MINUS_msg); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__ActiveTimer(&p->active_MINUS_timers); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__ZoneStats(&p->zone_MINUS_stats_MINUS_arr); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Diagnostics");
+  temp = String_prn(&p->log_MINUS_file_MINUS_path);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Bool_prn(p->has_MINUS_error);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->last_MINUS_error_MINUS_code);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = String_prn(&p->last_MINUS_error_MINUS_msg);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__ActiveTimer(&p->active_MINUS_timers);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__ZoneStats(&p->zone_MINUS_stats_MINUS_arr);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+void Diagnostics_report_MINUS_error_BANG_(Diagnostics* diag, int code, String* msg) {
+    Diagnostics_set_MINUS_has_MINUS_error_BANG_(diag, true);
+    Diagnostics_set_MINUS_last_MINUS_error_MINUS_code_BANG_(diag, code);
+    String _19 = String_copy(msg);
+    Diagnostics_set_MINUS_last_MINUS_error_MINUS_msg_BANG_(diag, _19);
+    LogLevel _24 = LogLevel_Error();
+    static String _31 = "ERROR CODE [";
+    String *_31_ref = &_31;
+    String _1000007 = String_str(_31_ref);
+    String* _1000006 = &_1000007; // ref
+    String _40 = Int_str(code);
+    String _1000011 = StringCopy_str(_40);
+    String* _1000010 = &_1000011; // ref
+    static String _47 = "]: ";
+    String *_47_ref = &_47;
+    String _1000015 = String_str(_47_ref);
+    String* _1000014 = &_1000015; // ref
+    String _54 = String_copy(msg);
+    String _1000017 = StringCopy_str(_54);
+    String* _1000016 = &_1000017; // ref
+    String _1000013 = String_append(_1000014, _1000016);
+    String* _1000012 = &_1000013; // ref
+    String _1000009 = String_append(_1000010, _1000012);
+    String* _1000008 = &_1000009; // ref
+    String _1000005 = String_append(_1000006, _1000008);
+    String* _1000004 = &_1000005; // ref
+    String _1000003 = String_copy(_1000004);
+    String* _64 = &_1000003; // ref
+    Diagnostics_log_BANG___String(diag, _24, _64);
+    String_delete(_1000003);
+    String_delete(_1000005);
+    String_delete(_1000007);
+    String_delete(_1000009);
+    String_delete(_1000011);
+    String_delete(_1000013);
+    String_delete(_1000015);
+    String_delete(_1000017);
+}
+
+Diagnostics Diagnostics_set_MINUS_active_MINUS_timers(Diagnostics p, Array__ActiveTimer newValue) {
+    Array_delete__ActiveTimer(p.active_MINUS_timers);
+    p.active_MINUS_timers = newValue;
+    return p;
+}
+
+
+void Diagnostics_set_MINUS_active_MINUS_timers_BANG_(Diagnostics* pRef, Array__ActiveTimer newValue) {
+    Array_delete__ActiveTimer(pRef->active_MINUS_timers);
+    pRef->active_MINUS_timers = newValue;
+}
+
+
+Diagnostics Diagnostics_set_MINUS_has_MINUS_error(Diagnostics p, bool newValue) {
+    /* Ignore non-managed member 'has_MINUS_error' : Bool */
+    p.has_MINUS_error = newValue;
+    return p;
+}
+
+
+void Diagnostics_set_MINUS_has_MINUS_error_BANG_(Diagnostics* pRef, bool newValue) {
+    /* Ignore non-managed member 'has_MINUS_error' : Bool */
+    pRef->has_MINUS_error = newValue;
+}
+
+
+Diagnostics Diagnostics_set_MINUS_last_MINUS_error_MINUS_code(Diagnostics p, int newValue) {
+    /* Ignore non-managed member 'last_MINUS_error_MINUS_code' : Int */
+    p.last_MINUS_error_MINUS_code = newValue;
+    return p;
+}
+
+
+void Diagnostics_set_MINUS_last_MINUS_error_MINUS_code_BANG_(Diagnostics* pRef, int newValue) {
+    /* Ignore non-managed member 'last_MINUS_error_MINUS_code' : Int */
+    pRef->last_MINUS_error_MINUS_code = newValue;
+}
+
+
+Diagnostics Diagnostics_set_MINUS_last_MINUS_error_MINUS_msg(Diagnostics p, String newValue) {
+    String_delete(p.last_MINUS_error_MINUS_msg);
+    p.last_MINUS_error_MINUS_msg = newValue;
+    return p;
+}
+
+
+void Diagnostics_set_MINUS_last_MINUS_error_MINUS_msg_BANG_(Diagnostics* pRef, String newValue) {
+    String_delete(pRef->last_MINUS_error_MINUS_msg);
+    pRef->last_MINUS_error_MINUS_msg = newValue;
+}
+
+
+Diagnostics Diagnostics_set_MINUS_log_MINUS_file_MINUS_path(Diagnostics p, String newValue) {
+    String_delete(p.log_MINUS_file_MINUS_path);
+    p.log_MINUS_file_MINUS_path = newValue;
+    return p;
+}
+
+
+void Diagnostics_set_MINUS_log_MINUS_file_MINUS_path_BANG_(Diagnostics* pRef, String newValue) {
+    String_delete(pRef->log_MINUS_file_MINUS_path);
+    pRef->log_MINUS_file_MINUS_path = newValue;
+}
+
+
+Diagnostics Diagnostics_set_MINUS_zone_MINUS_stats_MINUS_arr(Diagnostics p, Array__ZoneStats newValue) {
+    Array_delete__ZoneStats(p.zone_MINUS_stats_MINUS_arr);
+    p.zone_MINUS_stats_MINUS_arr = newValue;
+    return p;
+}
+
+
+void Diagnostics_set_MINUS_zone_MINUS_stats_MINUS_arr_BANG_(Diagnostics* pRef, Array__ZoneStats newValue) {
+    Array_delete__ZoneStats(pRef->zone_MINUS_stats_MINUS_arr);
+    pRef->zone_MINUS_stats_MINUS_arr = newValue;
+}
+
+
+void Diagnostics_start_MINUS_zone_BANG_(Diagnostics* diag, String* name) {
+    /* let */ {
+        String _10 = String_copy(name);
+        Uint64 _12 = System_nanotime();
+        ActiveTimer _13 = ActiveTimer_init(_10, _12);
+        ActiveTimer t = _13;
+        Array__ActiveTimer* _18 = Diagnostics_active_MINUS_timers(diag);
+        Array_push_MINUS_back_BANG___ActiveTimer(_18, t);
+    }
+}
+
+String Diagnostics_str(Diagnostics *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "Diagnostics");
+  temp = String_prn(&p->log_MINUS_file_MINUS_path); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Bool_prn(p->has_MINUS_error); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->last_MINUS_error_MINUS_code); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = String_prn(&p->last_MINUS_error_MINUS_msg); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__ActiveTimer(&p->active_MINUS_timers); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__ZoneStats(&p->zone_MINUS_stats_MINUS_arr); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Diagnostics");
+  temp = String_prn(&p->log_MINUS_file_MINUS_path);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Bool_prn(p->has_MINUS_error);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->last_MINUS_error_MINUS_code);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = String_prn(&p->last_MINUS_error_MINUS_msg);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__ActiveTimer(&p->active_MINUS_timers);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__ZoneStats(&p->zone_MINUS_stats_MINUS_arr);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+Diagnostics Diagnostics_update_MINUS_active_MINUS_timers(Diagnostics p, Lambda *updater) {
+    p.active_MINUS_timers = (*updater).env ? ((Fn__LambdaEnv_Array__ActiveTimer_Array__ActiveTimer)(*updater).callback)((*updater).env, p.active_MINUS_timers) : ((Fn__Array__ActiveTimer_Array__ActiveTimer)(*updater).callback)(p.active_MINUS_timers);
+    return p;
+}
+
+
+Diagnostics Diagnostics_update_MINUS_has_MINUS_error(Diagnostics p, Lambda *updater) {
+    p.has_MINUS_error = (*updater).env ? ((Fn__LambdaEnv_bool_bool)(*updater).callback)((*updater).env, p.has_MINUS_error) : ((Fn__bool_bool)(*updater).callback)(p.has_MINUS_error);
+    return p;
+}
+
+
+Diagnostics Diagnostics_update_MINUS_last_MINUS_error_MINUS_code(Diagnostics p, Lambda *updater) {
+    p.last_MINUS_error_MINUS_code = (*updater).env ? ((Fn__LambdaEnv_int_int)(*updater).callback)((*updater).env, p.last_MINUS_error_MINUS_code) : ((Fn__int_int)(*updater).callback)(p.last_MINUS_error_MINUS_code);
+    return p;
+}
+
+
+Diagnostics Diagnostics_update_MINUS_last_MINUS_error_MINUS_msg(Diagnostics p, Lambda *updater) {
+    p.last_MINUS_error_MINUS_msg = (*updater).env ? ((Fn__LambdaEnv_String_String)(*updater).callback)((*updater).env, p.last_MINUS_error_MINUS_msg) : ((Fn__String_String)(*updater).callback)(p.last_MINUS_error_MINUS_msg);
+    return p;
+}
+
+
+Diagnostics Diagnostics_update_MINUS_log_MINUS_file_MINUS_path(Diagnostics p, Lambda *updater) {
+    p.log_MINUS_file_MINUS_path = (*updater).env ? ((Fn__LambdaEnv_String_String)(*updater).callback)((*updater).env, p.log_MINUS_file_MINUS_path) : ((Fn__String_String)(*updater).callback)(p.log_MINUS_file_MINUS_path);
+    return p;
+}
+
+
+Diagnostics Diagnostics_update_MINUS_zone_MINUS_stats_MINUS_arr(Diagnostics p, Lambda *updater) {
+    p.zone_MINUS_stats_MINUS_arr = (*updater).env ? ((Fn__LambdaEnv_Array__ZoneStats_Array__ZoneStats)(*updater).callback)((*updater).env, p.zone_MINUS_stats_MINUS_arr) : ((Fn__Array__ZoneStats_Array__ZoneStats)(*updater).callback)(p.zone_MINUS_stats_MINUS_arr);
+    return p;
+}
+
+
+void Diagnostics_write_MINUS_log_MINUS_file_BANG_(Diagnostics* diag, String* msg) {
+    /* let */ {
+        String* _9 = Diagnostics_log_MINUS_file_MINUS_path(diag);
+        String* path = _9;
+        bool _15 = String_empty_QMARK_(path);
+        bool _16 = not(_15);
+        if (_16) {
+            /* let */ {
+                static String _22 = "a";
+                String *_22_ref = &_22;
+                FILE* _23 = IO_Raw_fopen(path, _22_ref);
+                FILE* file = _23;
+                bool _28 = null_QMARK___FILE(file);
+                if (_28) {
+                    static String _37 = "[DIAGNOSTICS ERROR] Failed to open log file: ";
+                    String *_37_ref = &_37;
+                    String _1000012 = String_str(_37_ref);
+                    String* _1000011 = &_1000012; // ref
+                    String _1000014 = String_str(path);
+                    String* _1000013 = &_1000014; // ref
+                    String _1000010 = String_append(_1000011, _1000013);
+                    String* _1000009 = &_1000010; // ref
+                    String _1000008 = String_copy(_1000009);
+                    String* _48 = &_1000008; // ref
+                    IO_println(_48);
+                    String_delete(_1000008);
+                    String_delete(_1000010);
+                    String_delete(_1000012);
+                    String_delete(_1000014);
+                } else {
+                    int _57 = String_length(msg);
+                    IO_Raw_fwrite_BANG_(msg, 1, _57, file);
+                    IO_Raw_fclose_BANG_(file);
+                }
+            }
+        } else {
+            /* () */
+        }
+    }
+}
+
+Array__ZoneStats* Diagnostics_zone_MINUS_stats_MINUS_arr(Diagnostics* p) { return (&(p->zone_MINUS_stats_MINUS_arr)); }
+
 double Double_add_MINUS_ref(double* x, double* y) {
     double _8 = Double_copy(x);
     double _11 = Double_copy(y);
@@ -12451,12 +14403,14 @@ EngineState EngineState_copy(EngineState* pRef) {
     copy.world = World_copy(&(pRef->world));
     copy.camera = Camera_copy(&(pRef->camera));
     copy.uniforms = Array_copy__float(&(pRef->uniforms));
+    copy.diag = Diagnostics_copy(&(pRef->diag));
+    /* Ignore non-managed member 'frame_MINUS_count' : Int */
     return copy;
 }
 
 Result__EngineState_String EngineState_create(String* title, int width, int height) {
     Result__Engine_String _11 = Engine_create(title, width, height);
-    Result__EngineState_String _126;
+    Result__EngineState_String _134;
     if(_11._tag == Result__Engine_String_Error_tag) {
         Result__Engine_String _11_temp = _11;
         String e = _11_temp.u.Error.member0;
@@ -12471,7 +14425,7 @@ Result__EngineState_String EngineState_create(String* title, int width, int heig
         String* _1000004 = &_1000005; // ref
         String _1000003 = String_copy(_1000004);
         Result__EngineState_String _32 = Result_Error__String_EngineState(_1000003);
-        _126 = _32;
+        _134 = _32;
         String_delete(_1000005);
         String_delete(_1000007);
         String_delete(_1000009);
@@ -12482,7 +14436,7 @@ Result__EngineState_String EngineState_create(String* title, int width, int heig
         // Case expr:
         Engine* _40 = &platform_MINUS_eng; // ref
         Result__Renderer_String _41 = Renderer_create(_40);
-        Result__EngineState_String _125;
+        Result__EngineState_String _133;
         if(_41._tag == Result__Renderer_String_Error_tag) {
             Result__Renderer_String _41_temp = _41;
             String e = _41_temp.u.Error.member0;
@@ -12499,7 +14453,7 @@ Result__EngineState_String EngineState_create(String* title, int width, int heig
             String _1000012 = String_copy(_1000013);
             Result__EngineState_String _66 = Result_Error__String_EngineState(_1000012);
             Result__EngineState_String _67 = _66;
-            _125 = _67;
+            _133 = _67;
             String_delete(_1000014);
             String_delete(_1000016);
             String_delete(_1000018);
@@ -12508,7 +14462,7 @@ Result__EngineState_String EngineState_create(String* title, int width, int heig
             Result__Renderer_String _41_temp = _41;
             Renderer ren = _41_temp.u.Success.member0;
             // Case expr:
-            Result__EngineState_String _124;
+            Result__EngineState_String _132;
             /* let */ {
                 World _74 = World_create();
                 World world = _74;
@@ -12517,28 +14471,33 @@ Result__EngineState_String EngineState_create(String* title, int width, int heig
                 Camera cam = _82;
                 Array__float _86 = Array_allocate__float(20);
                 Array__float uniforms = _86;
-                World* _92 = &world; // ref
-                Array__Chunk* _93 = World_chunks(_92);
-                Chunk* _95 = Array_unsafe_MINUS_nth__Chunk(_93, 0);
-                Chunk* first_MINUS_chunk = _95;
-                Engine* _101 = &platform_MINUS_eng; // ref
-                Renderer* _104 = &ren; // ref
-                Array__float* _107 = Chunk_voxel_MINUS_data(first_MINUS_chunk);
-                Renderer_update_MINUS_texture(_101, _104, _107);
-                Camera* _112 = &cam; // ref
-                Camera_update_MINUS_vectors(_112);
-                EngineState _121 = EngineState_init(platform_MINUS_eng, ren, world, cam, uniforms);
-                Result__EngineState_String _122 = Result_Success__EngineState_String(_121);
-                Result__EngineState_String _123 = _122;
-                _124 = _123;
+                static String _90 = "diagnostics.log";
+                String *_90_ref = &_90;
+                String _91 = String_copy(_90_ref);
+                Diagnostics _92 = Diagnostics_new(_91);
+                Diagnostics diag = _92;
+                World* _98 = &world; // ref
+                Array__Chunk* _99 = World_chunks(_98);
+                Chunk* _101 = Array_unsafe_MINUS_nth__Chunk(_99, 0);
+                Chunk* first_MINUS_chunk = _101;
+                Engine* _107 = &platform_MINUS_eng; // ref
+                Renderer* _110 = &ren; // ref
+                Array__float* _113 = Chunk_voxel_MINUS_data(first_MINUS_chunk);
+                Renderer_update_MINUS_texture(_107, _110, _113);
+                Camera* _118 = &cam; // ref
+                Camera_update_MINUS_vectors(_118);
+                EngineState _129 = EngineState_init(platform_MINUS_eng, ren, world, cam, uniforms, diag, 0);
+                Result__EngineState_String _130 = Result_Success__EngineState_String(_129);
+                Result__EngineState_String _131 = _130;
+                _132 = _131;
             }
-            _125 = _124;
+            _133 = _132;
         }
-        else UNHANDLED("engine.carp", 19);
-        _126 = _125;
+        else UNHANDLED("engine.carp", 22);
+        _134 = _133;
     }
-    else UNHANDLED("engine.carp", 16);
-    return _126;
+    else UNHANDLED("engine.carp", 19);
+    return _134;
 }
 
 void EngineState_delete(EngineState p) {
@@ -12547,17 +14506,25 @@ void EngineState_delete(EngineState p) {
     World_delete(p.world);
     Camera_delete(p.camera);
     Array_delete__float(p.uniforms);
+    Diagnostics_delete(p.diag);
+    /* Ignore non-managed member 'frame_MINUS_count' : Int */
 }
+
+Diagnostics* EngineState_diag(EngineState* p) { return (&(p->diag)); }
 
 Engine* EngineState_eng(EngineState* p) { return (&(p->eng)); }
 
-EngineState EngineState_init(Engine eng, Renderer renderer, World world, Camera camera, Array__float uniforms) {
+int* EngineState_frame_MINUS_count(EngineState* p) { return (&(p->frame_MINUS_count)); }
+
+EngineState EngineState_init(Engine eng, Renderer renderer, World world, Camera camera, Array__float uniforms, Diagnostics diag, int frame_MINUS_count) {
     EngineState instance;
     instance.eng = eng;
     instance.renderer = renderer;
     instance.world = world;
     instance.camera = camera;
     instance.uniforms = uniforms;
+    instance.diag = diag;
+    instance.frame_MINUS_count = frame_MINUS_count;
     return instance;
 }
 
@@ -12584,6 +14551,14 @@ String EngineState_prn(EngineState *p) {
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
   temp = Array_prn__float(&p->uniforms); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Diagnostics_prn(&p->diag); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->frame_MINUS_count); 
   size += snprintf(NULL, 0, "%s ", temp);
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
@@ -12617,6 +14592,16 @@ String EngineState_prn(EngineState *p) {
   bufferPtr += tempsize;
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
+  temp = Diagnostics_prn(&p->diag);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->frame_MINUS_count);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
   bufferPtr--;
   snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
   return buffer;
@@ -12637,6 +14622,19 @@ void EngineState_set_MINUS_camera_BANG_(EngineState* pRef, Camera newValue) {
 }
 
 
+EngineState EngineState_set_MINUS_diag(EngineState p, Diagnostics newValue) {
+    Diagnostics_delete(p.diag);
+    p.diag = newValue;
+    return p;
+}
+
+
+void EngineState_set_MINUS_diag_BANG_(EngineState* pRef, Diagnostics newValue) {
+    Diagnostics_delete(pRef->diag);
+    pRef->diag = newValue;
+}
+
+
 EngineState EngineState_set_MINUS_eng(EngineState p, Engine newValue) {
     Engine_delete(p.eng);
     p.eng = newValue;
@@ -12647,6 +14645,19 @@ EngineState EngineState_set_MINUS_eng(EngineState p, Engine newValue) {
 void EngineState_set_MINUS_eng_BANG_(EngineState* pRef, Engine newValue) {
     Engine_delete(pRef->eng);
     pRef->eng = newValue;
+}
+
+
+EngineState EngineState_set_MINUS_frame_MINUS_count(EngineState p, int newValue) {
+    /* Ignore non-managed member 'frame_MINUS_count' : Int */
+    p.frame_MINUS_count = newValue;
+    return p;
+}
+
+
+void EngineState_set_MINUS_frame_MINUS_count_BANG_(EngineState* pRef, int newValue) {
+    /* Ignore non-managed member 'frame_MINUS_count' : Int */
+    pRef->frame_MINUS_count = newValue;
 }
 
 
@@ -12715,6 +14726,14 @@ String EngineState_str(EngineState *p) {
   size += snprintf(NULL, 0, "%s ", temp);
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
+  temp = Diagnostics_prn(&p->diag); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->frame_MINUS_count); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
 
   String buffer = CARP_MALLOC(size);
   String bufferPtr = buffer;
@@ -12745,6 +14764,16 @@ String EngineState_str(EngineState *p) {
   bufferPtr += tempsize;
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
+  temp = Diagnostics_prn(&p->diag);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->frame_MINUS_count);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
   bufferPtr--;
   snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
   return buffer;
@@ -12758,13 +14787,50 @@ void EngineState_tick(EngineState* state, GLFWwindow* win, double dt, bool* firs
         Renderer* ren = _17;
         Camera* _21 = EngineState_camera(state);
         Camera* cam = _21;
+        Diagnostics* _25 = EngineState_diag(state);
+        Diagnostics* diag = _25;
+        static String _30 = "Total Frame Time";
+        String *_30_ref = &_30;
+        Diagnostics_start_MINUS_zone_BANG_(diag, _30_ref);
+        static String _34 = "Input & Camera";
+        String *_34_ref = &_34;
+        Diagnostics_start_MINUS_zone_BANG_(diag, _34_ref);
         Camera_update_MINUS_input(win, cam, dt);
         Camera_update_MINUS_look(win, cam, first_MINUS_mouse_MINUS_ptr, last_MINUS_x_MINUS_ptr, last_MINUS_y_MINUS_ptr);
+        static String _50 = "Input & Camera";
+        String *_50_ref = &_50;
+        Diagnostics_end_MINUS_zone_BANG_(diag, _50_ref);
         Engine_handle_MINUS_resize(platform_MINUS_eng);
-        Array__float* _45 = EngineState_uniforms(state);
-        Renderer_update_MINUS_uniforms(platform_MINUS_eng, ren, cam, _45);
+        static String _57 = "Renderer & Draw";
+        String *_57_ref = &_57;
+        Diagnostics_start_MINUS_zone_BANG_(diag, _57_ref);
+        Array__float* _65 = EngineState_uniforms(state);
+        Renderer_update_MINUS_uniforms(platform_MINUS_eng, ren, cam, _65);
         Renderer_draw(platform_MINUS_eng, ren);
+        static String _73 = "Renderer & Draw";
+        String *_73_ref = &_73;
+        Diagnostics_end_MINUS_zone_BANG_(diag, _73_ref);
         Engine_poll_MINUS_events__Engine_MUL_(platform_MINUS_eng);
+        static String _80 = "Total Frame Time";
+        String *_80_ref = &_80;
+        Diagnostics_end_MINUS_zone_BANG_(diag, _80_ref);
+        /* let */ {
+            int* _87 = EngineState_frame_MINUS_count(state);
+            int* _88 = ref_MINUS_to_MINUS_ptr__int(_87);
+            int* p_MINUS_frames = _88;
+            int _92 = Pointer_to_MINUS_value__int(p_MINUS_frames);
+            int curr_MINUS_frames = _92;
+            int _96 = Int_inc(curr_MINUS_frames);
+            int next_MINUS_frames = _96;
+            Pointer_set__int(p_MINUS_frames, next_MINUS_frames);
+            int _108 = Int_mod(next_MINUS_frames, 300);
+            bool _110 = Int__EQ_(_108, 0);
+            if (_110) {
+                Diagnostics_print_MINUS_stats_BANG_(diag);
+            } else {
+                /* () */
+            }
+        }
     }
 }
 
@@ -12776,8 +14842,20 @@ EngineState EngineState_update_MINUS_camera(EngineState p, Lambda *updater) {
 }
 
 
+EngineState EngineState_update_MINUS_diag(EngineState p, Lambda *updater) {
+    p.diag = (*updater).env ? ((Fn__LambdaEnv_Diagnostics_Diagnostics)(*updater).callback)((*updater).env, p.diag) : ((Fn__Diagnostics_Diagnostics)(*updater).callback)(p.diag);
+    return p;
+}
+
+
 EngineState EngineState_update_MINUS_eng(EngineState p, Lambda *updater) {
     p.eng = (*updater).env ? ((Fn__LambdaEnv_Engine_Engine)(*updater).callback)((*updater).env, p.eng) : ((Fn__Engine_Engine)(*updater).callback)(p.eng);
+    return p;
+}
+
+
+EngineState EngineState_update_MINUS_frame_MINUS_count(EngineState p, Lambda *updater) {
+    p.frame_MINUS_count = (*updater).env ? ((Fn__LambdaEnv_int_int)(*updater).callback)((*updater).env, p.frame_MINUS_count) : ((Fn__int_int)(*updater).callback)(p.frame_MINUS_count);
     return p;
 }
 
@@ -13991,6 +16069,255 @@ void JobSystem_submit_MINUS_raw_BANG_(thread_pool_t *pool, void (*work)(void*), 
         job_queue_push(pool->queue, job);
     }
 void JobSystem_wait(job_handle_t *handle) { job_handle_wait(handle); }
+LogLevel LogLevel_Critical() {
+  LogLevel instance;
+
+    instance._tag = LogLevel_Critical_tag;
+    return instance;
+}
+
+LogLevel LogLevel_Debug() {
+  LogLevel instance;
+
+    instance._tag = LogLevel_Debug_tag;
+    return instance;
+}
+
+LogLevel LogLevel_Error() {
+  LogLevel instance;
+
+    instance._tag = LogLevel_Error_tag;
+    return instance;
+}
+
+LogLevel LogLevel_Info() {
+  LogLevel instance;
+
+    instance._tag = LogLevel_Info_tag;
+    return instance;
+}
+
+LogLevel LogLevel_Warning() {
+  LogLevel instance;
+
+    instance._tag = LogLevel_Warning_tag;
+    return instance;
+}
+
+LogLevel LogLevel_copy(LogLevel* pRef) {
+    LogLevel copy = *pRef;
+    if(pRef->_tag == LogLevel_Debug_tag) {
+
+    }
+
+    else if(pRef->_tag == LogLevel_Info_tag) {
+
+    }
+
+    else if(pRef->_tag == LogLevel_Warning_tag) {
+
+    }
+
+    else if(pRef->_tag == LogLevel_Error_tag) {
+
+    }
+
+    else if(pRef->_tag == LogLevel_Critical_tag) {
+
+    }
+
+    return copy;
+}
+
+void LogLevel_delete(LogLevel p) {
+  if(p._tag == LogLevel_Debug_tag) {
+
+  }
+  else if(p._tag == LogLevel_Info_tag) {
+
+  }
+  else if(p._tag == LogLevel_Warning_tag) {
+
+  }
+  else if(p._tag == LogLevel_Error_tag) {
+
+  }
+  else if(p._tag == LogLevel_Critical_tag) {
+
+  }
+
+}
+
+int LogLevel_get_MINUS_tag(LogLevel *p) { return p->_tag; }
+String LogLevel_prn(LogLevel *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = 1;
+  if(p->_tag == LogLevel_Debug_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Debug");
+
+  }
+  if(p->_tag == LogLevel_Info_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Info");
+
+  }
+  if(p->_tag == LogLevel_Warning_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Warning");
+
+  }
+  if(p->_tag == LogLevel_Error_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Error");
+
+  }
+  if(p->_tag == LogLevel_Critical_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Critical");
+
+  }
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  if(p->_tag == LogLevel_Debug_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Debug");
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+  if(p->_tag == LogLevel_Info_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Info");
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+  if(p->_tag == LogLevel_Warning_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Warning");
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+  if(p->_tag == LogLevel_Error_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Error");
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+  if(p->_tag == LogLevel_Critical_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Critical");
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+
+  return buffer;
+}
+
+String LogLevel_str(LogLevel *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = 1;
+  if(p->_tag == LogLevel_Debug_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Debug");
+
+  }
+  if(p->_tag == LogLevel_Info_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Info");
+
+  }
+  if(p->_tag == LogLevel_Warning_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Warning");
+
+  }
+  if(p->_tag == LogLevel_Error_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Error");
+
+  }
+  if(p->_tag == LogLevel_Critical_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Critical");
+
+  }
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  if(p->_tag == LogLevel_Debug_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Debug");
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+  if(p->_tag == LogLevel_Info_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Info");
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+  if(p->_tag == LogLevel_Warning_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Warning");
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+  if(p->_tag == LogLevel_Error_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Error");
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+  if(p->_tag == LogLevel_Critical_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Critical");
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+
+  return buffer;
+}
+
+String* LogLevel_to_MINUS_string(LogLevel level) {
+    String* _21;
+    if(level._tag == LogLevel_Debug_tag) {
+        LogLevel _5_temp = level;
+        // Case expr:
+        static String _8 = "DEBUG";
+        String *_8_ref = &_8;
+        _21 = _8_ref;
+    }
+    else if(level._tag == LogLevel_Info_tag) {
+        LogLevel _5_temp = level;
+        // Case expr:
+        static String _11 = "INFO";
+        String *_11_ref = &_11;
+        _21 = _11_ref;
+    }
+    else if(level._tag == LogLevel_Warning_tag) {
+        LogLevel _5_temp = level;
+        // Case expr:
+        static String _14 = "WARNING";
+        String *_14_ref = &_14;
+        _21 = _14_ref;
+    }
+    else if(level._tag == LogLevel_Error_tag) {
+        LogLevel _5_temp = level;
+        // Case expr:
+        static String _17 = "ERROR";
+        String *_17_ref = &_17;
+        _21 = _17_ref;
+    }
+    else if(level._tag == LogLevel_Critical_tag) {
+        LogLevel _5_temp = level;
+        // Case expr:
+        static String _20 = "CRITICAL";
+        String *_20_ref = &_20;
+        _21 = _20_ref;
+    }
+    else UNHANDLED("diagnostics.carp", 18);
+    return _21;
+}
+
 Long Long_add_MINUS_ref(Long* x, Long* y) {
     Long _8 = Long_copy(x);
     Long _11 = Long_copy(y);
@@ -15224,6 +17551,7 @@ void Pointer_set__int(int* p, int a) { *p = a; }
  bool Pointer_to_MINUS_value__bool(bool* p) { return *p; }
  double Pointer_to_MINUS_value__double(double* p) { return *p; }
  float Pointer_to_MINUS_value__float(float* p) { return *p; }
+ int Pointer_to_MINUS_value__int(int* p) { return *p; }
 bool Random_gen_MINUS_seed_MINUS_at_MINUS_startup_QMARK_() {
     return Random__;
 }
@@ -19201,6 +21529,429 @@ World World_update_MINUS_voxel_MINUS_resolution(World p, Lambda *updater) {
 
 
 int* World_voxel_MINUS_resolution(World* p) { return (&(p->voxel_MINUS_resolution)); }
+
+ZoneStats ZoneStats_copy(ZoneStats* pRef) {
+    ZoneStats copy = *pRef;
+    copy.name = String_copy(&(pRef->name));
+    /* Ignore non-managed member 'count' : Int */
+    /* Ignore non-managed member 'sum_MINUS_ns' : Uint64 */
+    /* Ignore non-managed member 'min_MINUS_ns' : Uint64 */
+    /* Ignore non-managed member 'max_MINUS_ns' : Uint64 */
+    /* Ignore non-managed member 'last_MINUS_ns' : Uint64 */
+    /* Ignore non-managed member 'sum_MINUS_ms' : Double */
+    /* Ignore non-managed member 'sum_MINUS_sq_MINUS_ms' : Double */
+    /* Ignore non-managed member 'spikes_MINUS_count' : Int */
+    return copy;
+}
+
+int* ZoneStats_count(ZoneStats* p) { return (&(p->count)); }
+
+void ZoneStats_delete(ZoneStats p) {
+    String_delete(p.name);
+    /* Ignore non-managed member 'count' : Int */
+    /* Ignore non-managed member 'sum_MINUS_ns' : Uint64 */
+    /* Ignore non-managed member 'min_MINUS_ns' : Uint64 */
+    /* Ignore non-managed member 'max_MINUS_ns' : Uint64 */
+    /* Ignore non-managed member 'last_MINUS_ns' : Uint64 */
+    /* Ignore non-managed member 'sum_MINUS_ms' : Double */
+    /* Ignore non-managed member 'sum_MINUS_sq_MINUS_ms' : Double */
+    /* Ignore non-managed member 'spikes_MINUS_count' : Int */
+}
+
+ZoneStats ZoneStats_init(String name, int count, Uint64 sum_MINUS_ns, Uint64 min_MINUS_ns, Uint64 max_MINUS_ns, Uint64 last_MINUS_ns, double sum_MINUS_ms, double sum_MINUS_sq_MINUS_ms, int spikes_MINUS_count) {
+    ZoneStats instance;
+    instance.name = name;
+    instance.count = count;
+    instance.sum_MINUS_ns = sum_MINUS_ns;
+    instance.min_MINUS_ns = min_MINUS_ns;
+    instance.max_MINUS_ns = max_MINUS_ns;
+    instance.last_MINUS_ns = last_MINUS_ns;
+    instance.sum_MINUS_ms = sum_MINUS_ms;
+    instance.sum_MINUS_sq_MINUS_ms = sum_MINUS_sq_MINUS_ms;
+    instance.spikes_MINUS_count = spikes_MINUS_count;
+    return instance;
+}
+
+Uint64* ZoneStats_last_MINUS_ns(ZoneStats* p) { return (&(p->last_MINUS_ns)); }
+
+Uint64* ZoneStats_max_MINUS_ns(ZoneStats* p) { return (&(p->max_MINUS_ns)); }
+
+Uint64* ZoneStats_min_MINUS_ns(ZoneStats* p) { return (&(p->min_MINUS_ns)); }
+
+String* ZoneStats_name(ZoneStats* p) { return (&(p->name)); }
+
+String ZoneStats_prn(ZoneStats *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "ZoneStats");
+  temp = String_prn(&p->name); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->count); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Uint64_prn(p->sum_MINUS_ns); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Uint64_prn(p->min_MINUS_ns); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Uint64_prn(p->max_MINUS_ns); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Uint64_prn(p->last_MINUS_ns); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->sum_MINUS_ms); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->sum_MINUS_sq_MINUS_ms); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->spikes_MINUS_count); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "ZoneStats");
+  temp = String_prn(&p->name);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->count);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Uint64_prn(p->sum_MINUS_ns);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Uint64_prn(p->min_MINUS_ns);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Uint64_prn(p->max_MINUS_ns);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Uint64_prn(p->last_MINUS_ns);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->sum_MINUS_ms);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->sum_MINUS_sq_MINUS_ms);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->spikes_MINUS_count);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+ZoneStats ZoneStats_set_MINUS_count(ZoneStats p, int newValue) {
+    /* Ignore non-managed member 'count' : Int */
+    p.count = newValue;
+    return p;
+}
+
+
+void ZoneStats_set_MINUS_count_BANG_(ZoneStats* pRef, int newValue) {
+    /* Ignore non-managed member 'count' : Int */
+    pRef->count = newValue;
+}
+
+
+ZoneStats ZoneStats_set_MINUS_last_MINUS_ns(ZoneStats p, Uint64 newValue) {
+    /* Ignore non-managed member 'last_MINUS_ns' : Uint64 */
+    p.last_MINUS_ns = newValue;
+    return p;
+}
+
+
+void ZoneStats_set_MINUS_last_MINUS_ns_BANG_(ZoneStats* pRef, Uint64 newValue) {
+    /* Ignore non-managed member 'last_MINUS_ns' : Uint64 */
+    pRef->last_MINUS_ns = newValue;
+}
+
+
+ZoneStats ZoneStats_set_MINUS_max_MINUS_ns(ZoneStats p, Uint64 newValue) {
+    /* Ignore non-managed member 'max_MINUS_ns' : Uint64 */
+    p.max_MINUS_ns = newValue;
+    return p;
+}
+
+
+void ZoneStats_set_MINUS_max_MINUS_ns_BANG_(ZoneStats* pRef, Uint64 newValue) {
+    /* Ignore non-managed member 'max_MINUS_ns' : Uint64 */
+    pRef->max_MINUS_ns = newValue;
+}
+
+
+ZoneStats ZoneStats_set_MINUS_min_MINUS_ns(ZoneStats p, Uint64 newValue) {
+    /* Ignore non-managed member 'min_MINUS_ns' : Uint64 */
+    p.min_MINUS_ns = newValue;
+    return p;
+}
+
+
+void ZoneStats_set_MINUS_min_MINUS_ns_BANG_(ZoneStats* pRef, Uint64 newValue) {
+    /* Ignore non-managed member 'min_MINUS_ns' : Uint64 */
+    pRef->min_MINUS_ns = newValue;
+}
+
+
+ZoneStats ZoneStats_set_MINUS_name(ZoneStats p, String newValue) {
+    String_delete(p.name);
+    p.name = newValue;
+    return p;
+}
+
+
+void ZoneStats_set_MINUS_name_BANG_(ZoneStats* pRef, String newValue) {
+    String_delete(pRef->name);
+    pRef->name = newValue;
+}
+
+
+ZoneStats ZoneStats_set_MINUS_spikes_MINUS_count(ZoneStats p, int newValue) {
+    /* Ignore non-managed member 'spikes_MINUS_count' : Int */
+    p.spikes_MINUS_count = newValue;
+    return p;
+}
+
+
+void ZoneStats_set_MINUS_spikes_MINUS_count_BANG_(ZoneStats* pRef, int newValue) {
+    /* Ignore non-managed member 'spikes_MINUS_count' : Int */
+    pRef->spikes_MINUS_count = newValue;
+}
+
+
+ZoneStats ZoneStats_set_MINUS_sum_MINUS_ms(ZoneStats p, double newValue) {
+    /* Ignore non-managed member 'sum_MINUS_ms' : Double */
+    p.sum_MINUS_ms = newValue;
+    return p;
+}
+
+
+void ZoneStats_set_MINUS_sum_MINUS_ms_BANG_(ZoneStats* pRef, double newValue) {
+    /* Ignore non-managed member 'sum_MINUS_ms' : Double */
+    pRef->sum_MINUS_ms = newValue;
+}
+
+
+ZoneStats ZoneStats_set_MINUS_sum_MINUS_ns(ZoneStats p, Uint64 newValue) {
+    /* Ignore non-managed member 'sum_MINUS_ns' : Uint64 */
+    p.sum_MINUS_ns = newValue;
+    return p;
+}
+
+
+void ZoneStats_set_MINUS_sum_MINUS_ns_BANG_(ZoneStats* pRef, Uint64 newValue) {
+    /* Ignore non-managed member 'sum_MINUS_ns' : Uint64 */
+    pRef->sum_MINUS_ns = newValue;
+}
+
+
+ZoneStats ZoneStats_set_MINUS_sum_MINUS_sq_MINUS_ms(ZoneStats p, double newValue) {
+    /* Ignore non-managed member 'sum_MINUS_sq_MINUS_ms' : Double */
+    p.sum_MINUS_sq_MINUS_ms = newValue;
+    return p;
+}
+
+
+void ZoneStats_set_MINUS_sum_MINUS_sq_MINUS_ms_BANG_(ZoneStats* pRef, double newValue) {
+    /* Ignore non-managed member 'sum_MINUS_sq_MINUS_ms' : Double */
+    pRef->sum_MINUS_sq_MINUS_ms = newValue;
+}
+
+
+int* ZoneStats_spikes_MINUS_count(ZoneStats* p) { return (&(p->spikes_MINUS_count)); }
+
+String ZoneStats_str(ZoneStats *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "ZoneStats");
+  temp = String_prn(&p->name); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->count); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Uint64_prn(p->sum_MINUS_ns); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Uint64_prn(p->min_MINUS_ns); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Uint64_prn(p->max_MINUS_ns); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Uint64_prn(p->last_MINUS_ns); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->sum_MINUS_ms); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->sum_MINUS_sq_MINUS_ms); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->spikes_MINUS_count); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "ZoneStats");
+  temp = String_prn(&p->name);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->count);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Uint64_prn(p->sum_MINUS_ns);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Uint64_prn(p->min_MINUS_ns);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Uint64_prn(p->max_MINUS_ns);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Uint64_prn(p->last_MINUS_ns);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->sum_MINUS_ms);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->sum_MINUS_sq_MINUS_ms);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->spikes_MINUS_count);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+double* ZoneStats_sum_MINUS_ms(ZoneStats* p) { return (&(p->sum_MINUS_ms)); }
+
+Uint64* ZoneStats_sum_MINUS_ns(ZoneStats* p) { return (&(p->sum_MINUS_ns)); }
+
+double* ZoneStats_sum_MINUS_sq_MINUS_ms(ZoneStats* p) { return (&(p->sum_MINUS_sq_MINUS_ms)); }
+
+ZoneStats ZoneStats_update_MINUS_count(ZoneStats p, Lambda *updater) {
+    p.count = (*updater).env ? ((Fn__LambdaEnv_int_int)(*updater).callback)((*updater).env, p.count) : ((Fn__int_int)(*updater).callback)(p.count);
+    return p;
+}
+
+
+ZoneStats ZoneStats_update_MINUS_last_MINUS_ns(ZoneStats p, Lambda *updater) {
+    p.last_MINUS_ns = (*updater).env ? ((Fn__LambdaEnv_Uint64_Uint64)(*updater).callback)((*updater).env, p.last_MINUS_ns) : ((Fn__Uint64_Uint64)(*updater).callback)(p.last_MINUS_ns);
+    return p;
+}
+
+
+ZoneStats ZoneStats_update_MINUS_max_MINUS_ns(ZoneStats p, Lambda *updater) {
+    p.max_MINUS_ns = (*updater).env ? ((Fn__LambdaEnv_Uint64_Uint64)(*updater).callback)((*updater).env, p.max_MINUS_ns) : ((Fn__Uint64_Uint64)(*updater).callback)(p.max_MINUS_ns);
+    return p;
+}
+
+
+ZoneStats ZoneStats_update_MINUS_min_MINUS_ns(ZoneStats p, Lambda *updater) {
+    p.min_MINUS_ns = (*updater).env ? ((Fn__LambdaEnv_Uint64_Uint64)(*updater).callback)((*updater).env, p.min_MINUS_ns) : ((Fn__Uint64_Uint64)(*updater).callback)(p.min_MINUS_ns);
+    return p;
+}
+
+
+ZoneStats ZoneStats_update_MINUS_name(ZoneStats p, Lambda *updater) {
+    p.name = (*updater).env ? ((Fn__LambdaEnv_String_String)(*updater).callback)((*updater).env, p.name) : ((Fn__String_String)(*updater).callback)(p.name);
+    return p;
+}
+
+
+ZoneStats ZoneStats_update_MINUS_spikes_MINUS_count(ZoneStats p, Lambda *updater) {
+    p.spikes_MINUS_count = (*updater).env ? ((Fn__LambdaEnv_int_int)(*updater).callback)((*updater).env, p.spikes_MINUS_count) : ((Fn__int_int)(*updater).callback)(p.spikes_MINUS_count);
+    return p;
+}
+
+
+ZoneStats ZoneStats_update_MINUS_sum_MINUS_ms(ZoneStats p, Lambda *updater) {
+    p.sum_MINUS_ms = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.sum_MINUS_ms) : ((Fn__double_double)(*updater).callback)(p.sum_MINUS_ms);
+    return p;
+}
+
+
+ZoneStats ZoneStats_update_MINUS_sum_MINUS_ns(ZoneStats p, Lambda *updater) {
+    p.sum_MINUS_ns = (*updater).env ? ((Fn__LambdaEnv_Uint64_Uint64)(*updater).callback)((*updater).env, p.sum_MINUS_ns) : ((Fn__Uint64_Uint64)(*updater).callback)(p.sum_MINUS_ns);
+    return p;
+}
+
+
+ZoneStats ZoneStats_update_MINUS_sum_MINUS_sq_MINUS_ms(ZoneStats p, Lambda *updater) {
+    p.sum_MINUS_sq_MINUS_ms = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.sum_MINUS_sq_MINUS_ms) : ((Fn__double_double)(*updater).callback)(p.sum_MINUS_sq_MINUS_ms);
+    return p;
+}
+
 
 WGPUBindGroup create_MINUS_voxel_MINUS_scaffold_MINUS_bind_MINUS_group(WGPUContext* ctx, WGPURenderPipelineWrapper* pipe, WGPURenderTexture* texture, WGPUSampler sampler, WGPUUniformBufferWrapper* ub) {
       if (!ctx || !pipe || !texture || !sampler || !ub) {

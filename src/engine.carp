@@ -2,6 +2,7 @@
 (load "camera.carp")
 (load "world.carp")
 (load "renderer.carp")
+(load "../carp-diagnostics/diagnostics.carp")
 
 (deftype EngineState [
   eng Engine
@@ -9,6 +10,8 @@
   world World
   camera Camera
   uniforms (Array Float)
+  diag Diagnostics
+  frame-count Int
 ])
 
 (defmodule EngineState
@@ -23,32 +26,51 @@
             (let [world (World.create)
                   cam (Camera.create (Vector3.init 16.0 16.0 -20.0))
                   uniforms (Array.allocate 20)
+                  diag (Diagnostics.new @"diagnostics.log")
                   first-chunk (Array.unsafe-nth (World.chunks &world) 0)]
               (do
                 ; Upload initial voxel data
                 (Renderer.update-texture &platform-eng &ren (Chunk.voxel-data first-chunk))
                 (Camera.update-vectors &cam)
                 
-                (Result.Success (EngineState.init platform-eng ren world cam uniforms)))))))
+                (Result.Success (EngineState.init platform-eng ren world cam uniforms diag 0)))))))
 
   (defn tick [state win dt first-mouse-ptr last-x-ptr last-y-ptr]
     (let [platform-eng (EngineState.eng state)
           ren (EngineState.renderer state)
-          cam (EngineState.camera state)]
+          cam (EngineState.camera state)
+          diag (EngineState.diag state)]
       (do
+        (Diagnostics.start-zone! diag "Total Frame Time")
+        
+        (Diagnostics.start-zone! diag "Input & Camera")
         ; Read inputs
         (Camera.update-input win cam dt)
         (Camera.update-look win cam first-mouse-ptr last-x-ptr last-y-ptr)
+        (Diagnostics.end-zone! diag "Input & Camera")
         
         ; Handle resizing
         (Engine.handle-resize platform-eng)
         
+        (Diagnostics.start-zone! diag "Renderer & Draw")
         ; Render frame
         (Renderer.update-uniforms platform-eng ren cam (EngineState.uniforms state))
         (Renderer.draw platform-eng ren)
+        (Diagnostics.end-zone! diag "Renderer & Draw")
         
         ; Poll events
-        (Engine.poll-events platform-eng))))
+        (Engine.poll-events platform-eng)
+        
+        (Diagnostics.end-zone! diag "Total Frame Time")
+        
+        ; Increment frame counter and print stats
+        (let [p-frames (ref-to-ptr (EngineState.frame-count state))
+              curr-frames (Pointer.to-value p-frames)
+              next-frames (inc curr-frames)]
+          (do
+            (Pointer.set p-frames next-frames)
+            (when (= (Int.mod next-frames 300) 0)
+              (Diagnostics.print-stats! diag)))))))
 
   (defn cleanup [state]
     (do

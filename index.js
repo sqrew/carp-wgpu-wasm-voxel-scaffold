@@ -491,7 +491,7 @@ function updateMemoryViews() {
   assert(!HEAP8, 'updateMemoryViews should only be called once when ALLOW_MEMORY_GROWTH=0');
   var b = wasmMemory.buffer;
   HEAP8 = new Int8Array(b);
-  
+  HEAP16 = new Int16Array(b);
   HEAPU8 = new Uint8Array(b);
   HEAPU16 = new Uint16Array(b);
   HEAP32 = new Int32Array(b);
@@ -928,2324 +928,15 @@ async function createWasm() {
   var ___assert_fail = (condition, filename, line, func) =>
       abort(`Assertion failed: ${UTF8ToString(condition)}, at: ` + [filename ? UTF8ToString(filename) : 'unknown filename', line, func ? UTF8ToString(func) : 'unknown function']);
 
-  var __abort_js = () =>
-      abort('native code called abort()');
-
-  var _emscripten_get_now = () => performance.now();
-  
-  var _emscripten_date_now = () => Date.now();
-  
-  var nowIsMonotonic = 1;
-  
-  var checkWasiClock = (clock_id) => clock_id >= 0 && clock_id <= 3;
-  
-  var INT53_MAX = 9007199254740992;
-  
-  var INT53_MIN = -9007199254740992;
-  var bigintToI53Checked = (num) => (num < INT53_MIN || num > INT53_MAX) ? NaN : Number(num);
-  
-  /** not-@type {!BigInt64Array} */
-  var HEAP64;
-  function _clock_time_get(clk_id, ignored_precision, ptime) {
-    ignored_precision = bigintToI53Checked(ignored_precision);
-  
-  
-      if (!checkWasiClock(clk_id)) {
-        return 28;
-      }
-      var now;
-      // all wasi clocks but realtime are monotonic
-      if (clk_id === 0) {
-        now = _emscripten_date_now();
-      } else if (nowIsMonotonic) {
-        now = _emscripten_get_now();
-      } else {
-        return 52;
-      }
-      // "now" is in ms, and wasi times are in ns.
-      var nsec = Math.round(now * 1000 * 1000);
-      HEAP64[((ptime)>>3)] = BigInt(nsec);
-      return 0;
-    ;
-  }
-
-  var _emscripten_has_asyncify = () => 1;
-
-  var abortOnCannotGrowMemory = (requestedSize) => {
-      abort(`Cannot enlarge memory arrays to size ${requestedSize} bytes (OOM). Either (1) compile with -sINITIAL_MEMORY=X with X higher than the current value ${HEAP8.length}, (2) compile with -sALLOW_MEMORY_GROWTH which allows increasing the size at runtime, or (3) if you want malloc to return NULL (0) instead of this abort, compile with -sABORTING_MALLOC=0`);
-    };
-  
-  var _emscripten_resize_heap = (requestedSize) => {
-      var oldSize = HEAPU8.length;
-      // With CAN_ADDRESS_2GB or MEMORY64, pointers are already unsigned.
-      requestedSize >>>= 0;
-      abortOnCannotGrowMemory(requestedSize);
-    };
-
-  var _emscripten_sleep = function(ms) {
-    let innerFunc =  () => new Promise((resolve) => setTimeout(resolve, ms));
-    return Asyncify.handleAsync(innerFunc);
-  }
-  ;
-  _emscripten_sleep.isAsync = true;
-
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  var lengthBytesUTF8 = (str) => {
-      var len = 0;
-      for (var i = 0; i < str.length; ++i) {
-        // Gotcha: charCodeAt returns a 16-bit word that is a UTF-16 encoded code
-        // unit, not a Unicode code point of the character! So decode
-        // UTF16->UTF32->UTF8.
-        // See http://unicode.org/faq/utf_bom.html#utf16-3
-        var c = str.charCodeAt(i); // possibly a lead surrogate
-        if (c <= 0x7F) {
-          len++;
-        } else if (c <= 0x7FF) {
-          len += 2;
-        } else if (c >= 0xD800 && c <= 0xDFFF) {
-          len += 4; ++i;
-        } else {
-          len += 3;
-        }
-      }
-      return len;
-    };
-  
-  var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
-      assert(typeof str === 'string', `stringToUTF8Array expects a string (got ${typeof str})`);
-      // Parameter maxBytesToWrite is not optional. Negative values, 0, null,
-      // undefined and false each don't write out any bytes.
-      if (!(maxBytesToWrite > 0))
-        return 0;
-  
-      var startIdx = outIdx;
-      var endIdx = outIdx + maxBytesToWrite - 1; // -1 for string null terminator.
-      for (var i = 0; i < str.length; ++i) {
-        // For UTF8 byte structure, see http://en.wikipedia.org/wiki/UTF-8#Description
-        // and https://www.ietf.org/rfc/rfc2279.txt
-        // and https://tools.ietf.org/html/rfc3629
-        var u = str.codePointAt(i);
-        if (u <= 0x7F) {
-          if (outIdx >= endIdx) break;
-          heap[outIdx++] = u;
-        } else if (u <= 0x7FF) {
-          if (outIdx + 1 >= endIdx) break;
-          heap[outIdx++] = 0xC0 | (u >> 6);
-          heap[outIdx++] = 0x80 | (u & 63);
-        } else if (u <= 0xFFFF) {
-          if (outIdx + 2 >= endIdx) break;
-          heap[outIdx++] = 0xE0 | (u >> 12);
-          heap[outIdx++] = 0x80 | ((u >> 6) & 63);
-          heap[outIdx++] = 0x80 | (u & 63);
-        } else {
-          if (outIdx + 3 >= endIdx) break;
-          if (u > 0x10FFFF) warnOnce(`Invalid Unicode code point ${ptrToString(u)} encountered when serializing a JS string to a UTF-8 string in wasm memory! (Valid unicode code points should be in range 0-0x10FFFF).`);
-          heap[outIdx++] = 0xF0 | (u >> 18);
-          heap[outIdx++] = 0x80 | ((u >> 12) & 63);
-          heap[outIdx++] = 0x80 | ((u >> 6) & 63);
-          heap[outIdx++] = 0x80 | (u & 63);
-          // Gotcha: if codePoint is over 0xFFFF, it is represented as a surrogate pair in UTF-16.
-          // We need to manually skip over the second code unit for correct iteration.
-          i++;
-        }
-      }
-      // Null-terminate the pointer to the buffer.
-      heap[outIdx] = 0;
-      return outIdx - startIdx;
-    };
-  
-  var stringToUTF8 = (str, outPtr, maxBytesToWrite) => {
-      assert(typeof maxBytesToWrite == 'number', 'stringToUTF8 requires a third parameter that specifies the length of the output buffer');
-      return stringToUTF8Array(str, HEAPU8, outPtr, maxBytesToWrite);
-    };
-  
-  var stackAlloc = (sz) => __emscripten_stack_alloc(sz);
-  var stringToUTF8OnStack = (str) => {
-      var size = lengthBytesUTF8(str) + 1;
-      var ret = stackAlloc(size);
-      stringToUTF8(str, ret, size);
+  var syscallGetVarargI = () => {
+      assert(SYSCALLS.varargs != undefined);
+      // the `+` prepended here is necessary to convince the JSCompiler that varargs is indeed a number.
+      var ret = HEAP32[((+SYSCALLS.varargs)>>2)];
+      SYSCALLS.varargs += 4;
       return ret;
     };
+  var syscallGetVarargP = syscallGetVarargI;
   
-  
-  
-  
-  var readI53FromI64 = (ptr) => {
-      return HEAPU32[((ptr)>>2)] + HEAP32[(((ptr)+(4))>>2)] * 4294967296;
-    };
-  
-  var readI53FromU64 = (ptr) => {
-      return HEAPU32[((ptr)>>2)] + HEAPU32[(((ptr)+(4))>>2)] * 4294967296;
-    };
-  
-  var writeI53ToI64 = (ptr, num) => {
-      HEAPU32[((ptr)>>2)] = num;
-      var lower = HEAPU32[((ptr)>>2)];
-      HEAPU32[(((ptr)+(4))>>2)] = (num - lower)/4294967296;
-      var deserialized = (num >= 0) ? readI53FromU64(ptr) : readI53FromI64(ptr);
-      var offset = ((ptr)>>2);
-      if (deserialized != num) warnOnce(`writeI53ToI64() out of range: serialized JS Number ${num} to Wasm heap as bytes lo=${ptrToString(HEAPU32[offset])}, hi=${ptrToString(HEAPU32[offset+1])}, which deserializes back to ${deserialized} instead!`);
-    };
-  
-  
-  
-  var stringToNewUTF8 = (str) => {
-      var size = lengthBytesUTF8(str) + 1;
-      var ret = _malloc(size);
-      if (ret) stringToUTF8(str, ret, size);
-      return ret;
-    };
-  
-  
-  
-  
-  
-  
-  
-  /** @type {!Float32Array} */
-  var HEAPF32;
-  
-  /** @type {!Float64Array} */
-  var HEAPF64;
-  var WebGPU = {
-  Internals:{
-  jsObjects:[],
-  jsObjectInsert:(ptr, jsObject) => {
-          ptr >>>= 0
-          WebGPU.Internals.jsObjects[ptr] = jsObject;
-        },
-  bufferOnUnmaps:[],
-  futures:[],
-  futureInsert:(futureId, promise) => {
-          WebGPU.Internals.futures[futureId] =
-            new Promise((resolve) => promise.finally(() => resolve(futureId)));
-        },
-  },
-  getJsObject:(ptr) => {
-        if (!ptr) return undefined;
-        ptr >>>= 0
-        assert(ptr in WebGPU.Internals.jsObjects);
-        return WebGPU.Internals.jsObjects[ptr];
-      },
-  importJsAdapter:(obj, parentPtr = 0) => {
-            var ptr = _emwgpuCreateAdapter(parentPtr);
-            WebGPU.Internals.jsObjects[ptr] = obj;
-            return ptr;
-          },
-  importJsBindGroup:(obj, parentPtr = 0) => {
-            var ptr = _emwgpuCreateBindGroup(parentPtr);
-            WebGPU.Internals.jsObjects[ptr] = obj;
-            return ptr;
-          },
-  importJsBindGroupLayout:(obj, parentPtr = 0) => {
-            var ptr = _emwgpuCreateBindGroupLayout(parentPtr);
-            WebGPU.Internals.jsObjects[ptr] = obj;
-            return ptr;
-          },
-  importJsBuffer:(buffer, parentPtr = 0) => {
-        // At the moment, we do not allow importing pending buffers.
-        assert(buffer.mapState === "unmapped");
-        var bufferPtr = _emwgpuImportBuffer(parentPtr);
-        WebGPU.Internals.jsObjectInsert(bufferPtr, buffer);
-        return bufferPtr;
-      },
-  importJsCommandBuffer:(obj, parentPtr = 0) => {
-            var ptr = _emwgpuCreateCommandBuffer(parentPtr);
-            WebGPU.Internals.jsObjects[ptr] = obj;
-            return ptr;
-          },
-  importJsCommandEncoder:(obj, parentPtr = 0) => {
-            var ptr = _emwgpuCreateCommandEncoder(parentPtr);
-            WebGPU.Internals.jsObjects[ptr] = obj;
-            return ptr;
-          },
-  importJsComputePassEncoder:(obj, parentPtr = 0) => {
-            var ptr = _emwgpuCreateComputePassEncoder(parentPtr);
-            WebGPU.Internals.jsObjects[ptr] = obj;
-            return ptr;
-          },
-  importJsComputePipeline:(obj, parentPtr = 0) => {
-            var ptr = _emwgpuCreateComputePipeline(parentPtr);
-            WebGPU.Internals.jsObjects[ptr] = obj;
-            return ptr;
-          },
-  importJsDevice:(device, parentPtr = 0) => {
-        var queuePtr = _emwgpuCreateQueue(parentPtr);
-        var devicePtr = _emwgpuCreateDevice(parentPtr, queuePtr);
-        WebGPU.Internals.jsObjectInsert(queuePtr, device.queue);
-        WebGPU.Internals.jsObjectInsert(devicePtr, device);
-        return devicePtr;
-      },
-  importJsExternalTexture:(obj, parentPtr = 0) => {
-            var ptr = _emwgpuCreateExternalTexture(parentPtr);
-            WebGPU.Internals.jsObjects[ptr] = obj;
-            return ptr;
-          },
-  importJsPipelineLayout:(obj, parentPtr = 0) => {
-            var ptr = _emwgpuCreatePipelineLayout(parentPtr);
-            WebGPU.Internals.jsObjects[ptr] = obj;
-            return ptr;
-          },
-  importJsQuerySet:(obj, parentPtr = 0) => {
-            var ptr = _emwgpuCreateQuerySet(parentPtr);
-            WebGPU.Internals.jsObjects[ptr] = obj;
-            return ptr;
-          },
-  importJsQueue:(obj, parentPtr = 0) => {
-            var ptr = _emwgpuCreateQueue(parentPtr);
-            WebGPU.Internals.jsObjects[ptr] = obj;
-            return ptr;
-          },
-  importJsRenderBundle:(obj, parentPtr = 0) => {
-            var ptr = _emwgpuCreateRenderBundle(parentPtr);
-            WebGPU.Internals.jsObjects[ptr] = obj;
-            return ptr;
-          },
-  importJsRenderBundleEncoder:(obj, parentPtr = 0) => {
-            var ptr = _emwgpuCreateRenderBundleEncoder(parentPtr);
-            WebGPU.Internals.jsObjects[ptr] = obj;
-            return ptr;
-          },
-  importJsRenderPassEncoder:(obj, parentPtr = 0) => {
-            var ptr = _emwgpuCreateRenderPassEncoder(parentPtr);
-            WebGPU.Internals.jsObjects[ptr] = obj;
-            return ptr;
-          },
-  importJsRenderPipeline:(obj, parentPtr = 0) => {
-            var ptr = _emwgpuCreateRenderPipeline(parentPtr);
-            WebGPU.Internals.jsObjects[ptr] = obj;
-            return ptr;
-          },
-  importJsSampler:(obj, parentPtr = 0) => {
-            var ptr = _emwgpuCreateSampler(parentPtr);
-            WebGPU.Internals.jsObjects[ptr] = obj;
-            return ptr;
-          },
-  importJsShaderModule:(obj, parentPtr = 0) => {
-            var ptr = _emwgpuCreateShaderModule(parentPtr);
-            WebGPU.Internals.jsObjects[ptr] = obj;
-            return ptr;
-          },
-  importJsSurface:(obj, parentPtr = 0) => {
-            var ptr = _emwgpuCreateSurface(parentPtr);
-            WebGPU.Internals.jsObjects[ptr] = obj;
-            return ptr;
-          },
-  importJsTexture:(obj, parentPtr = 0) => {
-            var ptr = _emwgpuCreateTexture(parentPtr);
-            WebGPU.Internals.jsObjects[ptr] = obj;
-            return ptr;
-          },
-  importJsTextureView:(obj, parentPtr = 0) => {
-            var ptr = _emwgpuCreateTextureView(parentPtr);
-            WebGPU.Internals.jsObjects[ptr] = obj;
-            return ptr;
-          },
-  errorCallback:(callback, type, message, userdata) => {
-        var sp = stackSave();
-        var messagePtr = stringToUTF8OnStack(message);
-        ((a1, a2, a3) => abort('Internal Error! Attempted to invoke wasm function pointer with signature "viii", but no such functions have gotten exported!'))(type, messagePtr, userdata);
-        stackRestore(sp);
-      },
-  iterateExtensions:(root, handlers) => {
-        assert(root);
-        for (var ptr = HEAPU32[((root)>>2)]; ptr;
-                 ptr = HEAPU32[((ptr)>>2)]) {
-          var sType = HEAP32[(((ptr)+(4))>>2)];
-          // This will crash if there's no handler indicating either a bogus
-          // sType, or one we haven't implemented yet.
-          var handler = handlers[sType](ptr);
-        }
-      },
-  setStringView:(ptr, data, length) => {
-        HEAPU32[((ptr)>>2)] = data;
-        HEAPU32[(((ptr)+(4))>>2)] = length;
-      },
-  makeStringFromStringView:(stringViewPtr) => {
-        var ptr = HEAPU32[((stringViewPtr)>>2)];
-        var length = HEAPU32[(((stringViewPtr)+(4))>>2)];
-        // UTF8ToString stops at the first null terminator character in the
-        // string regardless of the length.
-        return UTF8ToString(ptr, length);
-      },
-  makeStringFromOptionalStringView:(stringViewPtr) => {
-        var ptr = HEAPU32[((stringViewPtr)>>2)];
-        var length = HEAPU32[(((stringViewPtr)+(4))>>2)];
-        // If we don't have a valid string pointer, just return undefined when
-        // optional.
-        if (!ptr) {
-          if (length === 0) {
-            return "";
-          }
-          return undefined;
-        }
-        // UTF8ToString stops at the first null terminator character in the
-        // string regardless of the length.
-        return UTF8ToString(ptr, length);
-      },
-  makeColor:(ptr) => {
-        return {
-          "r": HEAPF64[((ptr)>>3)],
-          "g": HEAPF64[(((ptr)+(8))>>3)],
-          "b": HEAPF64[(((ptr)+(16))>>3)],
-          "a": HEAPF64[(((ptr)+(24))>>3)],
-        };
-      },
-  makeExtent3D:(ptr) => {
-        return {
-          "width": HEAPU32[((ptr)>>2)],
-          "height": HEAPU32[(((ptr)+(4))>>2)],
-          "depthOrArrayLayers": HEAPU32[(((ptr)+(8))>>2)],
-        };
-      },
-  makeOrigin3D:(ptr) => {
-        return {
-          "x": HEAPU32[((ptr)>>2)],
-          "y": HEAPU32[(((ptr)+(4))>>2)],
-          "z": HEAPU32[(((ptr)+(8))>>2)],
-        };
-      },
-  makeTexelCopyTextureInfo:(ptr) => {
-        assert(ptr);
-        return {
-          "texture": WebGPU.getJsObject(
-            HEAPU32[((ptr)>>2)]),
-          "mipLevel": HEAPU32[(((ptr)+(4))>>2)],
-          "origin": WebGPU.makeOrigin3D(ptr + 8),
-          "aspect": WebGPU.TextureAspect[HEAP32[(((ptr)+(20))>>2)]],
-        };
-      },
-  makeTexelCopyBufferLayout:(ptr) => {
-        var bytesPerRow = HEAPU32[(((ptr)+(8))>>2)];
-        var rowsPerImage = HEAPU32[(((ptr)+(12))>>2)];
-        return {
-          "offset": readI53FromI64(ptr),
-          "bytesPerRow": bytesPerRow === 4294967295 ? undefined : bytesPerRow,
-          "rowsPerImage": rowsPerImage === 4294967295 ? undefined : rowsPerImage,
-        };
-      },
-  makeTexelCopyBufferInfo:(ptr) => {
-        assert(ptr);
-        var layoutPtr = ptr + 0;
-        var bufferCopyView = WebGPU.makeTexelCopyBufferLayout(layoutPtr);
-        bufferCopyView["buffer"] = WebGPU.getJsObject(
-          HEAPU32[(((ptr)+(16))>>2)]);
-        return bufferCopyView;
-      },
-  makePassTimestampWrites:(ptr) => {
-        if (ptr === 0) return undefined;
-        return {
-          "querySet": WebGPU.getJsObject(
-            HEAPU32[(((ptr)+(4))>>2)]),
-          "beginningOfPassWriteIndex": HEAPU32[(((ptr)+(8))>>2)],
-          "endOfPassWriteIndex": HEAPU32[(((ptr)+(12))>>2)],
-        };
-      },
-  makePipelineConstants:(constantCount, constantsPtr) => {
-        if (!constantCount) return;
-        var constants = {};
-        for (var i = 0; i < constantCount; ++i) {
-          var entryPtr = constantsPtr + 24 * i;
-          var key = WebGPU.makeStringFromStringView(entryPtr + 4);
-          constants[key] = HEAPF64[(((entryPtr)+(16))>>3)];
-        }
-        return constants;
-      },
-  makePipelineLayout:(layoutPtr) => {
-        if (!layoutPtr) return 'auto';
-        return WebGPU.getJsObject(layoutPtr);
-      },
-  makeComputeState:(ptr) => {
-        if (!ptr) return undefined;
-        assert(ptr);assert(HEAPU32[((ptr)>>2)] === 0);
-        var desc = {
-          "module": WebGPU.getJsObject(
-            HEAPU32[(((ptr)+(4))>>2)]),
-          "constants": WebGPU.makePipelineConstants(
-            HEAPU32[(((ptr)+(16))>>2)],
-            HEAPU32[(((ptr)+(20))>>2)]),
-          "entryPoint": WebGPU.makeStringFromOptionalStringView(
-            ptr + 8),
-        };
-        return desc;
-      },
-  makeComputePipelineDesc:(descriptor) => {
-        assert(descriptor);assert(HEAPU32[((descriptor)>>2)] === 0);
-  
-        var desc = {
-          "label": WebGPU.makeStringFromOptionalStringView(
-            descriptor + 4),
-          "layout": WebGPU.makePipelineLayout(
-            HEAPU32[(((descriptor)+(12))>>2)]),
-          "compute": WebGPU.makeComputeState(
-            descriptor + 16),
-        };
-        return desc;
-      },
-  makeRenderPipelineDesc:(descriptor) => {
-        assert(descriptor);assert(HEAPU32[((descriptor)>>2)] === 0);
-  
-        function makePrimitiveState(psPtr) {
-          if (!psPtr) return undefined;
-          assert(psPtr);assert(HEAPU32[((psPtr)>>2)] === 0);
-          return {
-            "topology": WebGPU.PrimitiveTopology[HEAP32[(((psPtr)+(4))>>2)]],
-            "stripIndexFormat": WebGPU.IndexFormat[HEAP32[(((psPtr)+(8))>>2)]],
-            "frontFace": WebGPU.FrontFace[HEAP32[(((psPtr)+(12))>>2)]],
-            "cullMode": WebGPU.CullMode[HEAP32[(((psPtr)+(16))>>2)]],
-            "unclippedDepth": !!(HEAPU32[(((psPtr)+(20))>>2)]),
-          };
-        }
-  
-        function makeBlendComponent(bdPtr) {
-          if (!bdPtr) return undefined;
-          return {
-            "operation": WebGPU.BlendOperation[HEAP32[((bdPtr)>>2)]],
-            "srcFactor": WebGPU.BlendFactor[HEAP32[(((bdPtr)+(4))>>2)]],
-            "dstFactor": WebGPU.BlendFactor[HEAP32[(((bdPtr)+(8))>>2)]],
-          };
-        }
-  
-        function makeBlendState(bsPtr) {
-          if (!bsPtr) return undefined;
-          return {
-            "alpha": makeBlendComponent(bsPtr + 12),
-            "color": makeBlendComponent(bsPtr + 0),
-          };
-        }
-  
-        function makeColorState(csPtr) {
-          assert(csPtr);assert(HEAPU32[((csPtr)>>2)] === 0);
-          var format = WebGPU.TextureFormat[HEAP32[(((csPtr)+(4))>>2)]];
-          return format ? {
-            "format": format,
-            "blend": makeBlendState(HEAPU32[(((csPtr)+(8))>>2)]),
-            "writeMask": HEAPU32[(((csPtr)+(16))>>2)],
-          } : undefined;
-        }
-  
-        function makeColorStates(count, csArrayPtr) {
-          var states = [];
-          for (var i = 0; i < count; ++i) {
-            states.push(makeColorState(csArrayPtr + 24 * i));
-          }
-          return states;
-        }
-  
-        function makeStencilStateFace(ssfPtr) {
-          assert(ssfPtr);
-          return {
-            "compare": WebGPU.CompareFunction[HEAP32[((ssfPtr)>>2)]],
-            "failOp": WebGPU.StencilOperation[HEAP32[(((ssfPtr)+(4))>>2)]],
-            "depthFailOp": WebGPU.StencilOperation[HEAP32[(((ssfPtr)+(8))>>2)]],
-            "passOp": WebGPU.StencilOperation[HEAP32[(((ssfPtr)+(12))>>2)]],
-          };
-        }
-  
-        function makeDepthStencilState(dssPtr) {
-          if (!dssPtr) return undefined;
-  
-          assert(dssPtr);
-          return {
-            "format": WebGPU.TextureFormat[HEAP32[(((dssPtr)+(4))>>2)]],
-            "depthWriteEnabled": !!(HEAPU32[(((dssPtr)+(8))>>2)]),
-            "depthCompare": WebGPU.CompareFunction[HEAP32[(((dssPtr)+(12))>>2)]],
-            "stencilFront": makeStencilStateFace(dssPtr + 16),
-            "stencilBack": makeStencilStateFace(dssPtr + 32),
-            "stencilReadMask": HEAPU32[(((dssPtr)+(48))>>2)],
-            "stencilWriteMask": HEAPU32[(((dssPtr)+(52))>>2)],
-            "depthBias": HEAP32[(((dssPtr)+(56))>>2)],
-            "depthBiasSlopeScale": HEAPF32[(((dssPtr)+(60))>>2)],
-            "depthBiasClamp": HEAPF32[(((dssPtr)+(64))>>2)],
-          };
-        }
-  
-        function makeVertexAttribute(vaPtr) {
-          assert(vaPtr);
-          return {
-            "format": WebGPU.VertexFormat[HEAP32[(((vaPtr)+(4))>>2)]],
-            "offset": readI53FromI64((vaPtr)+(8)),
-            "shaderLocation": HEAPU32[(((vaPtr)+(16))>>2)],
-          };
-        }
-  
-        function makeVertexAttributes(count, vaArrayPtr) {
-          var vas = [];
-          for (var i = 0; i < count; ++i) {
-            vas.push(makeVertexAttribute(vaArrayPtr + i * 24));
-          }
-          return vas;
-        }
-  
-        function makeVertexBuffer(vbPtr) {
-          if (!vbPtr) return undefined;
-          var stepMode = WebGPU.VertexStepMode[HEAP32[(((vbPtr)+(4))>>2)]];
-          var attributeCount = HEAPU32[(((vbPtr)+(16))>>2)];
-          if (!stepMode && !attributeCount) {
-            return null;
-          }
-          return {
-            "arrayStride": readI53FromI64((vbPtr)+(8)),
-            "stepMode": stepMode,
-            "attributes": makeVertexAttributes(
-              attributeCount,
-              HEAPU32[(((vbPtr)+(20))>>2)]),
-          };
-        }
-  
-        function makeVertexBuffers(count, vbArrayPtr) {
-          if (!count) return undefined;
-  
-          var vbs = [];
-          for (var i = 0; i < count; ++i) {
-            vbs.push(makeVertexBuffer(vbArrayPtr + i * 24));
-          }
-          return vbs;
-        }
-  
-        function makeVertexState(viPtr) {
-          if (!viPtr) return undefined;
-          assert(viPtr);assert(HEAPU32[((viPtr)>>2)] === 0);
-          var desc = {
-            "module": WebGPU.getJsObject(
-              HEAPU32[(((viPtr)+(4))>>2)]),
-            "constants": WebGPU.makePipelineConstants(
-              HEAPU32[(((viPtr)+(16))>>2)],
-              HEAPU32[(((viPtr)+(20))>>2)]),
-            "buffers": makeVertexBuffers(
-              HEAPU32[(((viPtr)+(24))>>2)],
-              HEAPU32[(((viPtr)+(28))>>2)]),
-            "entryPoint": WebGPU.makeStringFromOptionalStringView(
-              viPtr + 8),
-            };
-          return desc;
-        }
-  
-        function makeMultisampleState(msPtr) {
-          if (!msPtr) return undefined;
-          assert(msPtr);assert(HEAPU32[((msPtr)>>2)] === 0);
-          return {
-            "count": HEAPU32[(((msPtr)+(4))>>2)],
-            "mask": HEAPU32[(((msPtr)+(8))>>2)],
-            "alphaToCoverageEnabled": !!(HEAPU32[(((msPtr)+(12))>>2)]),
-          };
-        }
-  
-        function makeFragmentState(fsPtr) {
-          if (!fsPtr) return undefined;
-          assert(fsPtr);assert(HEAPU32[((fsPtr)>>2)] === 0);
-          var desc = {
-            "module": WebGPU.getJsObject(
-              HEAPU32[(((fsPtr)+(4))>>2)]),
-            "constants": WebGPU.makePipelineConstants(
-              HEAPU32[(((fsPtr)+(16))>>2)],
-              HEAPU32[(((fsPtr)+(20))>>2)]),
-            "targets": makeColorStates(
-              HEAPU32[(((fsPtr)+(24))>>2)],
-              HEAPU32[(((fsPtr)+(28))>>2)]),
-            "entryPoint": WebGPU.makeStringFromOptionalStringView(
-              fsPtr + 8),
-            };
-          return desc;
-        }
-  
-        var desc = {
-          "label": WebGPU.makeStringFromOptionalStringView(
-            descriptor + 4),
-          "layout": WebGPU.makePipelineLayout(
-            HEAPU32[(((descriptor)+(12))>>2)]),
-          "vertex": makeVertexState(
-            descriptor + 16),
-          "primitive": makePrimitiveState(
-            descriptor + 48),
-          "depthStencil": makeDepthStencilState(
-            HEAPU32[(((descriptor)+(72))>>2)]),
-          "multisample": makeMultisampleState(
-            descriptor + 76),
-          "fragment": makeFragmentState(
-            HEAPU32[(((descriptor)+(92))>>2)]),
-        };
-        return desc;
-      },
-  fillLimitStruct:(limits, limitsOutPtr) => {
-        assert(limitsOutPtr);
-        var nextInChainPtr = HEAPU32[((limitsOutPtr)>>2)];
-  
-        function setLimitValueU32(name, basePtr, limitOffset, fallbackValue = 0) {
-          var limitValue = limits[name] ?? fallbackValue;
-          HEAPU32[(((basePtr)+(limitOffset))>>2)] = limitValue;
-        }
-        function setLimitValueU64(name, basePtr, limitOffset, fallbackValue = 0) {
-          var limitValue = limits[name] ?? fallbackValue;
-          // Limits are integer-valued JS `Number`s, so they fit in 'i53'.
-          writeI53ToI64((basePtr)+(limitOffset), limitValue);
-        }
-  
-        setLimitValueU32('maxTextureDimension1D',                     limitsOutPtr, 4);
-        setLimitValueU32('maxTextureDimension2D',                     limitsOutPtr, 8);
-        setLimitValueU32('maxTextureDimension3D',                     limitsOutPtr, 12);
-        setLimitValueU32('maxTextureArrayLayers',                     limitsOutPtr, 16);
-        setLimitValueU32('maxBindGroups',                             limitsOutPtr, 20);
-        setLimitValueU32('maxBindGroupsPlusVertexBuffers',            limitsOutPtr, 24);
-        setLimitValueU32('maxBindingsPerBindGroup',                   limitsOutPtr, 28);
-        setLimitValueU32('maxDynamicUniformBuffersPerPipelineLayout', limitsOutPtr, 32);
-        setLimitValueU32('maxDynamicStorageBuffersPerPipelineLayout', limitsOutPtr, 36);
-        setLimitValueU32('maxSampledTexturesPerShaderStage',          limitsOutPtr, 40);
-        setLimitValueU32('maxSamplersPerShaderStage',                 limitsOutPtr, 44);
-        setLimitValueU32('maxStorageBuffersPerShaderStage',           limitsOutPtr, 48);
-        setLimitValueU32('maxStorageTexturesPerShaderStage',          limitsOutPtr, 52);
-        setLimitValueU32('maxUniformBuffersPerShaderStage',           limitsOutPtr, 56);
-        setLimitValueU32('minUniformBufferOffsetAlignment',           limitsOutPtr, 80);
-        setLimitValueU32('minStorageBufferOffsetAlignment',           limitsOutPtr, 84);
-        setLimitValueU64('maxUniformBufferBindingSize',               limitsOutPtr, 64);
-        setLimitValueU64('maxStorageBufferBindingSize',               limitsOutPtr, 72);
-        setLimitValueU32('maxVertexBuffers',                          limitsOutPtr, 88);
-        setLimitValueU64('maxBufferSize',                             limitsOutPtr, 96);
-        setLimitValueU32('maxVertexAttributes',                       limitsOutPtr, 104);
-        setLimitValueU32('maxVertexBufferArrayStride',                limitsOutPtr, 108);
-        setLimitValueU32('maxInterStageShaderVariables',              limitsOutPtr, 112);
-        setLimitValueU32('maxColorAttachments',                       limitsOutPtr, 116);
-        setLimitValueU32('maxColorAttachmentBytesPerSample',          limitsOutPtr, 120);
-        setLimitValueU32('maxComputeWorkgroupStorageSize',            limitsOutPtr, 124);
-        setLimitValueU32('maxComputeInvocationsPerWorkgroup',         limitsOutPtr, 128);
-        setLimitValueU32('maxComputeWorkgroupSizeX',                  limitsOutPtr, 132);
-        setLimitValueU32('maxComputeWorkgroupSizeY',                  limitsOutPtr, 136);
-        setLimitValueU32('maxComputeWorkgroupSizeZ',                  limitsOutPtr, 140);
-        setLimitValueU32('maxComputeWorkgroupsPerDimension',          limitsOutPtr, 144);
-        // Note this limit is new and won't be present in all browsers for a while. Fall back to 0.
-        setLimitValueU32('maxImmediateSize',                          limitsOutPtr, 148);
-  
-        if (nextInChainPtr !== 0) {
-          var sType = HEAP32[(((nextInChainPtr)+(4))>>2)];
-          assert(sType === 15);
-          assert(0 === HEAPU32[((nextInChainPtr)>>2)]);
-          var compatibilityModeLimitsPtr = nextInChainPtr;
-          assert(compatibilityModeLimitsPtr);assert(HEAPU32[((compatibilityModeLimitsPtr)>>2)] === 0);
-  
-          // Note these limits are new and won't be present in all browsers for a while. Fall back to exposing the PerShaderStage limit.
-          setLimitValueU32('maxStorageBuffersInVertexStage',    compatibilityModeLimitsPtr, 8,    limits.maxStorageBuffersPerShaderStage);
-          setLimitValueU32('maxStorageBuffersInFragmentStage',  compatibilityModeLimitsPtr, 16,  limits.maxStorageBuffersPerShaderStage);
-          setLimitValueU32('maxStorageTexturesInVertexStage',   compatibilityModeLimitsPtr, 12,   limits.maxStorageTexturesPerShaderStage);
-          setLimitValueU32('maxStorageTexturesInFragmentStage', compatibilityModeLimitsPtr, 20, limits.maxStorageTexturesPerShaderStage);
-        }
-      },
-  fillAdapterInfoStruct:(info, infoStruct) => {
-        assert(infoStruct);assert(HEAPU32[((infoStruct)>>2)] === 0);
-  
-        // Populate subgroup limits.
-        HEAPU32[(((infoStruct)+(52))>>2)] = info.subgroupMinSize;
-        HEAPU32[(((infoStruct)+(56))>>2)] = info.subgroupMaxSize;
-  
-        // Append all the strings together to condense into a single malloc.
-        var strs = info.vendor + info.architecture + info.device + info.description;
-        var strPtr = stringToNewUTF8(strs);
-  
-        var vendorLen = lengthBytesUTF8(info.vendor);
-        WebGPU.setStringView(infoStruct + 4, strPtr, vendorLen);
-        strPtr += vendorLen;
-  
-        var architectureLen = lengthBytesUTF8(info.architecture);
-        WebGPU.setStringView(infoStruct + 12, strPtr, architectureLen);
-        strPtr += architectureLen;
-  
-        var deviceLen = lengthBytesUTF8(info.device);
-        WebGPU.setStringView(infoStruct + 20, strPtr, deviceLen);
-        strPtr += deviceLen;
-  
-        var descriptionLen = lengthBytesUTF8(info.description);
-        WebGPU.setStringView(infoStruct + 28, strPtr, descriptionLen);
-        strPtr += descriptionLen;
-  
-        HEAP32[(((infoStruct)+(36))>>2)] = 2;
-        var adapterType = info.isFallbackAdapter ? 3 : 4;
-        HEAP32[(((infoStruct)+(40))>>2)] = adapterType;
-        HEAPU32[(((infoStruct)+(44))>>2)] = 0;
-        HEAPU32[(((infoStruct)+(48))>>2)] = 0;
-      },
-  AddressMode:[,"clamp-to-edge","repeat","mirror-repeat"],
-  BlendFactor:[,"zero","one","src","one-minus-src","src-alpha","one-minus-src-alpha","dst","one-minus-dst","dst-alpha","one-minus-dst-alpha","src-alpha-saturated","constant","one-minus-constant","src1","one-minus-src1","src1-alpha","one-minus-src1-alpha"],
-  BlendOperation:[,"add","subtract","reverse-subtract","min","max"],
-  BufferBindingType:[,,"uniform","storage","read-only-storage"],
-  BufferMapState:[,"unmapped","pending","mapped"],
-  CompareFunction:[,"never","less","equal","less-equal","greater","not-equal","greater-equal","always"],
-  CompilationInfoRequestStatus:[,"success","callback-cancelled"],
-  ComponentSwizzle:[,"0","1","r","g","b","a"],
-  CompositeAlphaMode:[,"opaque","premultiplied","unpremultiplied","inherit"],
-  CullMode:[,"none","front","back"],
-  ErrorFilter:[,"validation","out-of-memory","internal"],
-  FeatureLevel:[,"compatibility","core"],
-  FeatureName:{
-  1:"core-features-and-limits",
-  2:"depth-clip-control",
-  3:"depth32float-stencil8",
-  4:"texture-compression-bc",
-  5:"texture-compression-bc-sliced-3d",
-  6:"texture-compression-etc2",
-  7:"texture-compression-astc",
-  8:"texture-compression-astc-sliced-3d",
-  9:"timestamp-query",
-  10:"indirect-first-instance",
-  11:"shader-f16",
-  12:"rg11b10ufloat-renderable",
-  13:"bgra8unorm-storage",
-  14:"float32-filterable",
-  15:"float32-blendable",
-  16:"clip-distances",
-  17:"dual-source-blending",
-  18:"subgroups",
-  19:"texture-formats-tier1",
-  20:"texture-formats-tier2",
-  21:"primitive-index",
-  22:"texture-component-swizzle",
-  327692:"chromium-experimental-unorm16-texture-formats",
-  327729:"chromium-experimental-multi-draw-indirect",
-  },
-  FilterMode:[,"nearest","linear"],
-  FrontFace:[,"ccw","cw"],
-  IndexFormat:[,"uint16","uint32"],
-  InstanceFeatureName:[,"timed-wait-any","shader-source-spirv","multiple-devices-per-adapter"],
-  LoadOp:[,"load","clear"],
-  MipmapFilterMode:[,"nearest","linear"],
-  OptionalBool:["false","true",],
-  PowerPreference:[,"low-power","high-performance"],
-  PredefinedColorSpace:[,"srgb","display-p3"],
-  PrimitiveTopology:[,"point-list","line-list","line-strip","triangle-list","triangle-strip"],
-  QueryType:[,"occlusion","timestamp"],
-  SamplerBindingType:[,,"filtering","non-filtering","comparison"],
-  Status:[,"success","error"],
-  StencilOperation:[,"keep","zero","replace","invert","increment-clamp","decrement-clamp","increment-wrap","decrement-wrap"],
-  StorageTextureAccess:[,,"write-only","read-only","read-write"],
-  StoreOp:[,"store","discard"],
-  SurfaceGetCurrentTextureStatus:[,"success-optimal","success-suboptimal","timeout","outdated","lost","error"],
-  TextureAspect:[,"all","stencil-only","depth-only"],
-  TextureDimension:[,"1d","2d","3d"],
-  TextureFormat:[,"r8unorm","r8snorm","r8uint","r8sint","r16unorm","r16snorm","r16uint","r16sint","r16float","rg8unorm","rg8snorm","rg8uint","rg8sint","r32float","r32uint","r32sint","rg16unorm","rg16snorm","rg16uint","rg16sint","rg16float","rgba8unorm","rgba8unorm-srgb","rgba8snorm","rgba8uint","rgba8sint","bgra8unorm","bgra8unorm-srgb","rgb10a2uint","rgb10a2unorm","rg11b10ufloat","rgb9e5ufloat","rg32float","rg32uint","rg32sint","rgba16unorm","rgba16snorm","rgba16uint","rgba16sint","rgba16float","rgba32float","rgba32uint","rgba32sint","stencil8","depth16unorm","depth24plus","depth24plus-stencil8","depth32float","depth32float-stencil8","bc1-rgba-unorm","bc1-rgba-unorm-srgb","bc2-rgba-unorm","bc2-rgba-unorm-srgb","bc3-rgba-unorm","bc3-rgba-unorm-srgb","bc4-r-unorm","bc4-r-snorm","bc5-rg-unorm","bc5-rg-snorm","bc6h-rgb-ufloat","bc6h-rgb-float","bc7-rgba-unorm","bc7-rgba-unorm-srgb","etc2-rgb8unorm","etc2-rgb8unorm-srgb","etc2-rgb8a1unorm","etc2-rgb8a1unorm-srgb","etc2-rgba8unorm","etc2-rgba8unorm-srgb","eac-r11unorm","eac-r11snorm","eac-rg11unorm","eac-rg11snorm","astc-4x4-unorm","astc-4x4-unorm-srgb","astc-5x4-unorm","astc-5x4-unorm-srgb","astc-5x5-unorm","astc-5x5-unorm-srgb","astc-6x5-unorm","astc-6x5-unorm-srgb","astc-6x6-unorm","astc-6x6-unorm-srgb","astc-8x5-unorm","astc-8x5-unorm-srgb","astc-8x6-unorm","astc-8x6-unorm-srgb","astc-8x8-unorm","astc-8x8-unorm-srgb","astc-10x5-unorm","astc-10x5-unorm-srgb","astc-10x6-unorm","astc-10x6-unorm-srgb","astc-10x8-unorm","astc-10x8-unorm-srgb","astc-10x10-unorm","astc-10x10-unorm-srgb","astc-12x10-unorm","astc-12x10-unorm-srgb","astc-12x12-unorm","astc-12x12-unorm-srgb"],
-  TextureSampleType:[,,"float","unfilterable-float","depth","sint","uint"],
-  TextureViewDimension:[,"1d","2d","2d-array","cube","cube-array","3d"],
-  ToneMappingMode:[,"standard","extended"],
-  VertexFormat:[,"uint8","uint8x2","uint8x4","sint8","sint8x2","sint8x4","unorm8","unorm8x2","unorm8x4","snorm8","snorm8x2","snorm8x4","uint16","uint16x2","uint16x4","sint16","sint16x2","sint16x4","unorm16","unorm16x2","unorm16x4","snorm16","snorm16x2","snorm16x4","float16","float16x2","float16x4","float32","float32x2","float32x3","float32x4","uint32","uint32x2","uint32x3","uint32x4","sint32","sint32x2","sint32x3","sint32x4","unorm10-10-10-2","unorm8x4-bgra"],
-  VertexStepMode:[,"vertex","instance"],
-  WGSLLanguageFeatureName:[,"readonly_and_readwrite_storage_textures","packed_4x8_integer_dot_product","unrestricted_pointer_parameters","pointer_composite_access","uniform_buffer_standard_layout","subgroup_id","texture_and_sampler_let","subgroup_uniformity","texture_formats_tier1","linear_indexing"],
-  };
-  
-  var emwgpuStringToInt_DeviceLostReason = {
-              'undefined': 1,  // For older browsers
-              'unknown': 1,
-              'destroyed': 2,
-          };
-  
-  var handleException = (e) => {
-      // Certain exception types we do not treat as errors since they are used for
-      // internal control flow.
-      // 1. ExitStatus, which is thrown by exit()
-      // 2. "unwind", which is thrown by emscripten_unwind_to_js_event_loop() and others
-      //    that wish to return to JS event loop.
-      if (e instanceof ExitStatus || e == 'unwind') {
-        return EXITSTATUS;
-      }
-      checkStackCookie();
-      if (e instanceof WebAssembly.RuntimeError) {
-        if (_emscripten_stack_get_current() <= 0) {
-          err('Stack overflow detected.  You can try increasing -sSTACK_SIZE (currently set to 65536)');
-        }
-      }
-      quit_(1, e);
-    };
-  
-  
-  var runtimeKeepaliveCounter = 0;
-  var keepRuntimeAlive = () => noExitRuntime || runtimeKeepaliveCounter > 0;
-  var _proc_exit = (code) => {
-      EXITSTATUS = code;
-      if (!keepRuntimeAlive()) {
-        Module['onExit']?.(code);
-        ABORT = true;
-      }
-      quit_(code, new ExitStatus(code));
-    };
-  
-  
-  /** @param {boolean|number=} implicit */
-  var exitJS = (status, implicit) => {
-      EXITSTATUS = status;
-  
-      checkUnflushedContent();
-  
-      // if exit() was called explicitly, warn the user if the runtime isn't actually being shut down
-      if (keepRuntimeAlive() && !implicit) {
-        var msg = `program exited (with status: ${status}), but keepRuntimeAlive() is set (counter=${runtimeKeepaliveCounter}) due to an async operation, so halting execution but not exiting the runtime or preventing further async execution (you can use emscripten_force_exit, if you want to force a true shutdown)`;
-        err(msg);
-      }
-  
-      _proc_exit(status);
-    };
-  var _exit = exitJS;
-  
-  
-  var maybeExit = () => {
-      if (!keepRuntimeAlive()) {
-        try {
-          _exit(EXITSTATUS);
-        } catch (e) {
-          handleException(e);
-        }
-      }
-    };
-  var callUserCallback = (func) => {
-      if (ABORT) {
-        err('user callback triggered after runtime exited or application aborted.  Ignoring.');
-        return;
-      }
-      try {
-        return func();
-      } catch (e) {
-        handleException(e);
-      } finally {
-        maybeExit();
-      }
-    };
-  
-  
-  
-  
-  
-  function _emwgpuAdapterRequestDevice(adapterPtr, futureId, deviceLostFutureId, devicePtr, queuePtr, descriptor) {
-    futureId = bigintToI53Checked(futureId);
-    deviceLostFutureId = bigintToI53Checked(deviceLostFutureId);
-  
-  
-      var adapter = WebGPU.getJsObject(adapterPtr);
-  
-      var desc = {};
-      if (descriptor) {
-        assert(descriptor);assert(HEAPU32[((descriptor)>>2)] === 0);
-        var requiredFeatureCount = HEAPU32[(((descriptor)+(12))>>2)];
-        if (requiredFeatureCount) {
-          var requiredFeaturesPtr = HEAPU32[(((descriptor)+(16))>>2)];
-          // requiredFeaturesPtr is a pointer to an array of FeatureName which is an enum of size uint32_t
-          desc["requiredFeatures"] = Array.from(HEAPU32.subarray((((requiredFeaturesPtr)>>2)), ((requiredFeaturesPtr + requiredFeatureCount * 4)>>2)),
-            (feature) => WebGPU.FeatureName[feature]);
-        }
-        var limitsPtr = HEAPU32[(((descriptor)+(20))>>2)];
-        if (limitsPtr) {
-          assert(limitsPtr);
-          var nextInChainPtr = HEAPU32[((limitsPtr)>>2)];
-          var requiredLimits = {};
-          function setLimitU32IfDefined(name, basePtr, limitOffset, ignoreIfZero = false) {
-            var ptr = basePtr + limitOffset;
-            var value = HEAPU32[((ptr)>>2)];
-            if (value != 4294967295 && (!ignoreIfZero || value != 0)) {
-              requiredLimits[name] = value;
-            }
-          }
-          function setLimitU64IfDefined(name, basePtr, limitOffset) {
-            var ptr = basePtr + limitOffset;
-            // Handle WGPU_LIMIT_U64_UNDEFINED.
-            var limitPart1 = HEAPU32[((ptr)>>2)];
-            var limitPart2 = HEAPU32[(((ptr)+(4))>>2)];
-            if (limitPart1 != 0xFFFFFFFF || limitPart2 != 0xFFFFFFFF) {
-              requiredLimits[name] = readI53FromI64(ptr);
-            }
-          }
-  
-          setLimitU32IfDefined("maxTextureDimension1D",                     limitsPtr, 4);
-          setLimitU32IfDefined("maxTextureDimension2D",                     limitsPtr, 8);
-          setLimitU32IfDefined("maxTextureDimension3D",                     limitsPtr, 12);
-          setLimitU32IfDefined("maxTextureArrayLayers",                     limitsPtr, 16);
-          setLimitU32IfDefined("maxBindGroups",                             limitsPtr, 20);
-          setLimitU32IfDefined('maxBindGroupsPlusVertexBuffers',            limitsPtr, 24);
-          setLimitU32IfDefined('maxBindingsPerBindGroup',                   limitsPtr, 28);
-          setLimitU32IfDefined("maxDynamicUniformBuffersPerPipelineLayout", limitsPtr, 32);
-          setLimitU32IfDefined("maxDynamicStorageBuffersPerPipelineLayout", limitsPtr, 36);
-          setLimitU32IfDefined("maxSampledTexturesPerShaderStage",          limitsPtr, 40);
-          setLimitU32IfDefined("maxSamplersPerShaderStage",                 limitsPtr, 44);
-          setLimitU32IfDefined("maxStorageBuffersPerShaderStage",           limitsPtr, 48);
-          setLimitU32IfDefined("maxStorageTexturesPerShaderStage",          limitsPtr, 52);
-          setLimitU32IfDefined("maxUniformBuffersPerShaderStage",           limitsPtr, 56);
-          setLimitU32IfDefined("minUniformBufferOffsetAlignment",           limitsPtr, 80);
-          setLimitU32IfDefined("minStorageBufferOffsetAlignment",           limitsPtr, 84);
-          setLimitU64IfDefined("maxUniformBufferBindingSize",               limitsPtr, 64);
-          setLimitU64IfDefined("maxStorageBufferBindingSize",               limitsPtr, 72);
-          setLimitU32IfDefined("maxVertexBuffers",                          limitsPtr, 88);
-          setLimitU64IfDefined("maxBufferSize",                             limitsPtr, 96);
-          setLimitU32IfDefined("maxVertexAttributes",                       limitsPtr, 104);
-          setLimitU32IfDefined("maxVertexBufferArrayStride",                limitsPtr, 108);
-          setLimitU32IfDefined("maxInterStageShaderVariables",              limitsPtr, 112);
-          setLimitU32IfDefined("maxColorAttachments",                       limitsPtr, 116);
-          setLimitU32IfDefined("maxColorAttachmentBytesPerSample",          limitsPtr, 120);
-          setLimitU32IfDefined("maxComputeWorkgroupStorageSize",            limitsPtr, 124);
-          setLimitU32IfDefined("maxComputeInvocationsPerWorkgroup",         limitsPtr, 128);
-          setLimitU32IfDefined("maxComputeWorkgroupSizeX",                  limitsPtr, 132);
-          setLimitU32IfDefined("maxComputeWorkgroupSizeY",                  limitsPtr, 136);
-          setLimitU32IfDefined("maxComputeWorkgroupSizeZ",                  limitsPtr, 140);
-          setLimitU32IfDefined("maxComputeWorkgroupsPerDimension",          limitsPtr, 144);
-          // Not present in all browsers. If the app requested 0, avoid passing it through so it won't cause an error.
-          setLimitU32IfDefined("maxImmediateSize",                          limitsPtr, 148, true);
-  
-          if (nextInChainPtr !== 0) {
-            var sType = HEAP32[(((nextInChainPtr)+(4))>>2)];
-            assert(sType === 15);
-            assert(0 === HEAPU32[((nextInChainPtr)>>2)]);
-            var compatibilityModeLimitsPtr = nextInChainPtr;
-            assert(compatibilityModeLimitsPtr);assert(HEAPU32[((compatibilityModeLimitsPtr)>>2)] === 0);
-            // If not present in the browser, don't request these, otherwise they'll cause an error.
-            // (Technically, if any of these is higher than the PerShaderStage equivalent, we should
-            // raise the PerShaderStage limit instead, but that's complex and apps should be able to
-            // deal with that themselves.)
-            if ('maxStorageBuffersInVertexStage' in GPUSupportedLimits.prototype) {
-              setLimitU32IfDefined('maxStorageBuffersInVertexStage',    compatibilityModeLimitsPtr, 8);
-              setLimitU32IfDefined('maxStorageTexturesInVertexStage',   compatibilityModeLimitsPtr, 12);
-              setLimitU32IfDefined('maxStorageBuffersInFragmentStage',  compatibilityModeLimitsPtr, 16);
-              setLimitU32IfDefined('maxStorageTexturesInFragmentStage', compatibilityModeLimitsPtr, 20);
-            }
-          }
-  
-          desc["requiredLimits"] = requiredLimits;
-        }
-  
-        var defaultQueuePtr = HEAPU32[(((descriptor)+(24))>>2)];
-        if (defaultQueuePtr) {
-          var defaultQueueDesc = {
-            "label": WebGPU.makeStringFromOptionalStringView(
-              defaultQueuePtr + 4),
-          };
-          desc["defaultQueue"] = defaultQueueDesc;
-        }
-        desc["label"] = WebGPU.makeStringFromOptionalStringView(
-          descriptor + 4
-        );
-      }
-  
-       // requestDevice
-      WebGPU.Internals.futureInsert(futureId, adapter.requestDevice(desc).then((device) => {
-         // requestDevice fulfilled
-        callUserCallback(() => {
-          WebGPU.Internals.jsObjectInsert(queuePtr, device.queue);
-          WebGPU.Internals.jsObjectInsert(devicePtr, device);
-  
-          
-  
-          // Set up device lost promise resolution.
-          assert(deviceLostFutureId);
-          // Don't keepalive here, because this isn't guaranteed to ever happen.
-          WebGPU.Internals.futureInsert(deviceLostFutureId, device.lost.then((info) => {
-            // If the runtime has exited, avoid calling callUserCallback as it
-            // will print an error (e.g. if the device got freed during shutdown).
-            callUserCallback(() => {
-              // Unset the uncaptured error handler.
-              device.onuncapturederror = (ev) => {};
-              var sp = stackSave();
-              var messagePtr = stringToUTF8OnStack(info.message);
-              _emwgpuOnDeviceLostCompleted(deviceLostFutureId, emwgpuStringToInt_DeviceLostReason[info.reason],
-                messagePtr);
-              stackRestore(sp);
-            });
-          }));
-  
-          // Set up uncaptured error handlers.
-          assert(typeof GPUValidationError != 'undefined');
-          assert(typeof GPUOutOfMemoryError != 'undefined');
-          assert(typeof GPUInternalError != 'undefined');
-          device.onuncapturederror = (ev) => {
-              var type = 5;
-              if (ev.error instanceof GPUValidationError) type = 2;
-              else if (ev.error instanceof GPUOutOfMemoryError) type = 3;
-              else if (ev.error instanceof GPUInternalError) type = 4;
-              var sp = stackSave();
-              var messagePtr = stringToUTF8OnStack(ev.error.message);
-              _emwgpuOnUncapturedError(devicePtr, type, messagePtr);
-              stackRestore(sp);
-          };
-  
-          _emwgpuOnRequestDeviceCompleted(futureId, 1,
-            devicePtr, 0);
-        });
-      }, (ex) => {
-         // requestDevice rejected
-        callUserCallback(() => {
-          var sp = stackSave();
-          var messagePtr = stringToUTF8OnStack(ex.message);
-          _emwgpuOnRequestDeviceCompleted(futureId, 3,
-            devicePtr, messagePtr);
-          if (deviceLostFutureId) {
-            _emwgpuOnDeviceLostCompleted(deviceLostFutureId, 4,
-              messagePtr);
-          }
-          stackRestore(sp);
-        });
-      }));
-    ;
-  }
-
-  
-  var _emwgpuDelete = (ptr) => {
-      delete WebGPU.Internals.jsObjects[ptr];
-    };
-
-  
-  
-  var _emwgpuDeviceCreateBuffer = (devicePtr, descriptor, bufferPtr) => {
-      assert(descriptor);assert(HEAPU32[((descriptor)>>2)] === 0);
-  
-      var mappedAtCreation = !!(HEAPU32[(((descriptor)+(32))>>2)]);
-  
-      var desc = {
-        "label": WebGPU.makeStringFromOptionalStringView(
-          descriptor + 4),
-        "usage": HEAPU32[(((descriptor)+(16))>>2)],
-        "size": readI53FromI64((descriptor)+(24)),
-        "mappedAtCreation": mappedAtCreation,
-      };
-  
-      var device = WebGPU.getJsObject(devicePtr);
-      var buffer;
-      try {
-        buffer = device.createBuffer(desc);
-      } catch (ex) {
-        // The only exception should be RangeError if mapping at creation ran out of memory.
-        assert(ex instanceof RangeError);
-        assert(mappedAtCreation);
-        err('createBuffer threw:', ex);
-        return false;
-      }
-      WebGPU.Internals.jsObjectInsert(bufferPtr, buffer);
-      if (mappedAtCreation) {
-        WebGPU.Internals.bufferOnUnmaps[bufferPtr] = [];
-      }
-      return true;
-    };
-
-  
-  
-  
-  var _emwgpuDeviceCreateShaderModule = (devicePtr, descriptor, shaderModulePtr) => {
-      assert(descriptor);
-      var nextInChainPtr = HEAPU32[((descriptor)>>2)];
-      assert(nextInChainPtr !== 0);
-      var sType = HEAP32[(((nextInChainPtr)+(4))>>2)];
-  
-      var desc = {
-        "label": WebGPU.makeStringFromOptionalStringView(
-          descriptor + 4),
-        "code": "",
-      };
-  
-      switch (sType) {
-        case 2: {
-          desc["code"] = WebGPU.makeStringFromStringView(
-            nextInChainPtr + 8
-          );
-          break;
-        }
-        default: abort('unrecognized ShaderModule sType');
-      }
-  
-      var device = WebGPU.getJsObject(devicePtr);
-      WebGPU.Internals.jsObjectInsert(shaderModulePtr, device.createShaderModule(desc));
-    };
-
-  
-  var _emwgpuDeviceDestroy = (devicePtr) => {
-      const device = WebGPU.getJsObject(devicePtr);
-      // Remove the onuncapturederror handler which holds a pointer to the WGPUDevice.
-      device.onuncapturederror = null;
-      device.destroy()
-    };
-
-  
-  var emwgpuStringToInt_PreferredFormat = {
-              'rgba8unorm': 22,
-              'bgra8unorm': 27,
-          };
-  
-  
-  var _emwgpuGetPreferredFormat = () => {
-      var format = navigator.gpu.getPreferredCanvasFormat();
-      return emwgpuStringToInt_PreferredFormat[format];
-    };
-
-  
-  
-  
-  
-  
-  
-  function _emwgpuInstanceRequestAdapter(instancePtr, futureId, options, adapterPtr) {
-    futureId = bigintToI53Checked(futureId);
-  
-  
-      var opts;
-      if (options) {
-        assert(options);
-        opts = {
-          "featureLevel": WebGPU.FeatureLevel[HEAP32[(((options)+(4))>>2)]],
-          "powerPreference": WebGPU.PowerPreference[HEAP32[(((options)+(8))>>2)]],
-          "forceFallbackAdapter":
-            !!(HEAPU32[(((options)+(12))>>2)]),
-        };
-  
-        var nextInChainPtr = HEAPU32[((options)>>2)];
-        if (nextInChainPtr !== 0) {
-          var sType = HEAP32[(((nextInChainPtr)+(4))>>2)];
-          assert(sType === 11);
-          assert(0 === HEAPU32[((nextInChainPtr)>>2)]);
-          var webxrOptions = nextInChainPtr;
-          assert(webxrOptions);assert(HEAPU32[((webxrOptions)>>2)] === 0);
-          opts.xrCompatible = !!(HEAPU32[(((webxrOptions)+(8))>>2)]);
-        }
-      }
-  
-      if (!('gpu' in navigator)) {
-        var sp = stackSave();
-        var messagePtr = stringToUTF8OnStack('WebGPU not available on this browser (navigator.gpu is not available)');
-        _emwgpuOnRequestAdapterCompleted(futureId, 3,
-          adapterPtr, messagePtr);
-        stackRestore(sp);
-        return;
-      }
-  
-       // requestAdapter
-      WebGPU.Internals.futureInsert(futureId, navigator.gpu.requestAdapter(opts).then((adapter) => {
-         // requestAdapter fulfilled
-        callUserCallback(() => {
-          if (adapter) {
-            WebGPU.Internals.jsObjectInsert(adapterPtr, adapter);
-            _emwgpuOnRequestAdapterCompleted(futureId, 1,
-              adapterPtr, 0);
-          } else {
-            var sp = stackSave();
-            var messagePtr = stringToUTF8OnStack('WebGPU not available on this browser (requestAdapter returned null)');
-            _emwgpuOnRequestAdapterCompleted(futureId, 3,
-              adapterPtr, messagePtr);
-            stackRestore(sp);
-          }
-        });
-      }, (ex) => {
-         // requestAdapter rejected
-        callUserCallback(() => {
-          var sp = stackSave();
-          var messagePtr = stringToUTF8OnStack(ex.message);
-          _emwgpuOnRequestAdapterCompleted(futureId, 4,
-            adapterPtr, messagePtr);
-          stackRestore(sp);
-        });
-      }));
-    ;
-  }
-
-  var SYSCALLS = {
-  varargs:undefined,
-  getStr(ptr) {
-        var ret = UTF8ToString(ptr);
-        return ret;
-      },
-  };
-  var _fd_close = (fd) => {
-      abort('fd_close called without SYSCALLS_REQUIRE_FILESYSTEM');
-    };
-
-  function _fd_seek(fd, offset, whence, newOffset) {
-    offset = bigintToI53Checked(offset);
-  
-  
-      return 70;
-    ;
-  }
-
-  var printCharBuffers = [null,[],[]];
-  
-  var printChar = (stream, curr) => {
-      var buffer = printCharBuffers[stream];
-      assert(buffer);
-      if (!curr || curr === 10) {
-        (stream === 1 ? out : err)(UTF8ArrayToString(buffer));
-        buffer.length = 0;
-      } else {
-        buffer.push(curr);
-      }
-    };
-  
-  var flush_NO_FILESYSTEM = () => {
-      // flush anything remaining in the buffers during shutdown
-      _fflush(0);
-      if (printCharBuffers[1].length) printChar(1, 10);
-      if (printCharBuffers[2].length) printChar(2, 10);
-    };
-  
-  
-  
-  
-  var _fd_write = (fd, iov, iovcnt, pnum) => {
-      // hack to support printf in SYSCALLS_REQUIRE_FILESYSTEM=0
-      var num = 0;
-      for (var i = 0; i < iovcnt; i++) {
-        var ptr = HEAPU32[((iov)>>2)];
-        var len = HEAPU32[(((iov)+(4))>>2)];
-        iov += 8;
-        for (var j = 0; j < len; j++) {
-          printChar(fd, HEAPU8[ptr+j]);
-        }
-        num += len;
-      }
-      HEAPU32[((pnum)>>2)] = num;
-      return 0;
-    };
-
-  
-  var GLctx;
-  
-  var webgl_enable_ANGLE_instanced_arrays = (ctx) => {
-      // Extension available in WebGL 1 from Firefox 26 and Google Chrome 30 onwards. Core feature in WebGL 2.
-      var ext = ctx.getExtension('ANGLE_instanced_arrays');
-      // Because this extension is a core function in WebGL 2, assign the extension entry points in place of
-      // where the core functions will reside in WebGL 2. This way the calling code can call these without
-      // having to dynamically branch depending if running against WebGL 1 or WebGL 2.
-      if (ext) {
-        ctx['vertexAttribDivisor'] = (index, divisor) => ext['vertexAttribDivisorANGLE'](index, divisor);
-        ctx['drawArraysInstanced'] = (mode, first, count, primcount) => ext['drawArraysInstancedANGLE'](mode, first, count, primcount);
-        ctx['drawElementsInstanced'] = (mode, count, type, indices, primcount) => ext['drawElementsInstancedANGLE'](mode, count, type, indices, primcount);
-        return 1;
-      }
-    };
-  
-  var webgl_enable_OES_vertex_array_object = (ctx) => {
-      // Extension available in WebGL 1 from Firefox 25 and WebKit 536.28/desktop Safari 6.0.3 onwards. Core feature in WebGL 2.
-      var ext = ctx.getExtension('OES_vertex_array_object');
-      if (ext) {
-        ctx['createVertexArray'] = () => ext['createVertexArrayOES']();
-        ctx['deleteVertexArray'] = (vao) => ext['deleteVertexArrayOES'](vao);
-        ctx['bindVertexArray'] = (vao) => ext['bindVertexArrayOES'](vao);
-        ctx['isVertexArray'] = (vao) => ext['isVertexArrayOES'](vao);
-        return 1;
-      }
-    };
-  
-  var webgl_enable_WEBGL_draw_buffers = (ctx) => {
-      // Extension available in WebGL 1 from Firefox 28 onwards. Core feature in WebGL 2.
-      var ext = ctx.getExtension('WEBGL_draw_buffers');
-      if (ext) {
-        ctx['drawBuffers'] = (n, bufs) => ext['drawBuffersWEBGL'](n, bufs);
-        return 1;
-      }
-    };
-  
-  var webgl_enable_EXT_polygon_offset_clamp = (ctx) =>
-      !!(ctx.extPolygonOffsetClamp = ctx.getExtension('EXT_polygon_offset_clamp'));
-  
-  var webgl_enable_EXT_clip_control = (ctx) =>
-      !!(ctx.extClipControl = ctx.getExtension('EXT_clip_control'));
-  
-  var webgl_enable_WEBGL_polygon_mode = (ctx) =>
-      !!(ctx.webglPolygonMode = ctx.getExtension('WEBGL_polygon_mode'));
-  
-  var webgl_enable_WEBGL_multi_draw = (ctx) =>
-      // Closure is expected to be allowed to minify the '.multiDrawWebgl' property, so not accessing it quoted.
-      !!(ctx.multiDrawWebgl = ctx.getExtension('WEBGL_multi_draw'));
-  
-  var getEmscriptenSupportedExtensions = (ctx) => {
-      // Restrict the list of advertised extensions to those that we actually
-      // support.
-      var supportedExtensions = [
-        // WebGL 1 extensions
-        'ANGLE_instanced_arrays',
-        'EXT_blend_minmax',
-        'EXT_disjoint_timer_query',
-        'EXT_frag_depth',
-        'EXT_shader_texture_lod',
-        'EXT_sRGB',
-        'OES_element_index_uint',
-        'OES_fbo_render_mipmap',
-        'OES_standard_derivatives',
-        'OES_texture_float',
-        'OES_texture_half_float',
-        'OES_texture_half_float_linear',
-        'OES_vertex_array_object',
-        'WEBGL_color_buffer_float',
-        'WEBGL_depth_texture',
-        'WEBGL_draw_buffers',
-        // WebGL 1 and WebGL 2 extensions
-        'EXT_clip_control',
-        'EXT_color_buffer_half_float',
-        'EXT_depth_clamp',
-        'EXT_float_blend',
-        'EXT_polygon_offset_clamp',
-        'EXT_texture_compression_bptc',
-        'EXT_texture_compression_rgtc',
-        'EXT_texture_filter_anisotropic',
-        'KHR_parallel_shader_compile',
-        'OES_texture_float_linear',
-        'WEBGL_blend_func_extended',
-        'WEBGL_compressed_texture_astc',
-        'WEBGL_compressed_texture_etc',
-        'WEBGL_compressed_texture_etc1',
-        'WEBGL_compressed_texture_s3tc',
-        'WEBGL_compressed_texture_s3tc_srgb',
-        'WEBGL_debug_renderer_info',
-        'WEBGL_debug_shaders',
-        'WEBGL_lose_context',
-        'WEBGL_multi_draw',
-        'WEBGL_polygon_mode'
-      ];
-      // .getSupportedExtensions() can return null if context is lost, so coerce to empty array.
-      return ctx.getSupportedExtensions()?.filter(ext => supportedExtensions.includes(ext)) ?? [];
-    };
-  
-  
-  
-  
-  var GL = {
-  counter:1,
-  buffers:[],
-  programs:[],
-  framebuffers:[],
-  renderbuffers:[],
-  textures:[],
-  shaders:[],
-  vaos:[],
-  contexts:[],
-  offscreenCanvases:{
-  },
-  queries:[],
-  stringCache:{
-  },
-  unpackAlignment:4,
-  unpackRowLength:0,
-  recordError:(errorCode) => {
-        if (!GL.lastError) {
-          GL.lastError = errorCode;
-        }
-      },
-  getNewId:(table) => {
-        var ret = GL.counter++;
-        for (var i = table.length; i < ret; i++) {
-          table[i] = null;
-        }
-        return ret;
-      },
-  genObject:(n, buffers, createFunction, objectTable
-        ) => {
-        for (var i = 0; i < n; i++) {
-          var buffer = GLctx[createFunction]();
-          var id = buffer && GL.getNewId(objectTable);
-          if (buffer) {
-            buffer.name = id;
-            objectTable[id] = buffer;
-          } else {
-            GL.recordError(0x502 /* GL_INVALID_OPERATION */);
-          }
-          HEAP32[(((buffers)+(i*4))>>2)] = id;
-        }
-      },
-  getSource:(shader, count, string, length) => {
-        var source = '';
-        for (var i = 0; i < count; ++i) {
-          var len = length ? HEAPU32[(((length)+(i*4))>>2)] : undefined;
-          source += UTF8ToString(HEAPU32[(((string)+(i*4))>>2)], len);
-        }
-        return source;
-      },
-  createContext:(/** @type {HTMLCanvasElement} */ canvas, webGLContextAttributes) => {
-  
-        // BUG: Workaround Safari WebGL issue: After successfully acquiring WebGL
-        // context on a canvas, calling .getContext() will always return that
-        // context independent of which 'webgl' or 'webgl2'
-        // context version was passed. See:
-        //   https://webkit.org/b/222758
-        // and:
-        //   https://github.com/emscripten-core/emscripten/issues/13295.
-        // TODO: Once the bug is fixed and shipped in Safari, adjust the Safari
-        // version field in above check.
-        if (!canvas.getContextSafariWebGL2Fixed) {
-          canvas.getContextSafariWebGL2Fixed = canvas.getContext;
-          /** @type {function(this:HTMLCanvasElement, string, (Object|null)=): (Object|null)} */
-          function fixedGetContext(ver, attrs) {
-            var gl = canvas.getContextSafariWebGL2Fixed(ver, attrs);
-            return ((ver == 'webgl') == (gl instanceof WebGLRenderingContext)) ? gl : null;
-          }
-          canvas.getContext = fixedGetContext;
-        }
-  
-        var ctx =
-          canvas.getContext('webgl', webGLContextAttributes);
-  
-        if (!ctx) return 0;
-  
-        var handle = GL.registerContext(ctx, webGLContextAttributes);
-  
-        return handle;
-      },
-  registerContext:(ctx, webGLContextAttributes) => {
-        // without pthreads a context is just an integer ID
-        var handle = GL.getNewId(GL.contexts);
-  
-        var context = {
-          handle,
-          attributes: webGLContextAttributes,
-          version: webGLContextAttributes.majorVersion,
-          GLctx: ctx
-        };
-  
-        // Store the created context object so that we can access the context
-        // given a canvas without having to pass the parameters again.
-        if (ctx.canvas) ctx.canvas.GLctxObject = context;
-        GL.contexts[handle] = context;
-        if (typeof webGLContextAttributes.enableExtensionsByDefault == 'undefined' || webGLContextAttributes.enableExtensionsByDefault) {
-          GL.initExtensions(context);
-        }
-  
-        return handle;
-      },
-  makeContextCurrent:(contextHandle) => {
-  
-        // Active Emscripten GL layer context object.
-        GL.currentContext = GL.contexts[contextHandle];
-        // Active WebGL context object.
-        Module['ctx'] = GLctx = GL.currentContext?.GLctx;
-        return !(contextHandle && !GLctx);
-      },
-  getContext:(contextHandle) => {
-        return GL.contexts[contextHandle];
-      },
-  deleteContext:(contextHandle) => {
-        if (GL.currentContext === GL.contexts[contextHandle]) {
-          GL.currentContext = null;
-        }
-        if (typeof JSEvents == 'object') {
-          // Release all JS event handlers on the DOM element that the GL context is
-          // associated with since the context is now deleted.
-          JSEvents.removeAllHandlersOnTarget(GL.contexts[contextHandle].GLctx.canvas);
-        }
-        // Make sure the canvas object no longer refers to the context object so
-        // there are no GC surprises.
-        if (GL.contexts[contextHandle]?.GLctx.canvas) {
-          GL.contexts[contextHandle].GLctx.canvas.GLctxObject = undefined;
-        }
-        GL.contexts[contextHandle] = null;
-      },
-  initExtensions:(context) => {
-        // If this function is called without a specific context object, init the
-        // extensions of the currently active context.
-        context ||= GL.currentContext;
-  
-        if (context.initExtensionsDone) return;
-        context.initExtensionsDone = true;
-  
-        var GLctx = context.GLctx;
-  
-        // Detect the presence of a few extensions manually, since the GL interop
-        // layer itself will need to know if they exist.
-  
-        // Extensions that are available in both WebGL 1 and WebGL 2
-        webgl_enable_WEBGL_multi_draw(GLctx);
-        webgl_enable_EXT_polygon_offset_clamp(GLctx);
-        webgl_enable_EXT_clip_control(GLctx);
-        webgl_enable_WEBGL_polygon_mode(GLctx);
-        // Extensions that are only available in WebGL 1 (the calls will be no-ops
-        // if called on a WebGL 2 context active)
-        webgl_enable_ANGLE_instanced_arrays(GLctx);
-        webgl_enable_OES_vertex_array_object(GLctx);
-        webgl_enable_WEBGL_draw_buffers(GLctx);
-        {
-          GLctx.disjointTimerQueryExt = GLctx.getExtension('EXT_disjoint_timer_query');
-        }
-  
-        for (var ext of getEmscriptenSupportedExtensions(GLctx)) {
-          // WEBGL_lose_context, WEBGL_debug_renderer_info and WEBGL_debug_shaders
-          // are not enabled by default.
-          if (!ext.includes('lose_context') && !ext.includes('debug')) {
-            // Call .getExtension() to enable that extension permanently.
-            GLctx.getExtension(ext);
-          }
-        }
-      },
-  };
-  
-  
-  function getFullscreenElement() {
-      return document.fullscreenElement
-             ?? document.webkitFullscreenElement
-             ;
-    }
-  
-  /** @param {number=} timeout */
-  var safeSetTimeout = (func, timeout) => {
-      
-      return setTimeout(() => {
-        
-        callUserCallback(func);
-      }, timeout);
-    };
-  
-  
-  var preloadPlugins = [];
-  
-  
-  
-  var Browser = {
-  useWebGL:false,
-  isFullscreen:false,
-  pointerLock:false,
-  moduleContextCreatedCallbacks:[],
-  preloadedImages:{
-  },
-  preloadedAudios:{
-  },
-  getCanvas:() => Module['canvas'],
-  init() {
-        if (Browser.initted) return;
-        Browser.initted = true;
-  
-        // Support for plugins that can process preloaded files. You can add more of these to
-        // your app by creating and appending to preloadPlugins.
-        //
-        // Each plugin is asked if it can handle a file based on the file's name. If it can,
-        // it is given the file's raw data. When it is done, it calls a callback with the file's
-        // (possibly modified) data. For example, a plugin might decompress a file, or it
-        // might create some side data structure for use later (like an Image element, etc.).
-  
-        var imagePlugin = {};
-        imagePlugin['canHandle'] = (name) => {
-          return !Module['noImageDecoding'] && /\.(jpg|jpeg|png|bmp|webp)$/i.test(name);
-        };
-        imagePlugin['handle'] = async (byteArray, name) => {
-          var b = new Blob([byteArray], { type: Browser.getMimetype(name) });
-          if (b.size !== byteArray.length) { // Safari bug #118630
-            // Safari's Blob can only take an ArrayBuffer
-            b = new Blob([(new Uint8Array(byteArray)).buffer], { type: Browser.getMimetype(name) });
-          }
-          var url = URL.createObjectURL(b);
-          return new Promise((resolve, reject) => {
-            var img = new Image();
-            img.onload = () => {
-              assert(img.complete, `Image ${name} could not be decoded`);
-              var canvas = /** @type {!HTMLCanvasElement} */ (document.createElement('canvas'));
-              canvas.width = img.width;
-              canvas.height = img.height;
-              var ctx = canvas.getContext('2d');
-              ctx.drawImage(img, 0, 0);
-              Browser.preloadedImages[name] = canvas;
-              URL.revokeObjectURL(url);
-              resolve(byteArray);
-            };
-            img.onerror = (event) => {
-              err(`Image ${url} could not be decoded`);
-              reject();
-            };
-            img.src = url;
-          });
-        };
-        preloadPlugins.push(imagePlugin);
-  
-        var audioPlugin = {};
-        audioPlugin['canHandle'] = (name) => {
-          return !Module['noAudioDecoding'] && name.slice(-4) in { '.ogg': 1, '.wav': 1, '.mp3': 1 };
-        };
-        audioPlugin['handle'] = async (byteArray, name) => {
-          return new Promise((resolve, reject) => {
-            var done = false;
-            function finish(audio) {
-              if (done) return;
-              done = true;
-              Browser.preloadedAudios[name] = audio;
-              resolve(byteArray);
-            }
-            var b = new Blob([byteArray], { type: Browser.getMimetype(name) });
-            var url = URL.createObjectURL(b); // XXX we never revoke this!
-            var audio = new Audio();
-            audio.addEventListener('canplaythrough', () => finish(audio)); // use addEventListener due to chromium bug 124926
-            audio.onerror = (event) => {
-              if (done) return;
-              err(`warning: browser could not fully decode audio ${name}, trying slower base64 approach`);
-              function encode64(data) {
-                var BASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-                var PAD = '=';
-                var ret = '';
-                var leftchar = 0;
-                var leftbits = 0;
-                for (var byte of data) {
-                  leftchar = (leftchar << 8) | byte;
-                  leftbits += 8;
-                  while (leftbits >= 6) {
-                    var curr = (leftchar >> (leftbits-6)) & 0x3f;
-                    leftbits -= 6;
-                    ret += BASE[curr];
-                  }
-                }
-                if (leftbits == 2) {
-                  ret += BASE[(leftchar&3) << 4];
-                  ret += PAD + PAD;
-                } else if (leftbits == 4) {
-                  ret += BASE[(leftchar&0xf) << 2];
-                  ret += PAD;
-                }
-                return ret;
-              }
-              audio.src = 'data:audio/x-' + name.slice(-3) + ';base64,' + encode64(byteArray);
-              finish(audio); // we don't wait for confirmation this worked - but it's worth trying
-            };
-            audio.src = url;
-            // workaround for chrome bug 124926 - we do not always get oncanplaythrough or onerror
-            safeSetTimeout(() => {
-              finish(audio); // try to use it even though it is not necessarily ready to play
-            }, 10000);
-          });
-        };
-        preloadPlugins.push(audioPlugin);
-  
-        // Canvas event setup
-  
-        function pointerLockChange() {
-          var canvas = Browser.getCanvas();
-          Browser.pointerLock = document.pointerLockElement === canvas;
-        }
-        var canvas = Browser.getCanvas();
-        if (canvas) {
-          // forced aspect ratio can be enabled by defining 'forcedAspectRatio' on Module
-          // Module['forcedAspectRatio'] = 4 / 3;
-  
-          document.addEventListener('pointerlockchange', pointerLockChange);
-  
-          if (Module['elementPointerLock']) {
-            canvas.addEventListener('click', (ev) => {
-              if (!Browser.pointerLock && Browser.getCanvas().requestPointerLock) {
-                Browser.getCanvas().requestPointerLock();
-                ev.preventDefault();
-              }
-            });
-          }
-        }
-      },
-  createContext(/** @type {HTMLCanvasElement} */ canvas, useWebGL, setInModule, webGLContextAttributes) {
-        if (useWebGL && Module['ctx'] && canvas == Browser.getCanvas()) return Module['ctx']; // no need to recreate GL context if it's already been created for this canvas.
-  
-        var ctx;
-        var contextHandle;
-        if (useWebGL) {
-          // For GLES2/desktop GL compatibility, adjust a few defaults to be different to WebGL defaults, so that they align better with the desktop defaults.
-          var contextAttributes = {
-            antialias: false,
-            alpha: false,
-            majorVersion: 1,
-          };
-  
-          if (webGLContextAttributes) {
-            for (var attribute in webGLContextAttributes) {
-              contextAttributes[attribute] = webGLContextAttributes[attribute];
-            }
-          }
-  
-          // This check of existence of GL is here to satisfy Closure compiler, which yells if variable GL is referenced below but GL object is not
-          // actually compiled in because application is not doing any GL operations. TODO: Ideally if GL is not being used, this function
-          // Browser.createContext() should not even be emitted.
-          if (typeof GL != 'undefined') {
-            contextHandle = GL.createContext(canvas, contextAttributes);
-            if (contextHandle) {
-              ctx = GL.getContext(contextHandle).GLctx;
-            }
-          }
-        } else {
-          ctx = canvas.getContext('2d');
-        }
-  
-        if (!ctx) return null;
-  
-        if (setInModule) {
-          if (!useWebGL) assert(typeof GLctx == 'undefined', 'cannot set in module if GLctx is used, but we are a non-GL context that would replace it');
-          Module['ctx'] = ctx;
-          if (useWebGL) GL.makeContextCurrent(contextHandle);
-          Browser.useWebGL = useWebGL;
-          Browser.moduleContextCreatedCallbacks.forEach((callback) => callback());
-          Browser.init();
-        }
-        return ctx;
-      },
-  fullscreenHandlersInstalled:false,
-  lockPointer:undefined,
-  resizeCanvas:undefined,
-  requestFullscreen(lockPointer, resizeCanvas) {
-        Browser.lockPointer = lockPointer;
-        Browser.resizeCanvas = resizeCanvas;
-        if (typeof Browser.lockPointer == 'undefined') Browser.lockPointer = true;
-        if (typeof Browser.resizeCanvas == 'undefined') Browser.resizeCanvas = false;
-  
-        var canvas = Browser.getCanvas();
-        function fullscreenChange() {
-          Browser.isFullscreen = false;
-          var canvasContainer = canvas.parentNode;
-          if (getFullscreenElement() === canvasContainer) {
-            canvas.exitFullscreen = Browser.exitFullscreen;
-            if (Browser.lockPointer) canvas.requestPointerLock();
-            Browser.isFullscreen = true;
-            if (Browser.resizeCanvas) {
-              Browser.setFullscreenCanvasSize();
-            } else {
-              Browser.updateCanvasDimensions(canvas);
-            }
-          } else {
-            // remove the full screen specific parent of the canvas again to restore the HTML structure from before going full screen
-            canvasContainer.parentNode.insertBefore(canvas, canvasContainer);
-            canvasContainer.parentNode.removeChild(canvasContainer);
-  
-            if (Browser.resizeCanvas) {
-              Browser.setWindowedCanvasSize();
-            } else {
-              Browser.updateCanvasDimensions(canvas);
-            }
-          }
-        }
-  
-        if (!Browser.fullscreenHandlersInstalled) {
-          Browser.fullscreenHandlersInstalled = true;
-          document.addEventListener('fullscreenchange', fullscreenChange);
-          document.addEventListener('webkitfullscreenchange', fullscreenChange);
-        }
-  
-        // create a new parent to ensure the canvas has no siblings. this allows browsers to optimize full screen performance when its parent is the full screen root
-        var canvasContainer = document.createElement('div');
-        canvas.parentNode.insertBefore(canvasContainer, canvas);
-        canvasContainer.appendChild(canvas);
-  
-        // use parent of canvas as full screen root to allow aspect ratio correction (Firefox stretches the root to screen size)
-        // Safari didn't support Element.requestFullscreen until 16.4
-        // See: https://developer.mozilla.org/en-US/docs/Web/API/Element/requestFullscreen
-        /** @suppress {checkTypes} */
-        canvasContainer.requestFullscreen ??= (canvasContainer['webkitRequestFullscreen'] ? () => canvasContainer['webkitRequestFullscreen'](Element.ALLOW_KEYBOARD_INPUT) : null) ??
-                                              (canvasContainer['webkitRequestFullScreen'] ? () => canvasContainer['webkitRequestFullScreen'](Element.ALLOW_KEYBOARD_INPUT) : null);
-  
-        canvasContainer.requestFullscreen();
-      },
-  exitFullscreen() {
-        // This is workaround for chrome. Trying to exit from fullscreen
-        // not in fullscreen state will cause 'TypeError: Document not active'
-        // in chrome. See https://github.com/emscripten-core/emscripten/pull/8236
-        if (!Browser.isFullscreen) {
-          return false;
-        }
-  
-        var CFS = document.exitFullscreen ?? document['webkitCancelFullScreen'];
-        CFS.apply(document, []);
-        return true;
-      },
-  safeSetTimeout(func, timeout) {
-        // Legacy function, this is used by the SDL2 port so we need to keep it
-        // around at least until that is updated.
-        // See https://github.com/libsdl-org/SDL/pull/6304
-        return safeSetTimeout(func, timeout);
-      },
-  getMimetype(name) {
-        return {
-          'jpg': 'image/jpeg',
-          'jpeg': 'image/jpeg',
-          'png': 'image/png',
-          'bmp': 'image/bmp',
-          'ogg': 'audio/ogg',
-          'wav': 'audio/wav',
-          'mp3': 'audio/mpeg'
-        }[name.slice(name.lastIndexOf('.')+1)];
-      },
-  getUserMedia(func) {
-        return navigator.mediaDevices.getUserMedia(func);
-      },
-  getMouseWheelDelta(event) {
-        var delta = 0;
-        switch (event.type) {
-          case 'DOMMouseScroll':
-            // 3 lines make up a step
-            delta = event.detail / 3;
-            break;
-          case 'mousewheel':
-            // 120 units make up a step
-            delta = event.wheelDelta / 120;
-            break;
-          case 'wheel':
-            delta = event.deltaY
-            switch (event.deltaMode) {
-              case 0:
-                // DOM_DELTA_PIXEL: 100 pixels make up a step
-                delta /= 100;
-                break;
-              case 1:
-                // DOM_DELTA_LINE: 3 lines make up a step
-                delta /= 3;
-                break;
-              case 2:
-                // DOM_DELTA_PAGE: A page makes up 80 steps
-                delta *= 80;
-                break;
-              default:
-                abort('unrecognized mouse wheel delta mode: ' + event.deltaMode);
-            }
-            break;
-          default:
-            abort('unrecognized mouse wheel event: ' + event.type);
-        }
-        return delta;
-      },
-  mouseX:0,
-  mouseY:0,
-  mouseMovementX:0,
-  mouseMovementY:0,
-  touches:{
-  },
-  lastTouches:{
-  },
-  calculateMouseCoords(pageX, pageY) {
-        // Calculate the movement based on the changes
-        // in the coordinates.
-        var canvas = Browser.getCanvas();
-        var rect = canvas.getBoundingClientRect();
-  
-        var adjustedX = pageX - (window.scrollX + rect.left);
-        var adjustedY = pageY - (window.scrollY + rect.top);
-  
-        // the canvas might be CSS-scaled compared to its backbuffer;
-        // SDL-using content will want mouse coordinates in terms
-        // of backbuffer units.
-        adjustedX = adjustedX * (canvas.width / rect.width);
-        adjustedY = adjustedY * (canvas.height / rect.height);
-  
-        return { x: adjustedX, y: adjustedY };
-      },
-  setMouseCoords(pageX, pageY) {
-        const {x, y} = Browser.calculateMouseCoords(pageX, pageY);
-        Browser.mouseMovementX = x - Browser.mouseX;
-        Browser.mouseMovementY = y - Browser.mouseY;
-        Browser.mouseX = x;
-        Browser.mouseY = y;
-      },
-  calculateMouseEvent(event) { // event should be mousemove, mousedown or mouseup
-        if (Browser.pointerLock) {
-          // When the pointer is locked, calculate the coordinates
-          // based on the movement of the mouse.
-          Browser.mouseMovementX = event.movementX;
-          Browser.mouseMovementY = event.movementY;
-  
-          // add the mouse delta to the current absolute mouse position
-          Browser.mouseX += Browser.mouseMovementX;
-          Browser.mouseY += Browser.mouseMovementY;
-        } else {
-          if (event.type === 'touchstart' || event.type === 'touchend' || event.type === 'touchmove') {
-            var touch = event.touch;
-            if (touch === undefined) {
-              return; // the 'touch' property is only defined in SDL
-  
-            }
-            var coords = Browser.calculateMouseCoords(touch.pageX, touch.pageY);
-  
-            if (event.type === 'touchstart') {
-              Browser.lastTouches[touch.identifier] = coords;
-              Browser.touches[touch.identifier] = coords;
-            } else if (event.type === 'touchend' || event.type === 'touchmove') {
-              var last = Browser.touches[touch.identifier];
-              last ||= coords;
-              Browser.lastTouches[touch.identifier] = last;
-              Browser.touches[touch.identifier] = coords;
-            }
-            return;
-          }
-  
-          Browser.setMouseCoords(event.pageX, event.pageY);
-        }
-      },
-  resizeListeners:[],
-  updateResizeListeners() {
-        var canvas = Browser.getCanvas();
-        Browser.resizeListeners.forEach((listener) => listener(canvas.width, canvas.height));
-      },
-  setCanvasSize(width, height, noUpdates) {
-        var canvas = Browser.getCanvas();
-        Browser.updateCanvasDimensions(canvas, width, height);
-        if (!noUpdates) Browser.updateResizeListeners();
-      },
-  windowedWidth:0,
-  windowedHeight:0,
-  setFullscreenCanvasSize() {
-        // check if SDL is available
-        if (typeof SDL != 'undefined') {
-          var flags = HEAPU32[((SDL.screen)>>2)];
-          flags = flags | 0x00800000; // set SDL_FULLSCREEN flag
-          HEAP32[((SDL.screen)>>2)] = flags;
-        }
-        Browser.updateCanvasDimensions(Browser.getCanvas());
-        Browser.updateResizeListeners();
-      },
-  setWindowedCanvasSize() {
-        // check if SDL is available
-        if (typeof SDL != 'undefined') {
-          var flags = HEAPU32[((SDL.screen)>>2)];
-          flags = flags & ~0x00800000; // clear SDL_FULLSCREEN flag
-          HEAP32[((SDL.screen)>>2)] = flags;
-        }
-        Browser.updateCanvasDimensions(Browser.getCanvas());
-        Browser.updateResizeListeners();
-      },
-  updateCanvasDimensions(canvas, wNative, hNative) {
-        if (wNative && hNative) {
-          canvas.widthNative = wNative;
-          canvas.heightNative = hNative;
-        } else {
-          wNative = canvas.widthNative;
-          hNative = canvas.heightNative;
-        }
-        var w = wNative;
-        var h = hNative;
-        if ((getFullscreenElement() === canvas.parentNode) && (typeof screen != 'undefined')) {
-           var factor = Math.min(screen.width / w, screen.height / h);
-           w = Math.round(w * factor);
-           h = Math.round(h * factor);
-        }
-        if (Browser.resizeCanvas) {
-          if (canvas.width  != w) canvas.width  = w;
-          if (canvas.height != h) canvas.height = h;
-          if (typeof canvas.style != 'undefined') {
-            canvas.style.removeProperty( 'width');
-            canvas.style.removeProperty('height');
-          }
-        } else {
-          if (canvas.width  != wNative) canvas.width  = wNative;
-          if (canvas.height != hNative) canvas.height = hNative;
-          if (typeof canvas.style != 'undefined') {
-            if (w != wNative || h != hNative) {
-              canvas.style.setProperty( 'width', w + 'px', 'important');
-              canvas.style.setProperty('height', h + 'px', 'important');
-            } else {
-              canvas.style.removeProperty( 'width');
-              canvas.style.removeProperty('height');
-            }
-          }
-        }
-      },
-  };
-  
-  /** @constructor */
-  function GLFW_Window(id, width, height, framebufferWidth, framebufferHeight, title, monitor, share) {
-        this.id = id;
-        this.x = 0;
-        this.y = 0;
-        this.fullscreen = false; // Used to determine if app is in fullscreen mode
-        this.storedX = 0; // Used to store X before fullscreen
-        this.storedY = 0; // Used to store Y before fullscreen
-        this.width = width;
-        this.height = height;
-        this.framebufferWidth = framebufferWidth;
-        this.framebufferHeight = framebufferHeight;
-        this.storedWidth = width; // Used to store width before fullscreen
-        this.storedHeight = height; // Used to store height before fullscreen
-        this.title = title;
-        this.monitor = monitor;
-        this.share = share;
-        this.attributes = {...GLFW.hints};
-        this.inputModes = {
-          0x00033001:0x00034001, // GLFW_CURSOR (GLFW_CURSOR_NORMAL)
-          0x00033002:0, // GLFW_STICKY_KEYS
-          0x00033003:0, // GLFW_STICKY_MOUSE_BUTTONS
-        };
-        this.buttons = 0;
-        this.keys = new Array();
-        this.domKeys = new Array();
-        this.shouldClose = 0;
-        this.title = null;
-        this.windowPosFunc = 0; // GLFWwindowposfun
-        this.windowSizeFunc = 0; // GLFWwindowsizefun
-        this.windowCloseFunc = 0; // GLFWwindowclosefun
-        this.windowRefreshFunc = 0; // GLFWwindowrefreshfun
-        this.windowFocusFunc = 0; // GLFWwindowfocusfun
-        this.windowIconifyFunc = 0; // GLFWwindowiconifyfun
-        this.windowMaximizeFunc = 0; // GLFWwindowmaximizefun
-        this.framebufferSizeFunc = 0; // GLFWframebuffersizefun
-        this.windowContentScaleFunc = 0; // GLFWwindowcontentscalefun
-        this.mouseButtonFunc = 0; // GLFWmousebuttonfun
-        this.cursorPosFunc = 0; // GLFWcursorposfun
-        this.cursorEnterFunc = 0; // GLFWcursorenterfun
-        this.scrollFunc = 0; // GLFWscrollfun
-        this.dropFunc = 0; // GLFWdropfun
-        this.keyFunc = 0; // GLFWkeyfun
-        this.charFunc = 0; // GLFWcharfun
-        this.userptr = 0;
-      }
-  
-  
-  
-  
-  var _emscripten_set_main_loop_timing = (mode, value) => {
-      MainLoop.timingMode = mode;
-      MainLoop.timingValue = value;
-  
-      if (!MainLoop.func) {
-        err('emscripten_set_main_loop_timing: Cannot set timing mode for main loop since a main loop does not exist! Call emscripten_set_main_loop first to set one up.');
-        return 1; // Return non-zero on failure, can't set timing mode when there is no main loop.
-      }
-  
-      if (!MainLoop.running) {
-        
-        MainLoop.running = true;
-      }
-      if (mode == 0) {
-        MainLoop.scheduler = function MainLoop_scheduler_setTimeout() {
-          var timeUntilNextTick = Math.max(0, MainLoop.tickStartTime + value - _emscripten_get_now())|0;
-          setTimeout(MainLoop.runner, timeUntilNextTick); // doing this each time means that on exception, we stop
-        };
-      } else if (mode == 1) {
-        MainLoop.scheduler = function MainLoop_scheduler_rAF() {
-          MainLoop.requestAnimationFrame(MainLoop.runner);
-        };
-      } else {
-        assert(mode == 2);
-        if (!MainLoop.setImmediate) {
-          if (globalThis.scheduler) {
-            // Some modern browsers implement scheduler.postTask, but not all.
-            MainLoop.setImmediate = scheduler.postTask.bind(scheduler);
-          } else if (globalThis.setImmediate) {
-            MainLoop.setImmediate = setImmediate;
-          } else {
-            // Emulate setImmediate. (note: not a complete polyfill, we don't emulate clearImmediate() to keep code size to minimum, since not needed)
-            var setImmediates = [];
-            var emscriptenMainLoopMessageId = 'setimmediate';
-            /** @param {Event} event */
-            var MainLoop_setImmediate_messageHandler = (event) => {
-              if (event.data === emscriptenMainLoopMessageId) {
-                event.stopPropagation();
-                setImmediates.shift()();
-              }
-            };
-            addEventListener('message', MainLoop_setImmediate_messageHandler, true);
-            MainLoop.setImmediate = /** @type{function(function(): ?, ...?): number} */((func) => {
-              setImmediates.push(func);
-              if (ENVIRONMENT_IS_WORKER) {
-                // The postMessge API in a Worker, sends message to the main
-                // thread and does not support the `targetOrigin` (*) argument.
-                postMessage(emscriptenMainLoopMessageId);
-              } else {
-                postMessage(emscriptenMainLoopMessageId, '*');
-              }
-            });
-          }
-        }
-        MainLoop.scheduler = function MainLoop_scheduler_setImmediate() {
-          MainLoop.setImmediate(MainLoop.runner);
-        };
-      }
-      return 0;
-    };
-  
-  
-  
-    /**
-   * @param {number=} arg
-   * @param {boolean=} noSetTiming
-   */
-  var setMainLoop = (iterFunc, fps, simulateInfiniteLoop, arg, noSetTiming) => {
-      assert(!MainLoop.func, 'emscripten_set_main_loop: there can only be one main loop function at once')
-      MainLoop.func = iterFunc;
-      MainLoop.arg = arg;
-  
-      var thisMainLoopId = MainLoop.currentlyRunningMainloop;
-      function checkIsRunning() {
-        if (thisMainLoopId < MainLoop.currentlyRunningMainloop) {
-          
-          maybeExit();
-          return false;
-        }
-        return true;
-      }
-  
-      // We create the loop runner here but it is not actually running until
-      // _emscripten_set_main_loop_timing is called (which might happen at a
-      // later time).  This member signifies that the current runner has not
-      // yet been started so that we can call runtimeKeepalivePush when it
-      // gets its timing set for the first time.
-      MainLoop.running = false;
-      MainLoop.runner = function MainLoop_runner() {
-        if (ABORT) return;
-        if (MainLoop.queue.length > 0) {
-          var start = Date.now();
-          var blocker = MainLoop.queue.shift();
-          blocker.func(blocker.arg);
-          if (MainLoop.remainingBlockers) {
-            var remaining = MainLoop.remainingBlockers;
-            var next = remaining%1 == 0 ? remaining-1 : Math.floor(remaining);
-            if (blocker.counted) {
-              MainLoop.remainingBlockers = next;
-            } else {
-              // not counted, but move the progress along a tiny bit
-              next = next + 0.5; // do not steal all the next one's progress
-              MainLoop.remainingBlockers = (8*remaining + next)/9;
-            }
-          }
-          MainLoop.updateStatus();
-  
-          // catches pause/resume main loop from blocker execution
-          if (!checkIsRunning()) return;
-  
-          setTimeout(MainLoop.runner, 0);
-          return;
-        }
-  
-        // catch pauses from non-main loop sources
-        if (!checkIsRunning()) return;
-  
-        // Implement very basic swap interval control
-        MainLoop.currentFrameNumber = MainLoop.currentFrameNumber + 1 | 0;
-        if (MainLoop.timingMode == 1 && MainLoop.timingValue > 1 && MainLoop.currentFrameNumber % MainLoop.timingValue != 0) {
-          // Not the scheduled time to render this frame - skip.
-          MainLoop.scheduler();
-          return;
-        } else if (MainLoop.timingMode == 0) {
-          MainLoop.tickStartTime = _emscripten_get_now();
-          if (Module['ctx']) {
-            warnOnce('Looks like you are rendering without using requestAnimationFrame for the main loop. You should use 0 for the frame rate in emscripten_set_main_loop in order to use requestAnimationFrame, as that can greatly improve your frame rates!');
-          }
-        }
-  
-        MainLoop.runIter(iterFunc);
-  
-        // catch pauses from the main loop itself
-        if (!checkIsRunning()) return;
-  
-        MainLoop.scheduler();
-      }
-  
-      if (!noSetTiming) {
-        if (fps > 0) {
-          _emscripten_set_main_loop_timing(0, 1000.0 / fps);
-        } else {
-          // Do rAF by rendering each frame (no decimating)
-          _emscripten_set_main_loop_timing(1, 1);
-        }
-  
-        MainLoop.scheduler();
-      }
-  
-      if (simulateInfiniteLoop) {
-        throw 'unwind';
-      }
-    };
-  
-  
-  var MainLoop = {
-  running:false,
-  scheduler:null,
-  currentlyRunningMainloop:0,
-  func:null,
-  arg:0,
-  timingMode:0,
-  timingValue:0,
-  currentFrameNumber:0,
-  queue:[],
-  preMainLoop:[],
-  postMainLoop:[],
-  pause() {
-        MainLoop.scheduler = null;
-        // Incrementing this signals the previous main loop that it's now become old, and it must return.
-        MainLoop.currentlyRunningMainloop++;
-      },
-  resume() {
-        MainLoop.currentlyRunningMainloop++;
-        var timingMode = MainLoop.timingMode;
-        var timingValue = MainLoop.timingValue;
-        var func = MainLoop.func;
-        MainLoop.func = null;
-        // do not set timing and call scheduler, we will do it on the next lines
-        setMainLoop(func, 0, false, MainLoop.arg, true);
-        _emscripten_set_main_loop_timing(timingMode, timingValue);
-        MainLoop.scheduler();
-      },
-  updateStatus() {
-        if (Module['setStatus']) {
-          var message = Module['statusMessage'] || 'Please wait...';
-          var remaining = MainLoop.remainingBlockers ?? 0;
-          var expected = MainLoop.expectedBlockers ?? 0;
-          if (remaining) {
-            if (remaining < expected) {
-              Module['setStatus'](`{message} ({expected - remaining}/{expected})`);
-            } else {
-              Module['setStatus'](message);
-            }
-          } else {
-            Module['setStatus']('');
-          }
-        }
-      },
-  init() {
-      },
-  runIter(func) {
-        if (ABORT) return;
-        for (var pre of MainLoop.preMainLoop) {
-          if (pre() === false) {
-            return; // |return false| skips a frame
-          }
-        }
-        callUserCallback(func);
-        for (var post of MainLoop.postMainLoop) {
-          post();
-        }
-        checkStackCookie();
-      },
-  nextRAF:0,
-  fakeRequestAnimationFrame(func) {
-        // try to keep 60fps between calls to here
-        var now = Date.now();
-        if (!MainLoop.nextRAF) {
-          MainLoop.nextRAF = now + 1000/60;
-        } else {
-          while (now + 2 >= MainLoop.nextRAF) { // fudge a little, to avoid timer jitter causing us to do lots of delay:0
-            MainLoop.nextRAF += 1000/60;
-          }
-        }
-        var delay = Math.max(MainLoop.nextRAF - now, 0);
-        setTimeout(func, delay);
-      },
-  requestAnimationFrame(func) {
-        if (globalThis.requestAnimationFrame) {
-          requestAnimationFrame(func);
-        } else {
-          MainLoop.fakeRequestAnimationFrame(func);
-        }
-      },
-  };
-  
-  
-  
-  
-  var _emscripten_set_window_title = (title) => document.title = UTF8ToString(title);
-  
-  var initRandomFill = () => {
-      // This block is not needed on v19+ since crypto.getRandomValues is builtin
-      if (ENVIRONMENT_IS_NODE) {
-        var nodeCrypto = require('node:crypto');
-        return (view) => (nodeCrypto.randomFillSync(view), 0);
-      }
-  
-      return (view) => (crypto.getRandomValues(view), 0);
-    };
-  var randomFill = (view) => (randomFill = initRandomFill())(view);
   
   var PATH = {
   isAbs:(path) => path.charAt(0) === '/',
@@ -3308,6 +999,18 @@ join:(...paths) => PATH.normalize(paths.join('/')),
 join2:(l, r) => PATH.normalize(l + '/' + r),
 };
 
+var initRandomFill = () => {
+    // This block is not needed on v19+ since crypto.getRandomValues is builtin
+    if (ENVIRONMENT_IS_NODE) {
+      var nodeCrypto = require('node:crypto');
+      return (view) => (nodeCrypto.randomFillSync(view), 0);
+    }
+
+    return (view) => (crypto.getRandomValues(view), 0);
+  };
+var randomFill = (view) => (randomFill = initRandomFill())(view);
+
+
 
 var PATH_FS = {
 resolve:(...args) => {
@@ -3367,7 +1070,69 @@ relative:(from, to) => {
 
 var FS_stdin_getChar_buffer = [];
 
+var lengthBytesUTF8 = (str) => {
+    var len = 0;
+    for (var i = 0; i < str.length; ++i) {
+      // Gotcha: charCodeAt returns a 16-bit word that is a UTF-16 encoded code
+      // unit, not a Unicode code point of the character! So decode
+      // UTF16->UTF32->UTF8.
+      // See http://unicode.org/faq/utf_bom.html#utf16-3
+      var c = str.charCodeAt(i); // possibly a lead surrogate
+      if (c <= 0x7F) {
+        len++;
+      } else if (c <= 0x7FF) {
+        len += 2;
+      } else if (c >= 0xD800 && c <= 0xDFFF) {
+        len += 4; ++i;
+      } else {
+        len += 3;
+      }
+    }
+    return len;
+  };
 
+var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
+    assert(typeof str === 'string', `stringToUTF8Array expects a string (got ${typeof str})`);
+    // Parameter maxBytesToWrite is not optional. Negative values, 0, null,
+    // undefined and false each don't write out any bytes.
+    if (!(maxBytesToWrite > 0))
+      return 0;
+
+    var startIdx = outIdx;
+    var endIdx = outIdx + maxBytesToWrite - 1; // -1 for string null terminator.
+    for (var i = 0; i < str.length; ++i) {
+      // For UTF8 byte structure, see http://en.wikipedia.org/wiki/UTF-8#Description
+      // and https://www.ietf.org/rfc/rfc2279.txt
+      // and https://tools.ietf.org/html/rfc3629
+      var u = str.codePointAt(i);
+      if (u <= 0x7F) {
+        if (outIdx >= endIdx) break;
+        heap[outIdx++] = u;
+      } else if (u <= 0x7FF) {
+        if (outIdx + 1 >= endIdx) break;
+        heap[outIdx++] = 0xC0 | (u >> 6);
+        heap[outIdx++] = 0x80 | (u & 63);
+      } else if (u <= 0xFFFF) {
+        if (outIdx + 2 >= endIdx) break;
+        heap[outIdx++] = 0xE0 | (u >> 12);
+        heap[outIdx++] = 0x80 | ((u >> 6) & 63);
+        heap[outIdx++] = 0x80 | (u & 63);
+      } else {
+        if (outIdx + 3 >= endIdx) break;
+        if (u > 0x10FFFF) warnOnce(`Invalid Unicode code point ${ptrToString(u)} encountered when serializing a JS string to a UTF-8 string in wasm memory! (Valid unicode code points should be in range 0-0x10FFFF).`);
+        heap[outIdx++] = 0xF0 | (u >> 18);
+        heap[outIdx++] = 0x80 | ((u >> 12) & 63);
+        heap[outIdx++] = 0x80 | ((u >> 6) & 63);
+        heap[outIdx++] = 0x80 | (u & 63);
+        // Gotcha: if codePoint is over 0xFFFF, it is represented as a surrogate pair in UTF-16.
+        // We need to manually skip over the second code unit for correct iteration.
+        i++;
+      }
+    }
+    // Null-terminate the pointer to the buffer.
+    heap[outIdx] = 0;
+    return outIdx - startIdx;
+  };
 /** @type {function(string, boolean=, number=)} */
   var intArrayFromString = (stringy, dontAddNull, length) => {
       var len = length > 0 ? length : lengthBytesUTF8(stringy)+1;
@@ -4110,6 +1875,7 @@ var FS_stdin_getChar_buffer = [];
     };
   
   
+  var preloadPlugins = [];
   var FS_handledByPreloadPlugin = async (byteArray, fullname) => {
       // Ensure plugins are ready.
       if (typeof Browser != 'undefined') Browser.init();
@@ -5848,6 +3614,2571 @@ var FS_stdin_getChar_buffer = [];
         return node;
       },
   };
+  
+  
+  
+  
+  
+  /** not-@type {!BigInt64Array} */
+  var HEAP64;
+  var SYSCALLS = {
+  currentUmask:18,
+  calculateAt(dirfd, path, allowEmpty) {
+        if (PATH.isAbs(path)) {
+          return path;
+        }
+        // relative path
+        var dir;
+        if (dirfd === -100) {
+          dir = FS.cwd();
+        } else {
+          var dirstream = SYSCALLS.getStreamFromFD(dirfd);
+          dir = dirstream.path;
+        }
+        if (path.length == 0) {
+          if (!allowEmpty) {
+            throw new FS.ErrnoError(44);;
+          }
+          return dir;
+        }
+        return dir + '/' + path;
+      },
+  writeStat(buf, stat) {
+        HEAPU32[((buf)>>2)] = stat.dev;
+        HEAPU32[(((buf)+(4))>>2)] = stat.mode;
+        HEAPU32[(((buf)+(8))>>2)] = stat.nlink;
+        HEAPU32[(((buf)+(12))>>2)] = stat.uid;
+        HEAPU32[(((buf)+(16))>>2)] = stat.gid;
+        HEAPU32[(((buf)+(20))>>2)] = stat.rdev;
+        HEAP64[(((buf)+(24))>>3)] = BigInt(stat.size);
+        HEAP32[(((buf)+(32))>>2)] = 4096;
+        HEAP32[(((buf)+(36))>>2)] = stat.blocks;
+        var atime = stat.atime.getTime();
+        var mtime = stat.mtime.getTime();
+        var ctime = stat.ctime.getTime();
+        HEAP64[(((buf)+(40))>>3)] = BigInt(Math.floor(atime / 1000));
+        HEAPU32[(((buf)+(48))>>2)] = (atime % 1000) * 1000 * 1000;
+        HEAP64[(((buf)+(56))>>3)] = BigInt(Math.floor(mtime / 1000));
+        HEAPU32[(((buf)+(64))>>2)] = (mtime % 1000) * 1000 * 1000;
+        HEAP64[(((buf)+(72))>>3)] = BigInt(Math.floor(ctime / 1000));
+        HEAPU32[(((buf)+(80))>>2)] = (ctime % 1000) * 1000 * 1000;
+        HEAP64[(((buf)+(88))>>3)] = BigInt(stat.ino);
+        return 0;
+      },
+  writeStatFs(buf, stats) {
+        HEAPU32[(((buf)+(4))>>2)] = stats.bsize;
+        HEAPU32[(((buf)+(60))>>2)] = stats.bsize;
+        HEAP64[(((buf)+(8))>>3)] = BigInt(stats.blocks);
+        HEAP64[(((buf)+(16))>>3)] = BigInt(stats.bfree);
+        HEAP64[(((buf)+(24))>>3)] = BigInt(stats.bavail);
+        HEAP64[(((buf)+(32))>>3)] = BigInt(stats.files);
+        HEAP64[(((buf)+(40))>>3)] = BigInt(stats.ffree);
+        HEAPU32[(((buf)+(48))>>2)] = stats.fsid;
+        HEAPU32[(((buf)+(64))>>2)] = stats.flags;  // ST_NOSUID
+        HEAPU32[(((buf)+(56))>>2)] = stats.namelen;
+      },
+  doMsync(addr, stream, len, flags, offset) {
+        if (!FS.isFile(stream.node.mode)) {
+          throw new FS.ErrnoError(43);
+        }
+        if (flags & 2) {
+          // MAP_PRIVATE calls need not to be synced back to underlying fs
+          return 0;
+        }
+        var buffer = HEAPU8.subarray(addr, addr + len);
+        FS.msync(stream, buffer, offset, len, flags);
+      },
+  getStreamFromFD(fd) {
+        var stream = FS.getStreamChecked(fd);
+        return stream;
+      },
+  varargs:undefined,
+  getStr(ptr) {
+        var ret = UTF8ToString(ptr);
+        return ret;
+      },
+  };
+  
+  /** @type {!Int16Array} */
+  var HEAP16;
+  function ___syscall_fcntl64(fd, cmd, varargs) {
+  SYSCALLS.varargs = varargs;
+  try {
+  
+      var stream = SYSCALLS.getStreamFromFD(fd);
+      switch (cmd) {
+        case 0: {
+          var arg = syscallGetVarargI();
+          if (arg < 0) {
+            return -28;
+          }
+          while (FS.streams[arg]) {
+            arg++;
+          }
+          var newStream;
+          newStream = FS.dupStream(stream, arg);
+          return newStream.fd;
+        }
+        case 1:
+        case 2:
+          return 0;  // FD_CLOEXEC makes no sense for a single process.
+        case 3:
+          return stream.flags;
+        case 4: {
+          var arg = syscallGetVarargI();
+          var mask = 289792;
+          stream.flags = (stream.flags & ~mask) | (arg & mask);
+          return 0;
+        }
+        case 12: {
+          var arg = syscallGetVarargP();
+          var offset = 0;
+          // We're always unlocked.
+          HEAP16[(((arg)+(offset))>>1)] = 2;
+          return 0;
+        }
+        case 13:
+        case 14:
+          // Pretend that the locking is successful. These are process-level locks,
+          // and Emscripten programs are a single process. If we supported linking a
+          // filesystem between programs, we'd need to do more here.
+          // See https://github.com/emscripten-core/emscripten/issues/23697
+          return 0;
+      }
+      return -28;
+    } catch (e) {
+    if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+    return -e.errno;
+  }
+  }
+  
+
+  
+  
+  
+  
+  function ___syscall_ioctl(fd, op, varargs) {
+  SYSCALLS.varargs = varargs;
+  try {
+  
+      var stream = SYSCALLS.getStreamFromFD(fd);
+      switch (op) {
+        case 21509: {
+          if (!stream.tty) return -59;
+          return 0;
+        }
+        case 21505: {
+          if (!stream.tty) return -59;
+          if (stream.tty.ops.ioctl_tcgets) {
+            var termios = stream.tty.ops.ioctl_tcgets(stream);
+            var argp = syscallGetVarargP();
+            HEAP32[((argp)>>2)] = termios.c_iflag || 0;
+            HEAP32[(((argp)+(4))>>2)] = termios.c_oflag || 0;
+            HEAP32[(((argp)+(8))>>2)] = termios.c_cflag || 0;
+            HEAP32[(((argp)+(12))>>2)] = termios.c_lflag || 0;
+            for (var i = 0; i < 32; i++) {
+              HEAP8[(argp + i)+(17)] = termios.c_cc[i] || 0;
+            }
+            return 0;
+          }
+          return 0;
+        }
+        case 21510:
+        case 21511:
+        case 21512: {
+          if (!stream.tty) return -59;
+          return 0; // no-op, not actually adjusting terminal settings
+        }
+        case 21506:
+        case 21507:
+        case 21508: {
+          if (!stream.tty) return -59;
+          if (stream.tty.ops.ioctl_tcsets) {
+            var argp = syscallGetVarargP();
+            var c_iflag = HEAP32[((argp)>>2)];
+            var c_oflag = HEAP32[(((argp)+(4))>>2)];
+            var c_cflag = HEAP32[(((argp)+(8))>>2)];
+            var c_lflag = HEAP32[(((argp)+(12))>>2)];
+            var c_cc = []
+            for (var i = 0; i < 32; i++) {
+              c_cc.push(HEAP8[(argp + i)+(17)]);
+            }
+            return stream.tty.ops.ioctl_tcsets(stream.tty, op, { c_iflag, c_oflag, c_cflag, c_lflag, c_cc });
+          }
+          return 0; // no-op, not actually adjusting terminal settings
+        }
+        case 21519: {
+          if (!stream.tty) return -59;
+          var argp = syscallGetVarargP();
+          HEAP32[((argp)>>2)] = 0;
+          return 0;
+        }
+        case 21520: {
+          if (!stream.tty) return -59;
+          return -28; // not supported
+        }
+        case 21537:
+        case 21531: {
+          var argp = syscallGetVarargP();
+          return FS.ioctl(stream, op, argp);
+        }
+        case 21523: {
+          // TODO: in theory we should write to the winsize struct that gets
+          // passed in, but for now musl doesn't read anything on it
+          if (!stream.tty) return -59;
+          if (stream.tty.ops.ioctl_tiocgwinsz) {
+            var winsize = stream.tty.ops.ioctl_tiocgwinsz(stream.tty);
+            var argp = syscallGetVarargP();
+            HEAP16[((argp)>>1)] = winsize[0];
+            HEAP16[(((argp)+(2))>>1)] = winsize[1];
+          }
+          return 0;
+        }
+        case 21524: {
+          // TODO: technically, this ioctl call should change the window size.
+          // but, since emscripten doesn't have any concept of a terminal window
+          // yet, we'll just silently throw it away as we do TIOCGWINSZ
+          if (!stream.tty) return -59;
+          return 0;
+        }
+        case 21515: {
+          if (!stream.tty) return -59;
+          return 0;
+        }
+        default: return -28; // not supported
+      }
+    } catch (e) {
+    if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+    return -e.errno;
+  }
+  }
+  
+
+  
+  function ___syscall_openat(dirfd, path, flags, varargs) {
+  SYSCALLS.varargs = varargs;
+  try {
+  
+      path = SYSCALLS.getStr(path);
+      path = SYSCALLS.calculateAt(dirfd, path);
+      var mode = varargs ? syscallGetVarargI() : 0;
+      if (flags & 64) {
+        mode &= ~SYSCALLS.currentUmask;
+      }
+      return FS.open(path, flags, mode).fd;
+    } catch (e) {
+    if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+    return -e.errno;
+  }
+  }
+  
+
+  var __abort_js = () =>
+      abort('native code called abort()');
+
+  var _emscripten_get_now = () => performance.now();
+  
+  var _emscripten_date_now = () => Date.now();
+  
+  var nowIsMonotonic = 1;
+  
+  var checkWasiClock = (clock_id) => clock_id >= 0 && clock_id <= 3;
+  
+  var INT53_MAX = 9007199254740992;
+  
+  var INT53_MIN = -9007199254740992;
+  var bigintToI53Checked = (num) => (num < INT53_MIN || num > INT53_MAX) ? NaN : Number(num);
+  
+  function _clock_time_get(clk_id, ignored_precision, ptime) {
+    ignored_precision = bigintToI53Checked(ignored_precision);
+  
+  
+      if (!checkWasiClock(clk_id)) {
+        return 28;
+      }
+      var now;
+      // all wasi clocks but realtime are monotonic
+      if (clk_id === 0) {
+        now = _emscripten_date_now();
+      } else if (nowIsMonotonic) {
+        now = _emscripten_get_now();
+      } else {
+        return 52;
+      }
+      // "now" is in ms, and wasi times are in ns.
+      var nsec = Math.round(now * 1000 * 1000);
+      HEAP64[((ptime)>>3)] = BigInt(nsec);
+      return 0;
+    ;
+  }
+
+  var _emscripten_has_asyncify = () => 1;
+
+  var abortOnCannotGrowMemory = (requestedSize) => {
+      abort(`Cannot enlarge memory arrays to size ${requestedSize} bytes (OOM). Either (1) compile with -sINITIAL_MEMORY=X with X higher than the current value ${HEAP8.length}, (2) compile with -sALLOW_MEMORY_GROWTH which allows increasing the size at runtime, or (3) if you want malloc to return NULL (0) instead of this abort, compile with -sABORTING_MALLOC=0`);
+    };
+  
+  var _emscripten_resize_heap = (requestedSize) => {
+      var oldSize = HEAPU8.length;
+      // With CAN_ADDRESS_2GB or MEMORY64, pointers are already unsigned.
+      requestedSize >>>= 0;
+      abortOnCannotGrowMemory(requestedSize);
+    };
+
+  var _emscripten_sleep = function(ms) {
+    let innerFunc =  () => new Promise((resolve) => setTimeout(resolve, ms));
+    return Asyncify.handleAsync(innerFunc);
+  }
+  ;
+  _emscripten_sleep.isAsync = true;
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  var stringToUTF8 = (str, outPtr, maxBytesToWrite) => {
+      assert(typeof maxBytesToWrite == 'number', 'stringToUTF8 requires a third parameter that specifies the length of the output buffer');
+      return stringToUTF8Array(str, HEAPU8, outPtr, maxBytesToWrite);
+    };
+  
+  var stackAlloc = (sz) => __emscripten_stack_alloc(sz);
+  var stringToUTF8OnStack = (str) => {
+      var size = lengthBytesUTF8(str) + 1;
+      var ret = stackAlloc(size);
+      stringToUTF8(str, ret, size);
+      return ret;
+    };
+  
+  
+  
+  
+  var readI53FromI64 = (ptr) => {
+      return HEAPU32[((ptr)>>2)] + HEAP32[(((ptr)+(4))>>2)] * 4294967296;
+    };
+  
+  var readI53FromU64 = (ptr) => {
+      return HEAPU32[((ptr)>>2)] + HEAPU32[(((ptr)+(4))>>2)] * 4294967296;
+    };
+  
+  var writeI53ToI64 = (ptr, num) => {
+      HEAPU32[((ptr)>>2)] = num;
+      var lower = HEAPU32[((ptr)>>2)];
+      HEAPU32[(((ptr)+(4))>>2)] = (num - lower)/4294967296;
+      var deserialized = (num >= 0) ? readI53FromU64(ptr) : readI53FromI64(ptr);
+      var offset = ((ptr)>>2);
+      if (deserialized != num) warnOnce(`writeI53ToI64() out of range: serialized JS Number ${num} to Wasm heap as bytes lo=${ptrToString(HEAPU32[offset])}, hi=${ptrToString(HEAPU32[offset+1])}, which deserializes back to ${deserialized} instead!`);
+    };
+  
+  
+  
+  var stringToNewUTF8 = (str) => {
+      var size = lengthBytesUTF8(str) + 1;
+      var ret = _malloc(size);
+      if (ret) stringToUTF8(str, ret, size);
+      return ret;
+    };
+  
+  
+  
+  
+  
+  
+  
+  /** @type {!Float32Array} */
+  var HEAPF32;
+  
+  /** @type {!Float64Array} */
+  var HEAPF64;
+  var WebGPU = {
+  Internals:{
+  jsObjects:[],
+  jsObjectInsert:(ptr, jsObject) => {
+          ptr >>>= 0
+          WebGPU.Internals.jsObjects[ptr] = jsObject;
+        },
+  bufferOnUnmaps:[],
+  futures:[],
+  futureInsert:(futureId, promise) => {
+          WebGPU.Internals.futures[futureId] =
+            new Promise((resolve) => promise.finally(() => resolve(futureId)));
+        },
+  },
+  getJsObject:(ptr) => {
+        if (!ptr) return undefined;
+        ptr >>>= 0
+        assert(ptr in WebGPU.Internals.jsObjects);
+        return WebGPU.Internals.jsObjects[ptr];
+      },
+  importJsAdapter:(obj, parentPtr = 0) => {
+            var ptr = _emwgpuCreateAdapter(parentPtr);
+            WebGPU.Internals.jsObjects[ptr] = obj;
+            return ptr;
+          },
+  importJsBindGroup:(obj, parentPtr = 0) => {
+            var ptr = _emwgpuCreateBindGroup(parentPtr);
+            WebGPU.Internals.jsObjects[ptr] = obj;
+            return ptr;
+          },
+  importJsBindGroupLayout:(obj, parentPtr = 0) => {
+            var ptr = _emwgpuCreateBindGroupLayout(parentPtr);
+            WebGPU.Internals.jsObjects[ptr] = obj;
+            return ptr;
+          },
+  importJsBuffer:(buffer, parentPtr = 0) => {
+        // At the moment, we do not allow importing pending buffers.
+        assert(buffer.mapState === "unmapped");
+        var bufferPtr = _emwgpuImportBuffer(parentPtr);
+        WebGPU.Internals.jsObjectInsert(bufferPtr, buffer);
+        return bufferPtr;
+      },
+  importJsCommandBuffer:(obj, parentPtr = 0) => {
+            var ptr = _emwgpuCreateCommandBuffer(parentPtr);
+            WebGPU.Internals.jsObjects[ptr] = obj;
+            return ptr;
+          },
+  importJsCommandEncoder:(obj, parentPtr = 0) => {
+            var ptr = _emwgpuCreateCommandEncoder(parentPtr);
+            WebGPU.Internals.jsObjects[ptr] = obj;
+            return ptr;
+          },
+  importJsComputePassEncoder:(obj, parentPtr = 0) => {
+            var ptr = _emwgpuCreateComputePassEncoder(parentPtr);
+            WebGPU.Internals.jsObjects[ptr] = obj;
+            return ptr;
+          },
+  importJsComputePipeline:(obj, parentPtr = 0) => {
+            var ptr = _emwgpuCreateComputePipeline(parentPtr);
+            WebGPU.Internals.jsObjects[ptr] = obj;
+            return ptr;
+          },
+  importJsDevice:(device, parentPtr = 0) => {
+        var queuePtr = _emwgpuCreateQueue(parentPtr);
+        var devicePtr = _emwgpuCreateDevice(parentPtr, queuePtr);
+        WebGPU.Internals.jsObjectInsert(queuePtr, device.queue);
+        WebGPU.Internals.jsObjectInsert(devicePtr, device);
+        return devicePtr;
+      },
+  importJsExternalTexture:(obj, parentPtr = 0) => {
+            var ptr = _emwgpuCreateExternalTexture(parentPtr);
+            WebGPU.Internals.jsObjects[ptr] = obj;
+            return ptr;
+          },
+  importJsPipelineLayout:(obj, parentPtr = 0) => {
+            var ptr = _emwgpuCreatePipelineLayout(parentPtr);
+            WebGPU.Internals.jsObjects[ptr] = obj;
+            return ptr;
+          },
+  importJsQuerySet:(obj, parentPtr = 0) => {
+            var ptr = _emwgpuCreateQuerySet(parentPtr);
+            WebGPU.Internals.jsObjects[ptr] = obj;
+            return ptr;
+          },
+  importJsQueue:(obj, parentPtr = 0) => {
+            var ptr = _emwgpuCreateQueue(parentPtr);
+            WebGPU.Internals.jsObjects[ptr] = obj;
+            return ptr;
+          },
+  importJsRenderBundle:(obj, parentPtr = 0) => {
+            var ptr = _emwgpuCreateRenderBundle(parentPtr);
+            WebGPU.Internals.jsObjects[ptr] = obj;
+            return ptr;
+          },
+  importJsRenderBundleEncoder:(obj, parentPtr = 0) => {
+            var ptr = _emwgpuCreateRenderBundleEncoder(parentPtr);
+            WebGPU.Internals.jsObjects[ptr] = obj;
+            return ptr;
+          },
+  importJsRenderPassEncoder:(obj, parentPtr = 0) => {
+            var ptr = _emwgpuCreateRenderPassEncoder(parentPtr);
+            WebGPU.Internals.jsObjects[ptr] = obj;
+            return ptr;
+          },
+  importJsRenderPipeline:(obj, parentPtr = 0) => {
+            var ptr = _emwgpuCreateRenderPipeline(parentPtr);
+            WebGPU.Internals.jsObjects[ptr] = obj;
+            return ptr;
+          },
+  importJsSampler:(obj, parentPtr = 0) => {
+            var ptr = _emwgpuCreateSampler(parentPtr);
+            WebGPU.Internals.jsObjects[ptr] = obj;
+            return ptr;
+          },
+  importJsShaderModule:(obj, parentPtr = 0) => {
+            var ptr = _emwgpuCreateShaderModule(parentPtr);
+            WebGPU.Internals.jsObjects[ptr] = obj;
+            return ptr;
+          },
+  importJsSurface:(obj, parentPtr = 0) => {
+            var ptr = _emwgpuCreateSurface(parentPtr);
+            WebGPU.Internals.jsObjects[ptr] = obj;
+            return ptr;
+          },
+  importJsTexture:(obj, parentPtr = 0) => {
+            var ptr = _emwgpuCreateTexture(parentPtr);
+            WebGPU.Internals.jsObjects[ptr] = obj;
+            return ptr;
+          },
+  importJsTextureView:(obj, parentPtr = 0) => {
+            var ptr = _emwgpuCreateTextureView(parentPtr);
+            WebGPU.Internals.jsObjects[ptr] = obj;
+            return ptr;
+          },
+  errorCallback:(callback, type, message, userdata) => {
+        var sp = stackSave();
+        var messagePtr = stringToUTF8OnStack(message);
+        ((a1, a2, a3) => abort('Internal Error! Attempted to invoke wasm function pointer with signature "viii", but no such functions have gotten exported!'))(type, messagePtr, userdata);
+        stackRestore(sp);
+      },
+  iterateExtensions:(root, handlers) => {
+        assert(root);
+        for (var ptr = HEAPU32[((root)>>2)]; ptr;
+                 ptr = HEAPU32[((ptr)>>2)]) {
+          var sType = HEAP32[(((ptr)+(4))>>2)];
+          // This will crash if there's no handler indicating either a bogus
+          // sType, or one we haven't implemented yet.
+          var handler = handlers[sType](ptr);
+        }
+      },
+  setStringView:(ptr, data, length) => {
+        HEAPU32[((ptr)>>2)] = data;
+        HEAPU32[(((ptr)+(4))>>2)] = length;
+      },
+  makeStringFromStringView:(stringViewPtr) => {
+        var ptr = HEAPU32[((stringViewPtr)>>2)];
+        var length = HEAPU32[(((stringViewPtr)+(4))>>2)];
+        // UTF8ToString stops at the first null terminator character in the
+        // string regardless of the length.
+        return UTF8ToString(ptr, length);
+      },
+  makeStringFromOptionalStringView:(stringViewPtr) => {
+        var ptr = HEAPU32[((stringViewPtr)>>2)];
+        var length = HEAPU32[(((stringViewPtr)+(4))>>2)];
+        // If we don't have a valid string pointer, just return undefined when
+        // optional.
+        if (!ptr) {
+          if (length === 0) {
+            return "";
+          }
+          return undefined;
+        }
+        // UTF8ToString stops at the first null terminator character in the
+        // string regardless of the length.
+        return UTF8ToString(ptr, length);
+      },
+  makeColor:(ptr) => {
+        return {
+          "r": HEAPF64[((ptr)>>3)],
+          "g": HEAPF64[(((ptr)+(8))>>3)],
+          "b": HEAPF64[(((ptr)+(16))>>3)],
+          "a": HEAPF64[(((ptr)+(24))>>3)],
+        };
+      },
+  makeExtent3D:(ptr) => {
+        return {
+          "width": HEAPU32[((ptr)>>2)],
+          "height": HEAPU32[(((ptr)+(4))>>2)],
+          "depthOrArrayLayers": HEAPU32[(((ptr)+(8))>>2)],
+        };
+      },
+  makeOrigin3D:(ptr) => {
+        return {
+          "x": HEAPU32[((ptr)>>2)],
+          "y": HEAPU32[(((ptr)+(4))>>2)],
+          "z": HEAPU32[(((ptr)+(8))>>2)],
+        };
+      },
+  makeTexelCopyTextureInfo:(ptr) => {
+        assert(ptr);
+        return {
+          "texture": WebGPU.getJsObject(
+            HEAPU32[((ptr)>>2)]),
+          "mipLevel": HEAPU32[(((ptr)+(4))>>2)],
+          "origin": WebGPU.makeOrigin3D(ptr + 8),
+          "aspect": WebGPU.TextureAspect[HEAP32[(((ptr)+(20))>>2)]],
+        };
+      },
+  makeTexelCopyBufferLayout:(ptr) => {
+        var bytesPerRow = HEAPU32[(((ptr)+(8))>>2)];
+        var rowsPerImage = HEAPU32[(((ptr)+(12))>>2)];
+        return {
+          "offset": readI53FromI64(ptr),
+          "bytesPerRow": bytesPerRow === 4294967295 ? undefined : bytesPerRow,
+          "rowsPerImage": rowsPerImage === 4294967295 ? undefined : rowsPerImage,
+        };
+      },
+  makeTexelCopyBufferInfo:(ptr) => {
+        assert(ptr);
+        var layoutPtr = ptr + 0;
+        var bufferCopyView = WebGPU.makeTexelCopyBufferLayout(layoutPtr);
+        bufferCopyView["buffer"] = WebGPU.getJsObject(
+          HEAPU32[(((ptr)+(16))>>2)]);
+        return bufferCopyView;
+      },
+  makePassTimestampWrites:(ptr) => {
+        if (ptr === 0) return undefined;
+        return {
+          "querySet": WebGPU.getJsObject(
+            HEAPU32[(((ptr)+(4))>>2)]),
+          "beginningOfPassWriteIndex": HEAPU32[(((ptr)+(8))>>2)],
+          "endOfPassWriteIndex": HEAPU32[(((ptr)+(12))>>2)],
+        };
+      },
+  makePipelineConstants:(constantCount, constantsPtr) => {
+        if (!constantCount) return;
+        var constants = {};
+        for (var i = 0; i < constantCount; ++i) {
+          var entryPtr = constantsPtr + 24 * i;
+          var key = WebGPU.makeStringFromStringView(entryPtr + 4);
+          constants[key] = HEAPF64[(((entryPtr)+(16))>>3)];
+        }
+        return constants;
+      },
+  makePipelineLayout:(layoutPtr) => {
+        if (!layoutPtr) return 'auto';
+        return WebGPU.getJsObject(layoutPtr);
+      },
+  makeComputeState:(ptr) => {
+        if (!ptr) return undefined;
+        assert(ptr);assert(HEAPU32[((ptr)>>2)] === 0);
+        var desc = {
+          "module": WebGPU.getJsObject(
+            HEAPU32[(((ptr)+(4))>>2)]),
+          "constants": WebGPU.makePipelineConstants(
+            HEAPU32[(((ptr)+(16))>>2)],
+            HEAPU32[(((ptr)+(20))>>2)]),
+          "entryPoint": WebGPU.makeStringFromOptionalStringView(
+            ptr + 8),
+        };
+        return desc;
+      },
+  makeComputePipelineDesc:(descriptor) => {
+        assert(descriptor);assert(HEAPU32[((descriptor)>>2)] === 0);
+  
+        var desc = {
+          "label": WebGPU.makeStringFromOptionalStringView(
+            descriptor + 4),
+          "layout": WebGPU.makePipelineLayout(
+            HEAPU32[(((descriptor)+(12))>>2)]),
+          "compute": WebGPU.makeComputeState(
+            descriptor + 16),
+        };
+        return desc;
+      },
+  makeRenderPipelineDesc:(descriptor) => {
+        assert(descriptor);assert(HEAPU32[((descriptor)>>2)] === 0);
+  
+        function makePrimitiveState(psPtr) {
+          if (!psPtr) return undefined;
+          assert(psPtr);assert(HEAPU32[((psPtr)>>2)] === 0);
+          return {
+            "topology": WebGPU.PrimitiveTopology[HEAP32[(((psPtr)+(4))>>2)]],
+            "stripIndexFormat": WebGPU.IndexFormat[HEAP32[(((psPtr)+(8))>>2)]],
+            "frontFace": WebGPU.FrontFace[HEAP32[(((psPtr)+(12))>>2)]],
+            "cullMode": WebGPU.CullMode[HEAP32[(((psPtr)+(16))>>2)]],
+            "unclippedDepth": !!(HEAPU32[(((psPtr)+(20))>>2)]),
+          };
+        }
+  
+        function makeBlendComponent(bdPtr) {
+          if (!bdPtr) return undefined;
+          return {
+            "operation": WebGPU.BlendOperation[HEAP32[((bdPtr)>>2)]],
+            "srcFactor": WebGPU.BlendFactor[HEAP32[(((bdPtr)+(4))>>2)]],
+            "dstFactor": WebGPU.BlendFactor[HEAP32[(((bdPtr)+(8))>>2)]],
+          };
+        }
+  
+        function makeBlendState(bsPtr) {
+          if (!bsPtr) return undefined;
+          return {
+            "alpha": makeBlendComponent(bsPtr + 12),
+            "color": makeBlendComponent(bsPtr + 0),
+          };
+        }
+  
+        function makeColorState(csPtr) {
+          assert(csPtr);assert(HEAPU32[((csPtr)>>2)] === 0);
+          var format = WebGPU.TextureFormat[HEAP32[(((csPtr)+(4))>>2)]];
+          return format ? {
+            "format": format,
+            "blend": makeBlendState(HEAPU32[(((csPtr)+(8))>>2)]),
+            "writeMask": HEAPU32[(((csPtr)+(16))>>2)],
+          } : undefined;
+        }
+  
+        function makeColorStates(count, csArrayPtr) {
+          var states = [];
+          for (var i = 0; i < count; ++i) {
+            states.push(makeColorState(csArrayPtr + 24 * i));
+          }
+          return states;
+        }
+  
+        function makeStencilStateFace(ssfPtr) {
+          assert(ssfPtr);
+          return {
+            "compare": WebGPU.CompareFunction[HEAP32[((ssfPtr)>>2)]],
+            "failOp": WebGPU.StencilOperation[HEAP32[(((ssfPtr)+(4))>>2)]],
+            "depthFailOp": WebGPU.StencilOperation[HEAP32[(((ssfPtr)+(8))>>2)]],
+            "passOp": WebGPU.StencilOperation[HEAP32[(((ssfPtr)+(12))>>2)]],
+          };
+        }
+  
+        function makeDepthStencilState(dssPtr) {
+          if (!dssPtr) return undefined;
+  
+          assert(dssPtr);
+          return {
+            "format": WebGPU.TextureFormat[HEAP32[(((dssPtr)+(4))>>2)]],
+            "depthWriteEnabled": !!(HEAPU32[(((dssPtr)+(8))>>2)]),
+            "depthCompare": WebGPU.CompareFunction[HEAP32[(((dssPtr)+(12))>>2)]],
+            "stencilFront": makeStencilStateFace(dssPtr + 16),
+            "stencilBack": makeStencilStateFace(dssPtr + 32),
+            "stencilReadMask": HEAPU32[(((dssPtr)+(48))>>2)],
+            "stencilWriteMask": HEAPU32[(((dssPtr)+(52))>>2)],
+            "depthBias": HEAP32[(((dssPtr)+(56))>>2)],
+            "depthBiasSlopeScale": HEAPF32[(((dssPtr)+(60))>>2)],
+            "depthBiasClamp": HEAPF32[(((dssPtr)+(64))>>2)],
+          };
+        }
+  
+        function makeVertexAttribute(vaPtr) {
+          assert(vaPtr);
+          return {
+            "format": WebGPU.VertexFormat[HEAP32[(((vaPtr)+(4))>>2)]],
+            "offset": readI53FromI64((vaPtr)+(8)),
+            "shaderLocation": HEAPU32[(((vaPtr)+(16))>>2)],
+          };
+        }
+  
+        function makeVertexAttributes(count, vaArrayPtr) {
+          var vas = [];
+          for (var i = 0; i < count; ++i) {
+            vas.push(makeVertexAttribute(vaArrayPtr + i * 24));
+          }
+          return vas;
+        }
+  
+        function makeVertexBuffer(vbPtr) {
+          if (!vbPtr) return undefined;
+          var stepMode = WebGPU.VertexStepMode[HEAP32[(((vbPtr)+(4))>>2)]];
+          var attributeCount = HEAPU32[(((vbPtr)+(16))>>2)];
+          if (!stepMode && !attributeCount) {
+            return null;
+          }
+          return {
+            "arrayStride": readI53FromI64((vbPtr)+(8)),
+            "stepMode": stepMode,
+            "attributes": makeVertexAttributes(
+              attributeCount,
+              HEAPU32[(((vbPtr)+(20))>>2)]),
+          };
+        }
+  
+        function makeVertexBuffers(count, vbArrayPtr) {
+          if (!count) return undefined;
+  
+          var vbs = [];
+          for (var i = 0; i < count; ++i) {
+            vbs.push(makeVertexBuffer(vbArrayPtr + i * 24));
+          }
+          return vbs;
+        }
+  
+        function makeVertexState(viPtr) {
+          if (!viPtr) return undefined;
+          assert(viPtr);assert(HEAPU32[((viPtr)>>2)] === 0);
+          var desc = {
+            "module": WebGPU.getJsObject(
+              HEAPU32[(((viPtr)+(4))>>2)]),
+            "constants": WebGPU.makePipelineConstants(
+              HEAPU32[(((viPtr)+(16))>>2)],
+              HEAPU32[(((viPtr)+(20))>>2)]),
+            "buffers": makeVertexBuffers(
+              HEAPU32[(((viPtr)+(24))>>2)],
+              HEAPU32[(((viPtr)+(28))>>2)]),
+            "entryPoint": WebGPU.makeStringFromOptionalStringView(
+              viPtr + 8),
+            };
+          return desc;
+        }
+  
+        function makeMultisampleState(msPtr) {
+          if (!msPtr) return undefined;
+          assert(msPtr);assert(HEAPU32[((msPtr)>>2)] === 0);
+          return {
+            "count": HEAPU32[(((msPtr)+(4))>>2)],
+            "mask": HEAPU32[(((msPtr)+(8))>>2)],
+            "alphaToCoverageEnabled": !!(HEAPU32[(((msPtr)+(12))>>2)]),
+          };
+        }
+  
+        function makeFragmentState(fsPtr) {
+          if (!fsPtr) return undefined;
+          assert(fsPtr);assert(HEAPU32[((fsPtr)>>2)] === 0);
+          var desc = {
+            "module": WebGPU.getJsObject(
+              HEAPU32[(((fsPtr)+(4))>>2)]),
+            "constants": WebGPU.makePipelineConstants(
+              HEAPU32[(((fsPtr)+(16))>>2)],
+              HEAPU32[(((fsPtr)+(20))>>2)]),
+            "targets": makeColorStates(
+              HEAPU32[(((fsPtr)+(24))>>2)],
+              HEAPU32[(((fsPtr)+(28))>>2)]),
+            "entryPoint": WebGPU.makeStringFromOptionalStringView(
+              fsPtr + 8),
+            };
+          return desc;
+        }
+  
+        var desc = {
+          "label": WebGPU.makeStringFromOptionalStringView(
+            descriptor + 4),
+          "layout": WebGPU.makePipelineLayout(
+            HEAPU32[(((descriptor)+(12))>>2)]),
+          "vertex": makeVertexState(
+            descriptor + 16),
+          "primitive": makePrimitiveState(
+            descriptor + 48),
+          "depthStencil": makeDepthStencilState(
+            HEAPU32[(((descriptor)+(72))>>2)]),
+          "multisample": makeMultisampleState(
+            descriptor + 76),
+          "fragment": makeFragmentState(
+            HEAPU32[(((descriptor)+(92))>>2)]),
+        };
+        return desc;
+      },
+  fillLimitStruct:(limits, limitsOutPtr) => {
+        assert(limitsOutPtr);
+        var nextInChainPtr = HEAPU32[((limitsOutPtr)>>2)];
+  
+        function setLimitValueU32(name, basePtr, limitOffset, fallbackValue = 0) {
+          var limitValue = limits[name] ?? fallbackValue;
+          HEAPU32[(((basePtr)+(limitOffset))>>2)] = limitValue;
+        }
+        function setLimitValueU64(name, basePtr, limitOffset, fallbackValue = 0) {
+          var limitValue = limits[name] ?? fallbackValue;
+          // Limits are integer-valued JS `Number`s, so they fit in 'i53'.
+          writeI53ToI64((basePtr)+(limitOffset), limitValue);
+        }
+  
+        setLimitValueU32('maxTextureDimension1D',                     limitsOutPtr, 4);
+        setLimitValueU32('maxTextureDimension2D',                     limitsOutPtr, 8);
+        setLimitValueU32('maxTextureDimension3D',                     limitsOutPtr, 12);
+        setLimitValueU32('maxTextureArrayLayers',                     limitsOutPtr, 16);
+        setLimitValueU32('maxBindGroups',                             limitsOutPtr, 20);
+        setLimitValueU32('maxBindGroupsPlusVertexBuffers',            limitsOutPtr, 24);
+        setLimitValueU32('maxBindingsPerBindGroup',                   limitsOutPtr, 28);
+        setLimitValueU32('maxDynamicUniformBuffersPerPipelineLayout', limitsOutPtr, 32);
+        setLimitValueU32('maxDynamicStorageBuffersPerPipelineLayout', limitsOutPtr, 36);
+        setLimitValueU32('maxSampledTexturesPerShaderStage',          limitsOutPtr, 40);
+        setLimitValueU32('maxSamplersPerShaderStage',                 limitsOutPtr, 44);
+        setLimitValueU32('maxStorageBuffersPerShaderStage',           limitsOutPtr, 48);
+        setLimitValueU32('maxStorageTexturesPerShaderStage',          limitsOutPtr, 52);
+        setLimitValueU32('maxUniformBuffersPerShaderStage',           limitsOutPtr, 56);
+        setLimitValueU32('minUniformBufferOffsetAlignment',           limitsOutPtr, 80);
+        setLimitValueU32('minStorageBufferOffsetAlignment',           limitsOutPtr, 84);
+        setLimitValueU64('maxUniformBufferBindingSize',               limitsOutPtr, 64);
+        setLimitValueU64('maxStorageBufferBindingSize',               limitsOutPtr, 72);
+        setLimitValueU32('maxVertexBuffers',                          limitsOutPtr, 88);
+        setLimitValueU64('maxBufferSize',                             limitsOutPtr, 96);
+        setLimitValueU32('maxVertexAttributes',                       limitsOutPtr, 104);
+        setLimitValueU32('maxVertexBufferArrayStride',                limitsOutPtr, 108);
+        setLimitValueU32('maxInterStageShaderVariables',              limitsOutPtr, 112);
+        setLimitValueU32('maxColorAttachments',                       limitsOutPtr, 116);
+        setLimitValueU32('maxColorAttachmentBytesPerSample',          limitsOutPtr, 120);
+        setLimitValueU32('maxComputeWorkgroupStorageSize',            limitsOutPtr, 124);
+        setLimitValueU32('maxComputeInvocationsPerWorkgroup',         limitsOutPtr, 128);
+        setLimitValueU32('maxComputeWorkgroupSizeX',                  limitsOutPtr, 132);
+        setLimitValueU32('maxComputeWorkgroupSizeY',                  limitsOutPtr, 136);
+        setLimitValueU32('maxComputeWorkgroupSizeZ',                  limitsOutPtr, 140);
+        setLimitValueU32('maxComputeWorkgroupsPerDimension',          limitsOutPtr, 144);
+        // Note this limit is new and won't be present in all browsers for a while. Fall back to 0.
+        setLimitValueU32('maxImmediateSize',                          limitsOutPtr, 148);
+  
+        if (nextInChainPtr !== 0) {
+          var sType = HEAP32[(((nextInChainPtr)+(4))>>2)];
+          assert(sType === 15);
+          assert(0 === HEAPU32[((nextInChainPtr)>>2)]);
+          var compatibilityModeLimitsPtr = nextInChainPtr;
+          assert(compatibilityModeLimitsPtr);assert(HEAPU32[((compatibilityModeLimitsPtr)>>2)] === 0);
+  
+          // Note these limits are new and won't be present in all browsers for a while. Fall back to exposing the PerShaderStage limit.
+          setLimitValueU32('maxStorageBuffersInVertexStage',    compatibilityModeLimitsPtr, 8,    limits.maxStorageBuffersPerShaderStage);
+          setLimitValueU32('maxStorageBuffersInFragmentStage',  compatibilityModeLimitsPtr, 16,  limits.maxStorageBuffersPerShaderStage);
+          setLimitValueU32('maxStorageTexturesInVertexStage',   compatibilityModeLimitsPtr, 12,   limits.maxStorageTexturesPerShaderStage);
+          setLimitValueU32('maxStorageTexturesInFragmentStage', compatibilityModeLimitsPtr, 20, limits.maxStorageTexturesPerShaderStage);
+        }
+      },
+  fillAdapterInfoStruct:(info, infoStruct) => {
+        assert(infoStruct);assert(HEAPU32[((infoStruct)>>2)] === 0);
+  
+        // Populate subgroup limits.
+        HEAPU32[(((infoStruct)+(52))>>2)] = info.subgroupMinSize;
+        HEAPU32[(((infoStruct)+(56))>>2)] = info.subgroupMaxSize;
+  
+        // Append all the strings together to condense into a single malloc.
+        var strs = info.vendor + info.architecture + info.device + info.description;
+        var strPtr = stringToNewUTF8(strs);
+  
+        var vendorLen = lengthBytesUTF8(info.vendor);
+        WebGPU.setStringView(infoStruct + 4, strPtr, vendorLen);
+        strPtr += vendorLen;
+  
+        var architectureLen = lengthBytesUTF8(info.architecture);
+        WebGPU.setStringView(infoStruct + 12, strPtr, architectureLen);
+        strPtr += architectureLen;
+  
+        var deviceLen = lengthBytesUTF8(info.device);
+        WebGPU.setStringView(infoStruct + 20, strPtr, deviceLen);
+        strPtr += deviceLen;
+  
+        var descriptionLen = lengthBytesUTF8(info.description);
+        WebGPU.setStringView(infoStruct + 28, strPtr, descriptionLen);
+        strPtr += descriptionLen;
+  
+        HEAP32[(((infoStruct)+(36))>>2)] = 2;
+        var adapterType = info.isFallbackAdapter ? 3 : 4;
+        HEAP32[(((infoStruct)+(40))>>2)] = adapterType;
+        HEAPU32[(((infoStruct)+(44))>>2)] = 0;
+        HEAPU32[(((infoStruct)+(48))>>2)] = 0;
+      },
+  AddressMode:[,"clamp-to-edge","repeat","mirror-repeat"],
+  BlendFactor:[,"zero","one","src","one-minus-src","src-alpha","one-minus-src-alpha","dst","one-minus-dst","dst-alpha","one-minus-dst-alpha","src-alpha-saturated","constant","one-minus-constant","src1","one-minus-src1","src1-alpha","one-minus-src1-alpha"],
+  BlendOperation:[,"add","subtract","reverse-subtract","min","max"],
+  BufferBindingType:[,,"uniform","storage","read-only-storage"],
+  BufferMapState:[,"unmapped","pending","mapped"],
+  CompareFunction:[,"never","less","equal","less-equal","greater","not-equal","greater-equal","always"],
+  CompilationInfoRequestStatus:[,"success","callback-cancelled"],
+  ComponentSwizzle:[,"0","1","r","g","b","a"],
+  CompositeAlphaMode:[,"opaque","premultiplied","unpremultiplied","inherit"],
+  CullMode:[,"none","front","back"],
+  ErrorFilter:[,"validation","out-of-memory","internal"],
+  FeatureLevel:[,"compatibility","core"],
+  FeatureName:{
+  1:"core-features-and-limits",
+  2:"depth-clip-control",
+  3:"depth32float-stencil8",
+  4:"texture-compression-bc",
+  5:"texture-compression-bc-sliced-3d",
+  6:"texture-compression-etc2",
+  7:"texture-compression-astc",
+  8:"texture-compression-astc-sliced-3d",
+  9:"timestamp-query",
+  10:"indirect-first-instance",
+  11:"shader-f16",
+  12:"rg11b10ufloat-renderable",
+  13:"bgra8unorm-storage",
+  14:"float32-filterable",
+  15:"float32-blendable",
+  16:"clip-distances",
+  17:"dual-source-blending",
+  18:"subgroups",
+  19:"texture-formats-tier1",
+  20:"texture-formats-tier2",
+  21:"primitive-index",
+  22:"texture-component-swizzle",
+  327692:"chromium-experimental-unorm16-texture-formats",
+  327729:"chromium-experimental-multi-draw-indirect",
+  },
+  FilterMode:[,"nearest","linear"],
+  FrontFace:[,"ccw","cw"],
+  IndexFormat:[,"uint16","uint32"],
+  InstanceFeatureName:[,"timed-wait-any","shader-source-spirv","multiple-devices-per-adapter"],
+  LoadOp:[,"load","clear"],
+  MipmapFilterMode:[,"nearest","linear"],
+  OptionalBool:["false","true",],
+  PowerPreference:[,"low-power","high-performance"],
+  PredefinedColorSpace:[,"srgb","display-p3"],
+  PrimitiveTopology:[,"point-list","line-list","line-strip","triangle-list","triangle-strip"],
+  QueryType:[,"occlusion","timestamp"],
+  SamplerBindingType:[,,"filtering","non-filtering","comparison"],
+  Status:[,"success","error"],
+  StencilOperation:[,"keep","zero","replace","invert","increment-clamp","decrement-clamp","increment-wrap","decrement-wrap"],
+  StorageTextureAccess:[,,"write-only","read-only","read-write"],
+  StoreOp:[,"store","discard"],
+  SurfaceGetCurrentTextureStatus:[,"success-optimal","success-suboptimal","timeout","outdated","lost","error"],
+  TextureAspect:[,"all","stencil-only","depth-only"],
+  TextureDimension:[,"1d","2d","3d"],
+  TextureFormat:[,"r8unorm","r8snorm","r8uint","r8sint","r16unorm","r16snorm","r16uint","r16sint","r16float","rg8unorm","rg8snorm","rg8uint","rg8sint","r32float","r32uint","r32sint","rg16unorm","rg16snorm","rg16uint","rg16sint","rg16float","rgba8unorm","rgba8unorm-srgb","rgba8snorm","rgba8uint","rgba8sint","bgra8unorm","bgra8unorm-srgb","rgb10a2uint","rgb10a2unorm","rg11b10ufloat","rgb9e5ufloat","rg32float","rg32uint","rg32sint","rgba16unorm","rgba16snorm","rgba16uint","rgba16sint","rgba16float","rgba32float","rgba32uint","rgba32sint","stencil8","depth16unorm","depth24plus","depth24plus-stencil8","depth32float","depth32float-stencil8","bc1-rgba-unorm","bc1-rgba-unorm-srgb","bc2-rgba-unorm","bc2-rgba-unorm-srgb","bc3-rgba-unorm","bc3-rgba-unorm-srgb","bc4-r-unorm","bc4-r-snorm","bc5-rg-unorm","bc5-rg-snorm","bc6h-rgb-ufloat","bc6h-rgb-float","bc7-rgba-unorm","bc7-rgba-unorm-srgb","etc2-rgb8unorm","etc2-rgb8unorm-srgb","etc2-rgb8a1unorm","etc2-rgb8a1unorm-srgb","etc2-rgba8unorm","etc2-rgba8unorm-srgb","eac-r11unorm","eac-r11snorm","eac-rg11unorm","eac-rg11snorm","astc-4x4-unorm","astc-4x4-unorm-srgb","astc-5x4-unorm","astc-5x4-unorm-srgb","astc-5x5-unorm","astc-5x5-unorm-srgb","astc-6x5-unorm","astc-6x5-unorm-srgb","astc-6x6-unorm","astc-6x6-unorm-srgb","astc-8x5-unorm","astc-8x5-unorm-srgb","astc-8x6-unorm","astc-8x6-unorm-srgb","astc-8x8-unorm","astc-8x8-unorm-srgb","astc-10x5-unorm","astc-10x5-unorm-srgb","astc-10x6-unorm","astc-10x6-unorm-srgb","astc-10x8-unorm","astc-10x8-unorm-srgb","astc-10x10-unorm","astc-10x10-unorm-srgb","astc-12x10-unorm","astc-12x10-unorm-srgb","astc-12x12-unorm","astc-12x12-unorm-srgb"],
+  TextureSampleType:[,,"float","unfilterable-float","depth","sint","uint"],
+  TextureViewDimension:[,"1d","2d","2d-array","cube","cube-array","3d"],
+  ToneMappingMode:[,"standard","extended"],
+  VertexFormat:[,"uint8","uint8x2","uint8x4","sint8","sint8x2","sint8x4","unorm8","unorm8x2","unorm8x4","snorm8","snorm8x2","snorm8x4","uint16","uint16x2","uint16x4","sint16","sint16x2","sint16x4","unorm16","unorm16x2","unorm16x4","snorm16","snorm16x2","snorm16x4","float16","float16x2","float16x4","float32","float32x2","float32x3","float32x4","uint32","uint32x2","uint32x3","uint32x4","sint32","sint32x2","sint32x3","sint32x4","unorm10-10-10-2","unorm8x4-bgra"],
+  VertexStepMode:[,"vertex","instance"],
+  WGSLLanguageFeatureName:[,"readonly_and_readwrite_storage_textures","packed_4x8_integer_dot_product","unrestricted_pointer_parameters","pointer_composite_access","uniform_buffer_standard_layout","subgroup_id","texture_and_sampler_let","subgroup_uniformity","texture_formats_tier1","linear_indexing"],
+  };
+  
+  var emwgpuStringToInt_DeviceLostReason = {
+              'undefined': 1,  // For older browsers
+              'unknown': 1,
+              'destroyed': 2,
+          };
+  
+  var handleException = (e) => {
+      // Certain exception types we do not treat as errors since they are used for
+      // internal control flow.
+      // 1. ExitStatus, which is thrown by exit()
+      // 2. "unwind", which is thrown by emscripten_unwind_to_js_event_loop() and others
+      //    that wish to return to JS event loop.
+      if (e instanceof ExitStatus || e == 'unwind') {
+        return EXITSTATUS;
+      }
+      checkStackCookie();
+      if (e instanceof WebAssembly.RuntimeError) {
+        if (_emscripten_stack_get_current() <= 0) {
+          err('Stack overflow detected.  You can try increasing -sSTACK_SIZE (currently set to 65536)');
+        }
+      }
+      quit_(1, e);
+    };
+  
+  
+  var runtimeKeepaliveCounter = 0;
+  var keepRuntimeAlive = () => noExitRuntime || runtimeKeepaliveCounter > 0;
+  var _proc_exit = (code) => {
+      EXITSTATUS = code;
+      if (!keepRuntimeAlive()) {
+        Module['onExit']?.(code);
+        ABORT = true;
+      }
+      quit_(code, new ExitStatus(code));
+    };
+  
+  
+  /** @param {boolean|number=} implicit */
+  var exitJS = (status, implicit) => {
+      EXITSTATUS = status;
+  
+      checkUnflushedContent();
+  
+      // if exit() was called explicitly, warn the user if the runtime isn't actually being shut down
+      if (keepRuntimeAlive() && !implicit) {
+        var msg = `program exited (with status: ${status}), but keepRuntimeAlive() is set (counter=${runtimeKeepaliveCounter}) due to an async operation, so halting execution but not exiting the runtime or preventing further async execution (you can use emscripten_force_exit, if you want to force a true shutdown)`;
+        err(msg);
+      }
+  
+      _proc_exit(status);
+    };
+  var _exit = exitJS;
+  
+  
+  var maybeExit = () => {
+      if (!keepRuntimeAlive()) {
+        try {
+          _exit(EXITSTATUS);
+        } catch (e) {
+          handleException(e);
+        }
+      }
+    };
+  var callUserCallback = (func) => {
+      if (ABORT) {
+        err('user callback triggered after runtime exited or application aborted.  Ignoring.');
+        return;
+      }
+      try {
+        return func();
+      } catch (e) {
+        handleException(e);
+      } finally {
+        maybeExit();
+      }
+    };
+  
+  
+  
+  
+  
+  function _emwgpuAdapterRequestDevice(adapterPtr, futureId, deviceLostFutureId, devicePtr, queuePtr, descriptor) {
+    futureId = bigintToI53Checked(futureId);
+    deviceLostFutureId = bigintToI53Checked(deviceLostFutureId);
+  
+  
+      var adapter = WebGPU.getJsObject(adapterPtr);
+  
+      var desc = {};
+      if (descriptor) {
+        assert(descriptor);assert(HEAPU32[((descriptor)>>2)] === 0);
+        var requiredFeatureCount = HEAPU32[(((descriptor)+(12))>>2)];
+        if (requiredFeatureCount) {
+          var requiredFeaturesPtr = HEAPU32[(((descriptor)+(16))>>2)];
+          // requiredFeaturesPtr is a pointer to an array of FeatureName which is an enum of size uint32_t
+          desc["requiredFeatures"] = Array.from(HEAPU32.subarray((((requiredFeaturesPtr)>>2)), ((requiredFeaturesPtr + requiredFeatureCount * 4)>>2)),
+            (feature) => WebGPU.FeatureName[feature]);
+        }
+        var limitsPtr = HEAPU32[(((descriptor)+(20))>>2)];
+        if (limitsPtr) {
+          assert(limitsPtr);
+          var nextInChainPtr = HEAPU32[((limitsPtr)>>2)];
+          var requiredLimits = {};
+          function setLimitU32IfDefined(name, basePtr, limitOffset, ignoreIfZero = false) {
+            var ptr = basePtr + limitOffset;
+            var value = HEAPU32[((ptr)>>2)];
+            if (value != 4294967295 && (!ignoreIfZero || value != 0)) {
+              requiredLimits[name] = value;
+            }
+          }
+          function setLimitU64IfDefined(name, basePtr, limitOffset) {
+            var ptr = basePtr + limitOffset;
+            // Handle WGPU_LIMIT_U64_UNDEFINED.
+            var limitPart1 = HEAPU32[((ptr)>>2)];
+            var limitPart2 = HEAPU32[(((ptr)+(4))>>2)];
+            if (limitPart1 != 0xFFFFFFFF || limitPart2 != 0xFFFFFFFF) {
+              requiredLimits[name] = readI53FromI64(ptr);
+            }
+          }
+  
+          setLimitU32IfDefined("maxTextureDimension1D",                     limitsPtr, 4);
+          setLimitU32IfDefined("maxTextureDimension2D",                     limitsPtr, 8);
+          setLimitU32IfDefined("maxTextureDimension3D",                     limitsPtr, 12);
+          setLimitU32IfDefined("maxTextureArrayLayers",                     limitsPtr, 16);
+          setLimitU32IfDefined("maxBindGroups",                             limitsPtr, 20);
+          setLimitU32IfDefined('maxBindGroupsPlusVertexBuffers',            limitsPtr, 24);
+          setLimitU32IfDefined('maxBindingsPerBindGroup',                   limitsPtr, 28);
+          setLimitU32IfDefined("maxDynamicUniformBuffersPerPipelineLayout", limitsPtr, 32);
+          setLimitU32IfDefined("maxDynamicStorageBuffersPerPipelineLayout", limitsPtr, 36);
+          setLimitU32IfDefined("maxSampledTexturesPerShaderStage",          limitsPtr, 40);
+          setLimitU32IfDefined("maxSamplersPerShaderStage",                 limitsPtr, 44);
+          setLimitU32IfDefined("maxStorageBuffersPerShaderStage",           limitsPtr, 48);
+          setLimitU32IfDefined("maxStorageTexturesPerShaderStage",          limitsPtr, 52);
+          setLimitU32IfDefined("maxUniformBuffersPerShaderStage",           limitsPtr, 56);
+          setLimitU32IfDefined("minUniformBufferOffsetAlignment",           limitsPtr, 80);
+          setLimitU32IfDefined("minStorageBufferOffsetAlignment",           limitsPtr, 84);
+          setLimitU64IfDefined("maxUniformBufferBindingSize",               limitsPtr, 64);
+          setLimitU64IfDefined("maxStorageBufferBindingSize",               limitsPtr, 72);
+          setLimitU32IfDefined("maxVertexBuffers",                          limitsPtr, 88);
+          setLimitU64IfDefined("maxBufferSize",                             limitsPtr, 96);
+          setLimitU32IfDefined("maxVertexAttributes",                       limitsPtr, 104);
+          setLimitU32IfDefined("maxVertexBufferArrayStride",                limitsPtr, 108);
+          setLimitU32IfDefined("maxInterStageShaderVariables",              limitsPtr, 112);
+          setLimitU32IfDefined("maxColorAttachments",                       limitsPtr, 116);
+          setLimitU32IfDefined("maxColorAttachmentBytesPerSample",          limitsPtr, 120);
+          setLimitU32IfDefined("maxComputeWorkgroupStorageSize",            limitsPtr, 124);
+          setLimitU32IfDefined("maxComputeInvocationsPerWorkgroup",         limitsPtr, 128);
+          setLimitU32IfDefined("maxComputeWorkgroupSizeX",                  limitsPtr, 132);
+          setLimitU32IfDefined("maxComputeWorkgroupSizeY",                  limitsPtr, 136);
+          setLimitU32IfDefined("maxComputeWorkgroupSizeZ",                  limitsPtr, 140);
+          setLimitU32IfDefined("maxComputeWorkgroupsPerDimension",          limitsPtr, 144);
+          // Not present in all browsers. If the app requested 0, avoid passing it through so it won't cause an error.
+          setLimitU32IfDefined("maxImmediateSize",                          limitsPtr, 148, true);
+  
+          if (nextInChainPtr !== 0) {
+            var sType = HEAP32[(((nextInChainPtr)+(4))>>2)];
+            assert(sType === 15);
+            assert(0 === HEAPU32[((nextInChainPtr)>>2)]);
+            var compatibilityModeLimitsPtr = nextInChainPtr;
+            assert(compatibilityModeLimitsPtr);assert(HEAPU32[((compatibilityModeLimitsPtr)>>2)] === 0);
+            // If not present in the browser, don't request these, otherwise they'll cause an error.
+            // (Technically, if any of these is higher than the PerShaderStage equivalent, we should
+            // raise the PerShaderStage limit instead, but that's complex and apps should be able to
+            // deal with that themselves.)
+            if ('maxStorageBuffersInVertexStage' in GPUSupportedLimits.prototype) {
+              setLimitU32IfDefined('maxStorageBuffersInVertexStage',    compatibilityModeLimitsPtr, 8);
+              setLimitU32IfDefined('maxStorageTexturesInVertexStage',   compatibilityModeLimitsPtr, 12);
+              setLimitU32IfDefined('maxStorageBuffersInFragmentStage',  compatibilityModeLimitsPtr, 16);
+              setLimitU32IfDefined('maxStorageTexturesInFragmentStage', compatibilityModeLimitsPtr, 20);
+            }
+          }
+  
+          desc["requiredLimits"] = requiredLimits;
+        }
+  
+        var defaultQueuePtr = HEAPU32[(((descriptor)+(24))>>2)];
+        if (defaultQueuePtr) {
+          var defaultQueueDesc = {
+            "label": WebGPU.makeStringFromOptionalStringView(
+              defaultQueuePtr + 4),
+          };
+          desc["defaultQueue"] = defaultQueueDesc;
+        }
+        desc["label"] = WebGPU.makeStringFromOptionalStringView(
+          descriptor + 4
+        );
+      }
+  
+       // requestDevice
+      WebGPU.Internals.futureInsert(futureId, adapter.requestDevice(desc).then((device) => {
+         // requestDevice fulfilled
+        callUserCallback(() => {
+          WebGPU.Internals.jsObjectInsert(queuePtr, device.queue);
+          WebGPU.Internals.jsObjectInsert(devicePtr, device);
+  
+          
+  
+          // Set up device lost promise resolution.
+          assert(deviceLostFutureId);
+          // Don't keepalive here, because this isn't guaranteed to ever happen.
+          WebGPU.Internals.futureInsert(deviceLostFutureId, device.lost.then((info) => {
+            // If the runtime has exited, avoid calling callUserCallback as it
+            // will print an error (e.g. if the device got freed during shutdown).
+            callUserCallback(() => {
+              // Unset the uncaptured error handler.
+              device.onuncapturederror = (ev) => {};
+              var sp = stackSave();
+              var messagePtr = stringToUTF8OnStack(info.message);
+              _emwgpuOnDeviceLostCompleted(deviceLostFutureId, emwgpuStringToInt_DeviceLostReason[info.reason],
+                messagePtr);
+              stackRestore(sp);
+            });
+          }));
+  
+          // Set up uncaptured error handlers.
+          assert(typeof GPUValidationError != 'undefined');
+          assert(typeof GPUOutOfMemoryError != 'undefined');
+          assert(typeof GPUInternalError != 'undefined');
+          device.onuncapturederror = (ev) => {
+              var type = 5;
+              if (ev.error instanceof GPUValidationError) type = 2;
+              else if (ev.error instanceof GPUOutOfMemoryError) type = 3;
+              else if (ev.error instanceof GPUInternalError) type = 4;
+              var sp = stackSave();
+              var messagePtr = stringToUTF8OnStack(ev.error.message);
+              _emwgpuOnUncapturedError(devicePtr, type, messagePtr);
+              stackRestore(sp);
+          };
+  
+          _emwgpuOnRequestDeviceCompleted(futureId, 1,
+            devicePtr, 0);
+        });
+      }, (ex) => {
+         // requestDevice rejected
+        callUserCallback(() => {
+          var sp = stackSave();
+          var messagePtr = stringToUTF8OnStack(ex.message);
+          _emwgpuOnRequestDeviceCompleted(futureId, 3,
+            devicePtr, messagePtr);
+          if (deviceLostFutureId) {
+            _emwgpuOnDeviceLostCompleted(deviceLostFutureId, 4,
+              messagePtr);
+          }
+          stackRestore(sp);
+        });
+      }));
+    ;
+  }
+
+  
+  var _emwgpuDelete = (ptr) => {
+      delete WebGPU.Internals.jsObjects[ptr];
+    };
+
+  
+  
+  var _emwgpuDeviceCreateBuffer = (devicePtr, descriptor, bufferPtr) => {
+      assert(descriptor);assert(HEAPU32[((descriptor)>>2)] === 0);
+  
+      var mappedAtCreation = !!(HEAPU32[(((descriptor)+(32))>>2)]);
+  
+      var desc = {
+        "label": WebGPU.makeStringFromOptionalStringView(
+          descriptor + 4),
+        "usage": HEAPU32[(((descriptor)+(16))>>2)],
+        "size": readI53FromI64((descriptor)+(24)),
+        "mappedAtCreation": mappedAtCreation,
+      };
+  
+      var device = WebGPU.getJsObject(devicePtr);
+      var buffer;
+      try {
+        buffer = device.createBuffer(desc);
+      } catch (ex) {
+        // The only exception should be RangeError if mapping at creation ran out of memory.
+        assert(ex instanceof RangeError);
+        assert(mappedAtCreation);
+        err('createBuffer threw:', ex);
+        return false;
+      }
+      WebGPU.Internals.jsObjectInsert(bufferPtr, buffer);
+      if (mappedAtCreation) {
+        WebGPU.Internals.bufferOnUnmaps[bufferPtr] = [];
+      }
+      return true;
+    };
+
+  
+  
+  
+  var _emwgpuDeviceCreateShaderModule = (devicePtr, descriptor, shaderModulePtr) => {
+      assert(descriptor);
+      var nextInChainPtr = HEAPU32[((descriptor)>>2)];
+      assert(nextInChainPtr !== 0);
+      var sType = HEAP32[(((nextInChainPtr)+(4))>>2)];
+  
+      var desc = {
+        "label": WebGPU.makeStringFromOptionalStringView(
+          descriptor + 4),
+        "code": "",
+      };
+  
+      switch (sType) {
+        case 2: {
+          desc["code"] = WebGPU.makeStringFromStringView(
+            nextInChainPtr + 8
+          );
+          break;
+        }
+        default: abort('unrecognized ShaderModule sType');
+      }
+  
+      var device = WebGPU.getJsObject(devicePtr);
+      WebGPU.Internals.jsObjectInsert(shaderModulePtr, device.createShaderModule(desc));
+    };
+
+  
+  var _emwgpuDeviceDestroy = (devicePtr) => {
+      const device = WebGPU.getJsObject(devicePtr);
+      // Remove the onuncapturederror handler which holds a pointer to the WGPUDevice.
+      device.onuncapturederror = null;
+      device.destroy()
+    };
+
+  
+  var emwgpuStringToInt_PreferredFormat = {
+              'rgba8unorm': 22,
+              'bgra8unorm': 27,
+          };
+  
+  
+  var _emwgpuGetPreferredFormat = () => {
+      var format = navigator.gpu.getPreferredCanvasFormat();
+      return emwgpuStringToInt_PreferredFormat[format];
+    };
+
+  
+  
+  
+  
+  
+  
+  function _emwgpuInstanceRequestAdapter(instancePtr, futureId, options, adapterPtr) {
+    futureId = bigintToI53Checked(futureId);
+  
+  
+      var opts;
+      if (options) {
+        assert(options);
+        opts = {
+          "featureLevel": WebGPU.FeatureLevel[HEAP32[(((options)+(4))>>2)]],
+          "powerPreference": WebGPU.PowerPreference[HEAP32[(((options)+(8))>>2)]],
+          "forceFallbackAdapter":
+            !!(HEAPU32[(((options)+(12))>>2)]),
+        };
+  
+        var nextInChainPtr = HEAPU32[((options)>>2)];
+        if (nextInChainPtr !== 0) {
+          var sType = HEAP32[(((nextInChainPtr)+(4))>>2)];
+          assert(sType === 11);
+          assert(0 === HEAPU32[((nextInChainPtr)>>2)]);
+          var webxrOptions = nextInChainPtr;
+          assert(webxrOptions);assert(HEAPU32[((webxrOptions)>>2)] === 0);
+          opts.xrCompatible = !!(HEAPU32[(((webxrOptions)+(8))>>2)]);
+        }
+      }
+  
+      if (!('gpu' in navigator)) {
+        var sp = stackSave();
+        var messagePtr = stringToUTF8OnStack('WebGPU not available on this browser (navigator.gpu is not available)');
+        _emwgpuOnRequestAdapterCompleted(futureId, 3,
+          adapterPtr, messagePtr);
+        stackRestore(sp);
+        return;
+      }
+  
+       // requestAdapter
+      WebGPU.Internals.futureInsert(futureId, navigator.gpu.requestAdapter(opts).then((adapter) => {
+         // requestAdapter fulfilled
+        callUserCallback(() => {
+          if (adapter) {
+            WebGPU.Internals.jsObjectInsert(adapterPtr, adapter);
+            _emwgpuOnRequestAdapterCompleted(futureId, 1,
+              adapterPtr, 0);
+          } else {
+            var sp = stackSave();
+            var messagePtr = stringToUTF8OnStack('WebGPU not available on this browser (requestAdapter returned null)');
+            _emwgpuOnRequestAdapterCompleted(futureId, 3,
+              adapterPtr, messagePtr);
+            stackRestore(sp);
+          }
+        });
+      }, (ex) => {
+         // requestAdapter rejected
+        callUserCallback(() => {
+          var sp = stackSave();
+          var messagePtr = stringToUTF8OnStack(ex.message);
+          _emwgpuOnRequestAdapterCompleted(futureId, 4,
+            adapterPtr, messagePtr);
+          stackRestore(sp);
+        });
+      }));
+    ;
+  }
+
+  function _fd_close(fd) {
+  try {
+  
+      var stream = SYSCALLS.getStreamFromFD(fd);
+      FS.close(stream);
+      return 0;
+    } catch (e) {
+    if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+    return e.errno;
+  }
+  }
+  
+
+  
+  /** @param {number=} offset */
+  var doReadv = (stream, iov, iovcnt, offset) => {
+      var ret = 0;
+      for (var i = 0; i < iovcnt; i++) {
+        var ptr = HEAPU32[((iov)>>2)];
+        var len = HEAPU32[(((iov)+(4))>>2)];
+        iov += 8;
+        try {
+          var curr = FS.read(stream, HEAP8, ptr, len, offset);
+        } catch (e) {
+          // On a non-blocking stream a subsequent read may would-block after we
+          // already gathered data. POSIX readv is a single gather-read: return
+          // what we have rather than failing the whole call.
+          if (ret > 0 && e instanceof FS.ErrnoError &&
+              (e.errno == 6 || e.errno == 6)) {
+            break;
+          }
+          throw e;
+        }
+        if (curr < 0) return -1;
+        ret += curr;
+        if (curr < len) break; // nothing more to read
+        if (typeof offset != 'undefined') {
+          offset += curr;
+        }
+      }
+      return ret;
+    };
+  
+  
+  function _fd_read(fd, iov, iovcnt, pnum) {
+  try {
+  
+      var stream = SYSCALLS.getStreamFromFD(fd);
+      var num = doReadv(stream, iov, iovcnt);
+      HEAPU32[((pnum)>>2)] = num;
+      return 0;
+    } catch (e) {
+    if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+    return e.errno;
+  }
+  }
+  
+
+  
+  
+  function _fd_seek(fd, offset, whence, newOffset) {
+    offset = bigintToI53Checked(offset);
+  
+  
+  try {
+  
+      if (isNaN(offset)) return 22;
+      var stream = SYSCALLS.getStreamFromFD(fd);
+      FS.llseek(stream, offset, whence);
+      HEAP64[((newOffset)>>3)] = BigInt(stream.position);
+      if (stream.getdents && !offset && whence === 0) stream.getdents = null; // reset readdir state
+      return 0;
+    } catch (e) {
+    if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+    return e.errno;
+  }
+  ;
+  }
+
+  
+  
+  /** @param {number=} offset */
+  var doWritev = (stream, iov, iovcnt, offset) => {
+      // Gather all iovecs into one contiguous buffer and issue a single
+      // FS.write, matching POSIX writev's single gather-write semantics (as
+      // __syscall_sendmsg already does). Per-iovec writes fragment a stream
+      // socket send into multiple segments, breaking stream byte semantics.
+      if (iovcnt == 1) {
+        // Single iovec: write directly from HEAP8, no gather buffer needed.
+        return FS.write(stream, HEAP8, HEAPU32[((iov)>>2)], HEAPU32[(((iov)+(4))>>2)], offset);
+      }
+      var total = 0;
+      for (var i = 0, p = iov; i < iovcnt; i++, p += 8) {
+        total += HEAPU32[(((p)+(4))>>2)];
+      }
+      var view = new Uint8Array(total);
+      var voff = 0;
+      for (var i = 0; i < iovcnt; i++, iov += 8) {
+        var ptr = HEAPU32[((iov)>>2)];
+        var len = HEAPU32[(((iov)+(4))>>2)];
+        view.set(HEAPU8.subarray(ptr, ptr + len), voff);
+        voff += len;
+      }
+      return FS.write(stream, view, 0, total, offset);
+    };
+  
+  
+  function _fd_write(fd, iov, iovcnt, pnum) {
+  try {
+  
+      var stream = SYSCALLS.getStreamFromFD(fd);
+      var num = doWritev(stream, iov, iovcnt);
+      HEAPU32[((pnum)>>2)] = num;
+      return 0;
+    } catch (e) {
+    if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+    return e.errno;
+  }
+  }
+  
+
+  
+  var GLctx;
+  
+  var webgl_enable_ANGLE_instanced_arrays = (ctx) => {
+      // Extension available in WebGL 1 from Firefox 26 and Google Chrome 30 onwards. Core feature in WebGL 2.
+      var ext = ctx.getExtension('ANGLE_instanced_arrays');
+      // Because this extension is a core function in WebGL 2, assign the extension entry points in place of
+      // where the core functions will reside in WebGL 2. This way the calling code can call these without
+      // having to dynamically branch depending if running against WebGL 1 or WebGL 2.
+      if (ext) {
+        ctx['vertexAttribDivisor'] = (index, divisor) => ext['vertexAttribDivisorANGLE'](index, divisor);
+        ctx['drawArraysInstanced'] = (mode, first, count, primcount) => ext['drawArraysInstancedANGLE'](mode, first, count, primcount);
+        ctx['drawElementsInstanced'] = (mode, count, type, indices, primcount) => ext['drawElementsInstancedANGLE'](mode, count, type, indices, primcount);
+        return 1;
+      }
+    };
+  
+  var webgl_enable_OES_vertex_array_object = (ctx) => {
+      // Extension available in WebGL 1 from Firefox 25 and WebKit 536.28/desktop Safari 6.0.3 onwards. Core feature in WebGL 2.
+      var ext = ctx.getExtension('OES_vertex_array_object');
+      if (ext) {
+        ctx['createVertexArray'] = () => ext['createVertexArrayOES']();
+        ctx['deleteVertexArray'] = (vao) => ext['deleteVertexArrayOES'](vao);
+        ctx['bindVertexArray'] = (vao) => ext['bindVertexArrayOES'](vao);
+        ctx['isVertexArray'] = (vao) => ext['isVertexArrayOES'](vao);
+        return 1;
+      }
+    };
+  
+  var webgl_enable_WEBGL_draw_buffers = (ctx) => {
+      // Extension available in WebGL 1 from Firefox 28 onwards. Core feature in WebGL 2.
+      var ext = ctx.getExtension('WEBGL_draw_buffers');
+      if (ext) {
+        ctx['drawBuffers'] = (n, bufs) => ext['drawBuffersWEBGL'](n, bufs);
+        return 1;
+      }
+    };
+  
+  var webgl_enable_EXT_polygon_offset_clamp = (ctx) =>
+      !!(ctx.extPolygonOffsetClamp = ctx.getExtension('EXT_polygon_offset_clamp'));
+  
+  var webgl_enable_EXT_clip_control = (ctx) =>
+      !!(ctx.extClipControl = ctx.getExtension('EXT_clip_control'));
+  
+  var webgl_enable_WEBGL_polygon_mode = (ctx) =>
+      !!(ctx.webglPolygonMode = ctx.getExtension('WEBGL_polygon_mode'));
+  
+  var webgl_enable_WEBGL_multi_draw = (ctx) =>
+      // Closure is expected to be allowed to minify the '.multiDrawWebgl' property, so not accessing it quoted.
+      !!(ctx.multiDrawWebgl = ctx.getExtension('WEBGL_multi_draw'));
+  
+  var getEmscriptenSupportedExtensions = (ctx) => {
+      // Restrict the list of advertised extensions to those that we actually
+      // support.
+      var supportedExtensions = [
+        // WebGL 1 extensions
+        'ANGLE_instanced_arrays',
+        'EXT_blend_minmax',
+        'EXT_disjoint_timer_query',
+        'EXT_frag_depth',
+        'EXT_shader_texture_lod',
+        'EXT_sRGB',
+        'OES_element_index_uint',
+        'OES_fbo_render_mipmap',
+        'OES_standard_derivatives',
+        'OES_texture_float',
+        'OES_texture_half_float',
+        'OES_texture_half_float_linear',
+        'OES_vertex_array_object',
+        'WEBGL_color_buffer_float',
+        'WEBGL_depth_texture',
+        'WEBGL_draw_buffers',
+        // WebGL 1 and WebGL 2 extensions
+        'EXT_clip_control',
+        'EXT_color_buffer_half_float',
+        'EXT_depth_clamp',
+        'EXT_float_blend',
+        'EXT_polygon_offset_clamp',
+        'EXT_texture_compression_bptc',
+        'EXT_texture_compression_rgtc',
+        'EXT_texture_filter_anisotropic',
+        'KHR_parallel_shader_compile',
+        'OES_texture_float_linear',
+        'WEBGL_blend_func_extended',
+        'WEBGL_compressed_texture_astc',
+        'WEBGL_compressed_texture_etc',
+        'WEBGL_compressed_texture_etc1',
+        'WEBGL_compressed_texture_s3tc',
+        'WEBGL_compressed_texture_s3tc_srgb',
+        'WEBGL_debug_renderer_info',
+        'WEBGL_debug_shaders',
+        'WEBGL_lose_context',
+        'WEBGL_multi_draw',
+        'WEBGL_polygon_mode'
+      ];
+      // .getSupportedExtensions() can return null if context is lost, so coerce to empty array.
+      return ctx.getSupportedExtensions()?.filter(ext => supportedExtensions.includes(ext)) ?? [];
+    };
+  
+  
+  
+  
+  var GL = {
+  counter:1,
+  buffers:[],
+  programs:[],
+  framebuffers:[],
+  renderbuffers:[],
+  textures:[],
+  shaders:[],
+  vaos:[],
+  contexts:[],
+  offscreenCanvases:{
+  },
+  queries:[],
+  stringCache:{
+  },
+  unpackAlignment:4,
+  unpackRowLength:0,
+  recordError:(errorCode) => {
+        if (!GL.lastError) {
+          GL.lastError = errorCode;
+        }
+      },
+  getNewId:(table) => {
+        var ret = GL.counter++;
+        for (var i = table.length; i < ret; i++) {
+          table[i] = null;
+        }
+        return ret;
+      },
+  genObject:(n, buffers, createFunction, objectTable
+        ) => {
+        for (var i = 0; i < n; i++) {
+          var buffer = GLctx[createFunction]();
+          var id = buffer && GL.getNewId(objectTable);
+          if (buffer) {
+            buffer.name = id;
+            objectTable[id] = buffer;
+          } else {
+            GL.recordError(0x502 /* GL_INVALID_OPERATION */);
+          }
+          HEAP32[(((buffers)+(i*4))>>2)] = id;
+        }
+      },
+  getSource:(shader, count, string, length) => {
+        var source = '';
+        for (var i = 0; i < count; ++i) {
+          var len = length ? HEAPU32[(((length)+(i*4))>>2)] : undefined;
+          source += UTF8ToString(HEAPU32[(((string)+(i*4))>>2)], len);
+        }
+        return source;
+      },
+  createContext:(/** @type {HTMLCanvasElement} */ canvas, webGLContextAttributes) => {
+  
+        // BUG: Workaround Safari WebGL issue: After successfully acquiring WebGL
+        // context on a canvas, calling .getContext() will always return that
+        // context independent of which 'webgl' or 'webgl2'
+        // context version was passed. See:
+        //   https://webkit.org/b/222758
+        // and:
+        //   https://github.com/emscripten-core/emscripten/issues/13295.
+        // TODO: Once the bug is fixed and shipped in Safari, adjust the Safari
+        // version field in above check.
+        if (!canvas.getContextSafariWebGL2Fixed) {
+          canvas.getContextSafariWebGL2Fixed = canvas.getContext;
+          /** @type {function(this:HTMLCanvasElement, string, (Object|null)=): (Object|null)} */
+          function fixedGetContext(ver, attrs) {
+            var gl = canvas.getContextSafariWebGL2Fixed(ver, attrs);
+            return ((ver == 'webgl') == (gl instanceof WebGLRenderingContext)) ? gl : null;
+          }
+          canvas.getContext = fixedGetContext;
+        }
+  
+        var ctx =
+          canvas.getContext('webgl', webGLContextAttributes);
+  
+        if (!ctx) return 0;
+  
+        var handle = GL.registerContext(ctx, webGLContextAttributes);
+  
+        return handle;
+      },
+  registerContext:(ctx, webGLContextAttributes) => {
+        // without pthreads a context is just an integer ID
+        var handle = GL.getNewId(GL.contexts);
+  
+        var context = {
+          handle,
+          attributes: webGLContextAttributes,
+          version: webGLContextAttributes.majorVersion,
+          GLctx: ctx
+        };
+  
+        // Store the created context object so that we can access the context
+        // given a canvas without having to pass the parameters again.
+        if (ctx.canvas) ctx.canvas.GLctxObject = context;
+        GL.contexts[handle] = context;
+        if (typeof webGLContextAttributes.enableExtensionsByDefault == 'undefined' || webGLContextAttributes.enableExtensionsByDefault) {
+          GL.initExtensions(context);
+        }
+  
+        return handle;
+      },
+  makeContextCurrent:(contextHandle) => {
+  
+        // Active Emscripten GL layer context object.
+        GL.currentContext = GL.contexts[contextHandle];
+        // Active WebGL context object.
+        Module['ctx'] = GLctx = GL.currentContext?.GLctx;
+        return !(contextHandle && !GLctx);
+      },
+  getContext:(contextHandle) => {
+        return GL.contexts[contextHandle];
+      },
+  deleteContext:(contextHandle) => {
+        if (GL.currentContext === GL.contexts[contextHandle]) {
+          GL.currentContext = null;
+        }
+        if (typeof JSEvents == 'object') {
+          // Release all JS event handlers on the DOM element that the GL context is
+          // associated with since the context is now deleted.
+          JSEvents.removeAllHandlersOnTarget(GL.contexts[contextHandle].GLctx.canvas);
+        }
+        // Make sure the canvas object no longer refers to the context object so
+        // there are no GC surprises.
+        if (GL.contexts[contextHandle]?.GLctx.canvas) {
+          GL.contexts[contextHandle].GLctx.canvas.GLctxObject = undefined;
+        }
+        GL.contexts[contextHandle] = null;
+      },
+  initExtensions:(context) => {
+        // If this function is called without a specific context object, init the
+        // extensions of the currently active context.
+        context ||= GL.currentContext;
+  
+        if (context.initExtensionsDone) return;
+        context.initExtensionsDone = true;
+  
+        var GLctx = context.GLctx;
+  
+        // Detect the presence of a few extensions manually, since the GL interop
+        // layer itself will need to know if they exist.
+  
+        // Extensions that are available in both WebGL 1 and WebGL 2
+        webgl_enable_WEBGL_multi_draw(GLctx);
+        webgl_enable_EXT_polygon_offset_clamp(GLctx);
+        webgl_enable_EXT_clip_control(GLctx);
+        webgl_enable_WEBGL_polygon_mode(GLctx);
+        // Extensions that are only available in WebGL 1 (the calls will be no-ops
+        // if called on a WebGL 2 context active)
+        webgl_enable_ANGLE_instanced_arrays(GLctx);
+        webgl_enable_OES_vertex_array_object(GLctx);
+        webgl_enable_WEBGL_draw_buffers(GLctx);
+        {
+          GLctx.disjointTimerQueryExt = GLctx.getExtension('EXT_disjoint_timer_query');
+        }
+  
+        for (var ext of getEmscriptenSupportedExtensions(GLctx)) {
+          // WEBGL_lose_context, WEBGL_debug_renderer_info and WEBGL_debug_shaders
+          // are not enabled by default.
+          if (!ext.includes('lose_context') && !ext.includes('debug')) {
+            // Call .getExtension() to enable that extension permanently.
+            GLctx.getExtension(ext);
+          }
+        }
+      },
+  };
+  
+  
+  function getFullscreenElement() {
+      return document.fullscreenElement
+             ?? document.webkitFullscreenElement
+             ;
+    }
+  
+  /** @param {number=} timeout */
+  var safeSetTimeout = (func, timeout) => {
+      
+      return setTimeout(() => {
+        
+        callUserCallback(func);
+      }, timeout);
+    };
+  
+  
+  
+  
+  
+  var Browser = {
+  useWebGL:false,
+  isFullscreen:false,
+  pointerLock:false,
+  moduleContextCreatedCallbacks:[],
+  preloadedImages:{
+  },
+  preloadedAudios:{
+  },
+  getCanvas:() => Module['canvas'],
+  init() {
+        if (Browser.initted) return;
+        Browser.initted = true;
+  
+        // Support for plugins that can process preloaded files. You can add more of these to
+        // your app by creating and appending to preloadPlugins.
+        //
+        // Each plugin is asked if it can handle a file based on the file's name. If it can,
+        // it is given the file's raw data. When it is done, it calls a callback with the file's
+        // (possibly modified) data. For example, a plugin might decompress a file, or it
+        // might create some side data structure for use later (like an Image element, etc.).
+  
+        var imagePlugin = {};
+        imagePlugin['canHandle'] = (name) => {
+          return !Module['noImageDecoding'] && /\.(jpg|jpeg|png|bmp|webp)$/i.test(name);
+        };
+        imagePlugin['handle'] = async (byteArray, name) => {
+          var b = new Blob([byteArray], { type: Browser.getMimetype(name) });
+          if (b.size !== byteArray.length) { // Safari bug #118630
+            // Safari's Blob can only take an ArrayBuffer
+            b = new Blob([(new Uint8Array(byteArray)).buffer], { type: Browser.getMimetype(name) });
+          }
+          var url = URL.createObjectURL(b);
+          return new Promise((resolve, reject) => {
+            var img = new Image();
+            img.onload = () => {
+              assert(img.complete, `Image ${name} could not be decoded`);
+              var canvas = /** @type {!HTMLCanvasElement} */ (document.createElement('canvas'));
+              canvas.width = img.width;
+              canvas.height = img.height;
+              var ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0);
+              Browser.preloadedImages[name] = canvas;
+              URL.revokeObjectURL(url);
+              resolve(byteArray);
+            };
+            img.onerror = (event) => {
+              err(`Image ${url} could not be decoded`);
+              reject();
+            };
+            img.src = url;
+          });
+        };
+        preloadPlugins.push(imagePlugin);
+  
+        var audioPlugin = {};
+        audioPlugin['canHandle'] = (name) => {
+          return !Module['noAudioDecoding'] && name.slice(-4) in { '.ogg': 1, '.wav': 1, '.mp3': 1 };
+        };
+        audioPlugin['handle'] = async (byteArray, name) => {
+          return new Promise((resolve, reject) => {
+            var done = false;
+            function finish(audio) {
+              if (done) return;
+              done = true;
+              Browser.preloadedAudios[name] = audio;
+              resolve(byteArray);
+            }
+            var b = new Blob([byteArray], { type: Browser.getMimetype(name) });
+            var url = URL.createObjectURL(b); // XXX we never revoke this!
+            var audio = new Audio();
+            audio.addEventListener('canplaythrough', () => finish(audio)); // use addEventListener due to chromium bug 124926
+            audio.onerror = (event) => {
+              if (done) return;
+              err(`warning: browser could not fully decode audio ${name}, trying slower base64 approach`);
+              function encode64(data) {
+                var BASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+                var PAD = '=';
+                var ret = '';
+                var leftchar = 0;
+                var leftbits = 0;
+                for (var byte of data) {
+                  leftchar = (leftchar << 8) | byte;
+                  leftbits += 8;
+                  while (leftbits >= 6) {
+                    var curr = (leftchar >> (leftbits-6)) & 0x3f;
+                    leftbits -= 6;
+                    ret += BASE[curr];
+                  }
+                }
+                if (leftbits == 2) {
+                  ret += BASE[(leftchar&3) << 4];
+                  ret += PAD + PAD;
+                } else if (leftbits == 4) {
+                  ret += BASE[(leftchar&0xf) << 2];
+                  ret += PAD;
+                }
+                return ret;
+              }
+              audio.src = 'data:audio/x-' + name.slice(-3) + ';base64,' + encode64(byteArray);
+              finish(audio); // we don't wait for confirmation this worked - but it's worth trying
+            };
+            audio.src = url;
+            // workaround for chrome bug 124926 - we do not always get oncanplaythrough or onerror
+            safeSetTimeout(() => {
+              finish(audio); // try to use it even though it is not necessarily ready to play
+            }, 10000);
+          });
+        };
+        preloadPlugins.push(audioPlugin);
+  
+        // Canvas event setup
+  
+        function pointerLockChange() {
+          var canvas = Browser.getCanvas();
+          Browser.pointerLock = document.pointerLockElement === canvas;
+        }
+        var canvas = Browser.getCanvas();
+        if (canvas) {
+          // forced aspect ratio can be enabled by defining 'forcedAspectRatio' on Module
+          // Module['forcedAspectRatio'] = 4 / 3;
+  
+          document.addEventListener('pointerlockchange', pointerLockChange);
+  
+          if (Module['elementPointerLock']) {
+            canvas.addEventListener('click', (ev) => {
+              if (!Browser.pointerLock && Browser.getCanvas().requestPointerLock) {
+                Browser.getCanvas().requestPointerLock();
+                ev.preventDefault();
+              }
+            });
+          }
+        }
+      },
+  createContext(/** @type {HTMLCanvasElement} */ canvas, useWebGL, setInModule, webGLContextAttributes) {
+        if (useWebGL && Module['ctx'] && canvas == Browser.getCanvas()) return Module['ctx']; // no need to recreate GL context if it's already been created for this canvas.
+  
+        var ctx;
+        var contextHandle;
+        if (useWebGL) {
+          // For GLES2/desktop GL compatibility, adjust a few defaults to be different to WebGL defaults, so that they align better with the desktop defaults.
+          var contextAttributes = {
+            antialias: false,
+            alpha: false,
+            majorVersion: 1,
+          };
+  
+          if (webGLContextAttributes) {
+            for (var attribute in webGLContextAttributes) {
+              contextAttributes[attribute] = webGLContextAttributes[attribute];
+            }
+          }
+  
+          // This check of existence of GL is here to satisfy Closure compiler, which yells if variable GL is referenced below but GL object is not
+          // actually compiled in because application is not doing any GL operations. TODO: Ideally if GL is not being used, this function
+          // Browser.createContext() should not even be emitted.
+          if (typeof GL != 'undefined') {
+            contextHandle = GL.createContext(canvas, contextAttributes);
+            if (contextHandle) {
+              ctx = GL.getContext(contextHandle).GLctx;
+            }
+          }
+        } else {
+          ctx = canvas.getContext('2d');
+        }
+  
+        if (!ctx) return null;
+  
+        if (setInModule) {
+          if (!useWebGL) assert(typeof GLctx == 'undefined', 'cannot set in module if GLctx is used, but we are a non-GL context that would replace it');
+          Module['ctx'] = ctx;
+          if (useWebGL) GL.makeContextCurrent(contextHandle);
+          Browser.useWebGL = useWebGL;
+          Browser.moduleContextCreatedCallbacks.forEach((callback) => callback());
+          Browser.init();
+        }
+        return ctx;
+      },
+  fullscreenHandlersInstalled:false,
+  lockPointer:undefined,
+  resizeCanvas:undefined,
+  requestFullscreen(lockPointer, resizeCanvas) {
+        Browser.lockPointer = lockPointer;
+        Browser.resizeCanvas = resizeCanvas;
+        if (typeof Browser.lockPointer == 'undefined') Browser.lockPointer = true;
+        if (typeof Browser.resizeCanvas == 'undefined') Browser.resizeCanvas = false;
+  
+        var canvas = Browser.getCanvas();
+        function fullscreenChange() {
+          Browser.isFullscreen = false;
+          var canvasContainer = canvas.parentNode;
+          if (getFullscreenElement() === canvasContainer) {
+            canvas.exitFullscreen = Browser.exitFullscreen;
+            if (Browser.lockPointer) canvas.requestPointerLock();
+            Browser.isFullscreen = true;
+            if (Browser.resizeCanvas) {
+              Browser.setFullscreenCanvasSize();
+            } else {
+              Browser.updateCanvasDimensions(canvas);
+            }
+          } else {
+            // remove the full screen specific parent of the canvas again to restore the HTML structure from before going full screen
+            canvasContainer.parentNode.insertBefore(canvas, canvasContainer);
+            canvasContainer.parentNode.removeChild(canvasContainer);
+  
+            if (Browser.resizeCanvas) {
+              Browser.setWindowedCanvasSize();
+            } else {
+              Browser.updateCanvasDimensions(canvas);
+            }
+          }
+        }
+  
+        if (!Browser.fullscreenHandlersInstalled) {
+          Browser.fullscreenHandlersInstalled = true;
+          document.addEventListener('fullscreenchange', fullscreenChange);
+          document.addEventListener('webkitfullscreenchange', fullscreenChange);
+        }
+  
+        // create a new parent to ensure the canvas has no siblings. this allows browsers to optimize full screen performance when its parent is the full screen root
+        var canvasContainer = document.createElement('div');
+        canvas.parentNode.insertBefore(canvasContainer, canvas);
+        canvasContainer.appendChild(canvas);
+  
+        // use parent of canvas as full screen root to allow aspect ratio correction (Firefox stretches the root to screen size)
+        // Safari didn't support Element.requestFullscreen until 16.4
+        // See: https://developer.mozilla.org/en-US/docs/Web/API/Element/requestFullscreen
+        /** @suppress {checkTypes} */
+        canvasContainer.requestFullscreen ??= (canvasContainer['webkitRequestFullscreen'] ? () => canvasContainer['webkitRequestFullscreen'](Element.ALLOW_KEYBOARD_INPUT) : null) ??
+                                              (canvasContainer['webkitRequestFullScreen'] ? () => canvasContainer['webkitRequestFullScreen'](Element.ALLOW_KEYBOARD_INPUT) : null);
+  
+        canvasContainer.requestFullscreen();
+      },
+  exitFullscreen() {
+        // This is workaround for chrome. Trying to exit from fullscreen
+        // not in fullscreen state will cause 'TypeError: Document not active'
+        // in chrome. See https://github.com/emscripten-core/emscripten/pull/8236
+        if (!Browser.isFullscreen) {
+          return false;
+        }
+  
+        var CFS = document.exitFullscreen ?? document['webkitCancelFullScreen'];
+        CFS.apply(document, []);
+        return true;
+      },
+  safeSetTimeout(func, timeout) {
+        // Legacy function, this is used by the SDL2 port so we need to keep it
+        // around at least until that is updated.
+        // See https://github.com/libsdl-org/SDL/pull/6304
+        return safeSetTimeout(func, timeout);
+      },
+  getMimetype(name) {
+        return {
+          'jpg': 'image/jpeg',
+          'jpeg': 'image/jpeg',
+          'png': 'image/png',
+          'bmp': 'image/bmp',
+          'ogg': 'audio/ogg',
+          'wav': 'audio/wav',
+          'mp3': 'audio/mpeg'
+        }[name.slice(name.lastIndexOf('.')+1)];
+      },
+  getUserMedia(func) {
+        return navigator.mediaDevices.getUserMedia(func);
+      },
+  getMouseWheelDelta(event) {
+        var delta = 0;
+        switch (event.type) {
+          case 'DOMMouseScroll':
+            // 3 lines make up a step
+            delta = event.detail / 3;
+            break;
+          case 'mousewheel':
+            // 120 units make up a step
+            delta = event.wheelDelta / 120;
+            break;
+          case 'wheel':
+            delta = event.deltaY
+            switch (event.deltaMode) {
+              case 0:
+                // DOM_DELTA_PIXEL: 100 pixels make up a step
+                delta /= 100;
+                break;
+              case 1:
+                // DOM_DELTA_LINE: 3 lines make up a step
+                delta /= 3;
+                break;
+              case 2:
+                // DOM_DELTA_PAGE: A page makes up 80 steps
+                delta *= 80;
+                break;
+              default:
+                abort('unrecognized mouse wheel delta mode: ' + event.deltaMode);
+            }
+            break;
+          default:
+            abort('unrecognized mouse wheel event: ' + event.type);
+        }
+        return delta;
+      },
+  mouseX:0,
+  mouseY:0,
+  mouseMovementX:0,
+  mouseMovementY:0,
+  touches:{
+  },
+  lastTouches:{
+  },
+  calculateMouseCoords(pageX, pageY) {
+        // Calculate the movement based on the changes
+        // in the coordinates.
+        var canvas = Browser.getCanvas();
+        var rect = canvas.getBoundingClientRect();
+  
+        var adjustedX = pageX - (window.scrollX + rect.left);
+        var adjustedY = pageY - (window.scrollY + rect.top);
+  
+        // the canvas might be CSS-scaled compared to its backbuffer;
+        // SDL-using content will want mouse coordinates in terms
+        // of backbuffer units.
+        adjustedX = adjustedX * (canvas.width / rect.width);
+        adjustedY = adjustedY * (canvas.height / rect.height);
+  
+        return { x: adjustedX, y: adjustedY };
+      },
+  setMouseCoords(pageX, pageY) {
+        const {x, y} = Browser.calculateMouseCoords(pageX, pageY);
+        Browser.mouseMovementX = x - Browser.mouseX;
+        Browser.mouseMovementY = y - Browser.mouseY;
+        Browser.mouseX = x;
+        Browser.mouseY = y;
+      },
+  calculateMouseEvent(event) { // event should be mousemove, mousedown or mouseup
+        if (Browser.pointerLock) {
+          // When the pointer is locked, calculate the coordinates
+          // based on the movement of the mouse.
+          Browser.mouseMovementX = event.movementX;
+          Browser.mouseMovementY = event.movementY;
+  
+          // add the mouse delta to the current absolute mouse position
+          Browser.mouseX += Browser.mouseMovementX;
+          Browser.mouseY += Browser.mouseMovementY;
+        } else {
+          if (event.type === 'touchstart' || event.type === 'touchend' || event.type === 'touchmove') {
+            var touch = event.touch;
+            if (touch === undefined) {
+              return; // the 'touch' property is only defined in SDL
+  
+            }
+            var coords = Browser.calculateMouseCoords(touch.pageX, touch.pageY);
+  
+            if (event.type === 'touchstart') {
+              Browser.lastTouches[touch.identifier] = coords;
+              Browser.touches[touch.identifier] = coords;
+            } else if (event.type === 'touchend' || event.type === 'touchmove') {
+              var last = Browser.touches[touch.identifier];
+              last ||= coords;
+              Browser.lastTouches[touch.identifier] = last;
+              Browser.touches[touch.identifier] = coords;
+            }
+            return;
+          }
+  
+          Browser.setMouseCoords(event.pageX, event.pageY);
+        }
+      },
+  resizeListeners:[],
+  updateResizeListeners() {
+        var canvas = Browser.getCanvas();
+        Browser.resizeListeners.forEach((listener) => listener(canvas.width, canvas.height));
+      },
+  setCanvasSize(width, height, noUpdates) {
+        var canvas = Browser.getCanvas();
+        Browser.updateCanvasDimensions(canvas, width, height);
+        if (!noUpdates) Browser.updateResizeListeners();
+      },
+  windowedWidth:0,
+  windowedHeight:0,
+  setFullscreenCanvasSize() {
+        // check if SDL is available
+        if (typeof SDL != 'undefined') {
+          var flags = HEAPU32[((SDL.screen)>>2)];
+          flags = flags | 0x00800000; // set SDL_FULLSCREEN flag
+          HEAP32[((SDL.screen)>>2)] = flags;
+        }
+        Browser.updateCanvasDimensions(Browser.getCanvas());
+        Browser.updateResizeListeners();
+      },
+  setWindowedCanvasSize() {
+        // check if SDL is available
+        if (typeof SDL != 'undefined') {
+          var flags = HEAPU32[((SDL.screen)>>2)];
+          flags = flags & ~0x00800000; // clear SDL_FULLSCREEN flag
+          HEAP32[((SDL.screen)>>2)] = flags;
+        }
+        Browser.updateCanvasDimensions(Browser.getCanvas());
+        Browser.updateResizeListeners();
+      },
+  updateCanvasDimensions(canvas, wNative, hNative) {
+        if (wNative && hNative) {
+          canvas.widthNative = wNative;
+          canvas.heightNative = hNative;
+        } else {
+          wNative = canvas.widthNative;
+          hNative = canvas.heightNative;
+        }
+        var w = wNative;
+        var h = hNative;
+        if ((getFullscreenElement() === canvas.parentNode) && (typeof screen != 'undefined')) {
+           var factor = Math.min(screen.width / w, screen.height / h);
+           w = Math.round(w * factor);
+           h = Math.round(h * factor);
+        }
+        if (Browser.resizeCanvas) {
+          if (canvas.width  != w) canvas.width  = w;
+          if (canvas.height != h) canvas.height = h;
+          if (typeof canvas.style != 'undefined') {
+            canvas.style.removeProperty( 'width');
+            canvas.style.removeProperty('height');
+          }
+        } else {
+          if (canvas.width  != wNative) canvas.width  = wNative;
+          if (canvas.height != hNative) canvas.height = hNative;
+          if (typeof canvas.style != 'undefined') {
+            if (w != wNative || h != hNative) {
+              canvas.style.setProperty( 'width', w + 'px', 'important');
+              canvas.style.setProperty('height', h + 'px', 'important');
+            } else {
+              canvas.style.removeProperty( 'width');
+              canvas.style.removeProperty('height');
+            }
+          }
+        }
+      },
+  };
+  
+  /** @constructor */
+  function GLFW_Window(id, width, height, framebufferWidth, framebufferHeight, title, monitor, share) {
+        this.id = id;
+        this.x = 0;
+        this.y = 0;
+        this.fullscreen = false; // Used to determine if app is in fullscreen mode
+        this.storedX = 0; // Used to store X before fullscreen
+        this.storedY = 0; // Used to store Y before fullscreen
+        this.width = width;
+        this.height = height;
+        this.framebufferWidth = framebufferWidth;
+        this.framebufferHeight = framebufferHeight;
+        this.storedWidth = width; // Used to store width before fullscreen
+        this.storedHeight = height; // Used to store height before fullscreen
+        this.title = title;
+        this.monitor = monitor;
+        this.share = share;
+        this.attributes = {...GLFW.hints};
+        this.inputModes = {
+          0x00033001:0x00034001, // GLFW_CURSOR (GLFW_CURSOR_NORMAL)
+          0x00033002:0, // GLFW_STICKY_KEYS
+          0x00033003:0, // GLFW_STICKY_MOUSE_BUTTONS
+        };
+        this.buttons = 0;
+        this.keys = new Array();
+        this.domKeys = new Array();
+        this.shouldClose = 0;
+        this.title = null;
+        this.windowPosFunc = 0; // GLFWwindowposfun
+        this.windowSizeFunc = 0; // GLFWwindowsizefun
+        this.windowCloseFunc = 0; // GLFWwindowclosefun
+        this.windowRefreshFunc = 0; // GLFWwindowrefreshfun
+        this.windowFocusFunc = 0; // GLFWwindowfocusfun
+        this.windowIconifyFunc = 0; // GLFWwindowiconifyfun
+        this.windowMaximizeFunc = 0; // GLFWwindowmaximizefun
+        this.framebufferSizeFunc = 0; // GLFWframebuffersizefun
+        this.windowContentScaleFunc = 0; // GLFWwindowcontentscalefun
+        this.mouseButtonFunc = 0; // GLFWmousebuttonfun
+        this.cursorPosFunc = 0; // GLFWcursorposfun
+        this.cursorEnterFunc = 0; // GLFWcursorenterfun
+        this.scrollFunc = 0; // GLFWscrollfun
+        this.dropFunc = 0; // GLFWdropfun
+        this.keyFunc = 0; // GLFWkeyfun
+        this.charFunc = 0; // GLFWcharfun
+        this.userptr = 0;
+      }
+  
+  
+  
+  
+  var _emscripten_set_main_loop_timing = (mode, value) => {
+      MainLoop.timingMode = mode;
+      MainLoop.timingValue = value;
+  
+      if (!MainLoop.func) {
+        err('emscripten_set_main_loop_timing: Cannot set timing mode for main loop since a main loop does not exist! Call emscripten_set_main_loop first to set one up.');
+        return 1; // Return non-zero on failure, can't set timing mode when there is no main loop.
+      }
+  
+      if (!MainLoop.running) {
+        
+        MainLoop.running = true;
+      }
+      if (mode == 0) {
+        MainLoop.scheduler = function MainLoop_scheduler_setTimeout() {
+          var timeUntilNextTick = Math.max(0, MainLoop.tickStartTime + value - _emscripten_get_now())|0;
+          setTimeout(MainLoop.runner, timeUntilNextTick); // doing this each time means that on exception, we stop
+        };
+      } else if (mode == 1) {
+        MainLoop.scheduler = function MainLoop_scheduler_rAF() {
+          MainLoop.requestAnimationFrame(MainLoop.runner);
+        };
+      } else {
+        assert(mode == 2);
+        if (!MainLoop.setImmediate) {
+          if (globalThis.scheduler) {
+            // Some modern browsers implement scheduler.postTask, but not all.
+            MainLoop.setImmediate = scheduler.postTask.bind(scheduler);
+          } else if (globalThis.setImmediate) {
+            MainLoop.setImmediate = setImmediate;
+          } else {
+            // Emulate setImmediate. (note: not a complete polyfill, we don't emulate clearImmediate() to keep code size to minimum, since not needed)
+            var setImmediates = [];
+            var emscriptenMainLoopMessageId = 'setimmediate';
+            /** @param {Event} event */
+            var MainLoop_setImmediate_messageHandler = (event) => {
+              if (event.data === emscriptenMainLoopMessageId) {
+                event.stopPropagation();
+                setImmediates.shift()();
+              }
+            };
+            addEventListener('message', MainLoop_setImmediate_messageHandler, true);
+            MainLoop.setImmediate = /** @type{function(function(): ?, ...?): number} */((func) => {
+              setImmediates.push(func);
+              if (ENVIRONMENT_IS_WORKER) {
+                // The postMessge API in a Worker, sends message to the main
+                // thread and does not support the `targetOrigin` (*) argument.
+                postMessage(emscriptenMainLoopMessageId);
+              } else {
+                postMessage(emscriptenMainLoopMessageId, '*');
+              }
+            });
+          }
+        }
+        MainLoop.scheduler = function MainLoop_scheduler_setImmediate() {
+          MainLoop.setImmediate(MainLoop.runner);
+        };
+      }
+      return 0;
+    };
+  
+  
+  
+    /**
+   * @param {number=} arg
+   * @param {boolean=} noSetTiming
+   */
+  var setMainLoop = (iterFunc, fps, simulateInfiniteLoop, arg, noSetTiming) => {
+      assert(!MainLoop.func, 'emscripten_set_main_loop: there can only be one main loop function at once')
+      MainLoop.func = iterFunc;
+      MainLoop.arg = arg;
+  
+      var thisMainLoopId = MainLoop.currentlyRunningMainloop;
+      function checkIsRunning() {
+        if (thisMainLoopId < MainLoop.currentlyRunningMainloop) {
+          
+          maybeExit();
+          return false;
+        }
+        return true;
+      }
+  
+      // We create the loop runner here but it is not actually running until
+      // _emscripten_set_main_loop_timing is called (which might happen at a
+      // later time).  This member signifies that the current runner has not
+      // yet been started so that we can call runtimeKeepalivePush when it
+      // gets its timing set for the first time.
+      MainLoop.running = false;
+      MainLoop.runner = function MainLoop_runner() {
+        if (ABORT) return;
+        if (MainLoop.queue.length > 0) {
+          var start = Date.now();
+          var blocker = MainLoop.queue.shift();
+          blocker.func(blocker.arg);
+          if (MainLoop.remainingBlockers) {
+            var remaining = MainLoop.remainingBlockers;
+            var next = remaining%1 == 0 ? remaining-1 : Math.floor(remaining);
+            if (blocker.counted) {
+              MainLoop.remainingBlockers = next;
+            } else {
+              // not counted, but move the progress along a tiny bit
+              next = next + 0.5; // do not steal all the next one's progress
+              MainLoop.remainingBlockers = (8*remaining + next)/9;
+            }
+          }
+          MainLoop.updateStatus();
+  
+          // catches pause/resume main loop from blocker execution
+          if (!checkIsRunning()) return;
+  
+          setTimeout(MainLoop.runner, 0);
+          return;
+        }
+  
+        // catch pauses from non-main loop sources
+        if (!checkIsRunning()) return;
+  
+        // Implement very basic swap interval control
+        MainLoop.currentFrameNumber = MainLoop.currentFrameNumber + 1 | 0;
+        if (MainLoop.timingMode == 1 && MainLoop.timingValue > 1 && MainLoop.currentFrameNumber % MainLoop.timingValue != 0) {
+          // Not the scheduled time to render this frame - skip.
+          MainLoop.scheduler();
+          return;
+        } else if (MainLoop.timingMode == 0) {
+          MainLoop.tickStartTime = _emscripten_get_now();
+          if (Module['ctx']) {
+            warnOnce('Looks like you are rendering without using requestAnimationFrame for the main loop. You should use 0 for the frame rate in emscripten_set_main_loop in order to use requestAnimationFrame, as that can greatly improve your frame rates!');
+          }
+        }
+  
+        MainLoop.runIter(iterFunc);
+  
+        // catch pauses from the main loop itself
+        if (!checkIsRunning()) return;
+  
+        MainLoop.scheduler();
+      }
+  
+      if (!noSetTiming) {
+        if (fps > 0) {
+          _emscripten_set_main_loop_timing(0, 1000.0 / fps);
+        } else {
+          // Do rAF by rendering each frame (no decimating)
+          _emscripten_set_main_loop_timing(1, 1);
+        }
+  
+        MainLoop.scheduler();
+      }
+  
+      if (simulateInfiniteLoop) {
+        throw 'unwind';
+      }
+    };
+  
+  
+  var MainLoop = {
+  running:false,
+  scheduler:null,
+  currentlyRunningMainloop:0,
+  func:null,
+  arg:0,
+  timingMode:0,
+  timingValue:0,
+  currentFrameNumber:0,
+  queue:[],
+  preMainLoop:[],
+  postMainLoop:[],
+  pause() {
+        MainLoop.scheduler = null;
+        // Incrementing this signals the previous main loop that it's now become old, and it must return.
+        MainLoop.currentlyRunningMainloop++;
+      },
+  resume() {
+        MainLoop.currentlyRunningMainloop++;
+        var timingMode = MainLoop.timingMode;
+        var timingValue = MainLoop.timingValue;
+        var func = MainLoop.func;
+        MainLoop.func = null;
+        // do not set timing and call scheduler, we will do it on the next lines
+        setMainLoop(func, 0, false, MainLoop.arg, true);
+        _emscripten_set_main_loop_timing(timingMode, timingValue);
+        MainLoop.scheduler();
+      },
+  updateStatus() {
+        if (Module['setStatus']) {
+          var message = Module['statusMessage'] || 'Please wait...';
+          var remaining = MainLoop.remainingBlockers ?? 0;
+          var expected = MainLoop.expectedBlockers ?? 0;
+          if (remaining) {
+            if (remaining < expected) {
+              Module['setStatus'](`{message} ({expected - remaining}/{expected})`);
+            } else {
+              Module['setStatus'](message);
+            }
+          } else {
+            Module['setStatus']('');
+          }
+        }
+      },
+  init() {
+      },
+  runIter(func) {
+        if (ABORT) return;
+        for (var pre of MainLoop.preMainLoop) {
+          if (pre() === false) {
+            return; // |return false| skips a frame
+          }
+        }
+        callUserCallback(func);
+        for (var post of MainLoop.postMainLoop) {
+          post();
+        }
+        checkStackCookie();
+      },
+  nextRAF:0,
+  fakeRequestAnimationFrame(func) {
+        // try to keep 60fps between calls to here
+        var now = Date.now();
+        if (!MainLoop.nextRAF) {
+          MainLoop.nextRAF = now + 1000/60;
+        } else {
+          while (now + 2 >= MainLoop.nextRAF) { // fudge a little, to avoid timer jitter causing us to do lots of delay:0
+            MainLoop.nextRAF += 1000/60;
+          }
+        }
+        var delay = Math.max(MainLoop.nextRAF - now, 0);
+        setTimeout(func, delay);
+      },
+  requestAnimationFrame(func) {
+        if (globalThis.requestAnimationFrame) {
+          requestAnimationFrame(func);
+        } else {
+          MainLoop.fakeRequestAnimationFrame(func);
+        }
+      },
+  };
+  
+  
+  
+  
+  var _emscripten_set_window_title = (title) => document.title = UTF8ToString(title);
+  
   
   
   
@@ -7901,14 +8232,14 @@ var FS_stdin_getChar_buffer = [];
 
   var requestFullscreen = Browser.requestFullscreen;
 
+  FS.createPreloadedFile = FS_createPreloadedFile;
+  FS.preloadFile = FS_preloadFile;
+  FS.staticInit();;
+
       Module['requestAnimationFrame'] = MainLoop.requestAnimationFrame;
       Module['pauseMainLoop'] = MainLoop.pause;
       Module['resumeMainLoop'] = MainLoop.resume;
       MainLoop.init();;
-
-  FS.createPreloadedFile = FS_createPreloadedFile;
-  FS.preloadFile = FS_preloadFile;
-  FS.staticInit();;
 // End JS library code
 
 // include: postlibrary.js
@@ -8191,7 +8522,8 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'UNWIND_CACHE',
   'ExitStatus',
   'checkWasiClock',
-  'flush_NO_FILESYSTEM',
+  'doReadv',
+  'doWritev',
   'initRandomFill',
   'randomFill',
   'safeSetTimeout',
@@ -8459,8 +8791,8 @@ var dynCall_viiiii = makeInvalidEarlyAccess('dynCall_viiiii');
 var dynCall_ddd = makeInvalidEarlyAccess('dynCall_ddd');
 var dynCall_v = makeInvalidEarlyAccess('dynCall_v');
 var dynCall_viji = makeInvalidEarlyAccess('dynCall_viji');
-var dynCall_iiii = makeInvalidEarlyAccess('dynCall_iiii');
 var dynCall_jiji = makeInvalidEarlyAccess('dynCall_jiji');
+var dynCall_iiii = makeInvalidEarlyAccess('dynCall_iiii');
 var dynCall_iidiiiii = makeInvalidEarlyAccess('dynCall_iidiiiii');
 var dynCall_vii = makeInvalidEarlyAccess('dynCall_vii');
 var dynCall_viiiiii = makeInvalidEarlyAccess('dynCall_viiiiii');
@@ -8526,8 +8858,8 @@ function assignWasmExports(wasmExports) {
   assert(typeof wasmExports['dynCall_ddd'] != 'undefined', 'missing Wasm export: dynCall_ddd');
   assert(typeof wasmExports['dynCall_v'] != 'undefined', 'missing Wasm export: dynCall_v');
   assert(typeof wasmExports['dynCall_viji'] != 'undefined', 'missing Wasm export: dynCall_viji');
-  assert(typeof wasmExports['dynCall_iiii'] != 'undefined', 'missing Wasm export: dynCall_iiii');
   assert(typeof wasmExports['dynCall_jiji'] != 'undefined', 'missing Wasm export: dynCall_jiji');
+  assert(typeof wasmExports['dynCall_iiii'] != 'undefined', 'missing Wasm export: dynCall_iiii');
   assert(typeof wasmExports['dynCall_iidiiiii'] != 'undefined', 'missing Wasm export: dynCall_iidiiiii');
   assert(typeof wasmExports['dynCall_vii'] != 'undefined', 'missing Wasm export: dynCall_vii');
   assert(typeof wasmExports['dynCall_viiiiii'] != 'undefined', 'missing Wasm export: dynCall_viiiiii');
@@ -8590,8 +8922,8 @@ function assignWasmExports(wasmExports) {
   dynCall_ddd = dynCalls['ddd'] = createExportWrapper('dynCall_ddd', wasmExports['dynCall_ddd'], 3);
   dynCall_v = dynCalls['v'] = createExportWrapper('dynCall_v', wasmExports['dynCall_v'], 1);
   dynCall_viji = dynCalls['viji'] = createExportWrapper('dynCall_viji', wasmExports['dynCall_viji'], 4);
-  dynCall_iiii = dynCalls['iiii'] = createExportWrapper('dynCall_iiii', wasmExports['dynCall_iiii'], 4);
   dynCall_jiji = dynCalls['jiji'] = createExportWrapper('dynCall_jiji', wasmExports['dynCall_jiji'], 4);
+  dynCall_iiii = dynCalls['iiii'] = createExportWrapper('dynCall_iiii', wasmExports['dynCall_iiii'], 4);
   dynCall_iidiiiii = dynCalls['iidiiiii'] = createExportWrapper('dynCall_iidiiiii', wasmExports['dynCall_iidiiiii'], 8);
   dynCall_vii = dynCalls['vii'] = createExportWrapper('dynCall_vii', wasmExports['dynCall_vii'], 3);
   dynCall_viiiiii = dynCalls['viiiiii'] = createExportWrapper('dynCall_viiiiii', wasmExports['dynCall_viiiiii'], 7);
@@ -8607,6 +8939,12 @@ function assignWasmExports(wasmExports) {
 var wasmImports = {
   /** @export */
   __assert_fail: ___assert_fail,
+  /** @export */
+  __syscall_fcntl64: ___syscall_fcntl64,
+  /** @export */
+  __syscall_ioctl: ___syscall_ioctl,
+  /** @export */
+  __syscall_openat: ___syscall_openat,
   /** @export */
   _abort_js: __abort_js,
   /** @export */
@@ -8633,6 +8971,8 @@ var wasmImports = {
   emwgpuInstanceRequestAdapter: _emwgpuInstanceRequestAdapter,
   /** @export */
   fd_close: _fd_close,
+  /** @export */
+  fd_read: _fd_read,
   /** @export */
   fd_seek: _fd_seek,
   /** @export */
@@ -8802,7 +9142,7 @@ function checkUnflushedContent() {
     has = true;
   }
   try { // it doesn't matter if it fails
-    flush_NO_FILESYSTEM();
+    _fflush(0);
     // also flush in the JS FS layer
     for (var name of ['stdout', 'stderr']) {
       var info = FS.analyzePath('/dev/' + name);
@@ -8819,7 +9159,6 @@ function checkUnflushedContent() {
   err = oldErr;
   if (has) {
     warnOnce('stdio streams had content in them that was not flushed. you should set EXIT_RUNTIME to 1 (see the Emscripten FAQ), or make sure to emit a newline when you printf etc.');
-    warnOnce('(this may also be due to not including full filesystem support - try building with -sFORCE_FILESYSTEM)');
   }
 }
 
