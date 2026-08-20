@@ -136,7 +136,7 @@
     (WGPURender.create-uniform-buffer @(Engine.ctx eng) size))
 
   (defn update-uniform-buffer [eng ub data]
-    (WGPURender.update-uniform-buffer @(Engine.ctx eng) ub data))
+    (WGPURender.update-uniform-buffer- @(Engine.ctx eng) ub (WGPU.array->ptr data) (Uint64.from-long (Long.from-int (* (Array.length data) 4)))))
 
   (defn create-bind-group [eng pipeline uniform-buffer]
     (WGPURender.create-render-uniform-bind-group @(Engine.ctx eng) pipeline uniform-buffer))

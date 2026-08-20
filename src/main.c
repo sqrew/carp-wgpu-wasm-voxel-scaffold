@@ -1764,9 +1764,6 @@ typedef void(*Fn__WGPUContext_MUL__WGPURenderTexture_MUL__int_int_int_int_int_in
 typedef WGPUSampler(*Fn__WGPUContext_MUL__WGPUSampler)(WGPUContext*);
 
 // Depth 104
-typedef void(*Fn__WGPUContext_MUL__WGPUUniformBufferWrapper_MUL__Array__float_MUL__void)(WGPUContext*, WGPUUniformBufferWrapper*, Array__float*);
-
-// Depth 104
 typedef void(*Fn__WGPUContext_MUL__WGPUUniformBufferWrapper_MUL__float_MUL__Uint64_void)(WGPUContext*, WGPUUniformBufferWrapper*, float*, Uint64);
 
 // Depth 104
@@ -11214,7 +11211,12 @@ float Engine_update_MINUS_time(Engine* eng) {
 void Engine_update_MINUS_uniform_MINUS_buffer(Engine* eng, WGPUUniformBufferWrapper* ub, Array__float* data) {
     WGPUContext** _10 = Engine_ctx(eng);
     WGPUContext* _11 = Pointer_copy__WGPUContext(_10);
-    WGPURender_update_MINUS_uniform_MINUS_buffer(_11, ub, data);
+    float* _15 = WGPU_array_MINUS__GT_ptr(data);
+    int _21 = Array_length__float(data);
+    int _23 = Int__MUL_(_21, 4);
+    Long _24 = Long_from_MINUS_int(_23);
+    Uint64 _25 = Uint64_from_MINUS_long(_24);
+    wgpu_update_uniform_buffer(_11, ub, _15, _25);
 }
 
 Engine Engine_update_MINUS_width(Engine p, Lambda *updater) {
