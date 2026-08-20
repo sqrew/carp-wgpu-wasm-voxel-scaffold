@@ -12,7 +12,7 @@
 (deftype World [
   chunks (Array Chunk)
   voxel-resolution Int
-])
+])(deftype ChunkCoord [x Int y Int z Int])
 
 (defmodule Chunk
   (defn create [qx qy qz]
@@ -54,4 +54,103 @@
             (for [x 0 4]
               (Array.push-back! &world-chunks (Chunk.create x y z)))))
         (World.init world-chunks 32))))
+
+  (defn find-chunk [world qx qy qz]
+    (let [chunks (World.chunks world)
+          len (Array.length chunks)
+          found (Maybe.Nothing)]
+      (do
+        (for [i 0 len]
+          (let [chunk (Array.unsafe-nth chunks i)]
+            (when (and (= qx @(Chunk.coord-x chunk))
+                       (and (= qy @(Chunk.coord-y chunk))
+                            (= qz @(Chunk.coord-z chunk))))
+              (set! found (Maybe.Just @chunk)))))
+        found)))
+
+  (defn sample-sdf-nearest [world p]
+    (let [x (Vector3.x p)
+          y (Vector3.y p)
+          z (Vector3.z p)
+          qx (Double.to-int (Double.floor (/ @x 32.0)))
+          qy (Double.to-int (Double.floor (/ @y 32.0)))
+          qz (Double.to-int (Double.floor (/ @z 32.0)))]
+      (if (and (and (>= qx 0) (< qx 4))
+               (and (and (>= qy 0) (< qy 2))
+                    (and (>= qz 0) (< qz 4))))
+          (match (World.find-chunk world qx qy qz)
+            (Maybe.Nothing) 1000.0f
+            (Maybe.Just chunk)
+              (let [lx (Double.to-int (Double.clamp 0.0 31.0 (- @x (Double.from-int (* qx 32)))))
+                    ly (Double.to-int (Double.clamp 0.0 31.0 (- @y (Double.from-int (* qy 32)))))
+                    lz (Double.to-int (Double.clamp 0.0 31.0 (- @z (Double.from-int (* qz 32)))))
+                    idx (+ (* lz 1024) (+ (* ly 32) lx))
+                    offset (* idx 4)]
+                @(Array.unsafe-nth (Chunk.voxel-data &chunk) (+ offset 1))))
+          1000.0f)))
+
+  (defn raycast [world ro rd max-dist]
+    (let [t 0.0
+          hit (Maybe.Nothing)
+          steps 0]
+      (do
+        (while (and (and (< t max-dist) (< steps 250)) (Maybe.nothing? &hit))
+          (let [p (Vector3.add ro &(Vector3.mul rd t))
+                dist (World.sample-sdf-nearest world &p)]
+            (do
+              (if (< dist 0.05f)
+                  (set! hit (Maybe.Just p))
+                  (set! t (+ t (Double.max 0.05 (Double.from-float dist)))))
+              (set! steps (inc steps)))))
+        hit)))
+
+  (defn edit-sdf! [world hit-pos radius mat-id carve?]
+    (let [modified []
+          chunks (World.chunks world)
+          len (Array.length chunks)
+          hx @(Vector3.x hit-pos)
+          hy @(Vector3.y hit-pos)
+          hz @(Vector3.z hit-pos)]
+      (do
+        (for [i 0 len]
+          (let [chunk (Array.unsafe-nth chunks i)
+                qx @(Chunk.coord-x chunk)
+                qy @(Chunk.coord-y chunk)
+                qz @(Chunk.coord-z chunk)
+                cx (Float.from-int (+ (* qx 32) 16))
+                cy (Float.from-int (+ (* qy 32) 16))
+                cz (Float.from-int (+ (* qz 32) 16))
+                dx (- cx (Double.to-float hx))
+                dy (- cy (Double.to-float hy))
+                dz (- cz (Double.to-float hz))
+                dist-to-center (Float.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))
+                max-range (+ (Double.to-float radius) 28.0f)]
+            (when (< dist-to-center max-range)
+              (let [p-data (Array.unsafe-raw (Chunk.voxel-data chunk))
+                    chunk-modified false]
+                (do
+                  (for [z 0 32]
+                    (for [y 0 32]
+                      (for [x 0 32]
+                        (let [idx (+ (* z 1024) (+ (* y 32) x))
+                              offset (* idx 4)
+                              gx (Double.from-int (+ (* qx 32) x))
+                              gy (Double.from-int (+ (* qy 32) y))
+                              gz (Double.from-int (+ (* qz 32) z))
+                              vx (- gx hx)
+                              vy (- gy hy)
+                              vz (- gz hz)
+                              dist-to-hit (Double.sqrt (+ (+ (* vx vx) (* vy vy)) (* vz vz)))]
+                          (when (< dist-to-hit (+ radius 2.0))
+                            (let [sphere-sdf (Double.to-float (- dist-to-hit radius))
+                                  old-sdf (Pointer.to-value (Pointer.add p-data (Long.from-int (+ offset 1))))
+                                  new-sdf (if carve?
+                                              (Float.max old-sdf (- 0.0f sphere-sdf))
+                                              (Float.min old-sdf sphere-sdf))]
+                              (do
+                                (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) new-sdf)
+                                (set! chunk-modified true))))))))
+                  (when chunk-modified
+                    (Array.push-back! &modified (ChunkCoord.init qx qy qz))))))))
+        modified)))
 )

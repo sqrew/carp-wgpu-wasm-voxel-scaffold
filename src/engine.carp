@@ -77,9 +77,45 @@
         (Camera.update-look win cam first-mouse-ptr last-x-ptr last-y-ptr)
         (Diagnostics.end-zone! diag "Input & Camera")
         
-        ; Draw chunk boundary box (red)
+        ; Draw world boundary box (red)
         (let [red-color (Vector3.init 1.0 0.1 0.1)]
           (EngineState.draw-bounds-wireframe! ren 0.0 0.0 0.0 128.0 64.0 128.0 &red-color))
+        
+        ; Raycast from camera front vector
+        (let [ro (Camera.pos cam)
+              rd (Camera.front cam)
+              world (EngineState.world state)
+              hit-opt (World.raycast world ro rd 80.0)]
+          (match hit-opt
+            (Maybe.Nothing) ()
+            (Maybe.Just hit-pos)
+              (do
+                ;; 1. Draw target highlight box (yellow)
+                (let [yellow (Vector3.init 1.0 1.0 0.0)
+                      hx @(Vector3.x &hit-pos)
+                      hy @(Vector3.y &hit-pos)
+                      hz @(Vector3.z &hit-pos)]
+                  (EngineState.draw-bounds-wireframe! ren (- hx 0.5) (- hy 0.5) (- hz 0.5) (+ hx 0.5) (+ hy 0.5) (+ hz 0.5) &yellow))
+                
+                ;; 2. Click to carve (left button) or splat (right button)
+                (let [left-pressed (= (GLFW.get-mouse-button win 0) GLFW.PRESS)
+                      right-pressed (= (GLFW.get-mouse-button win 1) GLFW.PRESS)]
+                  (when (or left-pressed right-pressed)
+                    (let [radius 3.0
+                          mat-id 2.0f
+                          carve? left-pressed
+                          modified-coords (World.edit-sdf! world &hit-pos radius mat-id carve?)]
+                      (do
+                        (for [j 0 (Array.length &modified-coords)]
+                          (let [coord (Array.unsafe-nth &modified-coords j)
+                                qx @(ChunkCoord.x coord)
+                                qy @(ChunkCoord.y coord)
+                                qz @(ChunkCoord.z coord)
+                                chunk-opt (World.find-chunk world qx qy qz)]
+                            (match chunk-opt
+                              (Maybe.Nothing) ()
+                              (Maybe.Just chunk)
+                                (Renderer.update-chunk-texture platform-eng ren qx qy qz (Chunk.voxel-data &chunk))))))))))))
         
         ; Handle resizing
         (Engine.handle-resize platform-eng)

@@ -57,17 +57,20 @@ typedef struct ByteOrder ByteOrder;
 typedef struct Camera Camera;
 typedef struct CameraMat4 CameraMat4;
 typedef struct Chunk Chunk;
+typedef struct ChunkCoord ChunkCoord;
 typedef struct Diagnostics Diagnostics;
 typedef struct Engine Engine;
 typedef struct EngineState EngineState;
 typedef struct Line Line;
 typedef struct LinePassRenderer LinePassRenderer;
 typedef struct LogLevel LogLevel;
+typedef struct Maybe__Chunk Maybe__Chunk;
 typedef struct Maybe__Long Maybe__Long;
 typedef struct Maybe__String Maybe__String;
 typedef struct Maybe__Uint16 Maybe__Uint16;
 typedef struct Maybe__Uint32 Maybe__Uint32;
 typedef struct Maybe__Uint64 Maybe__Uint64;
+typedef struct Maybe__Vector3__double Maybe__Vector3__double;
 typedef struct Maybe__WGPUFrameState_MUL_ Maybe__WGPUFrameState_MUL_;
 typedef struct Maybe__WGPURenderTexture_MUL_ Maybe__WGPURenderTexture_MUL_;
 typedef struct Maybe__bool Maybe__bool;
@@ -278,6 +281,13 @@ struct Result__bool_String {
 #define Result__bool_String_Error_tag 1
 
 // Depth 3
+struct ChunkCoord {
+    int x;
+    int y;
+    int z;
+};
+
+// Depth 3
 struct Par__Lambda_simd_MINUS_add_BANG__213_env_ty {
     int end;
     int lanes;
@@ -329,6 +339,9 @@ typedef Array Array__Char;
 
 // Depth 4
 typedef Array Array__Chunk;
+
+// Depth 4
+typedef Array Array__ChunkCoord;
 
 // Depth 4
 typedef Array Array__Line;
@@ -673,6 +686,20 @@ typedef uint8_t(*Fn__uint8_t_uint8_t_uint8_t)(uint8_t, uint8_t);
 typedef void(*Fn__void_MUL__void)(void*);
 
 // Depth 5
+struct Maybe__Vector3__double {
+    union {
+    struct {
+        Vector3__double member0;
+    } Just;
+    // Nothing
+    char __dummy;
+    } u;
+    char _tag;
+};
+#define Maybe__Vector3__double_Just_tag 0
+#define Maybe__Vector3__double_Nothing_tag 1
+
+// Depth 5
 struct Camera {
     Vector3__double pos;
     Vector3__double front;
@@ -709,6 +736,12 @@ struct Chunk {
 
 // Depth 6
 typedef Result__Char_String(*Fn__Char_Result__Char_String)(Char);
+
+// Depth 6
+typedef String(*Fn__ChunkCoord_MUL__String)(ChunkCoord*);
+
+// Depth 6
+typedef int*(*Fn__ChunkCoord_MUL__int_MUL_)(ChunkCoord*);
 
 // Depth 6
 typedef bool(*Fn__Fn__bool_bool_bool_bool_Vector2__bool_MUL__bool)(Lambda, bool, Vector2__bool*);
@@ -808,6 +841,9 @@ typedef Maybe__float(*Fn__float_Maybe__float)(float);
 
 // Depth 6
 typedef Maybe__int(*Fn__int_Maybe__int)(int);
+
+// Depth 6
+typedef ChunkCoord(*Fn__int_int_int_ChunkCoord)(int, int, int);
 
 // Depth 6
 typedef Maybe__uint8_t(*Fn__uint8_t_Maybe__uint8_t)(uint8_t);
@@ -969,6 +1005,20 @@ typedef Array__Char(*Fn__int_Fn___Char_MUL__Array__Char)(int, Lambda*);
 typedef Array__float(*Fn__int_float_MUL__Array__float)(int, float*);
 
 // Depth 8
+struct Maybe__Chunk {
+    union {
+    struct {
+        Chunk member0;
+    } Just;
+    // Nothing
+    char __dummy;
+    } u;
+    char _tag;
+};
+#define Maybe__Chunk_Just_tag 0
+#define Maybe__Chunk_Nothing_tag 1
+
+// Depth 8
 typedef Camera(*Fn__Camera_Camera)(Camera);
 
 // Depth 8
@@ -996,6 +1046,12 @@ typedef String(*Fn__Line_MUL__String)(Line*);
 typedef Vector3__double*(*Fn__Line_MUL__Vector3__double_MUL_)(Line*);
 
 // Depth 8
+typedef bool(*Fn__Maybe__Vector3__double_MUL__bool)(Maybe__Vector3__double*);
+
+// Depth 8
+typedef Maybe__Vector3__double(*Fn__Vector3__double_Maybe__Vector3__double)(Vector3__double);
+
+// Depth 8
 typedef Line(*Fn__Vector3__double_Vector3__double_Vector3__double_Line)(Vector3__double, Vector3__double, Vector3__double);
 
 // Depth 8
@@ -1003,6 +1059,18 @@ typedef Camera(*Fn__Vector3__double_Vector3__double_Vector3__double_Vector3__dou
 
 // Depth 8
 typedef Camera(*Fn__Vector3__double_double_double_double_Camera)(Vector3__double, double, double, double);
+
+// Depth 8
+typedef Maybe__Vector3__double(*Fn___Maybe__Vector3__double)();
+
+// Depth 9
+typedef void(*Fn__Array__ChunkCoord_MUL__ChunkCoord_void)(Array__ChunkCoord*, ChunkCoord);
+
+// Depth 9
+typedef int(*Fn__Array__ChunkCoord_MUL__int)(Array__ChunkCoord*);
+
+// Depth 9
+typedef ChunkCoord*(*Fn__Array__ChunkCoord_MUL__int_ChunkCoord_MUL_)(Array__ChunkCoord*, int);
 
 // Depth 9
 typedef CameraMat4(*Fn__Array__float_CameraMat4)(Array__float);
@@ -1021,6 +1089,9 @@ typedef CameraMat4(*Fn__Camera_MUL__CameraMat4)(Camera*);
 
 // Depth 9
 typedef Array__float*(*Fn__Chunk_MUL__Array__float_MUL_)(Chunk*);
+
+// Depth 9
+typedef Chunk(*Fn__Chunk_MUL__Chunk)(Chunk*);
 
 // Depth 9
 typedef String(*Fn__Chunk_MUL__String)(Chunk*);
@@ -1077,6 +1148,12 @@ typedef int(*Fn__Array__Line_MUL__int)(Array__Line*);
 typedef Line*(*Fn__Array__Line_MUL__int_Line_MUL_)(Array__Line*, int);
 
 // Depth 11
+typedef Maybe__Chunk(*Fn__Chunk_Maybe__Chunk)(Chunk);
+
+// Depth 11
+typedef Maybe__Chunk(*Fn___Maybe__Chunk)();
+
+// Depth 11
 struct World {
     Array__Chunk chunks;
     int voxel_MINUS_resolution;
@@ -1105,6 +1182,18 @@ typedef Array__Chunk*(*Fn__World_MUL__Array__Chunk_MUL_)(World*);
 
 // Depth 14
 typedef String(*Fn__World_MUL__String)(World*);
+
+// Depth 14
+typedef Maybe__Vector3__double(*Fn__World_MUL__Vector3__double_MUL__Vector3__double_MUL__double_Maybe__Vector3__double)(World*, Vector3__double*, Vector3__double*, double);
+
+// Depth 14
+typedef Array__ChunkCoord(*Fn__World_MUL__Vector3__double_MUL__double_float_bool_Array__ChunkCoord)(World*, Vector3__double*, double, float, bool);
+
+// Depth 14
+typedef float(*Fn__World_MUL__Vector3__double_MUL__float)(World*, Vector3__double*);
+
+// Depth 14
+typedef Maybe__Chunk(*Fn__World_MUL__int_int_int_Maybe__Chunk)(World*, int, int, int);
 
 // Depth 14
 typedef World(*Fn__World_World)(World);
@@ -3199,6 +3288,9 @@ typedef Renderer*(*Fn__EngineState_MUL__Renderer_MUL_)(EngineState*);
 typedef String(*Fn__EngineState_MUL__String)(EngineState*);
 
 // Depth 113
+typedef World*(*Fn__EngineState_MUL__World_MUL_)(EngineState*);
+
+// Depth 113
 typedef int*(*Fn__EngineState_MUL__int_MUL_)(EngineState*);
 
 // Depth 113
@@ -3558,7 +3650,16 @@ int id__int(int x);
 int main(int argc, char** argv);
 
 // Depth 500
+double max__double(double a, double b);
+
+// Depth 500
+float max__float(float a, float b);
+
+// Depth 500
 int max__int(int a, int b);
+
+// Depth 500
+float min__float(float a, float b);
 
 // Depth 500
 int min__int(int a, int b);
@@ -3844,6 +3945,9 @@ void Array_delete__Char (Array a);
 void Array_delete__Chunk (Array a);
 
 // Depth 500
+void Array_delete__ChunkCoord (Array a);
+
+// Depth 500
 void Array_delete__Line (Array a);
 
 // Depth 500
@@ -3914,6 +4018,9 @@ int Array_length__Char (Array *a);
 
 // Depth 500
 int Array_length__Chunk (Array *a);
+
+// Depth 500
+int Array_length__ChunkCoord (Array *a);
 
 // Depth 500
 int Array_length__Line (Array *a);
@@ -3994,6 +4101,9 @@ void Array_push_MINUS_back_BANG___ActiveTimer(Array *aRef, ActiveTimer value);
 void Array_push_MINUS_back_BANG___Chunk(Array *aRef, Chunk value);
 
 // Depth 500
+void Array_push_MINUS_back_BANG___ChunkCoord(Array *aRef, ChunkCoord value);
+
+// Depth 500
 void Array_push_MINUS_back_BANG___Line(Array *aRef, Line value);
 
 // Depth 500
@@ -4067,6 +4177,9 @@ Char* Array_unsafe_MINUS_nth__Char (Array *aRef, int n);
 
 // Depth 500
 Chunk* Array_unsafe_MINUS_nth__Chunk (Array *aRef, int n);
+
+// Depth 500
+ChunkCoord* Array_unsafe_MINUS_nth__ChunkCoord (Array *aRef, int n);
 
 // Depth 500
 Line* Array_unsafe_MINUS_nth__Line (Array *aRef, int n);
@@ -4737,6 +4850,59 @@ Chunk Chunk_update_MINUS_voxel_MINUS_data(Chunk p, Lambda *updater);
 
 // Depth 500
 Array__float* Chunk_voxel_MINUS_data(Chunk* p);
+
+// Depth 1000
+
+// Depth 500
+ChunkCoord ChunkCoord_copy(ChunkCoord* pRef);
+
+// Depth 500
+void ChunkCoord_delete(ChunkCoord p);
+
+// Depth 500
+ChunkCoord ChunkCoord_init(int x, int y, int z);
+
+// Depth 500
+String ChunkCoord_prn(ChunkCoord *p);
+
+// Depth 500
+ChunkCoord ChunkCoord_set_MINUS_x(ChunkCoord p, int newValue);
+
+// Depth 500
+void ChunkCoord_set_MINUS_x_BANG_(ChunkCoord* pRef, int newValue);
+
+// Depth 500
+ChunkCoord ChunkCoord_set_MINUS_y(ChunkCoord p, int newValue);
+
+// Depth 500
+void ChunkCoord_set_MINUS_y_BANG_(ChunkCoord* pRef, int newValue);
+
+// Depth 500
+ChunkCoord ChunkCoord_set_MINUS_z(ChunkCoord p, int newValue);
+
+// Depth 500
+void ChunkCoord_set_MINUS_z_BANG_(ChunkCoord* pRef, int newValue);
+
+// Depth 500
+String ChunkCoord_str(ChunkCoord *p);
+
+// Depth 500
+ChunkCoord ChunkCoord_update_MINUS_x(ChunkCoord p, Lambda *updater);
+
+// Depth 500
+ChunkCoord ChunkCoord_update_MINUS_y(ChunkCoord p, Lambda *updater);
+
+// Depth 500
+ChunkCoord ChunkCoord_update_MINUS_z(ChunkCoord p, Lambda *updater);
+
+// Depth 500
+int* ChunkCoord_x(ChunkCoord* p);
+
+// Depth 500
+int* ChunkCoord_y(ChunkCoord* p);
+
+// Depth 500
+int* ChunkCoord_z(ChunkCoord* p);
 
 // Depth 1000
 
@@ -5837,6 +6003,9 @@ int Map_min_MINUS_load;
 // Depth 1000
 
 // Depth 500
+Maybe__Chunk Maybe_Just__Chunk(Chunk member0);
+
+// Depth 500
 Maybe__Long Maybe_Just__Long(Long member0);
 
 // Depth 500
@@ -5850,6 +6019,9 @@ Maybe__Uint32 Maybe_Just__Uint32(Uint32 member0);
 
 // Depth 500
 Maybe__Uint64 Maybe_Just__Uint64(Uint64 member0);
+
+// Depth 500
+Maybe__Vector3__double Maybe_Just__Vector3__double(Vector3__double member0);
 
 // Depth 500
 Maybe__WGPUFrameState_MUL_ Maybe_Just__WGPUFrameState_MUL_(WGPUFrameState* member0);
@@ -5870,6 +6042,9 @@ Maybe__int Maybe_Just__int(int member0);
 Maybe__uint8_t Maybe_Just__uint8_t(uint8_t member0);
 
 // Depth 500
+Maybe__Chunk Maybe_Nothing__Chunk();
+
+// Depth 500
 Maybe__Long Maybe_Nothing__Long();
 
 // Depth 500
@@ -5883,6 +6058,9 @@ Maybe__Uint32 Maybe_Nothing__Uint32();
 
 // Depth 500
 Maybe__Uint64 Maybe_Nothing__Uint64();
+
+// Depth 500
+Maybe__Vector3__double Maybe_Nothing__Vector3__double();
 
 // Depth 500
 Maybe__WGPUFrameState_MUL_ Maybe_Nothing__WGPUFrameState_MUL_();
@@ -5903,6 +6081,9 @@ Maybe__int Maybe_Nothing__int();
 Maybe__uint8_t Maybe_Nothing__uint8_t();
 
 // Depth 500
+void Maybe_delete__Chunk(Maybe__Chunk p);
+
+// Depth 500
 void Maybe_delete__Long(Maybe__Long p);
 
 // Depth 500
@@ -5916,6 +6097,9 @@ void Maybe_delete__Uint32(Maybe__Uint32 p);
 
 // Depth 500
 void Maybe_delete__Uint64(Maybe__Uint64 p);
+
+// Depth 500
+void Maybe_delete__Vector3__double(Maybe__Vector3__double p);
 
 // Depth 500
 void Maybe_delete__WGPUFrameState_MUL_(Maybe__WGPUFrameState_MUL_ p);
@@ -5940,6 +6124,9 @@ void Maybe_delete__uint8_t(Maybe__uint8_t p);
 
 // Depth 500
 String Maybe_from__String(Maybe__String a, String dflt);
+
+// Depth 500
+bool Maybe_nothing_QMARK___Vector3__double(Maybe__Vector3__double* a);
 
 // Depth 500
 String Maybe_unsafe_MINUS_from__String(Maybe__String a);
@@ -7596,10 +7783,22 @@ World World_create();
 void World_delete(World p);
 
 // Depth 500
+Array__ChunkCoord World_edit_MINUS_sdf_BANG___float(World* world, Vector3__double* hit_MINUS_pos, double radius, float mat_MINUS_id, bool carve_QMARK_);
+
+// Depth 500
+Maybe__Chunk World_find_MINUS_chunk(World* world, int qx, int qy, int qz);
+
+// Depth 500
 World World_init(Array__Chunk chunks, int voxel_MINUS_resolution);
 
 // Depth 500
 String World_prn(World *p);
+
+// Depth 500
+Maybe__Vector3__double World_raycast(World* world, Vector3__double* ro, Vector3__double* rd, double max_MINUS_dist);
+
+// Depth 500
+float World_sample_MINUS_sdf_MINUS_nearest(World* world, Vector3__double* p);
 
 // Depth 500
 World World_set_MINUS_chunks(World p, Array__Chunk newValue);
@@ -9057,6 +9256,13 @@ void Array_delete__Chunk (Array a){
     CARP_FREE(a.data);
 }
 
+void Array_delete__ChunkCoord (Array a){
+    for(int i = 0; i < a.len; i++) {
+        ChunkCoord_delete(((ChunkCoord*)a.data)[i]);
+    }
+    CARP_FREE(a.data);
+}
+
 void Array_delete__Line (Array a){
     for(int i = 0; i < a.len; i++) {
         Line_delete(((Line*)a.data)[i]);
@@ -9248,6 +9454,7 @@ int Array_length__ActiveTimer (Array *a) { return (*a).len; }
 int Array_length__Array__uint8_t (Array *a) { return (*a).len; }
 int Array_length__Char (Array *a) { return (*a).len; }
 int Array_length__Chunk (Array *a) { return (*a).len; }
+int Array_length__ChunkCoord (Array *a) { return (*a).len; }
 int Array_length__Line (Array *a) { return (*a).len; }
 int Array_length__PatternMatchResult (Array *a) { return (*a).len; }
 int Array_length__Result__Uint16_Array__uint8_t (Array *a) { return (*a).len; }
@@ -9391,6 +9598,15 @@ void Array_push_MINUS_back_BANG___Chunk(Array *aRef, Chunk value) {
         aRef->data = CARP_REALLOC(aRef->data, sizeof(Chunk) * aRef->capacity);
     }
     ((Chunk*)aRef->data)[aRef->len - 1] = value;
+}
+
+void Array_push_MINUS_back_BANG___ChunkCoord(Array *aRef, ChunkCoord value) { 
+    aRef->len++;
+    if(aRef->len > aRef->capacity) {
+        aRef->capacity = aRef->len * 2;
+        aRef->data = CARP_REALLOC(aRef->data, sizeof(ChunkCoord) * aRef->capacity);
+    }
+    ((ChunkCoord*)aRef->data)[aRef->len - 1] = value;
 }
 
 void Array_push_MINUS_back_BANG___Line(Array *aRef, Line value) { 
@@ -9887,6 +10103,13 @@ Chunk* Array_unsafe_MINUS_nth__Chunk (Array *aRef, int n) {
     assert(n >= 0);
     assert(n < a.len);
     return &(((Chunk*)a.data)[n]);
+}
+
+ChunkCoord* Array_unsafe_MINUS_nth__ChunkCoord (Array *aRef, int n) {
+    Array a = *aRef;
+    assert(n >= 0);
+    assert(n < a.len);
+    return &(((ChunkCoord*)a.data)[n]);
 }
 
 Line* Array_unsafe_MINUS_nth__Line (Array *aRef, int n) {
@@ -14001,6 +14224,177 @@ Chunk Chunk_update_MINUS_voxel_MINUS_data(Chunk p, Lambda *updater) {
 
 Array__float* Chunk_voxel_MINUS_data(Chunk* p) { return (&(p->voxel_MINUS_data)); }
 
+ChunkCoord ChunkCoord_copy(ChunkCoord* pRef) {
+    ChunkCoord copy = *pRef;
+    /* Ignore non-managed member 'x' : Int */
+    /* Ignore non-managed member 'y' : Int */
+    /* Ignore non-managed member 'z' : Int */
+    return copy;
+}
+
+void ChunkCoord_delete(ChunkCoord p) {
+    /* Ignore non-managed member 'x' : Int */
+    /* Ignore non-managed member 'y' : Int */
+    /* Ignore non-managed member 'z' : Int */
+}
+
+ChunkCoord ChunkCoord_init(int x, int y, int z) {
+    ChunkCoord instance;
+    instance.x = x;
+    instance.y = y;
+    instance.z = z;
+    return instance;
+}
+
+String ChunkCoord_prn(ChunkCoord *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "ChunkCoord");
+  temp = Int_prn(p->x); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->y); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->z); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "ChunkCoord");
+  temp = Int_prn(p->x);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->y);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->z);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+ChunkCoord ChunkCoord_set_MINUS_x(ChunkCoord p, int newValue) {
+    /* Ignore non-managed member 'x' : Int */
+    p.x = newValue;
+    return p;
+}
+
+
+void ChunkCoord_set_MINUS_x_BANG_(ChunkCoord* pRef, int newValue) {
+    /* Ignore non-managed member 'x' : Int */
+    pRef->x = newValue;
+}
+
+
+ChunkCoord ChunkCoord_set_MINUS_y(ChunkCoord p, int newValue) {
+    /* Ignore non-managed member 'y' : Int */
+    p.y = newValue;
+    return p;
+}
+
+
+void ChunkCoord_set_MINUS_y_BANG_(ChunkCoord* pRef, int newValue) {
+    /* Ignore non-managed member 'y' : Int */
+    pRef->y = newValue;
+}
+
+
+ChunkCoord ChunkCoord_set_MINUS_z(ChunkCoord p, int newValue) {
+    /* Ignore non-managed member 'z' : Int */
+    p.z = newValue;
+    return p;
+}
+
+
+void ChunkCoord_set_MINUS_z_BANG_(ChunkCoord* pRef, int newValue) {
+    /* Ignore non-managed member 'z' : Int */
+    pRef->z = newValue;
+}
+
+
+String ChunkCoord_str(ChunkCoord *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "ChunkCoord");
+  temp = Int_prn(p->x); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->y); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->z); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "ChunkCoord");
+  temp = Int_prn(p->x);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->y);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->z);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+ChunkCoord ChunkCoord_update_MINUS_x(ChunkCoord p, Lambda *updater) {
+    p.x = (*updater).env ? ((Fn__LambdaEnv_int_int)(*updater).callback)((*updater).env, p.x) : ((Fn__int_int)(*updater).callback)(p.x);
+    return p;
+}
+
+
+ChunkCoord ChunkCoord_update_MINUS_y(ChunkCoord p, Lambda *updater) {
+    p.y = (*updater).env ? ((Fn__LambdaEnv_int_int)(*updater).callback)((*updater).env, p.y) : ((Fn__int_int)(*updater).callback)(p.y);
+    return p;
+}
+
+
+ChunkCoord ChunkCoord_update_MINUS_z(ChunkCoord p, Lambda *updater) {
+    p.z = (*updater).env ? ((Fn__LambdaEnv_int_int)(*updater).callback)((*updater).env, p.z) : ((Fn__int_int)(*updater).callback)(p.z);
+    return p;
+}
+
+
+int* ChunkCoord_x(ChunkCoord* p) { return (&(p->x)); }
+
+int* ChunkCoord_y(ChunkCoord* p) { return (&(p->y)); }
+
+int* ChunkCoord_z(ChunkCoord* p) { return (&(p->z)); }
+
 Array__ActiveTimer* Diagnostics_active_MINUS_timers(Diagnostics* p) { return (&(p->active_MINUS_timers)); }
 
 void Diagnostics_clear_MINUS_error_BANG_(Diagnostics* diag) {
@@ -16291,32 +16685,154 @@ void EngineState_tick(EngineState* state, GLFWwindow* win, double dt, bool* firs
             EngineState_draw_MINUS_bounds_MINUS_wireframe_BANG_(ren, 0.0, 0.0, 0.0, 128.0, 64.0, 128.0, _70);
             Vector3_delete__double(red_MINUS_color);
         }
-        Engine_handle_MINUS_resize(platform_MINUS_eng);
-        static String _78 = "Renderer & Draw";
-        String *_78_ref = &_78;
-        Diagnostics_start_MINUS_zone_BANG_(diag, _78_ref);
-        Array__float* _86 = EngineState_uniforms(state);
-        Renderer_update_MINUS_uniforms(platform_MINUS_eng, ren, cam, _86);
-        Renderer_draw(platform_MINUS_eng, ren, cam);
-        static String _95 = "Renderer & Draw";
-        String *_95_ref = &_95;
-        Diagnostics_end_MINUS_zone_BANG_(diag, _95_ref);
-        Engine_poll_MINUS_events__Engine_MUL_(platform_MINUS_eng);
-        static String _102 = "Total Frame Time";
-        String *_102_ref = &_102;
-        Diagnostics_end_MINUS_zone_BANG_(diag, _102_ref);
         /* let */ {
-            int* _109 = EngineState_frame_MINUS_count(state);
-            int* _110 = ref_MINUS_to_MINUS_ptr__int(_109);
-            int* p_MINUS_frames = _110;
-            int _114 = Pointer_to_MINUS_value__int(p_MINUS_frames);
-            int curr_MINUS_frames = _114;
-            int _118 = Int_inc(curr_MINUS_frames);
-            int next_MINUS_frames = _118;
+            Vector3__double* _77 = Camera_pos(cam);
+            Vector3__double* ro = _77;
+            Vector3__double* _81 = Camera_front(cam);
+            Vector3__double* rd = _81;
+            World* _85 = EngineState_world(state);
+            World* world = _85;
+            Maybe__Vector3__double _92 = World_raycast(world, ro, rd, 80.0);
+            Maybe__Vector3__double hit_MINUS_opt = _92;
+            if(hit_MINUS_opt._tag == Maybe__Vector3__double_Nothing_tag) {
+                Maybe__Vector3__double _95_temp = hit_MINUS_opt;
+                // Case expr:
+                /* () */
+            }
+            else if(hit_MINUS_opt._tag == Maybe__Vector3__double_Just_tag) {
+                Maybe__Vector3__double _95_temp = hit_MINUS_opt;
+                Vector3__double hit_MINUS_pos = _95_temp.u.Just.member0;
+                // Case expr:
+                /* let */ {
+                    Vector3__double _109 = Vector3_init__double(1.0, 1.0, 0.0);
+                    Vector3__double yellow = _109;
+                    Vector3__double* _115 = &hit_MINUS_pos; // ref
+                    double* _116 = Vector3_x__double(_115);
+                    double _117 = Double_copy(_116);
+                    double hx = _117;
+                    Vector3__double* _123 = &hit_MINUS_pos; // ref
+                    double* _124 = Vector3_y__double(_123);
+                    double _125 = Double_copy(_124);
+                    double hy = _125;
+                    Vector3__double* _131 = &hit_MINUS_pos; // ref
+                    double* _132 = Vector3_z__double(_131);
+                    double _133 = Double_copy(_132);
+                    double hz = _133;
+                    double _140 = Double__MINUS_(hx, 0.5);
+                    double _144 = Double__MINUS_(hy, 0.5);
+                    double _148 = Double__MINUS_(hz, 0.5);
+                    double _152 = Double__PLUS_(hx, 0.5);
+                    double _156 = Double__PLUS_(hy, 0.5);
+                    double _160 = Double__PLUS_(hz, 0.5);
+                    Vector3__double* _163 = &yellow; // ref
+                    EngineState_draw_MINUS_bounds_MINUS_wireframe_BANG_(ren, _140, _144, _148, _152, _156, _160, _163);
+                    Vector3_delete__double(yellow);
+                }
+                /* let */ {
+                    int _172 = glfwGetMouseButton(win, 0);
+                    bool _174 = Int__EQ_(_172, GLFW_PRESS);
+                    bool left_MINUS_pressed = _174;
+                    int _180 = glfwGetMouseButton(win, 1);
+                    bool _182 = Int__EQ_(_180, GLFW_PRESS);
+                    bool right_MINUS_pressed = _182;
+                    bool _193;
+                    if (left_MINUS_pressed) {
+                        bool _189 = true;
+                        _193 = _189;
+                    } else {
+                        bool _192 = right_MINUS_pressed;
+                        _193 = _192;
+                    }
+                    if (_193) {
+                        /* let */ {
+                            double radius = 3.0;
+                            float mat_MINUS_id = 2.0f;
+                            bool carve_QMARK_ = left_MINUS_pressed;
+                            Vector3__double* _207 = &hit_MINUS_pos; // ref
+                            Array__ChunkCoord _211 = World_edit_MINUS_sdf_BANG___float(world, _207, radius, mat_MINUS_id, carve_QMARK_);
+                            Array__ChunkCoord modified_MINUS_coords = _211;
+                            /* let */ {
+                                int j = 0;
+                                Array__ChunkCoord* _224 = &modified_MINUS_coords; // ref
+                                int _225 = Array_length__ChunkCoord(_224);
+                                bool _1000021 = Int__LT_(j, _225);
+                                bool _1000019 = _1000021;
+                                while (_1000019) {
+                                    /* let */ {
+                                        Array__ChunkCoord* _233 = &modified_MINUS_coords; // ref
+                                        ChunkCoord* _235 = Array_unsafe_MINUS_nth__ChunkCoord(_233, j);
+                                        ChunkCoord* coord = _235;
+                                        int* _240 = ChunkCoord_x(coord);
+                                        int _241 = Int_copy(_240);
+                                        int qx = _241;
+                                        int* _246 = ChunkCoord_y(coord);
+                                        int _247 = Int_copy(_246);
+                                        int qy = _247;
+                                        int* _252 = ChunkCoord_z(coord);
+                                        int _253 = Int_copy(_252);
+                                        int qz = _253;
+                                        Maybe__Chunk _260 = World_find_MINUS_chunk(world, qx, qy, qz);
+                                        Maybe__Chunk chunk_MINUS_opt = _260;
+                                        if(chunk_MINUS_opt._tag == Maybe__Chunk_Nothing_tag) {
+                                            Maybe__Chunk _263_temp = chunk_MINUS_opt;
+                                            // Case expr:
+                                            /* () */
+                                        }
+                                        else if(chunk_MINUS_opt._tag == Maybe__Chunk_Just_tag) {
+                                            Maybe__Chunk _263_temp = chunk_MINUS_opt;
+                                            Chunk chunk = _263_temp.u.Just.member0;
+                                            // Case expr:
+                                            Chunk* _279 = &chunk; // ref
+                                            Array__float* _280 = Chunk_voxel_MINUS_data(_279);
+                                            Renderer_update_MINUS_chunk_MINUS_texture(platform_MINUS_eng, ren, qx, qy, qz, _280);
+                                            Chunk_delete(chunk);
+                                        }
+                                        else UNHANDLED("engine.carp", 115);
+                                    }
+                                    int _1000028 = Int__PLUS_(j, 1);
+                                    j = _1000028;  // Int = Int
+                                    Array__ChunkCoord* _224 = &modified_MINUS_coords; // ref
+                                    int _225 = Array_length__ChunkCoord(_224);
+                                    bool _1000021 = Int__LT_(j, _225);
+                                    _1000019 = _1000021;
+                                }
+                            }
+                            Array_delete__ChunkCoord(modified_MINUS_coords);
+                        }
+                    } else {
+                        /* () */
+                    }
+                }
+                Vector3_delete__double(hit_MINUS_pos);
+            }
+            else UNHANDLED("engine.carp", 89);
+        }
+        Engine_handle_MINUS_resize(platform_MINUS_eng);
+        static String _310 = "Renderer & Draw";
+        String *_310_ref = &_310;
+        Diagnostics_start_MINUS_zone_BANG_(diag, _310_ref);
+        Array__float* _318 = EngineState_uniforms(state);
+        Renderer_update_MINUS_uniforms(platform_MINUS_eng, ren, cam, _318);
+        Renderer_draw(platform_MINUS_eng, ren, cam);
+        static String _327 = "Renderer & Draw";
+        String *_327_ref = &_327;
+        Diagnostics_end_MINUS_zone_BANG_(diag, _327_ref);
+        Engine_poll_MINUS_events__Engine_MUL_(platform_MINUS_eng);
+        static String _334 = "Total Frame Time";
+        String *_334_ref = &_334;
+        Diagnostics_end_MINUS_zone_BANG_(diag, _334_ref);
+        /* let */ {
+            int* _341 = EngineState_frame_MINUS_count(state);
+            int* _342 = ref_MINUS_to_MINUS_ptr__int(_341);
+            int* p_MINUS_frames = _342;
+            int _346 = Pointer_to_MINUS_value__int(p_MINUS_frames);
+            int curr_MINUS_frames = _346;
+            int _350 = Int_inc(curr_MINUS_frames);
+            int next_MINUS_frames = _350;
             Pointer_set__int(p_MINUS_frames, next_MINUS_frames);
-            int _130 = Int_mod(next_MINUS_frames, 300);
-            bool _132 = Int__EQ_(_130, 0);
-            if (_132) {
+            int _362 = Int_mod(next_MINUS_frames, 300);
+            bool _364 = Int__EQ_(_362, 0);
+            if (_364) {
                 Diagnostics_print_MINUS_stats_BANG_(diag);
             } else {
                 /* () */
@@ -18727,6 +19243,13 @@ String LongRef_str(Long* x) {
     return _8;
 }
 
+Maybe__Chunk Maybe_Just__Chunk(Chunk member0) {
+  Maybe__Chunk instance;
+    instance.u.Just.member0 = member0;
+    instance._tag = Maybe__Chunk_Just_tag;
+    return instance;
+}
+
 Maybe__Long Maybe_Just__Long(Long member0) {
   Maybe__Long instance;
     instance.u.Just.member0 = member0;
@@ -18759,6 +19282,13 @@ Maybe__Uint64 Maybe_Just__Uint64(Uint64 member0) {
   Maybe__Uint64 instance;
     instance.u.Just.member0 = member0;
     instance._tag = Maybe__Uint64_Just_tag;
+    return instance;
+}
+
+Maybe__Vector3__double Maybe_Just__Vector3__double(Vector3__double member0) {
+  Maybe__Vector3__double instance;
+    instance.u.Just.member0 = member0;
+    instance._tag = Maybe__Vector3__double_Just_tag;
     return instance;
 }
 
@@ -18804,6 +19334,13 @@ Maybe__uint8_t Maybe_Just__uint8_t(uint8_t member0) {
     return instance;
 }
 
+Maybe__Chunk Maybe_Nothing__Chunk() {
+  Maybe__Chunk instance;
+
+    instance._tag = Maybe__Chunk_Nothing_tag;
+    return instance;
+}
+
 Maybe__Long Maybe_Nothing__Long() {
   Maybe__Long instance;
 
@@ -18836,6 +19373,13 @@ Maybe__Uint64 Maybe_Nothing__Uint64() {
   Maybe__Uint64 instance;
 
     instance._tag = Maybe__Uint64_Nothing_tag;
+    return instance;
+}
+
+Maybe__Vector3__double Maybe_Nothing__Vector3__double() {
+  Maybe__Vector3__double instance;
+
+    instance._tag = Maybe__Vector3__double_Nothing_tag;
     return instance;
 }
 
@@ -18879,6 +19423,16 @@ Maybe__uint8_t Maybe_Nothing__uint8_t() {
 
     instance._tag = Maybe__uint8_t_Nothing_tag;
     return instance;
+}
+
+void Maybe_delete__Chunk(Maybe__Chunk p) {
+  if(p._tag == Maybe__Chunk_Just_tag) {
+    Chunk_delete(p.u.Just.member0);
+  }
+  else if(p._tag == Maybe__Chunk_Nothing_tag) {
+
+  }
+
 }
 
 void Maybe_delete__Long(Maybe__Long p) {
@@ -18926,6 +19480,16 @@ void Maybe_delete__Uint64(Maybe__Uint64 p) {
     /* Ignore non-managed member 'u.Just.member0' : Uint64 */
   }
   else if(p._tag == Maybe__Uint64_Nothing_tag) {
+
+  }
+
+}
+
+void Maybe_delete__Vector3__double(Maybe__Vector3__double p) {
+  if(p._tag == Maybe__Vector3__double_Just_tag) {
+    Vector3_delete__double(p.u.Just.member0);
+  }
+  else if(p._tag == Maybe__Vector3__double_Nothing_tag) {
 
   }
 
@@ -19017,6 +19581,23 @@ String Maybe_from__String(Maybe__String a, String dflt) {
     }
     else UNHANDLED("Maybe.carp", 22);
     return _14;
+}
+
+bool Maybe_nothing_QMARK___Vector3__double(Maybe__Vector3__double* a) {
+    bool _13;
+    if(a->_tag == Maybe__Vector3__double_Nothing_tag) {
+        Maybe__Vector3__double* _5_temp = a;
+        // Case expr:
+        _13 = true;
+    }
+    else if(a->_tag == Maybe__Vector3__double_Just_tag) {
+        Maybe__Vector3__double* _5_temp = a;
+        Vector3__double* x = &_5_temp->u.Just.member0;
+        // Case expr:
+        _13 = false;
+    }
+    else UNHANDLED("Maybe.carp", 45);
+    return _13;
 }
 
 String Maybe_unsafe_MINUS_from__String(Maybe__String a) {
@@ -24186,6 +24767,266 @@ void World_delete(World p) {
     /* Ignore non-managed member 'voxel_MINUS_resolution' : Int */
 }
 
+Array__ChunkCoord World_edit_MINUS_sdf_BANG___float(World* world, Vector3__double* hit_MINUS_pos, double radius, float mat_MINUS_id, bool carve_QMARK_) {
+    Array__ChunkCoord _425;
+    /* let */ {
+        Array _10 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(ChunkCoord) * 0) };
+        Array__ChunkCoord modified = _10;
+        Array__Chunk* _14 = World_chunks(world);
+        Array__Chunk* chunks = _14;
+        int _18 = Array_length__Chunk(chunks);
+        int len = _18;
+        double* _23 = Vector3_x__double(hit_MINUS_pos);
+        double _24 = Double_copy(_23);
+        double hx = _24;
+        double* _29 = Vector3_y__double(hit_MINUS_pos);
+        double _30 = Double_copy(_29);
+        double hy = _30;
+        double* _35 = Vector3_z__double(hit_MINUS_pos);
+        double _36 = Double_copy(_35);
+        double hz = _36;
+        /* let */ {
+            int i = 0;
+            bool _1000008 = Int__LT_(i, len);
+            bool _1000006 = _1000008;
+            while (_1000006) {
+                /* let */ {
+                    Chunk* _54 = Array_unsafe_MINUS_nth__Chunk(chunks, i);
+                    Chunk* chunk = _54;
+                    int* _59 = Chunk_coord_MINUS_x(chunk);
+                    int _60 = Int_copy(_59);
+                    int qx = _60;
+                    int* _65 = Chunk_coord_MINUS_y(chunk);
+                    int _66 = Int_copy(_65);
+                    int qy = _66;
+                    int* _71 = Chunk_coord_MINUS_z(chunk);
+                    int _72 = Int_copy(_71);
+                    int qz = _72;
+                    int _79 = Int__MUL_(qx, 32);
+                    int _81 = Int__PLUS_(_79, 16);
+                    float _82 = Float_from_MINUS_int(_81);
+                    float cx = _82;
+                    int _89 = Int__MUL_(qy, 32);
+                    int _91 = Int__PLUS_(_89, 16);
+                    float _92 = Float_from_MINUS_int(_91);
+                    float cy = _92;
+                    int _99 = Int__MUL_(qz, 32);
+                    int _101 = Int__PLUS_(_99, 16);
+                    float _102 = Float_from_MINUS_int(_101);
+                    float cz = _102;
+                    float _108 = Double_to_MINUS_float(hx);
+                    float _109 = Float__MINUS_(cx, _108);
+                    float dx = _109;
+                    float _115 = Double_to_MINUS_float(hy);
+                    float _116 = Float__MINUS_(cy, _115);
+                    float dy = _116;
+                    float _122 = Double_to_MINUS_float(hz);
+                    float _123 = Float__MINUS_(cz, _122);
+                    float dz = _123;
+                    float _131 = Float__MUL_(dx, dx);
+                    float _135 = Float__MUL_(dy, dy);
+                    float _136 = Float__PLUS_(_131, _135);
+                    float _140 = Float__MUL_(dz, dz);
+                    float _141 = Float__PLUS_(_136, _140);
+                    float _142 = Float_sqrt(_141);
+                    float dist_MINUS_to_MINUS_center = _142;
+                    float _147 = Double_to_MINUS_float(radius);
+                    float _149 = Float__PLUS_(_147, 28.0f);
+                    float max_MINUS_range = _149;
+                    bool _155 = Float__LT_(dist_MINUS_to_MINUS_center, max_MINUS_range);
+                    if (_155) {
+                        /* let */ {
+                            Array__float* _162 = Chunk_voxel_MINUS_data(chunk);
+                            float* _163 = Array_unsafe_MINUS_raw__float(_162);
+                            float* p_MINUS_data = _163;
+                            bool chunk_MINUS_modified = false;
+                            /* let */ {
+                                int z = 0;
+                                bool _1000020 = Int__LT_(z, 32);
+                                bool _1000018 = _1000020;
+                                while (_1000018) {
+                                    /* let */ {
+                                        int y = 0;
+                                        bool _1000027 = Int__LT_(y, 32);
+                                        bool _1000025 = _1000027;
+                                        while (_1000025) {
+                                            /* let */ {
+                                                int x = 0;
+                                                bool _1000034 = Int__LT_(x, 32);
+                                                bool _1000032 = _1000034;
+                                                while (_1000032) {
+                                                    /* let */ {
+                                                        int _204 = Int__MUL_(z, 1024);
+                                                        int _209 = Int__MUL_(y, 32);
+                                                        int _211 = Int__PLUS_(_209, x);
+                                                        int _212 = Int__PLUS_(_204, _211);
+                                                        int idx = _212;
+                                                        int _217 = Int__MUL_(idx, 4);
+                                                        int offset = _217;
+                                                        int _224 = Int__MUL_(qx, 32);
+                                                        int _226 = Int__PLUS_(_224, x);
+                                                        double _227 = Double_from_MINUS_int(_226);
+                                                        double gx = _227;
+                                                        int _234 = Int__MUL_(qy, 32);
+                                                        int _236 = Int__PLUS_(_234, y);
+                                                        double _237 = Double_from_MINUS_int(_236);
+                                                        double gy = _237;
+                                                        int _244 = Int__MUL_(qz, 32);
+                                                        int _246 = Int__PLUS_(_244, z);
+                                                        double _247 = Double_from_MINUS_int(_246);
+                                                        double gz = _247;
+                                                        double _252 = Double__MINUS_(gx, hx);
+                                                        double vx = _252;
+                                                        double _257 = Double__MINUS_(gy, hy);
+                                                        double vy = _257;
+                                                        double _262 = Double__MINUS_(gz, hz);
+                                                        double vz = _262;
+                                                        double _270 = Double__MUL_(vx, vx);
+                                                        double _274 = Double__MUL_(vy, vy);
+                                                        double _275 = Double__PLUS_(_270, _274);
+                                                        double _279 = Double__MUL_(vz, vz);
+                                                        double _280 = Double__PLUS_(_275, _279);
+                                                        double _281 = Double_sqrt(_280);
+                                                        double dist_MINUS_to_MINUS_hit = _281;
+                                                        double _289 = Double__PLUS_(radius, 2.0);
+                                                        bool _290 = Double__LT_(dist_MINUS_to_MINUS_hit, _289);
+                                                        if (_290) {
+                                                            /* let */ {
+                                                                double _298 = Double__MINUS_(dist_MINUS_to_MINUS_hit, radius);
+                                                                float _299 = Double_to_MINUS_float(_298);
+                                                                float sphere_MINUS_sdf = _299;
+                                                                int _308 = Int__PLUS_(offset, 1);
+                                                                Long _309 = Long_from_MINUS_int(_308);
+                                                                float* _310 = Pointer_add__float(p_MINUS_data, _309);
+                                                                float _311 = Pointer_to_MINUS_value__float(_310);
+                                                                float old_MINUS_sdf = _311;
+                                                                float _330;
+                                                                if (carve_QMARK_) {
+                                                                    float _321 = Float__MINUS_(0.0f, sphere_MINUS_sdf);
+                                                                    float _322 = max__float(old_MINUS_sdf, _321);
+                                                                    float _323 = _322;
+                                                                    _330 = _323;
+                                                                } else {
+                                                                    float _328 = min__float(old_MINUS_sdf, sphere_MINUS_sdf);
+                                                                    float _329 = _328;
+                                                                    _330 = _329;
+                                                                }
+                                                                float new_MINUS_sdf = _330;
+                                                                int _340 = Int__PLUS_(offset, 1);
+                                                                Long _341 = Long_from_MINUS_int(_340);
+                                                                float* _342 = Pointer_add__float(p_MINUS_data, _341);
+                                                                Pointer_set__float(_342, new_MINUS_sdf);
+                                                                chunk_MINUS_modified = true;  // Bool = Bool
+                                                            }
+                                                        } else {
+                                                            /* () */
+                                                        }
+                                                    }
+                                                    int _1000049 = Int__PLUS_(x, 1);
+                                                    x = _1000049;  // Int = Int
+                                                    bool _1000034 = Int__LT_(x, 32);
+                                                    _1000032 = _1000034;
+                                                }
+                                            }
+                                            int _1000052 = Int__PLUS_(y, 1);
+                                            y = _1000052;  // Int = Int
+                                            bool _1000027 = Int__LT_(y, 32);
+                                            _1000025 = _1000027;
+                                        }
+                                    }
+                                    int _1000055 = Int__PLUS_(z, 1);
+                                    z = _1000055;  // Int = Int
+                                    bool _1000020 = Int__LT_(z, 32);
+                                    _1000018 = _1000020;
+                                }
+                            }
+                            if (chunk_MINUS_modified) {
+                                Array__ChunkCoord* _393 = &modified; // ref
+                                ChunkCoord _398 = ChunkCoord_init(qx, qy, qz);
+                                Array_push_MINUS_back_BANG___ChunkCoord(_393, _398);
+                            } else {
+                                /* () */
+                            }
+                        }
+                    } else {
+                        /* () */
+                    }
+                }
+                int _1000062 = Int__PLUS_(i, 1);
+                i = _1000062;  // Int = Int
+                bool _1000008 = Int__LT_(i, len);
+                _1000006 = _1000008;
+            }
+        }
+        Array__ChunkCoord _424 = modified;
+        _425 = _424;
+    }
+    return _425;
+}
+
+Maybe__Chunk World_find_MINUS_chunk(World* world, int qx, int qy, int qz) {
+    Maybe__Chunk _104;
+    /* let */ {
+        Array__Chunk* _11 = World_chunks(world);
+        Array__Chunk* chunks = _11;
+        int _15 = Array_length__Chunk(chunks);
+        int len = _15;
+        Maybe__Chunk _18 = Maybe_Nothing__Chunk();
+        Maybe__Chunk found = _18;
+        /* let */ {
+            int i = 0;
+            bool _1000008 = Int__LT_(i, len);
+            bool _1000006 = _1000008;
+            while (_1000006) {
+                /* let */ {
+                    Chunk* _36 = Array_unsafe_MINUS_nth__Chunk(chunks, i);
+                    Chunk* chunk = _36;
+                    bool _76;
+                    int* _45 = Chunk_coord_MINUS_x(chunk);
+                    int _46 = Int_copy(_45);
+                    bool _47 = Int__EQ_(qx, _46);
+                    if (_47) {
+                        bool _71;
+                        int* _55 = Chunk_coord_MINUS_y(chunk);
+                        int _56 = Int_copy(_55);
+                        bool _57 = Int__EQ_(qy, _56);
+                        if (_57) {
+                            int* _64 = Chunk_coord_MINUS_z(chunk);
+                            int _65 = Int_copy(_64);
+                            bool _66 = Int__EQ_(qz, _65);
+                            bool _67 = _66;
+                            _71 = _67;
+                        } else {
+                            bool _70 = false;
+                            _71 = _70;
+                        }
+                        bool _72 = _71;
+                        _76 = _72;
+                    } else {
+                        bool _75 = false;
+                        _76 = _75;
+                    }
+                    if (_76) {
+                        Chunk _83 = Chunk_copy(chunk);
+                        Maybe__Chunk _84 = Maybe_Just__Chunk(_83);
+                        Maybe_delete__Chunk(found);
+                        found = _84;  // (Maybe Chunk) = (Maybe Chunk)
+                    } else {
+                        /* () */
+                    }
+                }
+                int _1000024 = Int__PLUS_(i, 1);
+                i = _1000024;  // Int = Int
+                bool _1000008 = Int__LT_(i, len);
+                _1000006 = _1000008;
+            }
+        }
+        Maybe__Chunk _103 = found;
+        _104 = _103;
+    }
+    return _104;
+}
+
 World World_init(Array__Chunk chunks, int voxel_MINUS_resolution) {
     World instance;
     instance.chunks = chunks;
@@ -24225,6 +25066,222 @@ String World_prn(World *p) {
   bufferPtr--;
   snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
   return buffer;
+}
+
+Maybe__Vector3__double World_raycast(World* world, Vector3__double* ro, Vector3__double* rd, double max_MINUS_dist) {
+    Maybe__Vector3__double _104;
+    /* let */ {
+        double t = 0.0;
+        Maybe__Vector3__double _12 = Maybe_Nothing__Vector3__double();
+        Maybe__Vector3__double hit = _12;
+        int steps = 0;
+        bool _44;
+        bool _33;
+        bool _23 = Double__LT_(t, max_MINUS_dist);
+        if (_23) {
+            bool _28 = Int__LT_(steps, 250);
+            bool _29 = _28;
+            _33 = _29;
+        } else {
+            bool _32 = false;
+            _33 = _32;
+        }
+        if (_33) {
+            Maybe__Vector3__double* _38 = &hit; // ref
+            bool _39 = Maybe_nothing_QMARK___Vector3__double(_38);
+            bool _40 = _39;
+            _44 = _40;
+        } else {
+            bool _43 = false;
+            _44 = _43;
+        }
+        bool _101 = _44;
+        while (_101) {
+            /* let */ {
+                Vector3__double _53 = Vector3_mul__double(rd, t);
+                Vector3__double* _54 = &_53; // ref
+                Vector3__double _55 = Vector3_add__double(ro, _54);
+                Vector3__double p = _55;
+                Vector3__double* _61 = &p; // ref
+                float _62 = World_sample_MINUS_sdf_MINUS_nearest(world, _61);
+                float dist = _62;
+                bool _69 = Float__LT_(dist, 5.0e-2f);
+                if (_69) {
+                    Maybe__Vector3__double _75 = Maybe_Just__Vector3__double(p);
+                    Maybe_delete__Vector3__double(hit);
+                    hit = _75;  // (Maybe (Vector3 Double)) = (Maybe (Vector3 Double))
+                } else {
+                    double _87 = Double_from_MINUS_float(dist);
+                    double _88 = max__double(5.0e-2, _87);
+                    double _89 = Double__PLUS_(t, _88);
+                    t = _89;  // Double = Double
+                    Vector3_delete__double(p);
+                }
+                int _97 = Int_inc(steps);
+                steps = _97;  // Int = Int
+                Vector3_delete__double(_53);
+            }
+            bool _44;
+            bool _33;
+            bool _23 = Double__LT_(t, max_MINUS_dist);
+            if (_23) {
+                bool _28 = Int__LT_(steps, 250);
+                bool _29 = _28;
+                _33 = _29;
+            } else {
+                bool _32 = false;
+                _33 = _32;
+            }
+            if (_33) {
+                Maybe__Vector3__double* _38 = &hit; // ref
+                bool _39 = Maybe_nothing_QMARK___Vector3__double(_38);
+                bool _40 = _39;
+                _44 = _40;
+            } else {
+                bool _43 = false;
+                _44 = _43;
+            }
+            _101 = _44;
+        }
+        Maybe__Vector3__double _103 = hit;
+        _104 = _103;
+    }
+    return _104;
+}
+
+float World_sample_MINUS_sdf_MINUS_nearest(World* world, Vector3__double* p) {
+    float _221;
+    /* let */ {
+        double* _9 = Vector3_x__double(p);
+        double* x = _9;
+        double* _13 = Vector3_y__double(p);
+        double* y = _13;
+        double* _17 = Vector3_z__double(p);
+        double* z = _17;
+        double _24 = Double_copy(x);
+        double _26 = Double__DIV_(_24, 32.0);
+        double _27 = Double_floor(_26);
+        int _28 = Double_to_MINUS_int(_27);
+        int qx = _28;
+        double _35 = Double_copy(y);
+        double _37 = Double__DIV_(_35, 32.0);
+        double _38 = Double_floor(_37);
+        int _39 = Double_to_MINUS_int(_38);
+        int qy = _39;
+        double _46 = Double_copy(z);
+        double _48 = Double__DIV_(_46, 32.0);
+        double _49 = Double_floor(_48);
+        int _50 = Double_to_MINUS_int(_49);
+        int qz = _50;
+        float _220;
+        bool _111;
+        bool _68;
+        bool _58 = _GT__EQ___int(qx, 0);
+        if (_58) {
+            bool _63 = Int__LT_(qx, 4);
+            bool _64 = _63;
+            _68 = _64;
+        } else {
+            bool _67 = false;
+            _68 = _67;
+        }
+        if (_68) {
+            bool _106;
+            bool _85;
+            bool _75 = _GT__EQ___int(qy, 0);
+            if (_75) {
+                bool _80 = Int__LT_(qy, 2);
+                bool _81 = _80;
+                _85 = _81;
+            } else {
+                bool _84 = false;
+                _85 = _84;
+            }
+            if (_85) {
+                bool _101;
+                bool _91 = _GT__EQ___int(qz, 0);
+                if (_91) {
+                    bool _96 = Int__LT_(qz, 4);
+                    bool _97 = _96;
+                    _101 = _97;
+                } else {
+                    bool _100 = false;
+                    _101 = _100;
+                }
+                bool _102 = _101;
+                _106 = _102;
+            } else {
+                bool _105 = false;
+                _106 = _105;
+            }
+            bool _107 = _106;
+            _111 = _107;
+        } else {
+            bool _110 = false;
+            _111 = _110;
+        }
+        if (_111) {
+            Maybe__Chunk _119 = World_find_MINUS_chunk(world, qx, qy, qz);
+            float _215;
+            if(_119._tag == Maybe__Chunk_Nothing_tag) {
+                Maybe__Chunk _119_temp = _119;
+                // Case expr:
+                _215 = 1000.0f;
+            }
+            else if(_119._tag == Maybe__Chunk_Just_tag) {
+                Maybe__Chunk _119_temp = _119;
+                Chunk chunk = _119_temp.u.Just.member0;
+                // Case expr:
+                float _214;
+                /* let */ {
+                    double _135 = Double_copy(x);
+                    int _140 = Int__MUL_(qx, 32);
+                    double _141 = Double_from_MINUS_int(_140);
+                    double _142 = Double__MINUS_(_135, _141);
+                    double _143 = Double_clamp__double(0.0, 31.0, _142);
+                    int _144 = Double_to_MINUS_int(_143);
+                    int lx = _144;
+                    double _153 = Double_copy(y);
+                    int _158 = Int__MUL_(qy, 32);
+                    double _159 = Double_from_MINUS_int(_158);
+                    double _160 = Double__MINUS_(_153, _159);
+                    double _161 = Double_clamp__double(0.0, 31.0, _160);
+                    int _162 = Double_to_MINUS_int(_161);
+                    int ly = _162;
+                    double _171 = Double_copy(z);
+                    int _176 = Int__MUL_(qz, 32);
+                    double _177 = Double_from_MINUS_int(_176);
+                    double _178 = Double__MINUS_(_171, _177);
+                    double _179 = Double_clamp__double(0.0, 31.0, _178);
+                    int _180 = Double_to_MINUS_int(_179);
+                    int lz = _180;
+                    int _186 = Int__MUL_(lz, 1024);
+                    int _191 = Int__MUL_(ly, 32);
+                    int _193 = Int__PLUS_(_191, lx);
+                    int _194 = Int__PLUS_(_186, _193);
+                    int idx = _194;
+                    int _199 = Int__MUL_(idx, 4);
+                    int offset = _199;
+                    Chunk* _206 = &chunk; // ref
+                    Array__float* _207 = Chunk_voxel_MINUS_data(_206);
+                    int _211 = Int__PLUS_(offset, 1);
+                    float* _212 = Array_unsafe_MINUS_nth__float(_207, _211);
+                    float _213 = Float_copy(_212);
+                    _214 = _213;
+                }
+                _215 = _214;
+                Chunk_delete(chunk);
+            }
+            else UNHANDLED("world.carp", 81);
+            float _216 = _215;
+            _220 = _216;
+        } else {
+            float _219 = 1000.0f;
+            _220 = _219;
+        }
+        _221 = _220;
+    }
+    return _221;
 }
 
 World World_set_MINUS_chunks(World p, Array__Chunk newValue) {
@@ -24853,6 +25910,32 @@ int main(int argc, char** argv) {
     return _128;
 }
 
+double max__double(double a, double b) {
+    double _16;
+    bool _9 = Double__GT_(a, b);
+    if (_9) {
+        double _12 = a;
+        _16 = _12;
+    } else {
+        double _15 = b;
+        _16 = _15;
+    }
+    return _16;
+}
+
+float max__float(float a, float b) {
+    float _16;
+    bool _9 = Float__GT_(a, b);
+    if (_9) {
+        float _12 = a;
+        _16 = _12;
+    } else {
+        float _15 = b;
+        _16 = _15;
+    }
+    return _16;
+}
+
 int max__int(int a, int b) {
     int _16;
     bool _9 = Int__GT_(a, b);
@@ -24861,6 +25944,19 @@ int max__int(int a, int b) {
         _16 = _12;
     } else {
         int _15 = b;
+        _16 = _15;
+    }
+    return _16;
+}
+
+float min__float(float a, float b) {
+    float _16;
+    bool _9 = Float__LT_(a, b);
+    if (_9) {
+        float _12 = a;
+        _16 = _12;
+    } else {
+        float _15 = b;
         _16 = _15;
     }
     return _16;
