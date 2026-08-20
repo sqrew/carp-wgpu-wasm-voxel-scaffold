@@ -31,10 +31,10 @@ fi
 source "$EMSDK_DIR/emsdk_env.sh"
 
 echo "Compiling src/main.c to src/main.o..."
-emcc -c src/main.c -I"$CARP_FORK_DIR/core/" --use-port=emdawnwebgpu -sUSE_GLFW=3 -sASYNCIFY=1 -o src/main.o
+emcc -c src/main.c -I"$CARP_FORK_DIR/core/" --use-port=emdawnwebgpu -sUSE_GLFW=3 -sASYNCIFY=1 -sALLOW_MEMORY_GROWTH=1 -o src/main.o
 
 echo "Linking src/main.o to index.html..."
-em++ src/main.o --use-port=emdawnwebgpu -sUSE_GLFW=3 -sASYNCIFY=1 -o index.html
+em++ src/main.o --use-port=emdawnwebgpu -sUSE_GLFW=3 -sASYNCIFY=1 -sALLOW_MEMORY_GROWTH=1 -o index.html
 
 echo "=== Build Succeeded! ==="
 echo "To run the local web server, run: python3 -m http.server 8000"
