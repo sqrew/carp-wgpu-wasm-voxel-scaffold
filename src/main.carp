@@ -148,9 +148,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
           front-y (Double.sin rad-pitch)
           front-z (* (Double.cos rad-pitch) (Double.sin rad-yaw))
           front (Vector3.normalize &(Vector3.init front-x front-y front-z))
-          world-up (if (> (Double.abs @(Vector3.y &front)) 0.9)
-                     (Vector3.init 0.0 0.0 1.0)
-                     (Vector3.init 0.0 1.0 0.0))
+          world-up (Vector3.init 0.0 1.0 0.0)
           right (Vector3.normalize &(Vector3.cross &front &world-up))
           up (Vector3.normalize &(Vector3.cross &right &front))]
       (do
