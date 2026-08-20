@@ -1996,7 +1996,19 @@ typedef void(*Fn__WGPUContext_MUL__void)(WGPUContext*);
 typedef WGPURenderSurface*(*Fn__WGPUContext_MUL__void_MUL__int_int_WGPURenderSurface_MUL_)(WGPUContext*, void*, int, int);
 
 // Depth 104
+typedef WGPUDepthTexture*(*Fn__WGPUDepthTexture_MUL__MUL__WGPUDepthTexture_MUL_)(WGPUDepthTexture**);
+
+// Depth 104
+typedef String(*Fn__WGPUDepthTexture_MUL__String)(WGPUDepthTexture*);
+
+// Depth 104
+typedef WGPUDepthTexture*(*Fn__WGPUDepthTexture_MUL__WGPUDepthTexture_MUL_)(WGPUDepthTexture*);
+
+// Depth 104
 typedef bool(*Fn__WGPUDepthTexture_MUL__bool)(WGPUDepthTexture*);
+
+// Depth 104
+typedef void(*Fn__WGPUDepthTexture_MUL__void)(WGPUDepthTexture*);
 
 // Depth 104
 typedef void(*Fn__WGPUFrameState_MUL__WGPUGeomPipelineWrapper_MUL__WGPUBindGroup_WGPUVertexBufferWrapper_MUL__WGPUDepthTexture_MUL__Uint32_WGPURenderTexture_MUL__float_float_float_float_void)(WGPUFrameState*, WGPUGeomPipelineWrapper*, WGPUBindGroup, WGPUVertexBufferWrapper*, WGPUDepthTexture*, Uint32, WGPURenderTexture*, float, float, float, float);
@@ -2152,9 +2164,6 @@ typedef Uint64(*Fn___Uint64)();
 typedef WGPUContext*(*Fn___WGPUContext_MUL_)();
 
 // Depth 104
-typedef WGPUDepthTexture*(*Fn___WGPUDepthTexture_MUL_)();
-
-// Depth 104
 typedef WGPURenderTexture*(*Fn___WGPURenderTexture_MUL_)();
 
 // Depth 104
@@ -2228,6 +2237,9 @@ struct Renderer {
     WGPUSampler voxel_MINUS_sampler;
     LinePassRenderer line_MINUS_pass;
     Array__Line lines;
+    WGPUDepthTexture* depth_MINUS_texture;
+    int width;
+    int height;
 };
 
 // Depth 106
@@ -2573,6 +2585,9 @@ typedef Result__WGPUBindGroup_String(*Fn__WGPUContext_MUL__WGPURenderPipelineWra
 typedef Result__WGPUUniformBufferWrapper_MUL__String(*Fn__WGPUContext_MUL__int_Result__WGPUUniformBufferWrapper_MUL__String)(WGPUContext*, int);
 
 // Depth 106
+typedef Result__WGPUDepthTexture_MUL__String(*Fn__WGPUContext_MUL__int_int_Result__WGPUDepthTexture_MUL__String)(WGPUContext*, int, int);
+
+// Depth 106
 typedef Result__WGPURenderTexture_MUL__String(*Fn__WGPUContext_MUL__int_int_int_String_MUL__Result__WGPURenderTexture_MUL__String)(WGPUContext*, int, int, int, String*);
 
 // Depth 106
@@ -2588,7 +2603,7 @@ typedef Maybe__WGPUFrameState_MUL_(*Fn__WGPUFrameState_MUL__Maybe__WGPUFrameStat
 typedef Result__WGPUFrameState_MUL__String(*Fn__WGPUFrameState_MUL__Result__WGPUFrameState_MUL__String)(WGPUFrameState*);
 
 // Depth 106
-typedef void(*Fn__WGPUFrameState_MUL__WGPUContext_MUL__LinePassRenderer_MUL__int_Maybe__WGPURenderTexture_MUL__void)(WGPUFrameState*, WGPUContext*, LinePassRenderer*, int, Maybe__WGPURenderTexture_MUL_);
+typedef void(*Fn__WGPUFrameState_MUL__WGPUContext_MUL__LinePassRenderer_MUL__int_WGPUDepthTexture_MUL__Maybe__WGPURenderTexture_MUL__void)(WGPUFrameState*, WGPUContext*, LinePassRenderer*, int, WGPUDepthTexture*, Maybe__WGPURenderTexture_MUL_);
 
 // Depth 106
 typedef void(*Fn__WGPUFrameState_MUL__WGPUGeomPipelineWrapper_MUL__WGPUBindGroup_WGPUVertexBufferWrapper_MUL__WGPUDepthTexture_MUL__Uint32_Maybe__WGPURenderTexture_MUL__void)(WGPUFrameState*, WGPUGeomPipelineWrapper*, WGPUBindGroup, WGPUVertexBufferWrapper*, WGPUDepthTexture*, Uint32, Maybe__WGPURenderTexture_MUL_);
@@ -2836,6 +2851,12 @@ typedef void(*Fn__Renderer_MUL__Vector3__double_MUL__Vector3__double_MUL__Vector
 typedef WGPUBindGroup*(*Fn__Renderer_MUL__WGPUBindGroup_MUL_)(Renderer*);
 
 // Depth 108
+typedef WGPUDepthTexture**(*Fn__Renderer_MUL__WGPUDepthTexture_MUL__MUL_)(Renderer*);
+
+// Depth 108
+typedef void(*Fn__Renderer_MUL__WGPUDepthTexture_MUL__void)(Renderer*, WGPUDepthTexture*);
+
+// Depth 108
 typedef WGPURenderPipelineWrapper**(*Fn__Renderer_MUL__WGPURenderPipelineWrapper_MUL__MUL_)(Renderer*);
 
 // Depth 108
@@ -2849,6 +2870,12 @@ typedef WGPUUniformBufferWrapper**(*Fn__Renderer_MUL__WGPUUniformBufferWrapper_M
 
 // Depth 108
 typedef void(*Fn__Renderer_MUL__double_double_double_double_double_double_Vector3__double_MUL__void)(Renderer*, double, double, double, double, double, double, Vector3__double*);
+
+// Depth 108
+typedef int*(*Fn__Renderer_MUL__int_MUL_)(Renderer*);
+
+// Depth 108
+typedef void(*Fn__Renderer_MUL__int_void)(Renderer*, int);
 
 // Depth 108
 typedef void(*Fn__Renderer_MUL__void)(Renderer*);
@@ -2869,7 +2896,7 @@ typedef Result__LinePassRenderer_String(*Fn__String_Result__LinePassRenderer_Str
 typedef Result__LinePassRenderer_String(*Fn__WGPUContext_MUL__String_MUL__int_Result__LinePassRenderer_String)(WGPUContext*, String*, int);
 
 // Depth 108
-typedef Renderer(*Fn__WGPURenderPipelineWrapper_MUL__WGPUBindGroup_WGPUUniformBufferWrapper_MUL__WGPURenderTexture_MUL__WGPUSampler_LinePassRenderer_Array__Line_Renderer)(WGPURenderPipelineWrapper*, WGPUBindGroup, WGPUUniformBufferWrapper*, WGPURenderTexture*, WGPUSampler, LinePassRenderer, Array__Line);
+typedef Renderer(*Fn__WGPURenderPipelineWrapper_MUL__WGPUBindGroup_WGPUUniformBufferWrapper_MUL__WGPURenderTexture_MUL__WGPUSampler_LinePassRenderer_Array__Line_WGPUDepthTexture_MUL__int_int_Renderer)(WGPURenderPipelineWrapper*, WGPUBindGroup, WGPUUniformBufferWrapper*, WGPURenderTexture*, WGPUSampler, LinePassRenderer, Array__Line, WGPUDepthTexture*, int, int);
 
 // Depth 109
 typedef Array__ActiveTimer(*Fn__Array__ActiveTimer_Array__ActiveTimer)(Array__ActiveTimer);
@@ -3289,6 +3316,9 @@ typedef WGPUBindGroup(*Fn__LambdaEnv_WGPUBindGroup_WGPUBindGroup)(LambdaEnv, WGP
 
 // Depth 505
 typedef WGPUContext*(*Fn__LambdaEnv_WGPUContext_MUL__WGPUContext_MUL_)(LambdaEnv, WGPUContext*);
+
+// Depth 505
+typedef WGPUDepthTexture*(*Fn__LambdaEnv_WGPUDepthTexture_MUL__WGPUDepthTexture_MUL_)(LambdaEnv, WGPUDepthTexture*);
 
 // Depth 505
 typedef WGPUGeomPipelineWrapper*(*Fn__LambdaEnv_WGPUGeomPipelineWrapper_MUL__WGPUGeomPipelineWrapper_MUL_)(LambdaEnv, WGPUGeomPipelineWrapper*);
@@ -5594,7 +5624,7 @@ Result__LinePassRenderer_String LinePass_create(WGPUContext* ctx, String* format
 String* LinePass_line_MINUS_shader_MINUS_wgsl;
 
 // Depth 500
-void LinePass_render__WGPUContext_MUL_(WGPUFrameState* frame, WGPUContext* ctx, LinePassRenderer* lp, int line_MINUS_count, Maybe__WGPURenderTexture_MUL_ target);
+void LinePass_render__WGPUContext_MUL_(WGPUFrameState* frame, WGPUContext* ctx, LinePassRenderer* lp, int line_MINUS_count, WGPUDepthTexture* depth, Maybe__WGPURenderTexture_MUL_ target);
 
 // Depth 500
 int LinePass_update_BANG_(WGPUContext* ctx, LinePassRenderer* lp, Array__float* view_MINUS_proj, Array__Line* lines);
@@ -6071,6 +6101,9 @@ JobHandle* Pointer_copy__JobHandle (JobHandle** ptrRef);
 WGPUContext* Pointer_copy__WGPUContext (WGPUContext** ptrRef);
 
 // Depth 500
+WGPUDepthTexture* Pointer_copy__WGPUDepthTexture (WGPUDepthTexture** ptrRef);
+
+// Depth 500
 WGPUGeomPipelineWrapper* Pointer_copy__WGPUGeomPipelineWrapper (WGPUGeomPipelineWrapper** ptrRef);
 
 // Depth 500
@@ -6108,6 +6141,9 @@ String Pointer_prn__GLFWwindow(GLFWwindow* a);
 
 // Depth 500
 String Pointer_prn__WGPUContext(WGPUContext* a);
+
+// Depth 500
+String Pointer_prn__WGPUDepthTexture(WGPUDepthTexture* a);
 
 // Depth 500
 String Pointer_prn__WGPUGeomPipelineWrapper(WGPUGeomPipelineWrapper* a);
@@ -6206,13 +6242,19 @@ Result__Renderer_String Renderer_create(Engine* eng);
 void Renderer_delete(Renderer p);
 
 // Depth 500
+WGPUDepthTexture** Renderer_depth_MINUS_texture(Renderer* p);
+
+// Depth 500
 void Renderer_draw(Engine* eng, Renderer* ren, Camera* cam);
 
 // Depth 500
 void Renderer_draw_MINUS_line_BANG_(Renderer* ren, Vector3__double* start, Vector3__double* end, Vector3__double* color);
 
 // Depth 500
-Renderer Renderer_init(WGPURenderPipelineWrapper* pipeline, WGPUBindGroup bind_MINUS_group, WGPUUniformBufferWrapper* uniform_MINUS_buffer, WGPURenderTexture* voxel_MINUS_texture, WGPUSampler voxel_MINUS_sampler, LinePassRenderer line_MINUS_pass, Array__Line lines);
+int* Renderer_height(Renderer* p);
+
+// Depth 500
+Renderer Renderer_init(WGPURenderPipelineWrapper* pipeline, WGPUBindGroup bind_MINUS_group, WGPUUniformBufferWrapper* uniform_MINUS_buffer, WGPURenderTexture* voxel_MINUS_texture, WGPUSampler voxel_MINUS_sampler, LinePassRenderer line_MINUS_pass, Array__Line lines, WGPUDepthTexture* depth_MINUS_texture, int width, int height);
 
 // Depth 500
 LinePassRenderer* Renderer_line_MINUS_pass(Renderer* p);
@@ -6231,6 +6273,18 @@ Renderer Renderer_set_MINUS_bind_MINUS_group(Renderer p, WGPUBindGroup newValue)
 
 // Depth 500
 void Renderer_set_MINUS_bind_MINUS_group_BANG_(Renderer* pRef, WGPUBindGroup newValue);
+
+// Depth 500
+Renderer Renderer_set_MINUS_depth_MINUS_texture(Renderer p, WGPUDepthTexture* newValue);
+
+// Depth 500
+void Renderer_set_MINUS_depth_MINUS_texture_BANG_(Renderer* pRef, WGPUDepthTexture* newValue);
+
+// Depth 500
+Renderer Renderer_set_MINUS_height(Renderer p, int newValue);
+
+// Depth 500
+void Renderer_set_MINUS_height_BANG_(Renderer* pRef, int newValue);
 
 // Depth 500
 Renderer Renderer_set_MINUS_line_MINUS_pass(Renderer p, LinePassRenderer newValue);
@@ -6269,6 +6323,12 @@ Renderer Renderer_set_MINUS_voxel_MINUS_texture(Renderer p, WGPURenderTexture* n
 void Renderer_set_MINUS_voxel_MINUS_texture_BANG_(Renderer* pRef, WGPURenderTexture* newValue);
 
 // Depth 500
+Renderer Renderer_set_MINUS_width(Renderer p, int newValue);
+
+// Depth 500
+void Renderer_set_MINUS_width_BANG_(Renderer* pRef, int newValue);
+
+// Depth 500
 String Renderer_str(Renderer *p);
 
 // Depth 500
@@ -6276,6 +6336,12 @@ WGPUUniformBufferWrapper** Renderer_uniform_MINUS_buffer(Renderer* p);
 
 // Depth 500
 Renderer Renderer_update_MINUS_bind_MINUS_group(Renderer p, Lambda *updater);
+
+// Depth 500
+Renderer Renderer_update_MINUS_depth_MINUS_texture(Renderer p, Lambda *updater);
+
+// Depth 500
+Renderer Renderer_update_MINUS_height(Renderer p, Lambda *updater);
 
 // Depth 500
 Renderer Renderer_update_MINUS_line_MINUS_pass(Renderer p, Lambda *updater);
@@ -6302,10 +6368,16 @@ Renderer Renderer_update_MINUS_voxel_MINUS_sampler(Renderer p, Lambda *updater);
 Renderer Renderer_update_MINUS_voxel_MINUS_texture(Renderer p, Lambda *updater);
 
 // Depth 500
+Renderer Renderer_update_MINUS_width(Renderer p, Lambda *updater);
+
+// Depth 500
 WGPUSampler* Renderer_voxel_MINUS_sampler(Renderer* p);
 
 // Depth 500
 WGPURenderTexture** Renderer_voxel_MINUS_texture(Renderer* p);
+
+// Depth 500
+int* Renderer_width(Renderer* p);
 
 // Depth 1000
 
@@ -17810,20 +17882,19 @@ Result__LinePassRenderer_String LinePass_create(WGPUContext* ctx, String* format
     return _201;
 }
 
-void LinePass_render__WGPUContext_MUL_(WGPUFrameState* frame, WGPUContext* ctx, LinePassRenderer* lp, int line_MINUS_count, Maybe__WGPURenderTexture_MUL_ target) {
-    bool _12 = Int__GT_(line_MINUS_count, 0);
-    if (_12) {
-        WGPUGeomPipelineWrapper** _19 = LinePassRenderer_pipeline(lp);
-        WGPUGeomPipelineWrapper* _20 = Pointer_copy__WGPUGeomPipelineWrapper(_19);
-        WGPUBindGroup* _24 = LinePassRenderer_bind_MINUS_group(lp);
-        WGPUBindGroup _25 = WGPUBindGroup_copy(_24);
-        WGPUVertexBufferWrapper** _29 = LinePassRenderer_v_MINUS_buffer(lp);
-        WGPUVertexBufferWrapper* _30 = Pointer_copy__WGPUVertexBufferWrapper(_29);
-        WGPUDepthTexture* _32 = null_MINUS_depth_MINUS_texture();
+void LinePass_render__WGPUContext_MUL_(WGPUFrameState* frame, WGPUContext* ctx, LinePassRenderer* lp, int line_MINUS_count, WGPUDepthTexture* depth, Maybe__WGPURenderTexture_MUL_ target) {
+    bool _13 = Int__GT_(line_MINUS_count, 0);
+    if (_13) {
+        WGPUGeomPipelineWrapper** _20 = LinePassRenderer_pipeline(lp);
+        WGPUGeomPipelineWrapper* _21 = Pointer_copy__WGPUGeomPipelineWrapper(_20);
+        WGPUBindGroup* _25 = LinePassRenderer_bind_MINUS_group(lp);
+        WGPUBindGroup _26 = WGPUBindGroup_copy(_25);
+        WGPUVertexBufferWrapper** _30 = LinePassRenderer_v_MINUS_buffer(lp);
+        WGPUVertexBufferWrapper* _31 = Pointer_copy__WGPUVertexBufferWrapper(_30);
         int _38 = Int__MUL_(line_MINUS_count, 2);
         Long _39 = Long_from_MINUS_int(_38);
         Uint32 _40 = Uint32_from_MINUS_long(_39);
-        WGPURender_run_MINUS_geom_MINUS_pass_MINUS_overlay(frame, _20, _25, _30, _32, _40, target);
+        WGPURender_run_MINUS_geom_MINUS_pass_MINUS_overlay(frame, _21, _26, _31, depth, _40, target);
     } else {
         /* () */
         Maybe_delete__WGPURenderTexture_MUL_(target);
@@ -19658,6 +19729,10 @@ WGPUContext* Pointer_copy__WGPUContext (WGPUContext** ptrRef) {
     return *ptrRef;
 }
 
+WGPUDepthTexture* Pointer_copy__WGPUDepthTexture (WGPUDepthTexture** ptrRef) {
+    return *ptrRef;
+}
+
 WGPUGeomPipelineWrapper* Pointer_copy__WGPUGeomPipelineWrapper (WGPUGeomPipelineWrapper** ptrRef) {
     return *ptrRef;
 }
@@ -19693,6 +19768,11 @@ String Pointer_prn__GLFWwindow(GLFWwindow* a) {
 }
 
 String Pointer_prn__WGPUContext(WGPUContext* a) {
+    String _6 = Pointer_strp(a);
+    return _6;
+}
+
+String Pointer_prn__WGPUDepthTexture(WGPUDepthTexture* a) {
     String _6 = Pointer_strp(a);
     return _6;
 }
@@ -19772,21 +19852,24 @@ void Renderer_cleanup__Engine_MUL_(Engine* eng, Renderer* ren) {
     Renderer_clear_MINUS_lines_BANG_(ren);
     LinePassRenderer* _12 = Renderer_line_MINUS_pass(ren);
     LinePass_cleanup(_12);
-    WGPUBindGroup* _18 = Renderer_bind_MINUS_group(ren);
-    WGPUBindGroup _19 = WGPUBindGroup_copy(_18);
-    Engine_free_MINUS_bind_MINUS_group(_19);
-    WGPURenderPipelineWrapper** _25 = Renderer_pipeline(ren);
-    WGPURenderPipelineWrapper* _26 = Pointer_copy__WGPURenderPipelineWrapper(_25);
-    Engine_free_MINUS_pipeline(_26);
-    WGPUUniformBufferWrapper** _32 = Renderer_uniform_MINUS_buffer(ren);
-    WGPUUniformBufferWrapper* _33 = Pointer_copy__WGPUUniformBufferWrapper(_32);
-    Engine_free_MINUS_uniform_MINUS_buffer(_33);
-    WGPUSampler* _39 = Renderer_voxel_MINUS_sampler(ren);
-    WGPUSampler _40 = WGPUSampler_copy(_39);
-    wgpuSamplerRelease(_40);
-    WGPURenderTexture** _46 = Renderer_voxel_MINUS_texture(ren);
-    WGPURenderTexture* _47 = Pointer_copy__WGPURenderTexture(_46);
-    wgpu_render_texture_free(_47);
+    WGPUDepthTexture** _18 = Renderer_depth_MINUS_texture(ren);
+    WGPUDepthTexture* _19 = Pointer_copy__WGPUDepthTexture(_18);
+    wgpu_depth_texture_free(_19);
+    WGPUBindGroup* _25 = Renderer_bind_MINUS_group(ren);
+    WGPUBindGroup _26 = WGPUBindGroup_copy(_25);
+    Engine_free_MINUS_bind_MINUS_group(_26);
+    WGPURenderPipelineWrapper** _32 = Renderer_pipeline(ren);
+    WGPURenderPipelineWrapper* _33 = Pointer_copy__WGPURenderPipelineWrapper(_32);
+    Engine_free_MINUS_pipeline(_33);
+    WGPUUniformBufferWrapper** _39 = Renderer_uniform_MINUS_buffer(ren);
+    WGPUUniformBufferWrapper* _40 = Pointer_copy__WGPUUniformBufferWrapper(_39);
+    Engine_free_MINUS_uniform_MINUS_buffer(_40);
+    WGPUSampler* _46 = Renderer_voxel_MINUS_sampler(ren);
+    WGPUSampler _47 = WGPUSampler_copy(_46);
+    wgpuSamplerRelease(_47);
+    WGPURenderTexture** _53 = Renderer_voxel_MINUS_texture(ren);
+    WGPURenderTexture* _54 = Pointer_copy__WGPURenderTexture(_53);
+    wgpu_render_texture_free(_54);
 }
 
 void Renderer_clear_MINUS_lines_BANG_(Renderer* ren) {
@@ -19819,11 +19902,14 @@ Renderer Renderer_copy(Renderer* pRef) {
     /* Ignore non-managed member 'voxel_MINUS_sampler' : WGPUSampler */
     copy.line_MINUS_pass = LinePassRenderer_copy(&(pRef->line_MINUS_pass));
     copy.lines = Array_copy__Line(&(pRef->lines));
+    /* Ignore non-managed member 'depth_MINUS_texture' : (Ptr WGPUDepthTexture) */
+    /* Ignore non-managed member 'width' : Int */
+    /* Ignore non-managed member 'height' : Int */
     return copy;
 }
 
 Result__Renderer_String Renderer_create(Engine* eng) {
-    Result__Renderer_String _279;
+    Result__Renderer_String _348;
     /* let */ {
         WGPUContext** _9 = Engine_ctx(eng);
         WGPUContext* _10 = Pointer_copy__WGPUContext(_9);
@@ -19831,7 +19917,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
         static String _18 = "rgba16float";
         String *_18_ref = &_18;
         Result__WGPURenderTexture_MUL__String _19 = WGPURender_create_MINUS_3d_MINUS_texture(ctx, 32, 32, 32, _18_ref);
-        Result__Renderer_String _278;
+        Result__Renderer_String _347;
         if(_19._tag == Result__WGPURenderTexture_MUL__String_Error_tag) {
             Result__WGPURenderTexture_MUL__String _19_temp = _19;
             String e = _19_temp.u.Error.member0;
@@ -19846,7 +19932,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
             String* _1000005 = &_1000006; // ref
             String _1000004 = String_copy(_1000005);
             Result__Renderer_String _40 = Result_Error__String_Renderer(_1000004);
-            _278 = _40;
+            _347 = _40;
             String_delete(_1000006);
             String_delete(_1000008);
             String_delete(_1000010);
@@ -19856,7 +19942,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
             WGPURenderTexture* voxel_MINUS_tex = _19_temp.u.Success.member0;
             // Case expr:
             Result__WGPUSampler_String _47 = WGPURender_create_MINUS_sampler(ctx);
-            Result__Renderer_String _277;
+            Result__Renderer_String _346;
             if(_47._tag == Result__WGPUSampler_String_Error_tag) {
                 Result__WGPUSampler_String _47_temp = _47;
                 String e = _47_temp.u.Error.member0;
@@ -19873,7 +19959,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                 String _1000013 = String_copy(_1000014);
                 Result__Renderer_String _72 = Result_Error__String_Renderer(_1000013);
                 Result__Renderer_String _73 = _72;
-                _277 = _73;
+                _346 = _73;
                 String_delete(_1000015);
                 String_delete(_1000017);
                 String_delete(_1000019);
@@ -19883,7 +19969,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                 WGPUSampler voxel_MINUS_sampler = _47_temp.u.Success.member0;
                 // Case expr:
                 Result__WGPUUniformBufferWrapper_MUL__String _81 = WGPURender_create_MINUS_uniform_MINUS_buffer(ctx, 80);
-                Result__Renderer_String _276;
+                Result__Renderer_String _345;
                 if(_81._tag == Result__WGPUUniformBufferWrapper_MUL__String_Error_tag) {
                     Result__WGPUUniformBufferWrapper_MUL__String _81_temp = _81;
                     String e = _81_temp.u.Error.member0;
@@ -19901,7 +19987,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                     String _1000022 = String_copy(_1000023);
                     Result__Renderer_String _109 = Result_Error__String_Renderer(_1000022);
                     Result__Renderer_String _110 = _109;
-                    _276 = _110;
+                    _345 = _110;
                     String_delete(_1000024);
                     String_delete(_1000026);
                     String_delete(_1000028);
@@ -19915,7 +20001,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                     static String _119 = "fs_main";
                     String *_119_ref = &_119;
                     Result__WGPURenderPipelineWrapper_MUL__String _120 = Engine_create_MINUS_pipeline(eng, voxel_MINUS_wgsl, _118_ref, _119_ref);
-                    Result__Renderer_String _275;
+                    Result__Renderer_String _344;
                     if(_120._tag == Result__WGPURenderPipelineWrapper_MUL__String_Error_tag) {
                         Result__WGPURenderPipelineWrapper_MUL__String _120_temp = _120;
                         String e = _120_temp.u.Error.member0;
@@ -19934,7 +20020,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                         String _1000031 = String_copy(_1000032);
                         Result__Renderer_String _151 = Result_Error__String_Renderer(_1000031);
                         Result__Renderer_String _152 = _151;
-                        _275 = _152;
+                        _344 = _152;
                         String_delete(_1000033);
                         String_delete(_1000035);
                         String_delete(_1000037);
@@ -19944,7 +20030,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                         WGPURenderPipelineWrapper* pipe = _120_temp.u.Success.member0;
                         // Case expr:
                         Result__WGPUBindGroup_String _163 = Engine_create_MINUS_voxel_MINUS_bind_MINUS_group(eng, pipe, voxel_MINUS_tex, voxel_MINUS_sampler, ub);
-                        Result__Renderer_String _274;
+                        Result__Renderer_String _343;
                         if(_163._tag == Result__WGPUBindGroup_String_Error_tag) {
                             Result__WGPUBindGroup_String _163_temp = _163;
                             String e = _163_temp.u.Error.member0;
@@ -19964,7 +20050,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                             String _1000040 = String_copy(_1000041);
                             Result__Renderer_String _197 = Result_Error__String_Renderer(_1000040);
                             Result__Renderer_String _198 = _197;
-                            _274 = _198;
+                            _343 = _198;
                             String_delete(_1000042);
                             String_delete(_1000044);
                             String_delete(_1000046);
@@ -19973,71 +20059,116 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                             Result__WGPUBindGroup_String _163_temp = _163;
                             WGPUBindGroup bg = _163_temp.u.Success.member0;
                             // Case expr:
-                            Result__Renderer_String _273;
+                            Result__Renderer_String _342;
                             /* let */ {
-                                WGPURenderSurface** _208 = Engine_surf(eng);
-                                WGPURenderSurface* _209 = Pointer_copy__WGPURenderSurface(_208);
-                                String _210 = WGPURender_surface_MINUS_format(_209);
-                                String format = _210;
-                                String* _217 = &format; // ref
-                                Result__LinePassRenderer_String _219 = LinePass_create(ctx, _217, 1000);
-                                Result__Renderer_String _272;
-                                if(_219._tag == Result__LinePassRenderer_String_Error_tag) {
-                                    Result__LinePassRenderer_String _219_temp = _219;
-                                    String e = _219_temp.u.Error.member0;
+                                int* _207 = Engine_width(eng);
+                                int _208 = Int_copy(_207);
+                                int w = _208;
+                                int* _213 = Engine_height(eng);
+                                int _214 = Int_copy(_213);
+                                int h = _214;
+                                Result__WGPUDepthTexture_MUL__String _221 = WGPURender_create_MINUS_depth_MINUS_texture(ctx, w, h);
+                                Result__Renderer_String _341;
+                                if(_221._tag == Result__WGPUDepthTexture_MUL__String_Error_tag) {
+                                    Result__WGPUDepthTexture_MUL__String _221_temp = _221;
+                                    String e = _221_temp.u.Error.member0;
                                     // Case expr:
                                     Engine_free_MINUS_pipeline(pipe);
                                     Engine_free_MINUS_uniform_MINUS_buffer(ub);
                                     wgpuSamplerRelease(voxel_MINUS_sampler);
                                     wgpu_render_texture_free(voxel_MINUS_tex);
                                     Engine_free_MINUS_bind_MINUS_group(bg);
-                                    static String _245 = "LinePass creation failed: ";
-                                    String *_245_ref = &_245;
-                                    String _1000054 = String_str(_245_ref);
+                                    static String _247 = "Depth texture failed: ";
+                                    String *_247_ref = &_247;
+                                    String _1000054 = String_str(_247_ref);
                                     String* _1000053 = &_1000054; // ref
                                     String _1000056 = StringCopy_str(e);
                                     String* _1000055 = &_1000056; // ref
                                     String _1000052 = String_append(_1000053, _1000055);
                                     String* _1000051 = &_1000052; // ref
                                     String _1000050 = String_copy(_1000051);
-                                    Result__Renderer_String _256 = Result_Error__String_Renderer(_1000050);
-                                    Result__Renderer_String _257 = _256;
-                                    _272 = _257;
+                                    Result__Renderer_String _258 = Result_Error__String_Renderer(_1000050);
+                                    Result__Renderer_String _259 = _258;
+                                    _341 = _259;
                                     String_delete(_1000052);
                                     String_delete(_1000054);
                                     String_delete(_1000056);
                                 }
-                                else if(_219._tag == Result__LinePassRenderer_String_Success_tag) {
-                                    Result__LinePassRenderer_String _219_temp = _219;
-                                    LinePassRenderer lp = _219_temp.u.Success.member0;
+                                else if(_221._tag == Result__WGPUDepthTexture_MUL__String_Success_tag) {
+                                    Result__WGPUDepthTexture_MUL__String _221_temp = _221;
+                                    WGPUDepthTexture* depth_MINUS_tex = _221_temp.u.Success.member0;
                                     // Case expr:
-                                    Array _269 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(Line) * 0) };
-                                    Renderer _270 = Renderer_init(pipe, bg, ub, voxel_MINUS_tex, voxel_MINUS_sampler, lp, _269);
-                                    Result__Renderer_String _271 = Result_Success__Renderer_String(_270);
-                                    _272 = _271;
+                                    Result__Renderer_String _340;
+                                    /* let */ {
+                                        WGPURenderSurface** _269 = Engine_surf(eng);
+                                        WGPURenderSurface* _270 = Pointer_copy__WGPURenderSurface(_269);
+                                        String _271 = WGPURender_surface_MINUS_format(_270);
+                                        String format = _271;
+                                        String* _278 = &format; // ref
+                                        Result__LinePassRenderer_String _280 = LinePass_create(ctx, _278, 1000);
+                                        Result__Renderer_String _339;
+                                        if(_280._tag == Result__LinePassRenderer_String_Error_tag) {
+                                            Result__LinePassRenderer_String _280_temp = _280;
+                                            String e = _280_temp.u.Error.member0;
+                                            // Case expr:
+                                            Engine_free_MINUS_pipeline(pipe);
+                                            Engine_free_MINUS_uniform_MINUS_buffer(ub);
+                                            wgpuSamplerRelease(voxel_MINUS_sampler);
+                                            wgpu_render_texture_free(voxel_MINUS_tex);
+                                            Engine_free_MINUS_bind_MINUS_group(bg);
+                                            wgpu_depth_texture_free(depth_MINUS_tex);
+                                            static String _309 = "LinePass creation failed: ";
+                                            String *_309_ref = &_309;
+                                            String _1000064 = String_str(_309_ref);
+                                            String* _1000063 = &_1000064; // ref
+                                            String _1000066 = StringCopy_str(e);
+                                            String* _1000065 = &_1000066; // ref
+                                            String _1000062 = String_append(_1000063, _1000065);
+                                            String* _1000061 = &_1000062; // ref
+                                            String _1000060 = String_copy(_1000061);
+                                            Result__Renderer_String _320 = Result_Error__String_Renderer(_1000060);
+                                            Result__Renderer_String _321 = _320;
+                                            _339 = _321;
+                                            String_delete(_1000062);
+                                            String_delete(_1000064);
+                                            String_delete(_1000066);
+                                        }
+                                        else if(_280._tag == Result__LinePassRenderer_String_Success_tag) {
+                                            Result__LinePassRenderer_String _280_temp = _280;
+                                            LinePassRenderer lp = _280_temp.u.Success.member0;
+                                            // Case expr:
+                                            Array _333 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(Line) * 0) };
+                                            Renderer _337 = Renderer_init(pipe, bg, ub, voxel_MINUS_tex, voxel_MINUS_sampler, lp, _333, depth_MINUS_tex, w, h);
+                                            Result__Renderer_String _338 = Result_Success__Renderer_String(_337);
+                                            _339 = _338;
+                                        }
+                                        else UNHANDLED("renderer.carp", 171);
+                                        _340 = _339;
+                                        String_delete(format);
+                                    }
+                                    _341 = _340;
                                 }
-                                else UNHANDLED("renderer.carp", 158);
-                                _273 = _272;
-                                String_delete(format);
+                                else UNHANDLED("renderer.carp", 162);
+                                _342 = _341;
                             }
-                            _274 = _273;
+                            _343 = _342;
                         }
-                        else UNHANDLED("renderer.carp", 150);
-                        _275 = _274;
+                        else UNHANDLED("renderer.carp", 153);
+                        _344 = _343;
                     }
-                    else UNHANDLED("renderer.carp", 144);
-                    _276 = _275;
+                    else UNHANDLED("renderer.carp", 147);
+                    _345 = _344;
                 }
-                else UNHANDLED("renderer.carp", 139);
-                _277 = _276;
+                else UNHANDLED("renderer.carp", 142);
+                _346 = _345;
             }
-            else UNHANDLED("renderer.carp", 135);
-            _278 = _277;
+            else UNHANDLED("renderer.carp", 138);
+            _347 = _346;
         }
-        else UNHANDLED("renderer.carp", 132);
-        _279 = _278;
+        else UNHANDLED("renderer.carp", 135);
+        _348 = _347;
     }
-    return _279;
+    return _348;
 }
 
 void Renderer_delete(Renderer p) {
@@ -20048,47 +20179,122 @@ void Renderer_delete(Renderer p) {
     /* Ignore non-managed member 'voxel_MINUS_sampler' : WGPUSampler */
     LinePassRenderer_delete(p.line_MINUS_pass);
     Array_delete__Line(p.lines);
+    /* Ignore non-managed member 'depth_MINUS_texture' : (Ptr WGPUDepthTexture) */
+    /* Ignore non-managed member 'width' : Int */
+    /* Ignore non-managed member 'height' : Int */
 }
 
+WGPUDepthTexture** Renderer_depth_MINUS_texture(Renderer* p) { return (&(p->depth_MINUS_texture)); }
+
 void Renderer_draw(Engine* eng, Renderer* ren, Camera* cam) {
-    Maybe__WGPUFrameState_MUL_ _9 = Engine_begin_MINUS_frame(eng);
-    if(_9._tag == Maybe__WGPUFrameState_MUL__Nothing_tag) {
-        Maybe__WGPUFrameState_MUL_ _9_temp = _9;
-        // Case expr:
-        /* () */
-    }
-    else if(_9._tag == Maybe__WGPUFrameState_MUL__Just_tag) {
-        Maybe__WGPUFrameState_MUL_ _9_temp = _9;
-        WGPUFrameState* frame = _9_temp.u.Just.member0;
-        // Case expr:
-        /* let */ {
-            CameraMat4 _20 = Camera_view_MINUS_projection(cam);
-            CameraMat4 vp = _20;
-            CameraMat4* _25 = &vp; // ref
-            Array__float* _26 = CameraMat4_data(_25);
-            Array__float* vp_MINUS_data = _26;
-            WGPUContext** _31 = Engine_ctx(eng);
-            WGPUContext* _32 = Pointer_copy__WGPUContext(_31);
-            WGPUContext* ctx = _32;
-            LinePassRenderer* _38 = Renderer_line_MINUS_pass(ren);
-            Array__Line* _42 = Renderer_lines(ren);
-            int _43 = LinePass_update_BANG_(ctx, _38, vp_MINUS_data, _42);
-            int line_MINUS_count = _43;
-            WGPURenderPipelineWrapper** _51 = Renderer_pipeline(ren);
-            WGPURenderPipelineWrapper* _52 = Pointer_copy__WGPURenderPipelineWrapper(_51);
-            WGPUBindGroup* _56 = Renderer_bind_MINUS_group(ren);
-            WGPUBindGroup _57 = WGPUBindGroup_copy(_56);
-            Maybe__WGPURenderTexture_MUL_ _59 = Maybe_Nothing__WGPURenderTexture_MUL_();
-            WGPURender_run_MINUS_pass(frame, _52, _57, _59);
-            LinePassRenderer* _66 = Renderer_line_MINUS_pass(ren);
-            Maybe__WGPURenderTexture_MUL_ _69 = Maybe_Nothing__WGPURenderTexture_MUL_();
-            LinePass_render__WGPUContext_MUL_(frame, ctx, _66, line_MINUS_count, _69);
-            Renderer_clear_MINUS_lines_BANG_(ren);
-            Engine_end_MINUS_frame(eng, frame);
-            CameraMat4_delete(vp);
+    /* let */ {
+        int* _11 = Engine_width(eng);
+        int _12 = Int_copy(_11);
+        int curr_MINUS_w = _12;
+        int* _17 = Engine_height(eng);
+        int _18 = Int_copy(_17);
+        int curr_MINUS_h = _18;
+        int* _23 = Renderer_width(ren);
+        int _24 = Int_copy(_23);
+        int old_MINUS_w = _24;
+        int* _29 = Renderer_height(ren);
+        int _30 = Int_copy(_29);
+        int old_MINUS_h = _30;
+        bool _48;
+        bool _38 = _DIV__EQ___int(curr_MINUS_w, old_MINUS_w);
+        if (_38) {
+            bool _41 = true;
+            _48 = _41;
+        } else {
+            bool _46 = _DIV__EQ___int(curr_MINUS_h, old_MINUS_h);
+            bool _47 = _46;
+            _48 = _47;
         }
+        if (_48) {
+            /* let */ {
+                WGPUContext** _55 = Engine_ctx(eng);
+                WGPUContext* _56 = Pointer_copy__WGPUContext(_55);
+                WGPUContext* ctx = _56;
+                WGPUDepthTexture** _61 = Renderer_depth_MINUS_texture(ren);
+                WGPUDepthTexture* _62 = Pointer_copy__WGPUDepthTexture(_61);
+                WGPUDepthTexture* old_MINUS_dt = _62;
+                wgpu_depth_texture_free(old_MINUS_dt);
+                Result__WGPUDepthTexture_MUL__String _73 = WGPURender_create_MINUS_depth_MINUS_texture(ctx, curr_MINUS_w, curr_MINUS_h);
+                if(_73._tag == Result__WGPUDepthTexture_MUL__String_Error_tag) {
+                    Result__WGPUDepthTexture_MUL__String _73_temp = _73;
+                    String e = _73_temp.u.Error.member0;
+                    // Case expr:
+                    static String _84 = "Error recreating depth texture: ";
+                    String *_84_ref = &_84;
+                    String _1000016 = String_str(_84_ref);
+                    String* _1000015 = &_1000016; // ref
+                    String _1000018 = StringCopy_str(e);
+                    String* _1000017 = &_1000018; // ref
+                    String _1000014 = String_append(_1000015, _1000017);
+                    String* _1000013 = &_1000014; // ref
+                    String _1000012 = String_copy(_1000013);
+                    String* _95 = &_1000012; // ref
+                    IO_println(_95);
+                    String_delete(_1000012);
+                    String_delete(_1000014);
+                    String_delete(_1000016);
+                    String_delete(_1000018);
+                }
+                else if(_73._tag == Result__WGPUDepthTexture_MUL__String_Success_tag) {
+                    Result__WGPUDepthTexture_MUL__String _73_temp = _73;
+                    WGPUDepthTexture* new_MINUS_dt = _73_temp.u.Success.member0;
+                    // Case expr:
+                    Renderer_set_MINUS_depth_MINUS_texture_BANG_(ren, new_MINUS_dt);
+                    Renderer_set_MINUS_width_BANG_(ren, curr_MINUS_w);
+                    Renderer_set_MINUS_height_BANG_(ren, curr_MINUS_h);
+                }
+                else UNHANDLED("renderer.carp", 241);
+            }
+        } else {
+            /* () */
+        }
+        Maybe__WGPUFrameState_MUL_ _125 = Engine_begin_MINUS_frame(eng);
+        if(_125._tag == Maybe__WGPUFrameState_MUL__Nothing_tag) {
+            Maybe__WGPUFrameState_MUL_ _125_temp = _125;
+            // Case expr:
+            /* () */
+        }
+        else if(_125._tag == Maybe__WGPUFrameState_MUL__Just_tag) {
+            Maybe__WGPUFrameState_MUL_ _125_temp = _125;
+            WGPUFrameState* frame = _125_temp.u.Just.member0;
+            // Case expr:
+            /* let */ {
+                CameraMat4 _136 = Camera_view_MINUS_projection(cam);
+                CameraMat4 vp = _136;
+                CameraMat4* _141 = &vp; // ref
+                Array__float* _142 = CameraMat4_data(_141);
+                Array__float* vp_MINUS_data = _142;
+                WGPUContext** _147 = Engine_ctx(eng);
+                WGPUContext* _148 = Pointer_copy__WGPUContext(_147);
+                WGPUContext* ctx = _148;
+                LinePassRenderer* _154 = Renderer_line_MINUS_pass(ren);
+                Array__Line* _158 = Renderer_lines(ren);
+                int _159 = LinePass_update_BANG_(ctx, _154, vp_MINUS_data, _158);
+                int line_MINUS_count = _159;
+                WGPUDepthTexture** _164 = Renderer_depth_MINUS_texture(ren);
+                WGPUDepthTexture* _165 = Pointer_copy__WGPUDepthTexture(_164);
+                WGPUDepthTexture* depth = _165;
+                WGPURenderPipelineWrapper** _173 = Renderer_pipeline(ren);
+                WGPURenderPipelineWrapper* _174 = Pointer_copy__WGPURenderPipelineWrapper(_173);
+                WGPUBindGroup* _178 = Renderer_bind_MINUS_group(ren);
+                WGPUBindGroup _179 = WGPUBindGroup_copy(_178);
+                Maybe__WGPURenderTexture_MUL_ _181 = Maybe_Nothing__WGPURenderTexture_MUL_();
+                WGPURender_run_MINUS_pass(frame, _174, _179, _181);
+                LinePassRenderer* _188 = Renderer_line_MINUS_pass(ren);
+                Maybe__WGPURenderTexture_MUL_ _192 = Maybe_Nothing__WGPURenderTexture_MUL_();
+                LinePass_render__WGPUContext_MUL_(frame, ctx, _188, line_MINUS_count, depth, _192);
+                Renderer_clear_MINUS_lines_BANG_(ren);
+                Engine_end_MINUS_frame(eng, frame);
+                CameraMat4_delete(vp);
+            }
+        }
+        else UNHANDLED("renderer.carp", 249);
     }
-    else UNHANDLED("renderer.carp", 217);
 }
 
 void Renderer_draw_MINUS_line_BANG_(Renderer* ren, Vector3__double* start, Vector3__double* end, Vector3__double* color) {
@@ -20100,7 +20306,9 @@ void Renderer_draw_MINUS_line_BANG_(Renderer* ren, Vector3__double* start, Vecto
     Array_push_MINUS_back_BANG___Line(_10, _21);
 }
 
-Renderer Renderer_init(WGPURenderPipelineWrapper* pipeline, WGPUBindGroup bind_MINUS_group, WGPUUniformBufferWrapper* uniform_MINUS_buffer, WGPURenderTexture* voxel_MINUS_texture, WGPUSampler voxel_MINUS_sampler, LinePassRenderer line_MINUS_pass, Array__Line lines) {
+int* Renderer_height(Renderer* p) { return (&(p->height)); }
+
+Renderer Renderer_init(WGPURenderPipelineWrapper* pipeline, WGPUBindGroup bind_MINUS_group, WGPUUniformBufferWrapper* uniform_MINUS_buffer, WGPURenderTexture* voxel_MINUS_texture, WGPUSampler voxel_MINUS_sampler, LinePassRenderer line_MINUS_pass, Array__Line lines, WGPUDepthTexture* depth_MINUS_texture, int width, int height) {
     Renderer instance;
     instance.pipeline = pipeline;
     instance.bind_MINUS_group = bind_MINUS_group;
@@ -20109,6 +20317,9 @@ Renderer Renderer_init(WGPURenderPipelineWrapper* pipeline, WGPUBindGroup bind_M
     instance.voxel_MINUS_sampler = voxel_MINUS_sampler;
     instance.line_MINUS_pass = line_MINUS_pass;
     instance.lines = lines;
+    instance.depth_MINUS_texture = depth_MINUS_texture;
+    instance.width = width;
+    instance.height = height;
     return instance;
 }
 
@@ -20148,6 +20359,18 @@ String Renderer_prn(Renderer *p) {
   size += snprintf(NULL, 0, "%s ", temp);
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
+  temp = Pointer_prn__WGPUDepthTexture(p->depth_MINUS_texture); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->width); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->height); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
 
   String buffer = CARP_MALLOC(size);
   String bufferPtr = buffer;
@@ -20182,6 +20405,21 @@ String Renderer_prn(Renderer *p) {
   bufferPtr += tempsize;
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
+  temp = Pointer_prn__WGPUDepthTexture(p->depth_MINUS_texture);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->width);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->height);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
   bufferPtr--;
   snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
   return buffer;
@@ -20197,6 +20435,32 @@ Renderer Renderer_set_MINUS_bind_MINUS_group(Renderer p, WGPUBindGroup newValue)
 void Renderer_set_MINUS_bind_MINUS_group_BANG_(Renderer* pRef, WGPUBindGroup newValue) {
     /* Ignore non-managed member 'bind_MINUS_group' : WGPUBindGroup */
     pRef->bind_MINUS_group = newValue;
+}
+
+
+Renderer Renderer_set_MINUS_depth_MINUS_texture(Renderer p, WGPUDepthTexture* newValue) {
+    /* Ignore non-managed member 'depth_MINUS_texture' : (Ptr WGPUDepthTexture) */
+    p.depth_MINUS_texture = newValue;
+    return p;
+}
+
+
+void Renderer_set_MINUS_depth_MINUS_texture_BANG_(Renderer* pRef, WGPUDepthTexture* newValue) {
+    /* Ignore non-managed member 'depth_MINUS_texture' : (Ptr WGPUDepthTexture) */
+    pRef->depth_MINUS_texture = newValue;
+}
+
+
+Renderer Renderer_set_MINUS_height(Renderer p, int newValue) {
+    /* Ignore non-managed member 'height' : Int */
+    p.height = newValue;
+    return p;
+}
+
+
+void Renderer_set_MINUS_height_BANG_(Renderer* pRef, int newValue) {
+    /* Ignore non-managed member 'height' : Int */
+    pRef->height = newValue;
 }
 
 
@@ -20278,6 +20542,19 @@ void Renderer_set_MINUS_voxel_MINUS_texture_BANG_(Renderer* pRef, WGPURenderText
 }
 
 
+Renderer Renderer_set_MINUS_width(Renderer p, int newValue) {
+    /* Ignore non-managed member 'width' : Int */
+    p.width = newValue;
+    return p;
+}
+
+
+void Renderer_set_MINUS_width_BANG_(Renderer* pRef, int newValue) {
+    /* Ignore non-managed member 'width' : Int */
+    pRef->width = newValue;
+}
+
+
 String Renderer_str(Renderer *p) {
   // convert members to String here:
   String temp = NULL;
@@ -20305,6 +20582,18 @@ String Renderer_str(Renderer *p) {
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
   temp = Array_prn__Line(&p->lines); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPUDepthTexture(p->depth_MINUS_texture); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->width); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->height); 
   size += snprintf(NULL, 0, "%s ", temp);
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
@@ -20342,6 +20631,21 @@ String Renderer_str(Renderer *p) {
   bufferPtr += tempsize;
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
+  temp = Pointer_prn__WGPUDepthTexture(p->depth_MINUS_texture);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->width);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->height);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
   bufferPtr--;
   snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
   return buffer;
@@ -20351,6 +20655,18 @@ WGPUUniformBufferWrapper** Renderer_uniform_MINUS_buffer(Renderer* p) { return (
 
 Renderer Renderer_update_MINUS_bind_MINUS_group(Renderer p, Lambda *updater) {
     p.bind_MINUS_group = (*updater).env ? ((Fn__LambdaEnv_WGPUBindGroup_WGPUBindGroup)(*updater).callback)((*updater).env, p.bind_MINUS_group) : ((Fn__WGPUBindGroup_WGPUBindGroup)(*updater).callback)(p.bind_MINUS_group);
+    return p;
+}
+
+
+Renderer Renderer_update_MINUS_depth_MINUS_texture(Renderer p, Lambda *updater) {
+    p.depth_MINUS_texture = (*updater).env ? ((Fn__LambdaEnv_WGPUDepthTexture_MUL__WGPUDepthTexture_MUL_)(*updater).callback)((*updater).env, p.depth_MINUS_texture) : ((Fn__WGPUDepthTexture_MUL__WGPUDepthTexture_MUL_)(*updater).callback)(p.depth_MINUS_texture);
+    return p;
+}
+
+
+Renderer Renderer_update_MINUS_height(Renderer p, Lambda *updater) {
+    p.height = (*updater).env ? ((Fn__LambdaEnv_int_int)(*updater).callback)((*updater).env, p.height) : ((Fn__int_int)(*updater).callback)(p.height);
     return p;
 }
 
@@ -20484,9 +20800,17 @@ Renderer Renderer_update_MINUS_voxel_MINUS_texture(Renderer p, Lambda *updater) 
 }
 
 
+Renderer Renderer_update_MINUS_width(Renderer p, Lambda *updater) {
+    p.width = (*updater).env ? ((Fn__LambdaEnv_int_int)(*updater).callback)((*updater).env, p.width) : ((Fn__int_int)(*updater).callback)(p.width);
+    return p;
+}
+
+
 WGPUSampler* Renderer_voxel_MINUS_sampler(Renderer* p) { return (&(p->voxel_MINUS_sampler)); }
 
 WGPURenderTexture** Renderer_voxel_MINUS_texture(Renderer* p) { return (&(p->voxel_MINUS_texture)); }
+
+int* Renderer_width(Renderer* p) { return (&(p->width)); }
 
 Result__Uint16_Array__uint8_t Result_Error__Array__uint8_t_Uint16(Array__uint8_t member0) {
   Result__Uint16_Array__uint8_t instance;

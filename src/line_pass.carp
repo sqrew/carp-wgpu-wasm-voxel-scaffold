@@ -107,9 +107,9 @@
             ())
         line-count)))
 
-  (defn render [frame ctx lp line-count target]
+  (defn render [frame ctx lp line-count depth target]
     (if (> line-count 0)
-        (WGPURender.run-geom-pass-overlay frame @(LinePassRenderer.pipeline lp) @(LinePassRenderer.bind-group lp) @(LinePassRenderer.v-buffer lp) (null-depth-texture) (Uint32.from-long (Long.from-int (* line-count 2))) target)
+        (WGPURender.run-geom-pass-overlay frame @(LinePassRenderer.pipeline lp) @(LinePassRenderer.bind-group lp) @(LinePassRenderer.v-buffer lp) depth (Uint32.from-long (Long.from-int (* line-count 2))) target)
         ()))
 
   (defn cleanup [lp]
