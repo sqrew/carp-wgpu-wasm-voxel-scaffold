@@ -84,7 +84,7 @@
           world-chunks []]
       (do
         (for [z 0 4]
-          (for [y 0 2]
+          (for [y 0 4]
             (for [x 0 4]
               (Array.push-back! &world-chunks (Chunk.create &noise-state x y z)))))
         (World.init world-chunks 32))))

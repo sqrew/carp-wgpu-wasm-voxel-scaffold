@@ -165,7 +165,7 @@
         
         ; Draw world boundary box (red)
         (let [red-color (Vector3.init 1.0 0.1 0.1)]
-          (EngineState.draw-bounds-wireframe! ren 0.0 0.0 0.0 128.0 64.0 128.0 &red-color))
+          (EngineState.draw-bounds-wireframe! ren 0.0 0.0 0.0 128.0 128.0 128.0 &red-color))
         
         ; Raycast from camera front vector
         (let [ro (Camera.pos cam)
