@@ -99,12 +99,26 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var t_near: f32 = 0.0;
     var t_far: f32 = 0.0;
     
-    var color = vec3<f32>(0.05, 0.08, 0.15);
+    // Create sky gradient based on ray direction Y component
+    let sky_dir_y = max(0.0, rd.y);
+    let space_color = vec3<f32>(0.05, 0.08, 0.15);
+    let horizon_color = vec3<f32>(0.15, 0.22, 0.35);
+    var color = mix(space_color, horizon_color, sky_dir_y);
+    
+    // Add a glowing sun
+    let sun_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));
+    let sun_cos = dot(rd, sun_dir);
+    if (sun_cos > 0.0) {
+        let sun_glow = pow(sun_cos, 120.0) * 1.5;
+        let sun_disk = pow(sun_cos, 1200.0) * 4.0;
+        color += vec3<f32>(1.0, 0.9, 0.7) * (sun_glow + sun_disk);
+    }
     
     if (intersect_box(ro, rd, box_min, box_max, &t_near, &t_far)) {
         let t_start = max(t_near, 0.0);
         var t = t_start;
         var hit = false;
+        var hit_color = vec3<f32>(0.0);
         
         for (var step = 0; step < 200; step = step + 1) {
             if (t > t_far) {
@@ -159,13 +173,23 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 let ambient = vec3<f32>(0.1, 0.12, 0.2) * ao;
                 let direct = vec3<f32>(1.0, 0.95, 0.85) * diffuse * sha;
                 
-                color = base_color * (direct + ambient);
+                hit_color = base_color * (direct + ambient);
                 hit = true;
                 break;
             }
             
             // Step forward by the SDF value
             t = t + max(0.008, dist);
+        }
+        
+        if (hit) {
+            // Apply exponential atmospheric distance fog
+            let fog_density = 0.015;
+            let fog_factor = 1.0 - exp(-fog_density * t);
+            
+            // The fog color is the horizon color mixed with the space color
+            let fog_color = mix(space_color, horizon_color, max(0.0, rd.y));
+            color = mix(hit_color, fog_color, clamp(fog_factor, 0.0, 1.0));
         }
     }
     
