@@ -2828,12 +2828,6 @@ void* ref_MINUS_to_MINUS_ptr__double(void* r);
 void* ref_MINUS_to_MINUS_ptr__int(void* r);
 
 // Depth 500
-void update_MINUS_camera_MINUS_input(GLFWwindow* win, Camera* cam, double dt);
-
-// Depth 500
-void update_MINUS_camera_MINUS_look(GLFWwindow* win, Camera* cam, bool* first_MINUS_mouse_MINUS_ptr, double* last_MINUS_x_MINUS_ptr, double* last_MINUS_y_MINUS_ptr);
-
-// Depth 500
 String* voxel_MINUS_wgsl;
 
 // Depth 1000
@@ -3553,6 +3547,12 @@ Vector3__double* Camera_up(Camera* p);
 
 // Depth 500
 Camera Camera_update_MINUS_front(Camera p, Lambda *updater);
+
+// Depth 500
+void Camera_update_MINUS_input(GLFWwindow* win, Camera* cam, double dt);
+
+// Depth 500
+void Camera_update_MINUS_look(GLFWwindow* win, Camera* cam, bool* first_MINUS_mouse_MINUS_ptr, double* last_MINUS_x_MINUS_ptr, double* last_MINUS_y_MINUS_ptr);
 
 // Depth 500
 Camera Camera_update_MINUS_pitch(Camera p, Lambda *updater);
@@ -10114,6 +10114,171 @@ Camera Camera_update_MINUS_front(Camera p, Lambda *updater) {
     return p;
 }
 
+
+void Camera_update_MINUS_input(GLFWwindow* win, Camera* cam, double dt) {
+    /* let */ {
+        double _11 = Double__MUL_(25.0, dt);
+        double speed = _11;
+        Vector3__double* _16 = Camera_front(cam);
+        Vector3__double _17 = Vector3_copy__double(_16);
+        Vector3__double front = _17;
+        Vector3__double* _22 = Camera_right(cam);
+        Vector3__double _23 = Vector3_copy__double(_22);
+        Vector3__double right = _23;
+        Vector3__double* _28 = Camera_up(cam);
+        Vector3__double _29 = Vector3_copy__double(_28);
+        Vector3__double up = _29;
+        Vector3__double* _34 = Camera_pos(cam);
+        Vector3__double _35 = Vector3_copy__double(_34);
+        Vector3__double pos = _35;
+        int _43 = glfwGetKey(win, GLFW_KEY_W);
+        bool _45 = Int__EQ_(_43, GLFW_PRESS);
+        if (_45) {
+            Vector3__double* _52 = &pos; // ref
+            Vector3__double* _57 = &front; // ref
+            Vector3__double _59 = Vector3_mul__double(_57, speed);
+            Vector3__double* _60 = &_59; // ref
+            Vector3__double _61 = Vector3_add__double(_52, _60);
+            Camera_set_MINUS_pos_BANG_(cam, _61);
+            Vector3_delete__double(_59);
+        } else {
+            /* () */
+        }
+        int _73 = glfwGetKey(win, GLFW_KEY_S);
+        bool _75 = Int__EQ_(_73, GLFW_PRESS);
+        if (_75) {
+            Vector3__double* _82 = &pos; // ref
+            Vector3__double* _87 = &front; // ref
+            Vector3__double _89 = Vector3_mul__double(_87, speed);
+            Vector3__double* _90 = &_89; // ref
+            Vector3__double _91 = Vector3_sub__double(_82, _90);
+            Camera_set_MINUS_pos_BANG_(cam, _91);
+            Vector3_delete__double(_89);
+        } else {
+            /* () */
+        }
+        int _103 = glfwGetKey(win, GLFW_KEY_A);
+        bool _105 = Int__EQ_(_103, GLFW_PRESS);
+        if (_105) {
+            Vector3__double* _112 = &pos; // ref
+            Vector3__double* _117 = &right; // ref
+            Vector3__double _119 = Vector3_mul__double(_117, speed);
+            Vector3__double* _120 = &_119; // ref
+            Vector3__double _121 = Vector3_sub__double(_112, _120);
+            Camera_set_MINUS_pos_BANG_(cam, _121);
+            Vector3_delete__double(_119);
+        } else {
+            /* () */
+        }
+        int _133 = glfwGetKey(win, GLFW_KEY_D);
+        bool _135 = Int__EQ_(_133, GLFW_PRESS);
+        if (_135) {
+            Vector3__double* _142 = &pos; // ref
+            Vector3__double* _147 = &right; // ref
+            Vector3__double _149 = Vector3_mul__double(_147, speed);
+            Vector3__double* _150 = &_149; // ref
+            Vector3__double _151 = Vector3_add__double(_142, _150);
+            Camera_set_MINUS_pos_BANG_(cam, _151);
+            Vector3_delete__double(_149);
+        } else {
+            /* () */
+        }
+        int _163 = glfwGetKey(win, GLFW_KEY_E);
+        bool _165 = Int__EQ_(_163, GLFW_PRESS);
+        if (_165) {
+            Vector3__double* _172 = &pos; // ref
+            Vector3__double* _177 = &up; // ref
+            Vector3__double _179 = Vector3_mul__double(_177, speed);
+            Vector3__double* _180 = &_179; // ref
+            Vector3__double _181 = Vector3_add__double(_172, _180);
+            Camera_set_MINUS_pos_BANG_(cam, _181);
+            Vector3_delete__double(_179);
+        } else {
+            /* () */
+        }
+        int _193 = glfwGetKey(win, GLFW_KEY_Q);
+        bool _195 = Int__EQ_(_193, GLFW_PRESS);
+        if (_195) {
+            Vector3__double* _202 = &pos; // ref
+            Vector3__double* _207 = &up; // ref
+            Vector3__double _209 = Vector3_mul__double(_207, speed);
+            Vector3__double* _210 = &_209; // ref
+            Vector3__double _211 = Vector3_sub__double(_202, _210);
+            Camera_set_MINUS_pos_BANG_(cam, _211);
+            Vector3_delete__double(_209);
+        } else {
+            /* () */
+        }
+        Vector3_delete__double(front);
+        Vector3_delete__double(pos);
+        Vector3_delete__double(right);
+        Vector3_delete__double(up);
+    }
+}
+
+void Camera_update_MINUS_look(GLFWwindow* win, Camera* cam, bool* first_MINUS_mouse_MINUS_ptr, double* last_MINUS_x_MINUS_ptr, double* last_MINUS_y_MINUS_ptr) {
+    /* let */ {
+        double xpos = 0.0;
+        double ypos = 0.0;
+        double* _20 = &xpos; // ref
+        double* _21 = ref_MINUS_to_MINUS_ptr__double(_20);
+        double* _25 = &ypos; // ref
+        double* _26 = ref_MINUS_to_MINUS_ptr__double(_25);
+        glfwGetCursorPos(win, _21, _26);
+        bool _31 = Pointer_to_MINUS_value__bool(first_MINUS_mouse_MINUS_ptr);
+        if (_31) {
+            Pointer_set__bool(first_MINUS_mouse_MINUS_ptr, false);
+            Pointer_set__double(last_MINUS_x_MINUS_ptr, xpos);
+            Pointer_set__double(last_MINUS_y_MINUS_ptr, ypos);
+        } else {
+            /* let */ {
+                double _53 = Pointer_to_MINUS_value__double(last_MINUS_x_MINUS_ptr);
+                double _54 = Double__MINUS_(xpos, _53);
+                double dx = _54;
+                double _59 = Pointer_to_MINUS_value__double(last_MINUS_y_MINUS_ptr);
+                double _61 = Double__MINUS_(_59, ypos);
+                double dy = _61;
+                double sensitivity = 0.1;
+                double* _69 = Camera_yaw(cam);
+                double _70 = Double_copy(_69);
+                double _74 = Double__MUL_(dx, sensitivity);
+                double _75 = Double__PLUS_(_70, _74);
+                double yaw = _75;
+                double* _81 = Camera_pitch(cam);
+                double _82 = Double_copy(_81);
+                double _86 = Double__MUL_(dy, sensitivity);
+                double _87 = Double__PLUS_(_82, _86);
+                double pitch = _87;
+                Pointer_set__double(last_MINUS_x_MINUS_ptr, xpos);
+                Pointer_set__double(last_MINUS_y_MINUS_ptr, ypos);
+                /* let */ {
+                    double _122;
+                    bool _104 = Double__GT_(pitch, 89.0);
+                    if (_104) {
+                        double _107 = 89.0;
+                        _122 = _107;
+                    } else {
+                        double _120;
+                        bool _113 = Double__LT_(pitch, -89.0);
+                        if (_113) {
+                            double _116 = -89.0;
+                            _120 = _116;
+                        } else {
+                            double _119 = pitch;
+                            _120 = _119;
+                        }
+                        double _121 = _120;
+                        _122 = _121;
+                    }
+                    double clamped_MINUS_pitch = _122;
+                    Camera_set_MINUS_yaw_BANG_(cam, yaw);
+                    Camera_set_MINUS_pitch_BANG_(cam, clamped_MINUS_pitch);
+                    Camera_update_MINUS_vectors(cam);
+                }
+            }
+        }
+    }
+}
 
 Camera Camera_update_MINUS_pitch(Camera p, Lambda *updater) {
     p.pitch = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.pitch) : ((Fn__double_double)(*updater).callback)(p.pitch);
@@ -17226,7 +17391,7 @@ int main(int argc, char** argv) {
                                                 Vector3__double* c_MINUS_up = _610;
                                                 last_MINUS_time = curr_MINUS_time;  // Double = Double
                                                 Camera* _621 = &cam; // ref
-                                                update_MINUS_camera_MINUS_input(win, _621, dt);
+                                                Camera_update_MINUS_input(win, _621, dt);
                                                 Camera* _628 = &cam; // ref
                                                 bool* _632 = &first_MINUS_mouse; // ref
                                                 bool* _633 = ref_MINUS_to_MINUS_ptr__bool(_632);
@@ -17234,7 +17399,7 @@ int main(int argc, char** argv) {
                                                 double* _638 = ref_MINUS_to_MINUS_ptr__double(_637);
                                                 double* _642 = &last_MINUS_y; // ref
                                                 double* _643 = ref_MINUS_to_MINUS_ptr__double(_642);
-                                                update_MINUS_camera_MINUS_look(win, _628, _633, _638, _643);
+                                                Camera_update_MINUS_look(win, _628, _633, _638, _643);
                                                 Engine* _648 = &eng; // ref
                                                 Engine_handle_MINUS_resize(_648);
                                                 /* let */ {
@@ -17344,7 +17509,7 @@ int main(int argc, char** argv) {
                                                     Engine* _919 = &eng; // ref
                                                     Engine_end_MINUS_frame(_919, frame);
                                                 }
-                                                else UNHANDLED("main.carp", 337);
+                                                else UNHANDLED("main.carp", 257);
                                                 Engine* _927 = &eng; // ref
                                                 Engine_poll_MINUS_events__Engine_MUL_(_927);
                                                 emscripten_MINUS_sleep(16);
@@ -17367,25 +17532,25 @@ int main(int argc, char** argv) {
                                     }
                                     _956 = _955;
                                 }
-                                else UNHANDLED("main.carp", 242);
+                                else UNHANDLED("main.carp", 162);
                                 _957 = _956;
                             }
-                            else UNHANDLED("main.carp", 235);
+                            else UNHANDLED("main.carp", 155);
                             _958 = _957;
                         }
-                        else UNHANDLED("main.carp", 229);
+                        else UNHANDLED("main.carp", 149);
                         _959 = _958;
                     }
-                    else UNHANDLED("main.carp", 224);
+                    else UNHANDLED("main.carp", 144);
                     _960 = _959;
                 }
-                else UNHANDLED("main.carp", 221);
+                else UNHANDLED("main.carp", 141);
                 int _961 = _960;
                 _962 = _961;
             }
             _963 = _962;
         }
-        else UNHANDLED("main.carp", 211);
+        else UNHANDLED("main.carp", 131);
         _964 = _963;
     }
     return _964;
@@ -17449,168 +17614,3 @@ bool null_QMARK___WGPUContext(WGPUContext* p) {
 void* ref_MINUS_to_MINUS_ptr__bool(void* r) { return r; }
 void* ref_MINUS_to_MINUS_ptr__double(void* r) { return r; }
 void* ref_MINUS_to_MINUS_ptr__int(void* r) { return r; }
-void update_MINUS_camera_MINUS_input(GLFWwindow* win, Camera* cam, double dt) {
-    /* let */ {
-        double _11 = Double__MUL_(25.0, dt);
-        double speed = _11;
-        Vector3__double* _16 = Camera_front(cam);
-        Vector3__double _17 = Vector3_copy__double(_16);
-        Vector3__double front = _17;
-        Vector3__double* _22 = Camera_right(cam);
-        Vector3__double _23 = Vector3_copy__double(_22);
-        Vector3__double right = _23;
-        Vector3__double* _28 = Camera_up(cam);
-        Vector3__double _29 = Vector3_copy__double(_28);
-        Vector3__double up = _29;
-        Vector3__double* _34 = Camera_pos(cam);
-        Vector3__double _35 = Vector3_copy__double(_34);
-        Vector3__double pos = _35;
-        int _43 = glfwGetKey(win, GLFW_KEY_W);
-        bool _45 = Int__EQ_(_43, GLFW_PRESS);
-        if (_45) {
-            Vector3__double* _52 = &pos; // ref
-            Vector3__double* _57 = &front; // ref
-            Vector3__double _59 = Vector3_mul__double(_57, speed);
-            Vector3__double* _60 = &_59; // ref
-            Vector3__double _61 = Vector3_add__double(_52, _60);
-            Camera_set_MINUS_pos_BANG_(cam, _61);
-            Vector3_delete__double(_59);
-        } else {
-            /* () */
-        }
-        int _73 = glfwGetKey(win, GLFW_KEY_S);
-        bool _75 = Int__EQ_(_73, GLFW_PRESS);
-        if (_75) {
-            Vector3__double* _82 = &pos; // ref
-            Vector3__double* _87 = &front; // ref
-            Vector3__double _89 = Vector3_mul__double(_87, speed);
-            Vector3__double* _90 = &_89; // ref
-            Vector3__double _91 = Vector3_sub__double(_82, _90);
-            Camera_set_MINUS_pos_BANG_(cam, _91);
-            Vector3_delete__double(_89);
-        } else {
-            /* () */
-        }
-        int _103 = glfwGetKey(win, GLFW_KEY_A);
-        bool _105 = Int__EQ_(_103, GLFW_PRESS);
-        if (_105) {
-            Vector3__double* _112 = &pos; // ref
-            Vector3__double* _117 = &right; // ref
-            Vector3__double _119 = Vector3_mul__double(_117, speed);
-            Vector3__double* _120 = &_119; // ref
-            Vector3__double _121 = Vector3_sub__double(_112, _120);
-            Camera_set_MINUS_pos_BANG_(cam, _121);
-            Vector3_delete__double(_119);
-        } else {
-            /* () */
-        }
-        int _133 = glfwGetKey(win, GLFW_KEY_D);
-        bool _135 = Int__EQ_(_133, GLFW_PRESS);
-        if (_135) {
-            Vector3__double* _142 = &pos; // ref
-            Vector3__double* _147 = &right; // ref
-            Vector3__double _149 = Vector3_mul__double(_147, speed);
-            Vector3__double* _150 = &_149; // ref
-            Vector3__double _151 = Vector3_add__double(_142, _150);
-            Camera_set_MINUS_pos_BANG_(cam, _151);
-            Vector3_delete__double(_149);
-        } else {
-            /* () */
-        }
-        int _163 = glfwGetKey(win, GLFW_KEY_E);
-        bool _165 = Int__EQ_(_163, GLFW_PRESS);
-        if (_165) {
-            Vector3__double* _172 = &pos; // ref
-            Vector3__double* _177 = &up; // ref
-            Vector3__double _179 = Vector3_mul__double(_177, speed);
-            Vector3__double* _180 = &_179; // ref
-            Vector3__double _181 = Vector3_add__double(_172, _180);
-            Camera_set_MINUS_pos_BANG_(cam, _181);
-            Vector3_delete__double(_179);
-        } else {
-            /* () */
-        }
-        int _193 = glfwGetKey(win, GLFW_KEY_Q);
-        bool _195 = Int__EQ_(_193, GLFW_PRESS);
-        if (_195) {
-            Vector3__double* _202 = &pos; // ref
-            Vector3__double* _207 = &up; // ref
-            Vector3__double _209 = Vector3_mul__double(_207, speed);
-            Vector3__double* _210 = &_209; // ref
-            Vector3__double _211 = Vector3_sub__double(_202, _210);
-            Camera_set_MINUS_pos_BANG_(cam, _211);
-            Vector3_delete__double(_209);
-        } else {
-            /* () */
-        }
-        Vector3_delete__double(front);
-        Vector3_delete__double(pos);
-        Vector3_delete__double(right);
-        Vector3_delete__double(up);
-    }
-}
-
-void update_MINUS_camera_MINUS_look(GLFWwindow* win, Camera* cam, bool* first_MINUS_mouse_MINUS_ptr, double* last_MINUS_x_MINUS_ptr, double* last_MINUS_y_MINUS_ptr) {
-    /* let */ {
-        double xpos = 0.0;
-        double ypos = 0.0;
-        double* _20 = &xpos; // ref
-        double* _21 = ref_MINUS_to_MINUS_ptr__double(_20);
-        double* _25 = &ypos; // ref
-        double* _26 = ref_MINUS_to_MINUS_ptr__double(_25);
-        glfwGetCursorPos(win, _21, _26);
-        bool _31 = Pointer_to_MINUS_value__bool(first_MINUS_mouse_MINUS_ptr);
-        if (_31) {
-            Pointer_set__bool(first_MINUS_mouse_MINUS_ptr, false);
-            Pointer_set__double(last_MINUS_x_MINUS_ptr, xpos);
-            Pointer_set__double(last_MINUS_y_MINUS_ptr, ypos);
-        } else {
-            /* let */ {
-                double _53 = Pointer_to_MINUS_value__double(last_MINUS_x_MINUS_ptr);
-                double _54 = Double__MINUS_(xpos, _53);
-                double dx = _54;
-                double _59 = Pointer_to_MINUS_value__double(last_MINUS_y_MINUS_ptr);
-                double _61 = Double__MINUS_(_59, ypos);
-                double dy = _61;
-                double sensitivity = 0.1;
-                double* _69 = Camera_yaw(cam);
-                double _70 = Double_copy(_69);
-                double _74 = Double__MUL_(dx, sensitivity);
-                double _75 = Double__PLUS_(_70, _74);
-                double yaw = _75;
-                double* _81 = Camera_pitch(cam);
-                double _82 = Double_copy(_81);
-                double _86 = Double__MUL_(dy, sensitivity);
-                double _87 = Double__PLUS_(_82, _86);
-                double pitch = _87;
-                Pointer_set__double(last_MINUS_x_MINUS_ptr, xpos);
-                Pointer_set__double(last_MINUS_y_MINUS_ptr, ypos);
-                /* let */ {
-                    double _122;
-                    bool _104 = Double__GT_(pitch, 89.0);
-                    if (_104) {
-                        double _107 = 89.0;
-                        _122 = _107;
-                    } else {
-                        double _120;
-                        bool _113 = Double__LT_(pitch, -89.0);
-                        if (_113) {
-                            double _116 = -89.0;
-                            _120 = _116;
-                        } else {
-                            double _119 = pitch;
-                            _120 = _119;
-                        }
-                        double _121 = _120;
-                        _122 = _121;
-                    }
-                    double clamped_MINUS_pitch = _122;
-                    Camera_set_MINUS_yaw_BANG_(cam, yaw);
-                    Camera_set_MINUS_pitch_BANG_(cam, clamped_MINUS_pitch);
-                    Camera_update_MINUS_vectors(cam);
-                }
-            }
-        }
-    }
-}
-

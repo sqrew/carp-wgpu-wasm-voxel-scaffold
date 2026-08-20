@@ -1,5 +1,6 @@
 (load "Vector.carp")
 (load "scaffold.carp")
+(load "camera.carp")
 (load "../../carp-job-system/rayon.carp")
 (use Vector3)
 (use Double)
@@ -122,88 +123,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 }
 ")
 
-; ---------------------------------------------------------------------------
-; Camera Definition
-; ---------------------------------------------------------------------------
 
-(deftype Camera [
-  pos (Vector3 Double)
-  yaw Double
-  pitch Double
-  front (Vector3 Double)
-  right (Vector3 Double)
-  up (Vector3 Double)
-])
-
-(defmodule Camera
-  (defn create [pos]
-    (Camera.init pos -90.0 0.0 (Vector3.init 0.0 0.0 -1.0) (Vector3.init 1.0 0.0 0.0) (Vector3.init 0.0 1.0 0.0)))
-
-  (defn update-vectors [cam]
-    (let [yaw @(Camera.yaw cam)
-          pitch @(Camera.pitch cam)
-          rad-yaw (* yaw (/ Double.pi 180.0))
-          rad-pitch (* pitch (/ Double.pi 180.0))
-          front-x (* (Double.cos rad-pitch) (Double.cos rad-yaw))
-          front-y (Double.sin rad-pitch)
-          front-z (* (Double.cos rad-pitch) (Double.sin rad-yaw))
-          front (Vector3.normalize &(Vector3.init front-x front-y front-z))
-          world-up (Vector3.init 0.0 1.0 0.0)
-          right (Vector3.normalize &(Vector3.cross &front &world-up))
-          up (Vector3.normalize &(Vector3.cross &right &front))]
-      (do
-        (Camera.set-front! cam front)
-        (Camera.set-right! cam right)
-        (Camera.set-up! cam up))))
-)
-
-; ---------------------------------------------------------------------------
-; Main & Input Lifecycles
-; ---------------------------------------------------------------------------
-
-(defn update-camera-input [win cam dt]
-  (let [speed (* 25.0 dt)
-        front @(Camera.front cam)
-        right @(Camera.right cam)
-        up @(Camera.up cam)
-        pos @(Camera.pos cam)]
-    (do
-      (when (= (GLFW.get-key win GLFW.Keycode.W) GLFW.PRESS)
-        (Camera.set-pos! cam (Vector3.add &pos &(Vector3.mul &front speed))))
-      (when (= (GLFW.get-key win GLFW.Keycode.S) GLFW.PRESS)
-        (Camera.set-pos! cam (Vector3.sub &pos &(Vector3.mul &front speed))))
-      (when (= (GLFW.get-key win GLFW.Keycode.A) GLFW.PRESS)
-        (Camera.set-pos! cam (Vector3.sub &pos &(Vector3.mul &right speed))))
-      (when (= (GLFW.get-key win GLFW.Keycode.D) GLFW.PRESS)
-        (Camera.set-pos! cam (Vector3.add &pos &(Vector3.mul &right speed))))
-      (when (= (GLFW.get-key win GLFW.Keycode.E) GLFW.PRESS)
-        (Camera.set-pos! cam (Vector3.add &pos &(Vector3.mul &up speed))))
-      (when (= (GLFW.get-key win GLFW.Keycode.Q) GLFW.PRESS)
-        (Camera.set-pos! cam (Vector3.sub &pos &(Vector3.mul &up speed)))))))
-
-(defn update-camera-look [win cam first-mouse-ptr last-x-ptr last-y-ptr]
-  (let [xpos 0.0
-        ypos 0.0]
-    (do
-      (GLFW.get-cursor-pos win (ref-to-ptr &xpos) (ref-to-ptr &ypos))
-      (if (Pointer.to-value first-mouse-ptr)
-        (do
-          (Pointer.set first-mouse-ptr false)
-          (Pointer.set last-x-ptr xpos)
-          (Pointer.set last-y-ptr ypos))
-        (let [dx (- xpos (Pointer.to-value last-x-ptr))
-              dy (- (Pointer.to-value last-y-ptr) ypos)
-              sensitivity 0.1
-              yaw (+ @(Camera.yaw cam) (* dx sensitivity))
-              pitch (+ @(Camera.pitch cam) (* dy sensitivity))]
-          (do
-            (Pointer.set last-x-ptr xpos)
-            (Pointer.set last-y-ptr ypos)
-            (let [clamped-pitch (if (> pitch 89.0) 89.0 (if (< pitch -89.0) -89.0 pitch))]
-              (do
-                (Camera.set-yaw! cam yaw)
-                (Camera.set-pitch! cam clamped-pitch)
-                (Camera.update-vectors cam)))))))))
 
 (defn main []
   (let [win-width 1280
@@ -296,8 +216,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                                           (set! last-time curr-time)
                                           
                                           ; Read input
-                                          (update-camera-input win &cam dt)
-                                          (update-camera-look win &cam (ref-to-ptr &first-mouse) (ref-to-ptr &last-x) (ref-to-ptr &last-y))
+                                           (Camera.update-input win &cam dt)
+                                           (Camera.update-look win &cam (ref-to-ptr &first-mouse) (ref-to-ptr &last-x) (ref-to-ptr &last-y))
                                           
                                           ; Handle resizing
                                           (Engine.handle-resize &eng)
