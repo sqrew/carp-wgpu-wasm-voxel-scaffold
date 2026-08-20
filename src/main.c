@@ -13687,7 +13687,7 @@ Chunk Chunk_copy(Chunk* pRef) {
 }
 
 Chunk Chunk_create(int qx, int qy, int qz) {
-    Chunk _231;
+    Chunk _220;
     /* let */ {
         int res = 32;
         int _17 = Int__MUL_(res, 4);
@@ -13740,57 +13740,48 @@ Chunk Chunk_create(int qx, int qy, int qz) {
                                     float _124 = Float_abs(_123);
                                     float _126 = Float__MINUS_(_124, 1.0f);
                                     float sdf = _126;
-                                    float _139;
-                                    bool _132 = Float__LT_(sdf, 0.0f);
-                                    if (_132) {
-                                        float _135 = 2.0f;
-                                        _139 = _135;
-                                    } else {
-                                        float _138 = 0.0f;
-                                        _139 = _138;
-                                    }
-                                    float mat_MINUS_id = _139;
-                                    int _144 = Int__MUL_(idx, 4);
-                                    int offset = _144;
-                                    Long _152 = Long_from_MINUS_int(offset);
-                                    float* _153 = Pointer_add__float(p_MINUS_data, _152);
-                                    Pointer_set__float(_153, mat_MINUS_id);
-                                    int _163 = Int__PLUS_(offset, 1);
-                                    Long _164 = Long_from_MINUS_int(_163);
-                                    float* _165 = Pointer_add__float(p_MINUS_data, _164);
-                                    Pointer_set__float(_165, sdf);
-                                    int _175 = Int__PLUS_(offset, 2);
-                                    Long _176 = Long_from_MINUS_int(_175);
-                                    float* _177 = Pointer_add__float(p_MINUS_data, _176);
-                                    Pointer_set__float(_177, 0.0f);
-                                    int _187 = Int__PLUS_(offset, 3);
-                                    Long _188 = Long_from_MINUS_int(_187);
-                                    float* _189 = Pointer_add__float(p_MINUS_data, _188);
-                                    Pointer_set__float(_189, 1.0f);
+                                    float mat_MINUS_id = 2.0f;
+                                    int _133 = Int__MUL_(idx, 4);
+                                    int offset = _133;
+                                    Long _141 = Long_from_MINUS_int(offset);
+                                    float* _142 = Pointer_add__float(p_MINUS_data, _141);
+                                    Pointer_set__float(_142, mat_MINUS_id);
+                                    int _152 = Int__PLUS_(offset, 1);
+                                    Long _153 = Long_from_MINUS_int(_152);
+                                    float* _154 = Pointer_add__float(p_MINUS_data, _153);
+                                    Pointer_set__float(_154, sdf);
+                                    int _164 = Int__PLUS_(offset, 2);
+                                    Long _165 = Long_from_MINUS_int(_164);
+                                    float* _166 = Pointer_add__float(p_MINUS_data, _165);
+                                    Pointer_set__float(_166, 0.0f);
+                                    int _176 = Int__PLUS_(offset, 3);
+                                    Long _177 = Long_from_MINUS_int(_176);
+                                    float* _178 = Pointer_add__float(p_MINUS_data, _177);
+                                    Pointer_set__float(_178, 1.0f);
                                 }
-                                int _1000032 = Int__PLUS_(x, 1);
-                                x = _1000032;  // Int = Int
+                                int _1000029 = Int__PLUS_(x, 1);
+                                x = _1000029;  // Int = Int
                                 bool _1000022 = Int__LT_(x, res);
                                 _1000020 = _1000022;
                             }
                         }
-                        int _1000035 = Int__PLUS_(y, 1);
-                        y = _1000035;  // Int = Int
+                        int _1000032 = Int__PLUS_(y, 1);
+                        y = _1000032;  // Int = Int
                         bool _1000015 = Int__LT_(y, res);
                         _1000013 = _1000015;
                     }
                 }
-                int _1000038 = Int__PLUS_(z, 1);
-                z = _1000038;  // Int = Int
+                int _1000035 = Int__PLUS_(z, 1);
+                z = _1000035;  // Int = Int
                 bool _1000008 = Int__LT_(z, res);
                 _1000006 = _1000008;
             }
         }
-        Chunk _229 = Chunk_init(qx, qy, qz, voxel_MINUS_data);
-        Chunk _230 = _229;
-        _231 = _230;
+        Chunk _218 = Chunk_init(qx, qy, qz, voxel_MINUS_data);
+        Chunk _219 = _218;
+        _220 = _219;
     }
-    return _231;
+    return _220;
 }
 
 void Chunk_delete(Chunk p) {

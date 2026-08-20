@@ -31,7 +31,7 @@
                     dist (Float.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))
                     
                     sdf (- (Float.abs (- dist 9.0f)) 1.0f)
-                    mat-id (if (< sdf 0.0f) 2.0f 0.0f)
+                    mat-id 2.0f
                     offset (* idx 4)]
                 (do
                   (Pointer.set (Pointer.add p-data (Long.from-int offset)) mat-id)
