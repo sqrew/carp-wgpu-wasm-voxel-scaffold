@@ -54,6 +54,7 @@ typedef struct Binary__Lambda_unsafe_MINUS_bytes_MINUS__GT_int32_MINUS_seq_19_en
 typedef struct Binary__Lambda_unsafe_MINUS_bytes_MINUS__GT_int64_MINUS_seq_19_env_ty Binary__Lambda_unsafe_MINUS_bytes_MINUS__GT_int64_MINUS_seq_19_env_ty;
 typedef struct ByteOrder ByteOrder;
 typedef struct Camera Camera;
+typedef struct Chunk Chunk;
 typedef struct Engine Engine;
 typedef struct Maybe__Long Maybe__Long;
 typedef struct Maybe__String Maybe__String;
@@ -103,6 +104,7 @@ typedef struct Vector3__Lambda_div__double_13_env_ty Vector3__Lambda_div__double
 typedef struct Vector3__Lambda_mul__double_13_env_ty Vector3__Lambda_mul__double_13_env_ty;
 typedef struct Vector3__bool Vector3__bool;
 typedef struct Vector3__double Vector3__double;
+typedef struct World World;
 
 
 // Depth 0
@@ -309,6 +311,9 @@ typedef Array Array__Array__uint8_t;
 
 // Depth 4
 typedef Array Array__Char;
+
+// Depth 4
+typedef Array Array__Chunk;
 
 // Depth 4
 typedef Array Array__PatternMatchResult;
@@ -654,6 +659,14 @@ struct Camera {
 };
 
 // Depth 6
+struct Chunk {
+    int coord_MINUS_x;
+    int coord_MINUS_y;
+    int coord_MINUS_z;
+    Array__float voxel_MINUS_data;
+};
+
+// Depth 6
 typedef Result__Char_String(*Fn__Char_Result__Char_String)(Char);
 
 // Depth 6
@@ -798,6 +811,12 @@ typedef void(*Fn__Array__String_MUL__int_String_void)(Array__String*, int, Strin
 typedef Array__String(*Fn__Array__String_String_Array__String)(Array__String, String);
 
 // Depth 7
+typedef Array__float(*Fn__Array__float_Array__float)(Array__float);
+
+// Depth 7
+typedef String(*Fn__Array__float_MUL__String)(Array__float*);
+
+// Depth 7
 typedef float*(*Fn__Array__float_MUL__float_MUL_)(Array__float*);
 
 // Depth 7
@@ -926,6 +945,18 @@ typedef Camera(*Fn__Vector3__double_Camera)(Vector3__double);
 // Depth 8
 typedef Camera(*Fn__Vector3__double_double_double_Vector3__double_Vector3__double_Vector3__double_Camera)(Vector3__double, double, double, Vector3__double, Vector3__double, Vector3__double);
 
+// Depth 9
+typedef Array__float*(*Fn__Chunk_MUL__Array__float_MUL_)(Chunk*);
+
+// Depth 9
+typedef String(*Fn__Chunk_MUL__String)(Chunk*);
+
+// Depth 9
+typedef Chunk(*Fn__int_int_int_Array__float_Chunk)(int, int, int, Array__float);
+
+// Depth 9
+typedef Chunk(*Fn__int_int_int_Chunk)(int, int, int);
+
 // Depth 10
 typedef Array__Array__uint8_t(*Fn__Array__Array__uint8_t_Array__uint8_t_Array__Array__uint8_t)(Array__Array__uint8_t, Array__uint8_t);
 
@@ -946,6 +977,36 @@ typedef Array__int(*Fn__Fn__Array__uint8_t_MUL__int_MUL__Array__Array__uint8_t_M
 
 // Depth 10
 typedef Array__Array__uint8_t(*Fn__int_Array__Array__uint8_t)(int);
+
+// Depth 11
+struct World {
+    Array__Chunk chunks;
+    int voxel_MINUS_resolution;
+};
+
+// Depth 12
+typedef Array__Chunk(*Fn__Array__Chunk_Array__Chunk)(Array__Chunk);
+
+// Depth 12
+typedef void(*Fn__Array__Chunk_MUL__Chunk_void)(Array__Chunk*, Chunk);
+
+// Depth 12
+typedef String(*Fn__Array__Chunk_MUL__String)(Array__Chunk*);
+
+// Depth 12
+typedef Chunk*(*Fn__Array__Chunk_MUL__int_Chunk_MUL_)(Array__Chunk*, int);
+
+// Depth 14
+typedef World(*Fn__Array__Chunk_int_World)(Array__Chunk, int);
+
+// Depth 14
+typedef Array__Chunk*(*Fn__World_MUL__Array__Chunk_MUL_)(World*);
+
+// Depth 14
+typedef String(*Fn__World_MUL__String)(World*);
+
+// Depth 14
+typedef World(*Fn___World)();
 
 // Depth 101
 struct ByteOrder {
@@ -2567,6 +2628,12 @@ typedef int(*Fn__CChar_MUL__int)(CChar*);
 typedef int(*Fn__CChar_MUL__int_int_FILE_MUL__int)(CChar*, int, int, FILE*);
 
 // Depth 505
+typedef Array__Chunk(*Fn__LambdaEnv_Array__Chunk_Array__Chunk)(LambdaEnv, Array__Chunk);
+
+// Depth 505
+typedef Array__float(*Fn__LambdaEnv_Array__float_Array__float)(LambdaEnv, Array__float);
+
+// Depth 505
 typedef GLFWwindow*(*Fn__LambdaEnv_GLFWwindow_MUL__GLFWwindow_MUL_)(LambdaEnv, GLFWwindow*);
 
 // Depth 505
@@ -2989,6 +3056,9 @@ Array__uint8_t Array_copy_MINUS_map__Uint64_uint8_t(Lambda* f, Array__Uint64* a)
 Array__String Array_copy_MINUS_map__uint8_t_String(Lambda* f, Array__uint8_t* a);
 
 // Depth 500
+Array Array_copy__Chunk (Array* a);
+
+// Depth 500
 Array Array_copy__Result__Uint16_Array__uint8_t (Array* a);
 
 // Depth 500
@@ -3007,6 +3077,9 @@ Array Array_copy__Uint32 (Array* a);
 Array Array_copy__Uint64 (Array* a);
 
 // Depth 500
+Array Array_copy__float (Array* a);
+
+// Depth 500
 Array Array_copy__uint8_t (Array* a);
 
 // Depth 500
@@ -3014,6 +3087,9 @@ void Array_delete__Array__uint8_t (Array a);
 
 // Depth 500
 void Array_delete__Char (Array a);
+
+// Depth 500
+void Array_delete__Chunk (Array a);
 
 // Depth 500
 void Array_delete__PatternMatchResult (Array a);
@@ -3118,6 +3194,15 @@ Array__Array__uint8_t Array_partition__uint8_t(Array__uint8_t* arr, int n);
 Array__Char Array_prefix__Array__Char(Array__Char* xs, int end_MINUS_index);
 
 // Depth 500
+String Array_prn__Chunk(Array__Chunk* x);
+
+// Depth 500
+String Array_prn__float(Array__float* x);
+
+// Depth 500
+void Array_push_MINUS_back_BANG___Chunk(Array *aRef, Chunk value);
+
+// Depth 500
 Array Array_push_MINUS_back__Array__uint8_t(Array a, Array__uint8_t value);
 
 // Depth 500
@@ -3154,6 +3239,12 @@ Array__Char Array_slice__Char(Array__Char* xs, int start_MINUS_index, int end_MI
 Array__uint8_t Array_slice__uint8_t(Array__uint8_t* xs, int start_MINUS_index, int end_MINUS_index);
 
 // Depth 500
+String Array_str__Chunk (Array* a);
+
+// Depth 500
+String Array_str__float (Array* a);
+
+// Depth 500
 Array__Char Array_suffix__Char(Array__Char* xs, int start_MINUS_index);
 
 // Depth 500
@@ -3161,6 +3252,9 @@ Array__uint8_t* Array_unsafe_MINUS_nth__Array__uint8_t (Array *aRef, int n);
 
 // Depth 500
 Char* Array_unsafe_MINUS_nth__Char (Array *aRef, int n);
+
+// Depth 500
+Chunk* Array_unsafe_MINUS_nth__Chunk (Array *aRef, int n);
 
 // Depth 500
 PatternMatchResult* Array_unsafe_MINUS_nth__PatternMatchResult (Array *aRef, int n);
@@ -3620,6 +3714,74 @@ bool CharRef__EQ_(Char* a, Char* b);
 
 // Depth 500
 bool CharRef__GT_(Char* a, Char* b);
+
+// Depth 1000
+
+// Depth 500
+int* Chunk_coord_MINUS_x(Chunk* p);
+
+// Depth 500
+int* Chunk_coord_MINUS_y(Chunk* p);
+
+// Depth 500
+int* Chunk_coord_MINUS_z(Chunk* p);
+
+// Depth 500
+Chunk Chunk_copy(Chunk* pRef);
+
+// Depth 500
+Chunk Chunk_create(int qx, int qy, int qz);
+
+// Depth 500
+void Chunk_delete(Chunk p);
+
+// Depth 500
+Chunk Chunk_init(int coord_MINUS_x, int coord_MINUS_y, int coord_MINUS_z, Array__float voxel_MINUS_data);
+
+// Depth 500
+String Chunk_prn(Chunk *p);
+
+// Depth 500
+Chunk Chunk_set_MINUS_coord_MINUS_x(Chunk p, int newValue);
+
+// Depth 500
+void Chunk_set_MINUS_coord_MINUS_x_BANG_(Chunk* pRef, int newValue);
+
+// Depth 500
+Chunk Chunk_set_MINUS_coord_MINUS_y(Chunk p, int newValue);
+
+// Depth 500
+void Chunk_set_MINUS_coord_MINUS_y_BANG_(Chunk* pRef, int newValue);
+
+// Depth 500
+Chunk Chunk_set_MINUS_coord_MINUS_z(Chunk p, int newValue);
+
+// Depth 500
+void Chunk_set_MINUS_coord_MINUS_z_BANG_(Chunk* pRef, int newValue);
+
+// Depth 500
+Chunk Chunk_set_MINUS_voxel_MINUS_data(Chunk p, Array__float newValue);
+
+// Depth 500
+void Chunk_set_MINUS_voxel_MINUS_data_BANG_(Chunk* pRef, Array__float newValue);
+
+// Depth 500
+String Chunk_str(Chunk *p);
+
+// Depth 500
+Chunk Chunk_update_MINUS_coord_MINUS_x(Chunk p, Lambda *updater);
+
+// Depth 500
+Chunk Chunk_update_MINUS_coord_MINUS_y(Chunk p, Lambda *updater);
+
+// Depth 500
+Chunk Chunk_update_MINUS_coord_MINUS_z(Chunk p, Lambda *updater);
+
+// Depth 500
+Chunk Chunk_update_MINUS_voxel_MINUS_data(Chunk p, Lambda *updater);
+
+// Depth 500
+Array__float* Chunk_voxel_MINUS_data(Chunk* p);
 
 // Depth 1000
 
@@ -5811,6 +5973,50 @@ String WGPUVertexBufferWrapper_prn(WGPUVertexBufferWrapper v);
 // Depth 500
 String WGPUVertexBufferWrapper_str(WGPUVertexBufferWrapper* v);
 
+// Depth 1000
+
+// Depth 500
+Array__Chunk* World_chunks(World* p);
+
+// Depth 500
+World World_copy(World* pRef);
+
+// Depth 500
+World World_create();
+
+// Depth 500
+void World_delete(World p);
+
+// Depth 500
+World World_init(Array__Chunk chunks, int voxel_MINUS_resolution);
+
+// Depth 500
+String World_prn(World *p);
+
+// Depth 500
+World World_set_MINUS_chunks(World p, Array__Chunk newValue);
+
+// Depth 500
+void World_set_MINUS_chunks_BANG_(World* pRef, Array__Chunk newValue);
+
+// Depth 500
+World World_set_MINUS_voxel_MINUS_resolution(World p, int newValue);
+
+// Depth 500
+void World_set_MINUS_voxel_MINUS_resolution_BANG_(World* pRef, int newValue);
+
+// Depth 500
+String World_str(World *p);
+
+// Depth 500
+World World_update_MINUS_chunks(World p, Lambda *updater);
+
+// Depth 500
+World World_update_MINUS_voxel_MINUS_resolution(World p, Lambda *updater);
+
+// Depth 500
+int* World_voxel_MINUS_resolution(World* p);
+
 
 //Init globals:
 void carp_init_globals(int argc, char** argv) {
@@ -6823,6 +7029,17 @@ Array__String Array_copy_MINUS_map__uint8_t_String(Lambda* f, Array__uint8_t* a)
     return _52;
 }
 
+Array Array_copy__Chunk (Array* a){
+    Array copy;
+    copy.len = a->len;
+    copy.capacity = a->capacity;
+    copy.data = CARP_MALLOC(sizeof(Chunk) * a->capacity);
+    for(int i = 0; i < a->len; i++) {
+        ((Chunk*)(copy.data))[i] = Chunk_copy(&(((Chunk*)a->data)[i]));
+    }
+    return copy;
+}
+
 Array Array_copy__Result__Uint16_Array__uint8_t (Array* a){
     Array copy;
     copy.len = a->len;
@@ -6883,6 +7100,15 @@ Array Array_copy__Uint64 (Array* a){
     return copy;
 }
 
+Array Array_copy__float (Array* a){
+    Array copy;
+    copy.len = a->len;
+    copy.capacity = a->capacity;
+    copy.data = CARP_MALLOC(sizeof(float) * a->capacity);
+    memcpy(copy.data, a->data, sizeof(float) * a->len);
+    return copy;
+}
+
 Array Array_copy__uint8_t (Array* a){
     Array copy;
     copy.len = a->len;
@@ -6902,6 +7128,13 @@ void Array_delete__Array__uint8_t (Array a){
 void Array_delete__Char (Array a){
     for(int i = 0; i < a.len; i++) {
         /* Ignore non-managed type inside Array: 'Char' */
+    }
+    CARP_FREE(a.data);
+}
+
+void Array_delete__Chunk (Array a){
+    for(int i = 0; i < a.len; i++) {
+        Chunk_delete(((Chunk*)a.data)[i]);
     }
     CARP_FREE(a.data);
 }
@@ -7154,6 +7387,25 @@ Array__Char Array_prefix__Array__Char(Array__Char* xs, int end_MINUS_index) {
     return _9;
 }
 
+String Array_prn__Chunk(Array__Chunk* x) {
+    String _6 = Array_str__Chunk(x);
+    return _6;
+}
+
+String Array_prn__float(Array__float* x) {
+    String _6 = Array_str__float(x);
+    return _6;
+}
+
+void Array_push_MINUS_back_BANG___Chunk(Array *aRef, Chunk value) { 
+    aRef->len++;
+    if(aRef->len > aRef->capacity) {
+        aRef->capacity = aRef->len * 2;
+        aRef->data = CARP_REALLOC(aRef->data, sizeof(Chunk) * aRef->capacity);
+    }
+    ((Chunk*)aRef->data)[aRef->len - 1] = value;
+}
+
 Array Array_push_MINUS_back__Array__uint8_t(Array a, Array__uint8_t value) { 
     a.len++;
     if(a.len > a.capacity) {
@@ -7394,6 +7646,76 @@ Array__uint8_t Array_slice__uint8_t(Array__uint8_t* xs, int start_MINUS_index, i
     return _45;
 }
 
+String Array_str__Chunk (Array* a) {
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize;
+  int size = 3; // opening and closing brackets and terminator
+  for(int i = 0; i < a->len; i++) {
+    temp = Chunk_prn(&((Chunk*)a->data)[i]);
+    size += snprintf(NULL, 0, "%s ", temp);
+    if(temp) {
+      CARP_FREE(temp);
+      temp = NULL;
+    }
+  }
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  snprintf(buffer, size, "[");
+  bufferPtr += 1;
+
+  for(int i = 0; i < a->len; i++) {
+    temp = Chunk_prn(&((Chunk*)a->data)[i]);
+    tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+    bufferPtr += tempsize;
+    if(temp) {
+      CARP_FREE(temp);
+      temp = NULL;
+    }
+  }
+
+  if(a->len > 0) { bufferPtr -= 1; }
+  snprintf(bufferPtr, size - (bufferPtr - buffer), "]");
+  return buffer;
+}
+
+String Array_str__float (Array* a) {
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize;
+  int size = 3; // opening and closing brackets and terminator
+  for(int i = 0; i < a->len; i++) {
+    temp = Float_prn(((float*)a->data)[i]);
+    size += snprintf(NULL, 0, "%s ", temp);
+    if(temp) {
+      CARP_FREE(temp);
+      temp = NULL;
+    }
+  }
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  snprintf(buffer, size, "[");
+  bufferPtr += 1;
+
+  for(int i = 0; i < a->len; i++) {
+    temp = Float_prn(((float*)a->data)[i]);
+    tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+    bufferPtr += tempsize;
+    if(temp) {
+      CARP_FREE(temp);
+      temp = NULL;
+    }
+  }
+
+  if(a->len > 0) { bufferPtr -= 1; }
+  snprintf(bufferPtr, size - (bufferPtr - buffer), "]");
+  return buffer;
+}
+
 Array__Char Array_suffix__Char(Array__Char* xs, int start_MINUS_index) {
     int _10 = Array_length__Char(xs);
     Array__Char _11 = Array_slice__Char(xs, start_MINUS_index, _10);
@@ -7412,6 +7734,13 @@ Char* Array_unsafe_MINUS_nth__Char (Array *aRef, int n) {
     assert(n >= 0);
     assert(n < a.len);
     return &(((Char*)a.data)[n]);
+}
+
+Chunk* Array_unsafe_MINUS_nth__Chunk (Array *aRef, int n) {
+    Array a = *aRef;
+    assert(n >= 0);
+    assert(n < a.len);
+    return &(((Chunk*)a.data)[n]);
 }
 
 PatternMatchResult* Array_unsafe_MINUS_nth__PatternMatchResult (Array *aRef, int n) {
@@ -10591,6 +10920,340 @@ bool CharRef__GT_(Char* a, Char* b) {
     bool _12 = Char__GT_(_8, _11);
     return _12;
 }
+
+int* Chunk_coord_MINUS_x(Chunk* p) { return (&(p->coord_MINUS_x)); }
+
+int* Chunk_coord_MINUS_y(Chunk* p) { return (&(p->coord_MINUS_y)); }
+
+int* Chunk_coord_MINUS_z(Chunk* p) { return (&(p->coord_MINUS_z)); }
+
+Chunk Chunk_copy(Chunk* pRef) {
+    Chunk copy = *pRef;
+    /* Ignore non-managed member 'coord_MINUS_x' : Int */
+    /* Ignore non-managed member 'coord_MINUS_y' : Int */
+    /* Ignore non-managed member 'coord_MINUS_z' : Int */
+    copy.voxel_MINUS_data = Array_copy__float(&(pRef->voxel_MINUS_data));
+    return copy;
+}
+
+Chunk Chunk_create(int qx, int qy, int qz) {
+    Chunk _253;
+    /* let */ {
+        int res = 32;
+        int _17 = Int__MUL_(res, 4);
+        int _18 = Int__MUL_(res, _17);
+        int _19 = Int__MUL_(res, _18);
+        int size = _19;
+        Array__float _23 = Array_allocate__float(size);
+        Array__float voxel_MINUS_data = _23;
+        Array__float* _28 = &voxel_MINUS_data; // ref
+        float* _29 = Array_unsafe_MINUS_raw__float(_28);
+        float* p_MINUS_data = _29;
+        /* let */ {
+            int z = 0;
+            bool _1000008 = Int__LT_(z, res);
+            bool _1000006 = _1000008;
+            while (_1000006) {
+                /* let */ {
+                    int y = 0;
+                    bool _1000015 = Int__LT_(y, res);
+                    bool _1000013 = _1000015;
+                    while (_1000013) {
+                        /* let */ {
+                            int x = 0;
+                            bool _1000022 = Int__LT_(x, res);
+                            bool _1000020 = _1000022;
+                            while (_1000020) {
+                                /* let */ {
+                                    int _68 = Int__MUL_(z, 1024);
+                                    int _73 = Int__MUL_(y, 32);
+                                    int _75 = Int__PLUS_(_73, x);
+                                    int _76 = Int__PLUS_(_68, _75);
+                                    int idx = _76;
+                                    float _81 = Float_from_MINUS_int(x);
+                                    float _83 = Float__MINUS_(_81, 16.0f);
+                                    float dx = _83;
+                                    float _88 = Float_from_MINUS_int(y);
+                                    float _90 = Float__MINUS_(_88, 16.0f);
+                                    float dy = _90;
+                                    float _95 = Float_from_MINUS_int(z);
+                                    float _97 = Float__MINUS_(_95, 16.0f);
+                                    float dz = _97;
+                                    float _105 = Float__MUL_(dx, dx);
+                                    float _109 = Float__MUL_(dy, dy);
+                                    float _110 = Float__PLUS_(_105, _109);
+                                    float _114 = Float__MUL_(dz, dz);
+                                    float _115 = Float__PLUS_(_110, _114);
+                                    float _116 = Float_sqrt(_115);
+                                    float dist = _116;
+                                    float _140;
+                                    bool _133;
+                                    bool _123 = Float__LT_(dist, 11.0f);
+                                    if (_123) {
+                                        bool _128 = Float__GT_(dist, 8.0f);
+                                        bool _129 = _128;
+                                        _133 = _129;
+                                    } else {
+                                        bool _132 = false;
+                                        _133 = _132;
+                                    }
+                                    if (_133) {
+                                        float _136 = 1.0f;
+                                        _140 = _136;
+                                    } else {
+                                        float _139 = 0.0f;
+                                        _140 = _139;
+                                    }
+                                    float density = _140;
+                                    float _145 = Float_from_MINUS_int(x);
+                                    float _147 = Float__DIV_(_145, 32.0f);
+                                    float r = _147;
+                                    float _152 = Float_from_MINUS_int(y);
+                                    float _154 = Float__DIV_(_152, 32.0f);
+                                    float g = _154;
+                                    float _159 = Float_from_MINUS_int(z);
+                                    float _161 = Float__DIV_(_159, 32.0f);
+                                    float b = _161;
+                                    int _166 = Int__MUL_(idx, 4);
+                                    int offset = _166;
+                                    Long _174 = Long_from_MINUS_int(offset);
+                                    float* _175 = Pointer_add__float(p_MINUS_data, _174);
+                                    Pointer_set__float(_175, r);
+                                    int _185 = Int__PLUS_(offset, 1);
+                                    Long _186 = Long_from_MINUS_int(_185);
+                                    float* _187 = Pointer_add__float(p_MINUS_data, _186);
+                                    Pointer_set__float(_187, g);
+                                    int _197 = Int__PLUS_(offset, 2);
+                                    Long _198 = Long_from_MINUS_int(_197);
+                                    float* _199 = Pointer_add__float(p_MINUS_data, _198);
+                                    Pointer_set__float(_199, b);
+                                    int _209 = Int__PLUS_(offset, 3);
+                                    Long _210 = Long_from_MINUS_int(_209);
+                                    float* _211 = Pointer_add__float(p_MINUS_data, _210);
+                                    Pointer_set__float(_211, density);
+                                }
+                                int _1000035 = Int__PLUS_(x, 1);
+                                x = _1000035;  // Int = Int
+                                bool _1000022 = Int__LT_(x, res);
+                                _1000020 = _1000022;
+                            }
+                        }
+                        int _1000038 = Int__PLUS_(y, 1);
+                        y = _1000038;  // Int = Int
+                        bool _1000015 = Int__LT_(y, res);
+                        _1000013 = _1000015;
+                    }
+                }
+                int _1000041 = Int__PLUS_(z, 1);
+                z = _1000041;  // Int = Int
+                bool _1000008 = Int__LT_(z, res);
+                _1000006 = _1000008;
+            }
+        }
+        Chunk _251 = Chunk_init(qx, qy, qz, voxel_MINUS_data);
+        Chunk _252 = _251;
+        _253 = _252;
+    }
+    return _253;
+}
+
+void Chunk_delete(Chunk p) {
+    /* Ignore non-managed member 'coord_MINUS_x' : Int */
+    /* Ignore non-managed member 'coord_MINUS_y' : Int */
+    /* Ignore non-managed member 'coord_MINUS_z' : Int */
+    Array_delete__float(p.voxel_MINUS_data);
+}
+
+Chunk Chunk_init(int coord_MINUS_x, int coord_MINUS_y, int coord_MINUS_z, Array__float voxel_MINUS_data) {
+    Chunk instance;
+    instance.coord_MINUS_x = coord_MINUS_x;
+    instance.coord_MINUS_y = coord_MINUS_y;
+    instance.coord_MINUS_z = coord_MINUS_z;
+    instance.voxel_MINUS_data = voxel_MINUS_data;
+    return instance;
+}
+
+String Chunk_prn(Chunk *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "Chunk");
+  temp = Int_prn(p->coord_MINUS_x); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->coord_MINUS_y); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->coord_MINUS_z); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__float(&p->voxel_MINUS_data); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Chunk");
+  temp = Int_prn(p->coord_MINUS_x);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->coord_MINUS_y);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->coord_MINUS_z);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__float(&p->voxel_MINUS_data);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+Chunk Chunk_set_MINUS_coord_MINUS_x(Chunk p, int newValue) {
+    /* Ignore non-managed member 'coord_MINUS_x' : Int */
+    p.coord_MINUS_x = newValue;
+    return p;
+}
+
+
+void Chunk_set_MINUS_coord_MINUS_x_BANG_(Chunk* pRef, int newValue) {
+    /* Ignore non-managed member 'coord_MINUS_x' : Int */
+    pRef->coord_MINUS_x = newValue;
+}
+
+
+Chunk Chunk_set_MINUS_coord_MINUS_y(Chunk p, int newValue) {
+    /* Ignore non-managed member 'coord_MINUS_y' : Int */
+    p.coord_MINUS_y = newValue;
+    return p;
+}
+
+
+void Chunk_set_MINUS_coord_MINUS_y_BANG_(Chunk* pRef, int newValue) {
+    /* Ignore non-managed member 'coord_MINUS_y' : Int */
+    pRef->coord_MINUS_y = newValue;
+}
+
+
+Chunk Chunk_set_MINUS_coord_MINUS_z(Chunk p, int newValue) {
+    /* Ignore non-managed member 'coord_MINUS_z' : Int */
+    p.coord_MINUS_z = newValue;
+    return p;
+}
+
+
+void Chunk_set_MINUS_coord_MINUS_z_BANG_(Chunk* pRef, int newValue) {
+    /* Ignore non-managed member 'coord_MINUS_z' : Int */
+    pRef->coord_MINUS_z = newValue;
+}
+
+
+Chunk Chunk_set_MINUS_voxel_MINUS_data(Chunk p, Array__float newValue) {
+    Array_delete__float(p.voxel_MINUS_data);
+    p.voxel_MINUS_data = newValue;
+    return p;
+}
+
+
+void Chunk_set_MINUS_voxel_MINUS_data_BANG_(Chunk* pRef, Array__float newValue) {
+    Array_delete__float(pRef->voxel_MINUS_data);
+    pRef->voxel_MINUS_data = newValue;
+}
+
+
+String Chunk_str(Chunk *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "Chunk");
+  temp = Int_prn(p->coord_MINUS_x); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->coord_MINUS_y); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->coord_MINUS_z); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__float(&p->voxel_MINUS_data); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Chunk");
+  temp = Int_prn(p->coord_MINUS_x);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->coord_MINUS_y);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->coord_MINUS_z);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__float(&p->voxel_MINUS_data);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+Chunk Chunk_update_MINUS_coord_MINUS_x(Chunk p, Lambda *updater) {
+    p.coord_MINUS_x = (*updater).env ? ((Fn__LambdaEnv_int_int)(*updater).callback)((*updater).env, p.coord_MINUS_x) : ((Fn__int_int)(*updater).callback)(p.coord_MINUS_x);
+    return p;
+}
+
+
+Chunk Chunk_update_MINUS_coord_MINUS_y(Chunk p, Lambda *updater) {
+    p.coord_MINUS_y = (*updater).env ? ((Fn__LambdaEnv_int_int)(*updater).callback)((*updater).env, p.coord_MINUS_y) : ((Fn__int_int)(*updater).callback)(p.coord_MINUS_y);
+    return p;
+}
+
+
+Chunk Chunk_update_MINUS_coord_MINUS_z(Chunk p, Lambda *updater) {
+    p.coord_MINUS_z = (*updater).env ? ((Fn__LambdaEnv_int_int)(*updater).callback)((*updater).env, p.coord_MINUS_z) : ((Fn__int_int)(*updater).callback)(p.coord_MINUS_z);
+    return p;
+}
+
+
+Chunk Chunk_update_MINUS_voxel_MINUS_data(Chunk p, Lambda *updater) {
+    p.voxel_MINUS_data = (*updater).env ? ((Fn__LambdaEnv_Array__float_Array__float)(*updater).callback)((*updater).env, p.voxel_MINUS_data) : ((Fn__Array__float_Array__float)(*updater).callback)(p.voxel_MINUS_data);
+    return p;
+}
+
+
+Array__float* Chunk_voxel_MINUS_data(Chunk* p) { return (&(p->voxel_MINUS_data)); }
 
 double Double_add_MINUS_ref(double* x, double* y) {
     double _8 = Double_copy(x);
@@ -16989,6 +17652,150 @@ String WGPUUniformBufferWrapper_str(WGPUUniformBufferWrapper* u) { (void)u; retu
 WGPUVertexBufferWrapper WGPUVertexBufferWrapper_copy(WGPUVertexBufferWrapper* v) { return *v; }
 String WGPUVertexBufferWrapper_prn(WGPUVertexBufferWrapper v) { (void)v; return strdup("WGPUVertexBufferWrapper"); }
 String WGPUVertexBufferWrapper_str(WGPUVertexBufferWrapper* v) { (void)v; return strdup("WGPUVertexBufferWrapper"); }
+Array__Chunk* World_chunks(World* p) { return (&(p->chunks)); }
+
+World World_copy(World* pRef) {
+    World copy = *pRef;
+    copy.chunks = Array_copy__Chunk(&(pRef->chunks));
+    /* Ignore non-managed member 'voxel_MINUS_resolution' : Int */
+    return copy;
+}
+
+World World_create() {
+    World _23;
+    /* let */ {
+        Array _5 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(Chunk) * 0) };
+        Array__Chunk world_MINUS_chunks = _5;
+        Array__Chunk* _11 = &world_MINUS_chunks; // ref
+        Chunk _16 = Chunk_create(0, 0, 0);
+        Array_push_MINUS_back_BANG___Chunk(_11, _16);
+        World _21 = World_init(world_MINUS_chunks, 32);
+        World _22 = _21;
+        _23 = _22;
+    }
+    return _23;
+}
+
+void World_delete(World p) {
+    Array_delete__Chunk(p.chunks);
+    /* Ignore non-managed member 'voxel_MINUS_resolution' : Int */
+}
+
+World World_init(Array__Chunk chunks, int voxel_MINUS_resolution) {
+    World instance;
+    instance.chunks = chunks;
+    instance.voxel_MINUS_resolution = voxel_MINUS_resolution;
+    return instance;
+}
+
+String World_prn(World *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "World");
+  temp = Array_prn__Chunk(&p->chunks); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->voxel_MINUS_resolution); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "World");
+  temp = Array_prn__Chunk(&p->chunks);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->voxel_MINUS_resolution);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+World World_set_MINUS_chunks(World p, Array__Chunk newValue) {
+    Array_delete__Chunk(p.chunks);
+    p.chunks = newValue;
+    return p;
+}
+
+
+void World_set_MINUS_chunks_BANG_(World* pRef, Array__Chunk newValue) {
+    Array_delete__Chunk(pRef->chunks);
+    pRef->chunks = newValue;
+}
+
+
+World World_set_MINUS_voxel_MINUS_resolution(World p, int newValue) {
+    /* Ignore non-managed member 'voxel_MINUS_resolution' : Int */
+    p.voxel_MINUS_resolution = newValue;
+    return p;
+}
+
+
+void World_set_MINUS_voxel_MINUS_resolution_BANG_(World* pRef, int newValue) {
+    /* Ignore non-managed member 'voxel_MINUS_resolution' : Int */
+    pRef->voxel_MINUS_resolution = newValue;
+}
+
+
+String World_str(World *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "World");
+  temp = Array_prn__Chunk(&p->chunks); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->voxel_MINUS_resolution); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "World");
+  temp = Array_prn__Chunk(&p->chunks);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->voxel_MINUS_resolution);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+World World_update_MINUS_chunks(World p, Lambda *updater) {
+    p.chunks = (*updater).env ? ((Fn__LambdaEnv_Array__Chunk_Array__Chunk)(*updater).callback)((*updater).env, p.chunks) : ((Fn__Array__Chunk_Array__Chunk)(*updater).callback)(p.chunks);
+    return p;
+}
+
+
+World World_update_MINUS_voxel_MINUS_resolution(World p, Lambda *updater) {
+    p.voxel_MINUS_resolution = (*updater).env ? ((Fn__LambdaEnv_int_int)(*updater).callback)((*updater).env, p.voxel_MINUS_resolution) : ((Fn__int_int)(*updater).callback)(p.voxel_MINUS_resolution);
+    return p;
+}
+
+
+int* World_voxel_MINUS_resolution(World* p) { return (&(p->voxel_MINUS_resolution)); }
+
 WGPUBindGroup create_MINUS_voxel_MINUS_scaffold_MINUS_bind_MINUS_group(WGPUContext* ctx, WGPURenderPipelineWrapper* pipe, WGPURenderTexture* texture, WGPUSampler sampler, WGPUUniformBufferWrapper* ub) {
       if (!ctx || !pipe || !texture || !sampler || !ub) {
           return NULL;
@@ -17034,14 +17841,14 @@ int id__int(int x) {
 
 int main(int argc, char** argv) {
     carp_init_globals(argc, argv);
-    int _964;
+    int _743;
     /* let */ {
         int win_MINUS_width = 1280;
         int win_MINUS_height = 720;
         static String _11 = "Carp WebGPU WASM Voxel Scaffold";
         String *_11_ref = &_11;
         Result__Engine_String _14 = Engine_create(_11_ref, win_MINUS_width, win_MINUS_height);
-        int _963;
+        int _742;
         if(_14._tag == Result__Engine_String_Error_tag) {
             Result__Engine_String _14_temp = _14;
             String e = _14_temp.u.Error.member0;
@@ -17057,7 +17864,7 @@ int main(int argc, char** argv) {
             String* _1000006 = &_1000007; // ref
             IO_println(_1000006);
             int _38 = -1;
-            _963 = _38;
+            _742 = _38;
             String_delete(_1000007);
             String_delete(_1000009);
             String_delete(_1000011);
@@ -17067,7 +17874,7 @@ int main(int argc, char** argv) {
             Result__Engine_String _14_temp = _14;
             Engine eng = _14_temp.u.Success.member0;
             // Case expr:
-            int _962;
+            int _741;
             /* let */ {
                 Engine* _48 = &eng; // ref
                 WGPUContext** _49 = Engine_ctx(_48);
@@ -17085,7 +17892,7 @@ int main(int argc, char** argv) {
                 static String _80 = "rgba16float";
                 String *_80_ref = &_80;
                 Result__WGPURenderTexture_MUL__String _81 = WGPURender_create_MINUS_3d_MINUS_texture(ctx, 32, 32, 32, _80_ref);
-                int _960;
+                int _739;
                 if(_81._tag == Result__WGPURenderTexture_MUL__String_Error_tag) {
                     Result__WGPURenderTexture_MUL__String _81_temp = _81;
                     String e = _81_temp.u.Error.member0;
@@ -17102,7 +17909,7 @@ int main(int argc, char** argv) {
                     IO_println(_1000017);
                     Engine_cleanup(eng);
                     int _108 = -1;
-                    _960 = _108;
+                    _739 = _108;
                     String_delete(_1000018);
                     String_delete(_1000020);
                     String_delete(_1000022);
@@ -17113,7 +17920,7 @@ int main(int argc, char** argv) {
                     WGPURenderTexture* voxel_MINUS_tex = _81_temp.u.Success.member0;
                     // Case expr:
                     Result__WGPUSampler_String _115 = WGPURender_create_MINUS_sampler(ctx);
-                    int _959;
+                    int _738;
                     if(_115._tag == Result__WGPUSampler_String_Error_tag) {
                         Result__WGPUSampler_String _115_temp = _115;
                         String e = _115_temp.u.Error.member0;
@@ -17131,7 +17938,7 @@ int main(int argc, char** argv) {
                         wgpu_render_texture_free(voxel_MINUS_tex);
                         Engine_cleanup(eng);
                         int _145 = -1;
-                        _959 = _145;
+                        _738 = _145;
                         String_delete(_1000027);
                         String_delete(_1000029);
                         String_delete(_1000031);
@@ -17142,7 +17949,7 @@ int main(int argc, char** argv) {
                         WGPUSampler voxel_MINUS_sampler = _115_temp.u.Success.member0;
                         // Case expr:
                         Result__WGPUUniformBufferWrapper_MUL__String _153 = WGPURender_create_MINUS_uniform_MINUS_buffer(ctx, 80);
-                        int _958;
+                        int _737;
                         if(_153._tag == Result__WGPUUniformBufferWrapper_MUL__String_Error_tag) {
                             Result__WGPUUniformBufferWrapper_MUL__String _153_temp = _153;
                             String e = _153_temp.u.Error.member0;
@@ -17161,7 +17968,7 @@ int main(int argc, char** argv) {
                             wgpu_render_texture_free(voxel_MINUS_tex);
                             Engine_cleanup(eng);
                             int _186 = -1;
-                            _958 = _186;
+                            _737 = _186;
                             String_delete(_1000036);
                             String_delete(_1000038);
                             String_delete(_1000040);
@@ -17177,7 +17984,7 @@ int main(int argc, char** argv) {
                             static String _197 = "fs_main";
                             String *_197_ref = &_197;
                             Result__WGPURenderPipelineWrapper_MUL__String _198 = Engine_create_MINUS_pipeline(_194, voxel_MINUS_wgsl, _196_ref, _197_ref);
-                            int _957;
+                            int _736;
                             if(_198._tag == Result__WGPURenderPipelineWrapper_MUL__String_Error_tag) {
                                 Result__WGPURenderPipelineWrapper_MUL__String _198_temp = _198;
                                 String e = _198_temp.u.Error.member0;
@@ -17197,7 +18004,7 @@ int main(int argc, char** argv) {
                                 wgpu_render_texture_free(voxel_MINUS_tex);
                                 Engine_cleanup(eng);
                                 int _234 = -1;
-                                _957 = _234;
+                                _736 = _234;
                                 String_delete(_1000045);
                                 String_delete(_1000047);
                                 String_delete(_1000049);
@@ -17209,7 +18016,7 @@ int main(int argc, char** argv) {
                                 // Case expr:
                                 Engine* _242 = &eng; // ref
                                 Result__WGPUBindGroup_String _247 = Engine_create_MINUS_voxel_MINUS_bind_MINUS_group(_242, pipe, voxel_MINUS_tex, voxel_MINUS_sampler, ub);
-                                int _956;
+                                int _735;
                                 if(_247._tag == Result__WGPUBindGroup_String_Error_tag) {
                                     Result__WGPUBindGroup_String _247_temp = _247;
                                     String e = _247_temp.u.Error.member0;
@@ -17230,7 +18037,7 @@ int main(int argc, char** argv) {
                                     wgpu_render_texture_free(voxel_MINUS_tex);
                                     Engine_cleanup(eng);
                                     int _286 = -1;
-                                    _956 = _286;
+                                    _735 = _286;
                                     String_delete(_1000054);
                                     String_delete(_1000056);
                                     String_delete(_1000058);
@@ -17240,283 +18047,180 @@ int main(int argc, char** argv) {
                                     Result__WGPUBindGroup_String _247_temp = _247;
                                     WGPUBindGroup bg = _247_temp.u.Success.member0;
                                     // Case expr:
-                                    int _955;
+                                    int _734;
                                     /* let */ {
-                                        int _300 = Int__MUL_(32, 4);
-                                        int _301 = Int__MUL_(32, _300);
-                                        int _302 = Int__MUL_(32, _301);
-                                        Array__float _303 = Array_allocate__float(_302);
-                                        Array__float voxel_MINUS_data = _303;
-                                        Array__float* _308 = &voxel_MINUS_data; // ref
-                                        float* _309 = Array_unsafe_MINUS_raw__float(_308);
-                                        float* p_MINUS_data = _309;
-                                        Vector3__double _316 = Vector3_init__double(16.0, 16.0, -20.0);
-                                        Camera _317 = Camera_create(_316);
-                                        Camera cam = _317;
-                                        double _320 = glfwGetTime();
-                                        double last_MINUS_time = _320;
+                                        World _293 = World_create();
+                                        World world = _293;
+                                        World* _299 = &world; // ref
+                                        Array__Chunk* _300 = World_chunks(_299);
+                                        Chunk* _302 = Array_unsafe_MINUS_nth__Chunk(_300, 0);
+                                        Chunk* first_MINUS_chunk = _302;
+                                        Vector3__double _309 = Vector3_init__double(16.0, 16.0, -20.0);
+                                        Camera _310 = Camera_create(_309);
+                                        Camera cam = _310;
+                                        double _313 = glfwGetTime();
+                                        double last_MINUS_time = _313;
                                         bool first_MINUS_mouse = true;
                                         double last_MINUS_x = 640.0;
                                         double last_MINUS_y = 360.0;
-                                        Array__float _330 = Array_allocate__float(20);
-                                        Array__float uniforms = _330;
-                                        /* let */ {
-                                            int z = 0;
-                                            bool _1000065 = Int__LT_(z, 32);
-                                            bool _1000063 = _1000065;
-                                            while (_1000063) {
-                                                /* let */ {
-                                                    int y = 0;
-                                                    bool _1000072 = Int__LT_(y, 32);
-                                                    bool _1000070 = _1000072;
-                                                    while (_1000070) {
-                                                        /* let */ {
-                                                            int x = 0;
-                                                            bool _1000079 = Int__LT_(x, 32);
-                                                            bool _1000077 = _1000079;
-                                                            while (_1000077) {
-                                                                /* let */ {
-                                                                    int _369 = Int__MUL_(z, 1024);
-                                                                    int _374 = Int__MUL_(y, 32);
-                                                                    int _376 = Int__PLUS_(_374, x);
-                                                                    int _377 = Int__PLUS_(_369, _376);
-                                                                    int idx = _377;
-                                                                    float _382 = Float_from_MINUS_int(x);
-                                                                    float _384 = Float__MINUS_(_382, 16.0f);
-                                                                    float dx = _384;
-                                                                    float _389 = Float_from_MINUS_int(y);
-                                                                    float _391 = Float__MINUS_(_389, 16.0f);
-                                                                    float dy = _391;
-                                                                    float _396 = Float_from_MINUS_int(z);
-                                                                    float _398 = Float__MINUS_(_396, 16.0f);
-                                                                    float dz = _398;
-                                                                    float _406 = Float__MUL_(dx, dx);
-                                                                    float _410 = Float__MUL_(dy, dy);
-                                                                    float _411 = Float__PLUS_(_406, _410);
-                                                                    float _415 = Float__MUL_(dz, dz);
-                                                                    float _416 = Float__PLUS_(_411, _415);
-                                                                    float _417 = Float_sqrt(_416);
-                                                                    float dist = _417;
-                                                                    float _441;
-                                                                    bool _434;
-                                                                    bool _424 = Float__LT_(dist, 11.0f);
-                                                                    if (_424) {
-                                                                        bool _429 = Float__GT_(dist, 8.0f);
-                                                                        bool _430 = _429;
-                                                                        _434 = _430;
-                                                                    } else {
-                                                                        bool _433 = false;
-                                                                        _434 = _433;
-                                                                    }
-                                                                    if (_434) {
-                                                                        float _437 = 1.0f;
-                                                                        _441 = _437;
-                                                                    } else {
-                                                                        float _440 = 0.0f;
-                                                                        _441 = _440;
-                                                                    }
-                                                                    float density = _441;
-                                                                    float _446 = Float_from_MINUS_int(x);
-                                                                    float _448 = Float__DIV_(_446, 32.0f);
-                                                                    float r = _448;
-                                                                    float _453 = Float_from_MINUS_int(y);
-                                                                    float _455 = Float__DIV_(_453, 32.0f);
-                                                                    float g = _455;
-                                                                    float _460 = Float_from_MINUS_int(z);
-                                                                    float _462 = Float__DIV_(_460, 32.0f);
-                                                                    float b = _462;
-                                                                    int _467 = Int__MUL_(idx, 4);
-                                                                    int offset = _467;
-                                                                    Long _475 = Long_from_MINUS_int(offset);
-                                                                    float* _476 = Pointer_add__float(p_MINUS_data, _475);
-                                                                    Pointer_set__float(_476, r);
-                                                                    int _486 = Int__PLUS_(offset, 1);
-                                                                    Long _487 = Long_from_MINUS_int(_486);
-                                                                    float* _488 = Pointer_add__float(p_MINUS_data, _487);
-                                                                    Pointer_set__float(_488, g);
-                                                                    int _498 = Int__PLUS_(offset, 2);
-                                                                    Long _499 = Long_from_MINUS_int(_498);
-                                                                    float* _500 = Pointer_add__float(p_MINUS_data, _499);
-                                                                    Pointer_set__float(_500, b);
-                                                                    int _510 = Int__PLUS_(offset, 3);
-                                                                    Long _511 = Long_from_MINUS_int(_510);
-                                                                    float* _512 = Pointer_add__float(p_MINUS_data, _511);
-                                                                    Pointer_set__float(_512, density);
-                                                                }
-                                                                int _1000092 = Int__PLUS_(x, 1);
-                                                                x = _1000092;  // Int = Int
-                                                                bool _1000079 = Int__LT_(x, 32);
-                                                                _1000077 = _1000079;
-                                                            }
-                                                        }
-                                                        int _1000095 = Int__PLUS_(y, 1);
-                                                        y = _1000095;  // Int = Int
-                                                        bool _1000072 = Int__LT_(y, 32);
-                                                        _1000070 = _1000072;
-                                                    }
-                                                }
-                                                int _1000098 = Int__PLUS_(z, 1);
-                                                z = _1000098;  // Int = Int
-                                                bool _1000065 = Int__LT_(z, 32);
-                                                _1000063 = _1000065;
-                                            }
-                                        }
-                                        Array__float* _558 = &voxel_MINUS_data; // ref
-                                        WGPURender_update_MINUS_3d_MINUS_texture_MINUS_subregion_MINUS_floats(ctx, voxel_MINUS_tex, 0, 0, 0, 32, 32, 32, _558);
-                                        Camera* _563 = &cam; // ref
-                                        Camera_update_MINUS_vectors(_563);
-                                        int _569 = glfwWindowShouldClose(win);
-                                        bool _571 = Int__EQ_(_569, GLFW_FALSE);
-                                        bool _934 = _571;
-                                        while (_934) {
+                                        Array__float _323 = Array_allocate__float(20);
+                                        Array__float uniforms = _323;
+                                        Array__float* _337 = Chunk_voxel_MINUS_data(first_MINUS_chunk);
+                                        WGPURender_update_MINUS_3d_MINUS_texture_MINUS_subregion_MINUS_floats(ctx, voxel_MINUS_tex, 0, 0, 0, 32, 32, 32, _337);
+                                        Camera* _342 = &cam; // ref
+                                        Camera_update_MINUS_vectors(_342);
+                                        int _348 = glfwWindowShouldClose(win);
+                                        bool _350 = Int__EQ_(_348, GLFW_FALSE);
+                                        bool _713 = _350;
+                                        while (_713) {
                                             /* let */ {
-                                                double _575 = glfwGetTime();
-                                                double curr_MINUS_time = _575;
-                                                double _580 = Double__MINUS_(curr_MINUS_time, last_MINUS_time);
-                                                double dt = _580;
-                                                Engine* _585 = &eng; // ref
-                                                float _586 = Engine_update_MINUS_time(_585);
-                                                float time = _586;
-                                                Camera* _591 = &cam; // ref
-                                                Vector3__double* _592 = Camera_pos(_591);
-                                                Vector3__double* c_MINUS_pos = _592;
-                                                Camera* _597 = &cam; // ref
-                                                Vector3__double* _598 = Camera_front(_597);
-                                                Vector3__double* c_MINUS_dir = _598;
-                                                Camera* _603 = &cam; // ref
-                                                Vector3__double* _604 = Camera_right(_603);
-                                                Vector3__double* c_MINUS_right = _604;
-                                                Camera* _609 = &cam; // ref
-                                                Vector3__double* _610 = Camera_up(_609);
-                                                Vector3__double* c_MINUS_up = _610;
+                                                double _354 = glfwGetTime();
+                                                double curr_MINUS_time = _354;
+                                                double _359 = Double__MINUS_(curr_MINUS_time, last_MINUS_time);
+                                                double dt = _359;
+                                                Engine* _364 = &eng; // ref
+                                                float _365 = Engine_update_MINUS_time(_364);
+                                                float time = _365;
+                                                Camera* _370 = &cam; // ref
+                                                Vector3__double* _371 = Camera_pos(_370);
+                                                Vector3__double* c_MINUS_pos = _371;
+                                                Camera* _376 = &cam; // ref
+                                                Vector3__double* _377 = Camera_front(_376);
+                                                Vector3__double* c_MINUS_dir = _377;
+                                                Camera* _382 = &cam; // ref
+                                                Vector3__double* _383 = Camera_right(_382);
+                                                Vector3__double* c_MINUS_right = _383;
+                                                Camera* _388 = &cam; // ref
+                                                Vector3__double* _389 = Camera_up(_388);
+                                                Vector3__double* c_MINUS_up = _389;
                                                 last_MINUS_time = curr_MINUS_time;  // Double = Double
-                                                Camera* _621 = &cam; // ref
-                                                Camera_update_MINUS_input(win, _621, dt);
-                                                Camera* _628 = &cam; // ref
-                                                bool* _632 = &first_MINUS_mouse; // ref
-                                                bool* _633 = ref_MINUS_to_MINUS_ptr__bool(_632);
-                                                double* _637 = &last_MINUS_x; // ref
-                                                double* _638 = ref_MINUS_to_MINUS_ptr__double(_637);
-                                                double* _642 = &last_MINUS_y; // ref
-                                                double* _643 = ref_MINUS_to_MINUS_ptr__double(_642);
-                                                Camera_update_MINUS_look(win, _628, _633, _638, _643);
-                                                Engine* _648 = &eng; // ref
-                                                Engine_handle_MINUS_resize(_648);
+                                                Camera* _400 = &cam; // ref
+                                                Camera_update_MINUS_input(win, _400, dt);
+                                                Camera* _407 = &cam; // ref
+                                                bool* _411 = &first_MINUS_mouse; // ref
+                                                bool* _412 = ref_MINUS_to_MINUS_ptr__bool(_411);
+                                                double* _416 = &last_MINUS_x; // ref
+                                                double* _417 = ref_MINUS_to_MINUS_ptr__double(_416);
+                                                double* _421 = &last_MINUS_y; // ref
+                                                double* _422 = ref_MINUS_to_MINUS_ptr__double(_421);
+                                                Camera_update_MINUS_look(win, _407, _412, _417, _422);
+                                                Engine* _427 = &eng; // ref
+                                                Engine_handle_MINUS_resize(_427);
                                                 /* let */ {
-                                                    Engine* _657 = &eng; // ref
-                                                    int* _658 = Engine_width(_657);
-                                                    int _659 = Int_copy(_658);
-                                                    float _660 = Float_from_MINUS_int(_659);
-                                                    float w = _660;
-                                                    Engine* _667 = &eng; // ref
-                                                    int* _668 = Engine_height(_667);
-                                                    int _669 = Int_copy(_668);
-                                                    float _670 = Float_from_MINUS_int(_669);
-                                                    float h = _670;
-                                                    Array__float* _676 = &uniforms; // ref
-                                                    Array_aset_BANG___float(_676, 0, time);
-                                                    Array__float* _683 = &uniforms; // ref
-                                                    Array_aset_BANG___float(_683, 1, w);
-                                                    Array__float* _690 = &uniforms; // ref
-                                                    Array_aset_BANG___float(_690, 2, h);
-                                                    Array__float* _697 = &uniforms; // ref
-                                                    Array_aset_BANG___float(_697, 3, 0.0f);
-                                                    Array__float* _704 = &uniforms; // ref
-                                                    double* _710 = Vector3_x__double(c_MINUS_pos);
-                                                    double _711 = Double_copy(_710);
-                                                    float _712 = Double_to_MINUS_float(_711);
-                                                    Array_aset_BANG___float(_704, 4, _712);
-                                                    Array__float* _717 = &uniforms; // ref
-                                                    double* _723 = Vector3_y__double(c_MINUS_pos);
-                                                    double _724 = Double_copy(_723);
-                                                    float _725 = Double_to_MINUS_float(_724);
-                                                    Array_aset_BANG___float(_717, 5, _725);
-                                                    Array__float* _730 = &uniforms; // ref
-                                                    double* _736 = Vector3_z__double(c_MINUS_pos);
-                                                    double _737 = Double_copy(_736);
-                                                    float _738 = Double_to_MINUS_float(_737);
-                                                    Array_aset_BANG___float(_730, 6, _738);
-                                                    Array__float* _743 = &uniforms; // ref
-                                                    Array_aset_BANG___float(_743, 7, 1.0f);
-                                                    Array__float* _750 = &uniforms; // ref
-                                                    double* _756 = Vector3_x__double(c_MINUS_dir);
-                                                    double _757 = Double_copy(_756);
-                                                    float _758 = Double_to_MINUS_float(_757);
-                                                    Array_aset_BANG___float(_750, 8, _758);
-                                                    Array__float* _763 = &uniforms; // ref
-                                                    double* _769 = Vector3_y__double(c_MINUS_dir);
-                                                    double _770 = Double_copy(_769);
-                                                    float _771 = Double_to_MINUS_float(_770);
-                                                    Array_aset_BANG___float(_763, 9, _771);
-                                                    Array__float* _776 = &uniforms; // ref
-                                                    double* _782 = Vector3_z__double(c_MINUS_dir);
-                                                    double _783 = Double_copy(_782);
-                                                    float _784 = Double_to_MINUS_float(_783);
-                                                    Array_aset_BANG___float(_776, 10, _784);
-                                                    Array__float* _789 = &uniforms; // ref
-                                                    Array_aset_BANG___float(_789, 11, 0.0f);
-                                                    Array__float* _796 = &uniforms; // ref
-                                                    double* _802 = Vector3_x__double(c_MINUS_right);
-                                                    double _803 = Double_copy(_802);
-                                                    float _804 = Double_to_MINUS_float(_803);
-                                                    Array_aset_BANG___float(_796, 12, _804);
-                                                    Array__float* _809 = &uniforms; // ref
-                                                    double* _815 = Vector3_y__double(c_MINUS_right);
-                                                    double _816 = Double_copy(_815);
-                                                    float _817 = Double_to_MINUS_float(_816);
-                                                    Array_aset_BANG___float(_809, 13, _817);
-                                                    Array__float* _822 = &uniforms; // ref
-                                                    double* _828 = Vector3_z__double(c_MINUS_right);
-                                                    double _829 = Double_copy(_828);
-                                                    float _830 = Double_to_MINUS_float(_829);
-                                                    Array_aset_BANG___float(_822, 14, _830);
-                                                    Array__float* _835 = &uniforms; // ref
-                                                    Array_aset_BANG___float(_835, 15, 0.0f);
-                                                    Array__float* _842 = &uniforms; // ref
-                                                    double* _848 = Vector3_x__double(c_MINUS_up);
-                                                    double _849 = Double_copy(_848);
-                                                    float _850 = Double_to_MINUS_float(_849);
-                                                    Array_aset_BANG___float(_842, 16, _850);
-                                                    Array__float* _855 = &uniforms; // ref
-                                                    double* _861 = Vector3_y__double(c_MINUS_up);
-                                                    double _862 = Double_copy(_861);
-                                                    float _863 = Double_to_MINUS_float(_862);
-                                                    Array_aset_BANG___float(_855, 17, _863);
-                                                    Array__float* _868 = &uniforms; // ref
-                                                    double* _874 = Vector3_z__double(c_MINUS_up);
-                                                    double _875 = Double_copy(_874);
-                                                    float _876 = Double_to_MINUS_float(_875);
-                                                    Array_aset_BANG___float(_868, 18, _876);
-                                                    Array__float* _881 = &uniforms; // ref
-                                                    Array_aset_BANG___float(_881, 19, 0.0f);
+                                                    Engine* _436 = &eng; // ref
+                                                    int* _437 = Engine_width(_436);
+                                                    int _438 = Int_copy(_437);
+                                                    float _439 = Float_from_MINUS_int(_438);
+                                                    float w = _439;
+                                                    Engine* _446 = &eng; // ref
+                                                    int* _447 = Engine_height(_446);
+                                                    int _448 = Int_copy(_447);
+                                                    float _449 = Float_from_MINUS_int(_448);
+                                                    float h = _449;
+                                                    Array__float* _455 = &uniforms; // ref
+                                                    Array_aset_BANG___float(_455, 0, time);
+                                                    Array__float* _462 = &uniforms; // ref
+                                                    Array_aset_BANG___float(_462, 1, w);
+                                                    Array__float* _469 = &uniforms; // ref
+                                                    Array_aset_BANG___float(_469, 2, h);
+                                                    Array__float* _476 = &uniforms; // ref
+                                                    Array_aset_BANG___float(_476, 3, 0.0f);
+                                                    Array__float* _483 = &uniforms; // ref
+                                                    double* _489 = Vector3_x__double(c_MINUS_pos);
+                                                    double _490 = Double_copy(_489);
+                                                    float _491 = Double_to_MINUS_float(_490);
+                                                    Array_aset_BANG___float(_483, 4, _491);
+                                                    Array__float* _496 = &uniforms; // ref
+                                                    double* _502 = Vector3_y__double(c_MINUS_pos);
+                                                    double _503 = Double_copy(_502);
+                                                    float _504 = Double_to_MINUS_float(_503);
+                                                    Array_aset_BANG___float(_496, 5, _504);
+                                                    Array__float* _509 = &uniforms; // ref
+                                                    double* _515 = Vector3_z__double(c_MINUS_pos);
+                                                    double _516 = Double_copy(_515);
+                                                    float _517 = Double_to_MINUS_float(_516);
+                                                    Array_aset_BANG___float(_509, 6, _517);
+                                                    Array__float* _522 = &uniforms; // ref
+                                                    Array_aset_BANG___float(_522, 7, 1.0f);
+                                                    Array__float* _529 = &uniforms; // ref
+                                                    double* _535 = Vector3_x__double(c_MINUS_dir);
+                                                    double _536 = Double_copy(_535);
+                                                    float _537 = Double_to_MINUS_float(_536);
+                                                    Array_aset_BANG___float(_529, 8, _537);
+                                                    Array__float* _542 = &uniforms; // ref
+                                                    double* _548 = Vector3_y__double(c_MINUS_dir);
+                                                    double _549 = Double_copy(_548);
+                                                    float _550 = Double_to_MINUS_float(_549);
+                                                    Array_aset_BANG___float(_542, 9, _550);
+                                                    Array__float* _555 = &uniforms; // ref
+                                                    double* _561 = Vector3_z__double(c_MINUS_dir);
+                                                    double _562 = Double_copy(_561);
+                                                    float _563 = Double_to_MINUS_float(_562);
+                                                    Array_aset_BANG___float(_555, 10, _563);
+                                                    Array__float* _568 = &uniforms; // ref
+                                                    Array_aset_BANG___float(_568, 11, 0.0f);
+                                                    Array__float* _575 = &uniforms; // ref
+                                                    double* _581 = Vector3_x__double(c_MINUS_right);
+                                                    double _582 = Double_copy(_581);
+                                                    float _583 = Double_to_MINUS_float(_582);
+                                                    Array_aset_BANG___float(_575, 12, _583);
+                                                    Array__float* _588 = &uniforms; // ref
+                                                    double* _594 = Vector3_y__double(c_MINUS_right);
+                                                    double _595 = Double_copy(_594);
+                                                    float _596 = Double_to_MINUS_float(_595);
+                                                    Array_aset_BANG___float(_588, 13, _596);
+                                                    Array__float* _601 = &uniforms; // ref
+                                                    double* _607 = Vector3_z__double(c_MINUS_right);
+                                                    double _608 = Double_copy(_607);
+                                                    float _609 = Double_to_MINUS_float(_608);
+                                                    Array_aset_BANG___float(_601, 14, _609);
+                                                    Array__float* _614 = &uniforms; // ref
+                                                    Array_aset_BANG___float(_614, 15, 0.0f);
+                                                    Array__float* _621 = &uniforms; // ref
+                                                    double* _627 = Vector3_x__double(c_MINUS_up);
+                                                    double _628 = Double_copy(_627);
+                                                    float _629 = Double_to_MINUS_float(_628);
+                                                    Array_aset_BANG___float(_621, 16, _629);
+                                                    Array__float* _634 = &uniforms; // ref
+                                                    double* _640 = Vector3_y__double(c_MINUS_up);
+                                                    double _641 = Double_copy(_640);
+                                                    float _642 = Double_to_MINUS_float(_641);
+                                                    Array_aset_BANG___float(_634, 17, _642);
+                                                    Array__float* _647 = &uniforms; // ref
+                                                    double* _653 = Vector3_z__double(c_MINUS_up);
+                                                    double _654 = Double_copy(_653);
+                                                    float _655 = Double_to_MINUS_float(_654);
+                                                    Array_aset_BANG___float(_647, 18, _655);
+                                                    Array__float* _660 = &uniforms; // ref
+                                                    Array_aset_BANG___float(_660, 19, 0.0f);
                                                 }
-                                                Engine* _890 = &eng; // ref
-                                                Array__float* _894 = &uniforms; // ref
-                                                Engine_update_MINUS_uniform_MINUS_buffer(_890, ub, _894);
-                                                Engine* _900 = &eng; // ref
-                                                Maybe__WGPUFrameState_MUL_ _901 = Engine_begin_MINUS_frame(_900);
-                                                if(_901._tag == Maybe__WGPUFrameState_MUL__Nothing_tag) {
-                                                    Maybe__WGPUFrameState_MUL_ _901_temp = _901;
+                                                Engine* _669 = &eng; // ref
+                                                Array__float* _673 = &uniforms; // ref
+                                                Engine_update_MINUS_uniform_MINUS_buffer(_669, ub, _673);
+                                                Engine* _679 = &eng; // ref
+                                                Maybe__WGPUFrameState_MUL_ _680 = Engine_begin_MINUS_frame(_679);
+                                                if(_680._tag == Maybe__WGPUFrameState_MUL__Nothing_tag) {
+                                                    Maybe__WGPUFrameState_MUL_ _680_temp = _680;
                                                     // Case expr:
                                                     /* () */
                                                 }
-                                                else if(_901._tag == Maybe__WGPUFrameState_MUL__Just_tag) {
-                                                    Maybe__WGPUFrameState_MUL_ _901_temp = _901;
-                                                    WGPUFrameState* frame = _901_temp.u.Just.member0;
+                                                else if(_680._tag == Maybe__WGPUFrameState_MUL__Just_tag) {
+                                                    Maybe__WGPUFrameState_MUL_ _680_temp = _680;
+                                                    WGPUFrameState* frame = _680_temp.u.Just.member0;
                                                     // Case expr:
-                                                    Maybe__WGPURenderTexture_MUL_ _914 = Maybe_Nothing__WGPURenderTexture_MUL_();
-                                                    WGPURender_run_MINUS_pass(frame, pipe, bg, _914);
-                                                    Engine* _919 = &eng; // ref
-                                                    Engine_end_MINUS_frame(_919, frame);
+                                                    Maybe__WGPURenderTexture_MUL_ _693 = Maybe_Nothing__WGPURenderTexture_MUL_();
+                                                    WGPURender_run_MINUS_pass(frame, pipe, bg, _693);
+                                                    Engine* _698 = &eng; // ref
+                                                    Engine_end_MINUS_frame(_698, frame);
                                                 }
-                                                else UNHANDLED("main.carp", 257);
-                                                Engine* _927 = &eng; // ref
-                                                Engine_poll_MINUS_events__Engine_MUL_(_927);
+                                                else UNHANDLED("main.carp", 236);
+                                                Engine* _706 = &eng; // ref
+                                                Engine_poll_MINUS_events__Engine_MUL_(_706);
                                                 emscripten_MINUS_sleep(16);
                                             }
-                                            int _569 = glfwWindowShouldClose(win);
-                                            bool _571 = Int__EQ_(_569, GLFW_FALSE);
-                                            _934 = _571;
+                                            int _348 = glfwWindowShouldClose(win);
+                                            bool _350 = Int__EQ_(_348, GLFW_FALSE);
+                                            _713 = _350;
                                         }
                                         Engine_free_MINUS_bind_MINUS_group(bg);
                                         Engine_free_MINUS_pipeline(pipe);
@@ -17524,36 +18228,36 @@ int main(int argc, char** argv) {
                                         wgpuSamplerRelease(voxel_MINUS_sampler);
                                         wgpu_render_texture_free(voxel_MINUS_tex);
                                         Engine_cleanup(eng);
-                                        int _954 = 0;
-                                        _955 = _954;
+                                        int _733 = 0;
+                                        _734 = _733;
                                         Array_delete__float(uniforms);
-                                        Array_delete__float(voxel_MINUS_data);
                                         Camera_delete(cam);
+                                        World_delete(world);
                                     }
-                                    _956 = _955;
+                                    _735 = _734;
                                 }
-                                else UNHANDLED("main.carp", 162);
-                                _957 = _956;
+                                else UNHANDLED("main.carp", 163);
+                                _736 = _735;
                             }
-                            else UNHANDLED("main.carp", 155);
-                            _958 = _957;
+                            else UNHANDLED("main.carp", 156);
+                            _737 = _736;
                         }
-                        else UNHANDLED("main.carp", 149);
-                        _959 = _958;
+                        else UNHANDLED("main.carp", 150);
+                        _738 = _737;
                     }
-                    else UNHANDLED("main.carp", 144);
-                    _960 = _959;
+                    else UNHANDLED("main.carp", 145);
+                    _739 = _738;
                 }
-                else UNHANDLED("main.carp", 141);
-                int _961 = _960;
-                _962 = _961;
+                else UNHANDLED("main.carp", 142);
+                int _740 = _739;
+                _741 = _740;
             }
-            _963 = _962;
+            _742 = _741;
         }
-        else UNHANDLED("main.carp", 131);
-        _964 = _963;
+        else UNHANDLED("main.carp", 132);
+        _743 = _742;
     }
-    return _964;
+    return _743;
 }
 
 int max__int(int a, int b) {

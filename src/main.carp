@@ -1,6 +1,7 @@
 (load "Vector.carp")
 (load "scaffold.carp")
 (load "camera.carp")
+(load "world.carp")
 (load "../../carp-job-system/rayon.carp")
 (use Vector3)
 (use Double)
@@ -167,8 +168,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                                                    (WGPURender.free-render-texture voxel-tex)
                                                    (Engine.cleanup eng) -1)
                               (Result.Success bg)
-                                (let [voxel-data (Array.allocate (* 32 (* 32 (* 32 4))))
-                                      p-data (Array.unsafe-raw &voxel-data)
+                                (let [world (World.create)
+                                      first-chunk (Array.unsafe-nth (World.chunks &world) 0)
                                       ;; Camera and loop trackers
                                       cam (Camera.create (Vector3.init 16.0 16.0 -20.0))
                                       last-time (GLFW.get-time)
@@ -177,31 +178,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                                       last-y 360.0
                                       uniforms (Array.allocate 20)]
                                   (do
-                                    ; 1. Generate voxel grid sequentially
-                                     (for [z 0 32]
-                                       (for [y 0 32]
-                                         (for [x 0 32]
-                                           (let [idx (+ (* z 1024) (+ (* y 32) x))
-                                                 dx (- (Float.from-int x) 16.0f)
-                                                 dy (- (Float.from-int y) 16.0f)
-                                                 dz (- (Float.from-int z) 16.0f)
-                                                 dist (Float.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))
-                                                 
-                                                 ;; Generate a shell of sphere voxels
-                                                 density (if (and (< dist 11.0f) (> dist 8.0f)) 1.0f 0.0f)
-                                                 r (/ (Float.from-int x) 32.0f)
-                                                 g (/ (Float.from-int y) 32.0f)
-                                                 b (/ (Float.from-int z) 32.0f)
-                                                 offset (* idx 4)]
-                                            (do
-                                              (Pointer.set (Pointer.add p-data (Long.from-int offset)) r)
-                                              (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) g)
-                                              (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) b)
-                                              (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) density))))))
-                                     
-                                     ; 2. Upload voxel texture data to GPU
-                                     (WGPURender.update-3d-texture-subregion-floats ctx voxel-tex 0 0 0 32 32 32 &voxel-data)
-                                    (Camera.update-vectors &cam)
+                                     ; 1. Upload voxel texture data to GPU
+                                     (WGPURender.update-3d-texture-subregion-floats ctx voxel-tex 0 0 0 32 32 32 (Chunk.voxel-data first-chunk))
+                                     (Camera.update-vectors &cam)
                                     
                                     ; 3. Main interactive loop
                                     (while (= (GLFW.window-should-close win) GLFW.FALSE)

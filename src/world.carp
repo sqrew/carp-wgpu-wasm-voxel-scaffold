@@ -1,0 +1,52 @@
+(load "Vector.carp")
+(use Vector3)
+(use Double)
+
+(deftype Chunk [
+  coord-x Int
+  coord-y Int
+  coord-z Int
+  voxel-data (Array Float)
+])
+
+(deftype World [
+  chunks (Array Chunk)
+  voxel-resolution Int
+])
+
+(defmodule Chunk
+  (defn create [qx qy qz]
+    (let [res 32
+          size (* res (* res (* res 4)))
+          voxel-data (Array.allocate size)
+          p-data (Array.unsafe-raw &voxel-data)]
+      (do
+        (for [z 0 res]
+          (for [y 0 res]
+            (for [x 0 res]
+              (let [idx (+ (* z 1024) (+ (* y 32) x))
+                    dx (- (Float.from-int x) 16.0f)
+                    dy (- (Float.from-int y) 16.0f)
+                    dz (- (Float.from-int z) 16.0f)
+                    dist (Float.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))
+                    
+                    density (if (and (< dist 11.0f) (> dist 8.0f)) 1.0f 0.0f)
+                    r (/ (Float.from-int x) 32.0f)
+                    g (/ (Float.from-int y) 32.0f)
+                    b (/ (Float.from-int z) 32.0f)
+                    offset (* idx 4)]
+                (do
+                  (Pointer.set (Pointer.add p-data (Long.from-int offset)) r)
+                  (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) g)
+                  (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) b)
+                  (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) density))))))
+        (Chunk.init qx qy qz voxel-data))))
+)
+
+(defmodule World
+  (defn create []
+    (let [world-chunks []]
+      (do
+        (Array.push-back! &world-chunks (Chunk.create 0 0 0))
+        (World.init world-chunks 32))))
+)
