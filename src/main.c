@@ -61,6 +61,7 @@ typedef struct ChunkCoord ChunkCoord;
 typedef struct Diagnostics Diagnostics;
 typedef struct Engine Engine;
 typedef struct EngineState EngineState;
+typedef struct FBMConfig FBMConfig;
 typedef struct Line Line;
 typedef struct LinePassRenderer LinePassRenderer;
 typedef struct LogLevel LogLevel;
@@ -78,6 +79,7 @@ typedef struct Maybe__double Maybe__double;
 typedef struct Maybe__float Maybe__float;
 typedef struct Maybe__int Maybe__int;
 typedef struct Maybe__uint8_t Maybe__uint8_t;
+typedef struct NoiseState NoiseState;
 typedef struct Opaque Opaque;
 typedef struct Pair__Array__Uint16_int Pair__Array__Uint16_int;
 typedef struct Pair__Array__Uint32_int Pair__Array__Uint32_int;
@@ -113,6 +115,7 @@ typedef struct Result__WGPUSampler_String Result__WGPUSampler_String;
 typedef struct Result__WGPUUniformBufferWrapper_MUL__String Result__WGPUUniformBufferWrapper_MUL__String;
 typedef struct Result__WGPUVertexBufferWrapper_MUL__String Result__WGPUVertexBufferWrapper_MUL__String;
 typedef struct Result__bool_String Result__bool_String;
+typedef struct Vec3 Vec3;
 typedef struct Vector2__bool Vector2__bool;
 typedef struct Vector3__Lambda_div__double_13_env_ty Vector3__Lambda_div__double_13_env_ty;
 typedef struct Vector3__Lambda_mul__double_13_env_ty Vector3__Lambda_mul__double_13_env_ty;
@@ -288,6 +291,13 @@ struct ChunkCoord {
 };
 
 // Depth 3
+struct FBMConfig {
+    int octaves;
+    double persistence;
+    double lacunarity;
+};
+
+// Depth 3
 struct Par__Lambda_simd_MINUS_add_BANG__213_env_ty {
     int end;
     int lanes;
@@ -296,6 +306,13 @@ struct Par__Lambda_simd_MINUS_add_BANG__213_env_ty {
     float* p_MINUS_src_MINUS_a;
     float* p_MINUS_src_MINUS_b;
     int start;
+};
+
+// Depth 3
+struct Vec3 {
+    double x;
+    double y;
+    double z;
 };
 
 // Depth 3
@@ -369,6 +386,9 @@ typedef Array Array__Uint32;
 
 // Depth 4
 typedef Array Array__Uint64;
+
+// Depth 4
+typedef Array Array__Vec3;
 
 // Depth 4
 typedef Array Array__WGPUBuffer;
@@ -635,6 +655,12 @@ typedef bool(*Fn__int_bool)(int);
 typedef double(*Fn__int_double)(int);
 
 // Depth 4
+typedef double(*Fn__int_double_double_double)(int, double, double);
+
+// Depth 4
+typedef double(*Fn__int_double_double_double_double)(int, double, double, double);
+
+// Depth 4
 typedef float(*Fn__int_float)(int);
 
 // Depth 4
@@ -744,6 +770,15 @@ typedef String(*Fn__ChunkCoord_MUL__String)(ChunkCoord*);
 typedef int*(*Fn__ChunkCoord_MUL__int_MUL_)(ChunkCoord*);
 
 // Depth 6
+typedef String(*Fn__FBMConfig_MUL__String)(FBMConfig*);
+
+// Depth 6
+typedef double*(*Fn__FBMConfig_MUL__double_MUL_)(FBMConfig*);
+
+// Depth 6
+typedef int*(*Fn__FBMConfig_MUL__int_MUL_)(FBMConfig*);
+
+// Depth 6
 typedef bool(*Fn__Fn__bool_bool_bool_bool_Vector2__bool_MUL__bool)(Lambda, bool, Vector2__bool*);
 
 // Depth 6
@@ -778,6 +813,12 @@ typedef Result__String_String(*Fn__String_Result__String_String)(String);
 
 // Depth 6
 typedef Result__bool_String(*Fn__String_Result__bool_String)(String);
+
+// Depth 6
+typedef String(*Fn__Vec3_MUL__String)(Vec3*);
+
+// Depth 6
+typedef double*(*Fn__Vec3_MUL__double_MUL_)(Vec3*);
 
 // Depth 6
 typedef bool*(*Fn__Vector2__bool_MUL__bool_MUL_)(Vector2__bool*);
@@ -840,6 +881,9 @@ typedef Result__bool_String(*Fn__bool_Result__bool_String)(bool);
 typedef Maybe__double(*Fn__double_Maybe__double)(double);
 
 // Depth 6
+typedef Vec3(*Fn__double_double_double_Vec3)(double, double, double);
+
+// Depth 6
 typedef Vector3__double(*Fn__double_double_double_Vector3__double)(double, double, double);
 
 // Depth 6
@@ -853,6 +897,11 @@ typedef ChunkCoord(*Fn__int_int_int_ChunkCoord)(int, int, int);
 
 // Depth 6
 typedef Maybe__uint8_t(*Fn__uint8_t_Maybe__uint8_t)(uint8_t);
+
+// Depth 6
+struct NoiseState {
+    Array__int p;
+};
 
 // Depth 7
 typedef Array__Char(*Fn__Array__Char_Array__Char)(Array__Char);
@@ -913,6 +962,12 @@ typedef float*(*Fn__Array__float_MUL__int_float_MUL_)(Array__float*, int);
 
 // Depth 7
 typedef void(*Fn__Array__float_MUL__int_float_void)(Array__float*, int, float);
+
+// Depth 7
+typedef Array__int(*Fn__Array__int_Array__int)(Array__int);
+
+// Depth 7
+typedef String(*Fn__Array__int_MUL__String)(Array__int*);
 
 // Depth 7
 typedef int(*Fn__Array__int_MUL__int)(Array__int*);
@@ -1079,7 +1134,13 @@ typedef int(*Fn__Array__ChunkCoord_MUL__int)(Array__ChunkCoord*);
 typedef ChunkCoord*(*Fn__Array__ChunkCoord_MUL__int_ChunkCoord_MUL_)(Array__ChunkCoord*, int);
 
 // Depth 9
+typedef Vec3*(*Fn__Array__Vec3_MUL__int_Vec3_MUL_)(Array__Vec3*, int);
+
+// Depth 9
 typedef CameraMat4(*Fn__Array__float_CameraMat4)(Array__float);
+
+// Depth 9
+typedef NoiseState(*Fn__Array__int_NoiseState)(Array__int);
 
 // Depth 9
 typedef Array__float*(*Fn__CameraMat4_MUL__Array__float_MUL_)(CameraMat4*);
@@ -1106,10 +1167,25 @@ typedef String(*Fn__Chunk_MUL__String)(Chunk*);
 typedef int*(*Fn__Chunk_MUL__int_MUL_)(Chunk*);
 
 // Depth 9
-typedef Chunk(*Fn__int_int_int_Array__float_Chunk)(int, int, int, Array__float);
+typedef Array__int*(*Fn__NoiseState_MUL__Array__int_MUL_)(NoiseState*);
 
 // Depth 9
-typedef Chunk(*Fn__int_int_int_Chunk)(int, int, int);
+typedef String(*Fn__NoiseState_MUL__String)(NoiseState*);
+
+// Depth 9
+typedef double(*Fn__NoiseState_MUL__double_double_double)(NoiseState*, double, double);
+
+// Depth 9
+typedef double(*Fn__NoiseState_MUL__double_double_double_double)(NoiseState*, double, double, double);
+
+// Depth 9
+typedef Chunk(*Fn__NoiseState_MUL__int_int_int_Chunk)(NoiseState*, int, int, int);
+
+// Depth 9
+typedef NoiseState(*Fn__int_NoiseState)(int);
+
+// Depth 9
+typedef Chunk(*Fn__int_int_int_Array__float_Chunk)(int, int, int, Array__float);
 
 // Depth 10
 typedef Array__Array__uint8_t(*Fn__Array__Array__uint8_t_Array__uint8_t_Array__Array__uint8_t)(Array__Array__uint8_t, Array__uint8_t);
@@ -3386,6 +3462,9 @@ typedef Array__ZoneStats(*Fn__LambdaEnv_Array__ZoneStats_Array__ZoneStats)(Lambd
 typedef Array__float(*Fn__LambdaEnv_Array__float_Array__float)(LambdaEnv, Array__float);
 
 // Depth 505
+typedef Array__int(*Fn__LambdaEnv_Array__int_Array__int)(LambdaEnv, Array__int);
+
+// Depth 505
 typedef Camera(*Fn__LambdaEnv_Camera_Camera)(LambdaEnv, Camera);
 
 // Depth 505
@@ -3558,6 +3637,9 @@ bool _LT__EQ___Char(Char a, Char b);
 
 // Depth 500
 bool _LT__EQ___int(int a, int b);
+
+// Depth 500
+bool _GT__EQ___double(double a, double b);
 
 // Depth 500
 bool _GT__EQ___int(int a, int b);
@@ -3951,6 +4033,9 @@ Array Array_copy__ZoneStats (Array* a);
 Array Array_copy__float (Array* a);
 
 // Depth 500
+Array Array_copy__int (Array* a);
+
+// Depth 500
 Array Array_copy__uint8_t (Array* a);
 
 // Depth 500
@@ -3994,6 +4079,9 @@ void Array_delete__Uint32 (Array a);
 
 // Depth 500
 void Array_delete__Uint64 (Array a);
+
+// Depth 500
+void Array_delete__Vec3 (Array a);
 
 // Depth 500
 void Array_delete__WGPUBuffer (Array a);
@@ -4116,6 +4204,9 @@ String Array_prn__ZoneStats(Array__ZoneStats* x);
 String Array_prn__float(Array__float* x);
 
 // Depth 500
+String Array_prn__int(Array__int* x);
+
+// Depth 500
 void Array_push_MINUS_back_BANG___ActiveTimer(Array *aRef, ActiveTimer value);
 
 // Depth 500
@@ -4185,6 +4276,9 @@ String Array_str__ZoneStats (Array* a);
 String Array_str__float (Array* a);
 
 // Depth 500
+String Array_str__int (Array* a);
+
+// Depth 500
 Array__Char Array_suffix__Char(Array__Char* xs, int start_MINUS_index);
 
 // Depth 500
@@ -4228,6 +4322,9 @@ Uint32* Array_unsafe_MINUS_nth__Uint32 (Array *aRef, int n);
 
 // Depth 500
 Uint64* Array_unsafe_MINUS_nth__Uint64 (Array *aRef, int n);
+
+// Depth 500
+Vec3* Array_unsafe_MINUS_nth__Vec3 (Array *aRef, int n);
 
 // Depth 500
 ZoneStats* Array_unsafe_MINUS_nth__ZoneStats (Array *aRef, int n);
@@ -4819,7 +4916,7 @@ int* Chunk_coord_MINUS_z(Chunk* p);
 Chunk Chunk_copy(Chunk* pRef);
 
 // Depth 500
-Chunk Chunk_create(int qx, int qy, int qz);
+Chunk Chunk_create(NoiseState* noise_MINUS_state, int qx, int qy, int qz);
 
 // Depth 500
 void Chunk_delete(Chunk p);
@@ -5402,6 +5499,59 @@ double* EngineState_vel_MINUS_y(EngineState* p);
 
 // Depth 500
 World* EngineState_world(EngineState* p);
+
+// Depth 1000
+
+// Depth 500
+FBMConfig FBMConfig_copy(FBMConfig* pRef);
+
+// Depth 500
+void FBMConfig_delete(FBMConfig p);
+
+// Depth 500
+FBMConfig FBMConfig_init(int octaves, double persistence, double lacunarity);
+
+// Depth 500
+double* FBMConfig_lacunarity(FBMConfig* p);
+
+// Depth 500
+int* FBMConfig_octaves(FBMConfig* p);
+
+// Depth 500
+double* FBMConfig_persistence(FBMConfig* p);
+
+// Depth 500
+String FBMConfig_prn(FBMConfig *p);
+
+// Depth 500
+FBMConfig FBMConfig_set_MINUS_lacunarity(FBMConfig p, double newValue);
+
+// Depth 500
+void FBMConfig_set_MINUS_lacunarity_BANG_(FBMConfig* pRef, double newValue);
+
+// Depth 500
+FBMConfig FBMConfig_set_MINUS_octaves(FBMConfig p, int newValue);
+
+// Depth 500
+void FBMConfig_set_MINUS_octaves_BANG_(FBMConfig* pRef, int newValue);
+
+// Depth 500
+FBMConfig FBMConfig_set_MINUS_persistence(FBMConfig p, double newValue);
+
+// Depth 500
+void FBMConfig_set_MINUS_persistence_BANG_(FBMConfig* pRef, double newValue);
+
+// Depth 500
+String FBMConfig_str(FBMConfig *p);
+
+// Depth 500
+FBMConfig FBMConfig_update_MINUS_lacunarity(FBMConfig p, Lambda *updater);
+
+// Depth 500
+FBMConfig FBMConfig_update_MINUS_octaves(FBMConfig p, Lambda *updater);
+
+// Depth 500
+FBMConfig FBMConfig_update_MINUS_persistence(FBMConfig p, Lambda *updater);
 
 // Depth 1000
 
@@ -6190,6 +6340,78 @@ bool Maybe_nothing_QMARK___Vector3__double(Maybe__Vector3__double* a);
 
 // Depth 500
 String Maybe_unsafe_MINUS_from__String(Maybe__String a);
+
+// Depth 1000
+
+// Depth 500
+double Noise_dot2(int g, double x, double y);
+
+// Depth 500
+double Noise_dot3(int g, double x, double y, double z);
+
+// Depth 500
+double Noise_fbm2d(NoiseState* state, double x, double y, FBMConfig* config);
+
+// Depth 500
+Array__Vec3 Noise_grad3;
+
+// Depth 500
+NoiseState Noise_make_MINUS_noise(int seed);
+
+// Depth 500
+double Noise_noise2d(NoiseState* state, double xin, double yin);
+
+// Depth 500
+double Noise_noise3d(NoiseState* state, double xin, double yin, double zin);
+
+// Depth 1000
+
+// Depth 500
+double Noise_Fast_fbm2d(double x, double z, double gain, double lacunarity);
+
+// Depth 500
+double Noise_Fast_noise2d(double x, double z);
+
+// Depth 500
+double Noise_Fast_noise2d_MINUS_c(double x, double z);
+
+// Depth 500
+double Noise_Fast_noise3d(double x, double y, double z);
+
+// Depth 500
+double Noise_Fast_noise3d_MINUS_c(double x, double y, double z);
+
+// Depth 500
+double Noise_Fast_rigid_MINUS_fbm2d(double x, double z, double gain, double lacunarity);
+
+// Depth 1000
+
+// Depth 500
+NoiseState NoiseState_copy(NoiseState* pRef);
+
+// Depth 500
+void NoiseState_delete(NoiseState p);
+
+// Depth 500
+NoiseState NoiseState_init(Array__int p);
+
+// Depth 500
+Array__int* NoiseState_p(NoiseState* p);
+
+// Depth 500
+String NoiseState_prn(NoiseState *p);
+
+// Depth 500
+NoiseState NoiseState_set_MINUS_p(NoiseState p, Array__int newValue);
+
+// Depth 500
+void NoiseState_set_MINUS_p_BANG_(NoiseState* pRef, Array__int newValue);
+
+// Depth 500
+String NoiseState_str(NoiseState *p);
+
+// Depth 500
+NoiseState NoiseState_update_MINUS_p(NoiseState p, Lambda *updater);
 
 // Depth 1000
 
@@ -7460,6 +7682,59 @@ bool UnitRef__EQ_();
 // Depth 1000
 
 // Depth 500
+Vec3 Vec3_copy(Vec3* pRef);
+
+// Depth 500
+void Vec3_delete(Vec3 p);
+
+// Depth 500
+Vec3 Vec3_init(double x, double y, double z);
+
+// Depth 500
+String Vec3_prn(Vec3 *p);
+
+// Depth 500
+Vec3 Vec3_set_MINUS_x(Vec3 p, double newValue);
+
+// Depth 500
+void Vec3_set_MINUS_x_BANG_(Vec3* pRef, double newValue);
+
+// Depth 500
+Vec3 Vec3_set_MINUS_y(Vec3 p, double newValue);
+
+// Depth 500
+void Vec3_set_MINUS_y_BANG_(Vec3* pRef, double newValue);
+
+// Depth 500
+Vec3 Vec3_set_MINUS_z(Vec3 p, double newValue);
+
+// Depth 500
+void Vec3_set_MINUS_z_BANG_(Vec3* pRef, double newValue);
+
+// Depth 500
+String Vec3_str(Vec3 *p);
+
+// Depth 500
+Vec3 Vec3_update_MINUS_x(Vec3 p, Lambda *updater);
+
+// Depth 500
+Vec3 Vec3_update_MINUS_y(Vec3 p, Lambda *updater);
+
+// Depth 500
+Vec3 Vec3_update_MINUS_z(Vec3 p, Lambda *updater);
+
+// Depth 500
+double* Vec3_x(Vec3* p);
+
+// Depth 500
+double* Vec3_y(Vec3* p);
+
+// Depth 500
+double* Vec3_z(Vec3* p);
+
+// Depth 1000
+
+// Depth 500
 bool Vector2__Lambda_vapprox_19_env(bool i, bool v);
 
 // Depth 500
@@ -8102,6 +8377,36 @@ void carp_init_globals(int argc, char** argv) {
         Set_dflt_MINUS_len = 16;
     }
 
+    // Depth 1
+    {
+        Array _62 = { .len = 12, .capacity = 12, .data = CARP_MALLOC(sizeof(Vec3) * 12) };
+        Vec3 _6 = Vec3_init(1.0, 1.0, 0.0);
+        ((Vec3*)_62.data)[0] = _6;
+        Vec3 _11 = Vec3_init(-1.0, 1.0, 0.0);
+        ((Vec3*)_62.data)[1] = _11;
+        Vec3 _16 = Vec3_init(1.0, -1.0, 0.0);
+        ((Vec3*)_62.data)[2] = _16;
+        Vec3 _21 = Vec3_init(-1.0, -1.0, 0.0);
+        ((Vec3*)_62.data)[3] = _21;
+        Vec3 _26 = Vec3_init(1.0, 0.0, 1.0);
+        ((Vec3*)_62.data)[4] = _26;
+        Vec3 _31 = Vec3_init(-1.0, 0.0, 1.0);
+        ((Vec3*)_62.data)[5] = _31;
+        Vec3 _36 = Vec3_init(1.0, 0.0, -1.0);
+        ((Vec3*)_62.data)[6] = _36;
+        Vec3 _41 = Vec3_init(-1.0, 0.0, -1.0);
+        ((Vec3*)_62.data)[7] = _41;
+        Vec3 _46 = Vec3_init(0.0, 1.0, 1.0);
+        ((Vec3*)_62.data)[8] = _46;
+        Vec3 _51 = Vec3_init(0.0, -1.0, 1.0);
+        ((Vec3*)_62.data)[9] = _51;
+        Vec3 _56 = Vec3_init(0.0, 1.0, -1.0);
+        ((Vec3*)_62.data)[10] = _56;
+        Vec3 _61 = Vec3_init(0.0, -1.0, -1.0);
+        ((Vec3*)_62.data)[11] = _61;
+        Noise_grad3 = _62;
+    }
+
     // Depth 2
     {
         Random_seed();
@@ -8151,6 +8456,20 @@ bool _LT__EQ___int(int a, int b) {
         _19 = _12;
     } else {
         bool _17 = Int__EQ_(a, b);
+        bool _18 = _17;
+        _19 = _18;
+    }
+    return _19;
+}
+
+bool _GT__EQ___double(double a, double b) {
+    bool _19;
+    bool _9 = Double__GT_(a, b);
+    if (_9) {
+        bool _12 = true;
+        _19 = _12;
+    } else {
+        bool _17 = Double__EQ_(a, b);
         bool _18 = _17;
         _19 = _18;
     }
@@ -9285,6 +9604,15 @@ Array Array_copy__float (Array* a){
     return copy;
 }
 
+Array Array_copy__int (Array* a){
+    Array copy;
+    copy.len = a->len;
+    copy.capacity = a->capacity;
+    copy.data = CARP_MALLOC(sizeof(int) * a->capacity);
+    memcpy(copy.data, a->data, sizeof(int) * a->len);
+    return copy;
+}
+
 Array Array_copy__uint8_t (Array* a){
     Array copy;
     copy.len = a->len;
@@ -9388,6 +9716,13 @@ void Array_delete__Uint32 (Array a){
 void Array_delete__Uint64 (Array a){
     for(int i = 0; i < a.len; i++) {
         /* Ignore non-managed type inside Array: 'Uint64' */
+    }
+    CARP_FREE(a.data);
+}
+
+void Array_delete__Vec3 (Array a){
+    for(int i = 0; i < a.len; i++) {
+        Vec3_delete(((Vec3*)a.data)[i]);
     }
     CARP_FREE(a.data);
 }
@@ -9645,6 +9980,11 @@ String Array_prn__ZoneStats(Array__ZoneStats* x) {
 
 String Array_prn__float(Array__float* x) {
     String _6 = Array_str__float(x);
+    return _6;
+}
+
+String Array_prn__int(Array__int* x) {
+    String _6 = Array_str__int(x);
     return _6;
 }
 
@@ -10137,6 +10477,41 @@ String Array_str__float (Array* a) {
   return buffer;
 }
 
+String Array_str__int (Array* a) {
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize;
+  int size = 3; // opening and closing brackets and terminator
+  for(int i = 0; i < a->len; i++) {
+    temp = Int_prn(((int*)a->data)[i]);
+    size += snprintf(NULL, 0, "%s ", temp);
+    if(temp) {
+      CARP_FREE(temp);
+      temp = NULL;
+    }
+  }
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  snprintf(buffer, size, "[");
+  bufferPtr += 1;
+
+  for(int i = 0; i < a->len; i++) {
+    temp = Int_prn(((int*)a->data)[i]);
+    tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+    bufferPtr += tempsize;
+    if(temp) {
+      CARP_FREE(temp);
+      temp = NULL;
+    }
+  }
+
+  if(a->len > 0) { bufferPtr -= 1; }
+  snprintf(bufferPtr, size - (bufferPtr - buffer), "]");
+  return buffer;
+}
+
 Array__Char Array_suffix__Char(Array__Char* xs, int start_MINUS_index) {
     int _10 = Array_length__Char(xs);
     Array__Char _11 = Array_slice__Char(xs, start_MINUS_index, _10);
@@ -10239,6 +10614,13 @@ Uint64* Array_unsafe_MINUS_nth__Uint64 (Array *aRef, int n) {
     assert(n >= 0);
     assert(n < a.len);
     return &(((Uint64*)a.data)[n]);
+}
+
+Vec3* Array_unsafe_MINUS_nth__Vec3 (Array *aRef, int n) {
+    Array a = *aRef;
+    assert(n >= 0);
+    assert(n < a.len);
+    return &(((Vec3*)a.data)[n]);
 }
 
 ZoneStats* Array_unsafe_MINUS_nth__ZoneStats (Array *aRef, int n) {
@@ -14060,19 +14442,19 @@ Chunk Chunk_copy(Chunk* pRef) {
     return copy;
 }
 
-Chunk Chunk_create(int qx, int qy, int qz) {
-    Chunk _244;
+Chunk Chunk_create(NoiseState* noise_MINUS_state, int qx, int qy, int qz) {
+    Chunk _333;
     /* let */ {
         int res = 32;
-        int _17 = Int__MUL_(res, 4);
-        int _18 = Int__MUL_(res, _17);
+        int _18 = Int__MUL_(res, 4);
         int _19 = Int__MUL_(res, _18);
-        int size = _19;
-        Array__float _23 = Array_allocate__float(size);
-        Array__float voxel_MINUS_data = _23;
-        Array__float* _28 = &voxel_MINUS_data; // ref
-        float* _29 = Array_unsafe_MINUS_raw__float(_28);
-        float* p_MINUS_data = _29;
+        int _20 = Int__MUL_(res, _19);
+        int size = _20;
+        Array__float _24 = Array_allocate__float(size);
+        Array__float voxel_MINUS_data = _24;
+        Array__float* _29 = &voxel_MINUS_data; // ref
+        float* _30 = Array_unsafe_MINUS_raw__float(_29);
+        float* p_MINUS_data = _30;
         /* let */ {
             int z = 0;
             bool _1000008 = Int__LT_(z, res);
@@ -14089,82 +14471,126 @@ Chunk Chunk_create(int qx, int qy, int qz) {
                             bool _1000020 = _1000022;
                             while (_1000020) {
                                 /* let */ {
-                                    int _68 = Int__MUL_(z, 1024);
-                                    int _73 = Int__MUL_(y, 32);
-                                    int _75 = Int__PLUS_(_73, x);
-                                    int _76 = Int__PLUS_(_68, _75);
-                                    int idx = _76;
-                                    int _82 = Int__MUL_(qx, 32);
-                                    int _84 = Int__PLUS_(_82, x);
-                                    int gx = _84;
-                                    int _90 = Int__MUL_(qy, 32);
-                                    int _92 = Int__PLUS_(_90, y);
-                                    int gy = _92;
-                                    int _98 = Int__MUL_(qz, 32);
-                                    int _100 = Int__PLUS_(_98, z);
-                                    int gz = _100;
-                                    float _105 = Float_from_MINUS_int(gx);
-                                    float _107 = Float__MINUS_(_105, 64.0f);
-                                    float dx = _107;
-                                    float _112 = Float_from_MINUS_int(gy);
-                                    float _114 = Float__MINUS_(_112, 32.0f);
-                                    float dy = _114;
-                                    float _119 = Float_from_MINUS_int(gz);
-                                    float _121 = Float__MINUS_(_119, 64.0f);
-                                    float dz = _121;
-                                    float _129 = Float__MUL_(dx, dx);
-                                    float _133 = Float__MUL_(dy, dy);
-                                    float _134 = Float__PLUS_(_129, _133);
-                                    float _138 = Float__MUL_(dz, dz);
-                                    float _139 = Float__PLUS_(_134, _138);
-                                    float _140 = Float_sqrt(_139);
-                                    float dist = _140;
-                                    float _147 = Float__MINUS_(dist, 25.0f);
-                                    float _148 = Float_abs(_147);
-                                    float _150 = Float__MINUS_(_148, 2.0f);
-                                    float sdf = _150;
-                                    float mat_MINUS_id = 2.0f;
-                                    int _157 = Int__MUL_(idx, 4);
-                                    int offset = _157;
-                                    Long _165 = Long_from_MINUS_int(offset);
-                                    float* _166 = Pointer_add__float(p_MINUS_data, _165);
-                                    Pointer_set__float(_166, mat_MINUS_id);
-                                    int _176 = Int__PLUS_(offset, 1);
-                                    Long _177 = Long_from_MINUS_int(_176);
-                                    float* _178 = Pointer_add__float(p_MINUS_data, _177);
-                                    Pointer_set__float(_178, sdf);
-                                    int _188 = Int__PLUS_(offset, 2);
-                                    Long _189 = Long_from_MINUS_int(_188);
-                                    float* _190 = Pointer_add__float(p_MINUS_data, _189);
-                                    Pointer_set__float(_190, 0.0f);
-                                    int _200 = Int__PLUS_(offset, 3);
-                                    Long _201 = Long_from_MINUS_int(_200);
-                                    float* _202 = Pointer_add__float(p_MINUS_data, _201);
-                                    Pointer_set__float(_202, 1.0f);
+                                    int _69 = Int__MUL_(z, 1024);
+                                    int _74 = Int__MUL_(y, 32);
+                                    int _76 = Int__PLUS_(_74, x);
+                                    int _77 = Int__PLUS_(_69, _76);
+                                    int idx = _77;
+                                    int _83 = Int__MUL_(qx, 32);
+                                    int _85 = Int__PLUS_(_83, x);
+                                    int gx = _85;
+                                    int _91 = Int__MUL_(qy, 32);
+                                    int _93 = Int__PLUS_(_91, y);
+                                    int gy = _93;
+                                    int _99 = Int__MUL_(qz, 32);
+                                    int _101 = Int__PLUS_(_99, z);
+                                    int gz = _101;
+                                    double _106 = Double_from_MINUS_int(gx);
+                                    double _108 = Double__MUL_(_106, 1.5e-2);
+                                    double nx = _108;
+                                    double _113 = Double_from_MINUS_int(gz);
+                                    double _115 = Double__MUL_(_113, 1.5e-2);
+                                    double nz = _115;
+                                    double _125 = Noise_noise2d(noise_MINUS_state, nx, nz);
+                                    double _126 = Double__MUL_(16.0, _125);
+                                    double _127 = Double__PLUS_(20.0, _126);
+                                    double height = _127;
+                                    double _132 = Double_from_MINUS_int(gx);
+                                    double _134 = Double__MUL_(_132, 4.0e-2);
+                                    double nx2 = _134;
+                                    double _139 = Double_from_MINUS_int(gy);
+                                    double _141 = Double__MUL_(_139, 4.0e-2);
+                                    double ny2 = _141;
+                                    double _146 = Double_from_MINUS_int(gz);
+                                    double _148 = Double__MUL_(_146, 4.0e-2);
+                                    double nz2 = _148;
+                                    double _157 = Noise_noise3d(noise_MINUS_state, nx2, ny2, nz2);
+                                    double _158 = Double__MUL_(3.0, _157);
+                                    double detail = _158;
+                                    double _164 = Double_from_MINUS_int(gy);
+                                    double _168 = Double__PLUS_(height, detail);
+                                    double _169 = Double__MINUS_(_164, _168);
+                                    float _170 = Double_to_MINUS_float(_169);
+                                    float base_MINUS_sdf = _170;
+                                    double _175 = Double_from_MINUS_int(gx);
+                                    double _177 = Double__MUL_(_175, 8.0e-2);
+                                    double cx = _177;
+                                    double _182 = Double_from_MINUS_int(gy);
+                                    double _184 = Double__MUL_(_182, 8.0e-2);
+                                    double cy = _184;
+                                    double _189 = Double_from_MINUS_int(gz);
+                                    double _191 = Double__MUL_(_189, 8.0e-2);
+                                    double cz = _191;
+                                    double _198 = Noise_noise3d(noise_MINUS_state, cx, cy, cz);
+                                    double cave_MINUS_val = _198;
+                                    double _204 = Double__MINUS_(0.35, cave_MINUS_val);
+                                    float _205 = Double_to_MINUS_float(_204);
+                                    float cave_MINUS_sdf = _205;
+                                    float _221;
+                                    bool _211 = Double__GT_(cave_MINUS_val, 0.45);
+                                    if (_211) {
+                                        float _216 = max__float(base_MINUS_sdf, cave_MINUS_sdf);
+                                        float _217 = _216;
+                                        _221 = _217;
+                                    } else {
+                                        float _220 = base_MINUS_sdf;
+                                        _221 = _220;
+                                    }
+                                    float sdf = _221;
+                                    double _227 = Double_from_MINUS_int(gy);
+                                    double _228 = Double__MINUS_(height, _227);
+                                    double depth = _228;
+                                    float _241;
+                                    bool _234 = Double__LT_(depth, 1.5);
+                                    if (_234) {
+                                        float _237 = 2.0f;
+                                        _241 = _237;
+                                    } else {
+                                        float _240 = 1.0f;
+                                        _241 = _240;
+                                    }
+                                    float mat_MINUS_id = _241;
+                                    int _246 = Int__MUL_(idx, 4);
+                                    int offset = _246;
+                                    Long _254 = Long_from_MINUS_int(offset);
+                                    float* _255 = Pointer_add__float(p_MINUS_data, _254);
+                                    Pointer_set__float(_255, mat_MINUS_id);
+                                    int _265 = Int__PLUS_(offset, 1);
+                                    Long _266 = Long_from_MINUS_int(_265);
+                                    float* _267 = Pointer_add__float(p_MINUS_data, _266);
+                                    Pointer_set__float(_267, sdf);
+                                    int _277 = Int__PLUS_(offset, 2);
+                                    Long _278 = Long_from_MINUS_int(_277);
+                                    float* _279 = Pointer_add__float(p_MINUS_data, _278);
+                                    Pointer_set__float(_279, 0.0f);
+                                    int _289 = Int__PLUS_(offset, 3);
+                                    Long _290 = Long_from_MINUS_int(_289);
+                                    float* _291 = Pointer_add__float(p_MINUS_data, _290);
+                                    Pointer_set__float(_291, 1.0f);
                                 }
-                                int _1000029 = Int__PLUS_(x, 1);
-                                x = _1000029;  // Int = Int
+                                int _1000035 = Int__PLUS_(x, 1);
+                                x = _1000035;  // Int = Int
                                 bool _1000022 = Int__LT_(x, res);
                                 _1000020 = _1000022;
                             }
                         }
-                        int _1000032 = Int__PLUS_(y, 1);
-                        y = _1000032;  // Int = Int
+                        int _1000038 = Int__PLUS_(y, 1);
+                        y = _1000038;  // Int = Int
                         bool _1000015 = Int__LT_(y, res);
                         _1000013 = _1000015;
                     }
                 }
-                int _1000035 = Int__PLUS_(z, 1);
-                z = _1000035;  // Int = Int
+                int _1000041 = Int__PLUS_(z, 1);
+                z = _1000041;  // Int = Int
                 bool _1000008 = Int__LT_(z, res);
                 _1000006 = _1000008;
             }
         }
-        Chunk _242 = Chunk_init(qx, qy, qz, voxel_MINUS_data);
-        Chunk _243 = _242;
-        _244 = _243;
+        Chunk _331 = Chunk_init(qx, qy, qz, voxel_MINUS_data);
+        Chunk _332 = _331;
+        _333 = _332;
     }
-    return _244;
+    return _333;
 }
 
 void Chunk_delete(Chunk p) {
@@ -17439,6 +17865,177 @@ double* EngineState_vel_MINUS_y(EngineState* p) { return (&(p->vel_MINUS_y)); }
 
 World* EngineState_world(EngineState* p) { return (&(p->world)); }
 
+FBMConfig FBMConfig_copy(FBMConfig* pRef) {
+    FBMConfig copy = *pRef;
+    /* Ignore non-managed member 'octaves' : Int */
+    /* Ignore non-managed member 'persistence' : Double */
+    /* Ignore non-managed member 'lacunarity' : Double */
+    return copy;
+}
+
+void FBMConfig_delete(FBMConfig p) {
+    /* Ignore non-managed member 'octaves' : Int */
+    /* Ignore non-managed member 'persistence' : Double */
+    /* Ignore non-managed member 'lacunarity' : Double */
+}
+
+FBMConfig FBMConfig_init(int octaves, double persistence, double lacunarity) {
+    FBMConfig instance;
+    instance.octaves = octaves;
+    instance.persistence = persistence;
+    instance.lacunarity = lacunarity;
+    return instance;
+}
+
+double* FBMConfig_lacunarity(FBMConfig* p) { return (&(p->lacunarity)); }
+
+int* FBMConfig_octaves(FBMConfig* p) { return (&(p->octaves)); }
+
+double* FBMConfig_persistence(FBMConfig* p) { return (&(p->persistence)); }
+
+String FBMConfig_prn(FBMConfig *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "FBMConfig");
+  temp = Int_prn(p->octaves); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->persistence); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->lacunarity); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "FBMConfig");
+  temp = Int_prn(p->octaves);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->persistence);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->lacunarity);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+FBMConfig FBMConfig_set_MINUS_lacunarity(FBMConfig p, double newValue) {
+    /* Ignore non-managed member 'lacunarity' : Double */
+    p.lacunarity = newValue;
+    return p;
+}
+
+
+void FBMConfig_set_MINUS_lacunarity_BANG_(FBMConfig* pRef, double newValue) {
+    /* Ignore non-managed member 'lacunarity' : Double */
+    pRef->lacunarity = newValue;
+}
+
+
+FBMConfig FBMConfig_set_MINUS_octaves(FBMConfig p, int newValue) {
+    /* Ignore non-managed member 'octaves' : Int */
+    p.octaves = newValue;
+    return p;
+}
+
+
+void FBMConfig_set_MINUS_octaves_BANG_(FBMConfig* pRef, int newValue) {
+    /* Ignore non-managed member 'octaves' : Int */
+    pRef->octaves = newValue;
+}
+
+
+FBMConfig FBMConfig_set_MINUS_persistence(FBMConfig p, double newValue) {
+    /* Ignore non-managed member 'persistence' : Double */
+    p.persistence = newValue;
+    return p;
+}
+
+
+void FBMConfig_set_MINUS_persistence_BANG_(FBMConfig* pRef, double newValue) {
+    /* Ignore non-managed member 'persistence' : Double */
+    pRef->persistence = newValue;
+}
+
+
+String FBMConfig_str(FBMConfig *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "FBMConfig");
+  temp = Int_prn(p->octaves); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->persistence); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->lacunarity); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "FBMConfig");
+  temp = Int_prn(p->octaves);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->persistence);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->lacunarity);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+FBMConfig FBMConfig_update_MINUS_lacunarity(FBMConfig p, Lambda *updater) {
+    p.lacunarity = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.lacunarity) : ((Fn__double_double)(*updater).callback)(p.lacunarity);
+    return p;
+}
+
+
+FBMConfig FBMConfig_update_MINUS_octaves(FBMConfig p, Lambda *updater) {
+    p.octaves = (*updater).env ? ((Fn__LambdaEnv_int_int)(*updater).callback)((*updater).env, p.octaves) : ((Fn__int_int)(*updater).callback)(p.octaves);
+    return p;
+}
+
+
+FBMConfig FBMConfig_update_MINUS_persistence(FBMConfig p, Lambda *updater) {
+    p.persistence = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.persistence) : ((Fn__double_double)(*updater).callback)(p.persistence);
+    return p;
+}
+
+
 float Float_add_MINUS_ref(float* x, float* y) {
     float _8 = Float_copy(x);
     float _11 = Float_copy(y);
@@ -20163,6 +20760,918 @@ String Maybe_unsafe_MINUS_from__String(Maybe__String a) {
     else UNHANDLED("Maybe.carp", 17);
     return _10;
 }
+
+double Noise_Fast_fbm2d(double x, double z, double gain, double lacunarity) {
+    double _58;
+    /* let */ {
+        double _12 = Noise_Fast_noise2d(x, z);
+        double n1 = _12;
+        double _20 = Double__MUL_(x, lacunarity);
+        double _24 = Double__MUL_(z, lacunarity);
+        double _25 = Noise_Fast_noise2d(_20, _24);
+        double _26 = Double__MUL_(gain, _25);
+        double n2 = _26;
+        double _32 = Double__MUL_(gain, gain);
+        double _39 = Double__MUL_(lacunarity, lacunarity);
+        double _40 = Double__MUL_(x, _39);
+        double _46 = Double__MUL_(lacunarity, lacunarity);
+        double _47 = Double__MUL_(z, _46);
+        double _48 = Noise_Fast_noise2d(_40, _47);
+        double _49 = Double__MUL_(_32, _48);
+        double n3 = _49;
+        double _56 = Double__PLUS_(n2, n3);
+        double _57 = Double__PLUS_(n1, _56);
+        _58 = _57;
+    }
+    return _58;
+}
+
+double Noise_Fast_noise2d(double x, double z) {
+    double _8 = Noise_Fast_noise2d_MINUS_c(x, z);
+    return _8;
+}
+
+double Noise_Fast_noise2d_MINUS_c(double x, double z) {
+          double fx = floor(x);
+          double fz = floor(z);
+          double tx = x - fx;
+          double tz = z - fz;
+          
+          #define HASH2D(px, pz) ({ \
+              unsigned int x_int = (unsigned int)(px); \
+              unsigned int z_int = (unsigned int)(pz); \
+              unsigned int h = x_int * 73856093u ^ z_int * 83492791u; \
+              h = h ^ (h >> 16); \
+              h = h * 0x7feb352du; \
+              h = h ^ (h >> 15); \
+              h = h * 0x846ca68bu; \
+              h = h ^ (h >> 16); \
+              (double)h / 4294967296.0; \
+          })
+          
+          double v00 = HASH2D(fx, fz);
+          double v10 = HASH2D(fx + 1.0, fz);
+          double v01 = HASH2D(fx, fz + 1.0);
+          double v11 = HASH2D(fx + 1.0, fz + 1.0);
+          
+          #undef HASH2D
+          
+          double u = tx * tx * (3.0 - 2.0 * tx);
+          double v = tz * tz * (3.0 - 2.0 * tz);
+          
+          double x0 = v00 + u * (v10 - v00);
+          double x1 = v01 + u * (v11 - v01);
+          
+          return x0 + v * (x1 - x0);
+      }
+double Noise_Fast_noise3d(double x, double y, double z) {
+    double _10 = Noise_Fast_noise3d_MINUS_c(x, y, z);
+    return _10;
+}
+
+double Noise_Fast_noise3d_MINUS_c(double x, double y, double z) {
+          double fx = floor(x);
+          double fy = floor(y);
+          double fz = floor(z);
+          double tx = x - fx;
+          double ty = y - fy;
+          double tz = z - fz;
+          
+          #define HASH3D(px, py, pz) ({ \
+              unsigned int x_int = (unsigned int)(px); \
+              unsigned int y_int = (unsigned int)(py); \
+              unsigned int z_int = (unsigned int)(pz); \
+              unsigned int h = x_int * 73856093u ^ y_int * 19349663u ^ z_int * 83492791u; \
+              h = h ^ (h >> 16); \
+              h = h * 0x7feb352du; \
+              h = h ^ (h >> 15); \
+              h = h * 0x846ca68bu; \
+              h = h ^ (h >> 16); \
+              (double)h / 4294967296.0; \
+          })
+          
+          double v000 = HASH3D(fx, fy, fz);
+          double v100 = HASH3D(fx + 1.0, fy, fz);
+          double v010 = HASH3D(fx, fy + 1.0, fz);
+          double v110 = HASH3D(fx + 1.0, fy + 1.0, fz);
+          double v001 = HASH3D(fx, fy, fz + 1.0);
+          double v101 = HASH3D(fx + 1.0, fy, fz + 1.0);
+          double v011 = HASH3D(fx, fy + 1.0, fz + 1.0);
+          double v111 = HASH3D(fx + 1.0, fy + 1.0, fz + 1.0);
+          
+          #undef HASH3D
+          
+          double u = tx * tx * (3.0 - 2.0 * tx);
+          double v = ty * ty * (3.0 - 2.0 * ty);
+          double w = tz * tz * (3.0 - 2.0 * tz);
+          
+          double x00 = v000 + u * (v100 - v000);
+          double x10 = v010 + u * (v110 - v010);
+          double x01 = v001 + u * (v101 - v001);
+          double x11 = v011 + u * (v111 - v011);
+          
+          double y0 = x00 + v * (x10 - x00);
+          double y1 = x01 + v * (x11 - x01);
+          
+          return y0 + w * (y1 - y0);
+      }
+double Noise_Fast_rigid_MINUS_fbm2d(double x, double z, double gain, double lacunarity) {
+    double _91;
+    /* let */ {
+        double _17 = Noise_Fast_noise2d(x, z);
+        double _19 = Double__MUL_(_17, 2.0);
+        double _21 = Double__MINUS_(_19, 1.0);
+        double _22 = Double_abs(_21);
+        double _23 = Double__MINUS_(1.0, _22);
+        double n1 = _23;
+        double _36 = Double__MUL_(x, lacunarity);
+        double _40 = Double__MUL_(z, lacunarity);
+        double _41 = Noise_Fast_noise2d(_36, _40);
+        double _43 = Double__MUL_(_41, 2.0);
+        double _45 = Double__MINUS_(_43, 1.0);
+        double _46 = Double_abs(_45);
+        double _47 = Double__MINUS_(1.0, _46);
+        double _48 = Double__MUL_(gain, _47);
+        double n2 = _48;
+        double _54 = Double__MUL_(gain, gain);
+        double _66 = Double__MUL_(lacunarity, lacunarity);
+        double _67 = Double__MUL_(x, _66);
+        double _73 = Double__MUL_(lacunarity, lacunarity);
+        double _74 = Double__MUL_(z, _73);
+        double _75 = Noise_Fast_noise2d(_67, _74);
+        double _77 = Double__MUL_(_75, 2.0);
+        double _79 = Double__MINUS_(_77, 1.0);
+        double _80 = Double_abs(_79);
+        double _81 = Double__MINUS_(1.0, _80);
+        double _82 = Double__MUL_(_54, _81);
+        double n3 = _82;
+        double _89 = Double__PLUS_(n2, n3);
+        double _90 = Double__PLUS_(n1, _89);
+        _91 = _90;
+    }
+    return _91;
+}
+
+double Noise_dot2(int g, double x, double y) {
+    double _33;
+    /* let */ {
+        Array__Vec3* _11 = &Noise_grad3; // ref
+        Vec3* _13 = Array_unsafe_MINUS_nth__Vec3(_11, g);
+        Vec3* v = _13;
+        double* _20 = Vec3_x(v);
+        double _21 = Double_copy(_20);
+        double _23 = Double__MUL_(_21, x);
+        double* _28 = Vec3_y(v);
+        double _29 = Double_copy(_28);
+        double _31 = Double__MUL_(_29, y);
+        double _32 = Double__PLUS_(_23, _31);
+        _33 = _32;
+    }
+    return _33;
+}
+
+double Noise_dot3(int g, double x, double y, double z) {
+    double _44;
+    /* let */ {
+        Array__Vec3* _12 = &Noise_grad3; // ref
+        Vec3* _14 = Array_unsafe_MINUS_nth__Vec3(_12, g);
+        Vec3* v = _14;
+        double* _22 = Vec3_x(v);
+        double _23 = Double_copy(_22);
+        double _25 = Double__MUL_(_23, x);
+        double* _30 = Vec3_y(v);
+        double _31 = Double_copy(_30);
+        double _33 = Double__MUL_(_31, y);
+        double _34 = Double__PLUS_(_25, _33);
+        double* _39 = Vec3_z(v);
+        double _40 = Double_copy(_39);
+        double _42 = Double__MUL_(_40, z);
+        double _43 = Double__PLUS_(_34, _42);
+        _44 = _43;
+    }
+    return _44;
+}
+
+double Noise_fbm2d(NoiseState* state, double x, double y, FBMConfig* config) {
+    double _104;
+    /* let */ {
+        double total = 0.0;
+        double freq = 1.0;
+        double amp = 1.0;
+        double max_MINUS_amp = 0.0;
+        int* _20 = FBMConfig_octaves(config);
+        int _21 = Int_copy(_20);
+        int octaves = _21;
+        double* _26 = FBMConfig_persistence(config);
+        double _27 = Double_copy(_26);
+        double persistence = _27;
+        double* _32 = FBMConfig_lacunarity(config);
+        double _33 = Double_copy(_32);
+        double lacunarity = _33;
+        /* let */ {
+            int i = 0;
+            bool _1000008 = Int__LT_(i, octaves);
+            bool _1000006 = _1000008;
+            while (_1000006) {
+                double _57 = Double__MUL_(x, freq);
+                double _61 = Double__MUL_(y, freq);
+                double _62 = Noise_noise2d(state, _57, _61);
+                double _64 = Double__MUL_(_62, amp);
+                double _65 = Double__PLUS_(total, _64);
+                total = _65;  // Double = Double
+                double _72 = Double__PLUS_(max_MINUS_amp, amp);
+                max_MINUS_amp = _72;  // Double = Double
+                double _79 = Double__MUL_(amp, persistence);
+                amp = _79;  // Double = Double
+                double _86 = Double__MUL_(freq, lacunarity);
+                freq = _86;  // Double = Double
+                int _1000018 = Int__PLUS_(i, 1);
+                i = _1000018;  // Int = Int
+                bool _1000008 = Int__LT_(i, octaves);
+                _1000006 = _1000008;
+            }
+        }
+        double _102 = Double__DIV_(total, max_MINUS_amp);
+        double _103 = _102;
+        _104 = _103;
+    }
+    return _104;
+}
+
+NoiseState Noise_make_MINUS_noise(int seed) {
+    NoiseState _201;
+    /* let */ {
+        double _8 = Double_from_MINUS_int(seed);
+        double s = _8;
+        Array__int _16 = Array_allocate__int(256);
+        Array__int _17 = _16; // From the 'the' function.
+        Array__int perm = _17;
+        Array__int _25 = Array_allocate__int(512);
+        Array__int _26 = _25; // From the 'the' function.
+        Array__int p = _26;
+        /* let */ {
+            int i = 0;
+            bool _1000010 = Int__LT_(i, 256);
+            bool _1000008 = _1000010;
+            while (_1000008) {
+                Array__int* _42 = &perm; // ref
+                Array_aset_BANG___int(_42, i, i);
+                int _1000015 = Int__PLUS_(i, 1);
+                i = _1000015;  // Int = Int
+                bool _1000010 = Int__LT_(i, 256);
+                _1000008 = _1000010;
+            }
+        }
+        /* let */ {
+            int i = 0;
+            bool _1000020 = Int__LT_(i, 255);
+            bool _1000018 = _1000020;
+            while (_1000018) {
+                double _74 = Double__MUL_(s, 69069.0);
+                double _76 = Double__PLUS_(_74, 1.0);
+                double _78 = Double_mod(_76, 4.294967296e9);
+                s = _78;  // Double = Double
+                /* let */ {
+                    double _85 = Double__DIV_(s, 4.294967296e9);
+                    double r = _85;
+                    int _95 = Int__MINUS_(256, i);
+                    double _96 = Double_from_MINUS_int(_95);
+                    double _98 = Double__MUL_(_96, r);
+                    int _99 = Double_to_MINUS_int(_98);
+                    int _100 = Int__PLUS_(i, _99);
+                    int j = _100;
+                    Array__int* _106 = &perm; // ref
+                    int* _108 = Array_unsafe_MINUS_nth__int(_106, i);
+                    int _109 = Int_copy(_108);
+                    int tmp = _109;
+                    Array__int* _115 = &perm; // ref
+                    Array__int* _121 = &perm; // ref
+                    int* _123 = Array_unsafe_MINUS_nth__int(_121, j);
+                    int _124 = Int_copy(_123);
+                    Array_aset_BANG___int(_115, i, _124);
+                    Array__int* _129 = &perm; // ref
+                    Array_aset_BANG___int(_129, j, tmp);
+                }
+                int _1000029 = Int__PLUS_(i, 1);
+                i = _1000029;  // Int = Int
+                bool _1000020 = Int__LT_(i, 255);
+                _1000018 = _1000020;
+            }
+        }
+        /* let */ {
+            int i = 0;
+            bool _1000034 = Int__LT_(i, 256);
+            bool _1000032 = _1000034;
+            while (_1000032) {
+                /* let */ {
+                    Array__int* _162 = &perm; // ref
+                    int* _164 = Array_unsafe_MINUS_nth__int(_162, i);
+                    int _165 = Int_copy(_164);
+                    int v = _165;
+                    Array__int* _171 = &p; // ref
+                    Array_aset_BANG___int(_171, i, v);
+                    Array__int* _178 = &p; // ref
+                    int _182 = Int__PLUS_(i, 256);
+                    Array_aset_BANG___int(_178, _182, v);
+                }
+                int _1000041 = Int__PLUS_(i, 1);
+                i = _1000041;  // Int = Int
+                bool _1000034 = Int__LT_(i, 256);
+                _1000032 = _1000034;
+            }
+        }
+        NoiseState _199 = NoiseState_init(p);
+        NoiseState _200 = _199;
+        _201 = _200;
+        Array_delete__int(perm);
+    }
+    return _201;
+}
+
+double Noise_noise2d(NoiseState* state, double xin, double yin) {
+    double _380;
+    /* let */ {
+        Array__int* _10 = NoiseState_p(state);
+        Array__int* p = _10;
+        double _17 = Double_sqrt(3.0);
+        double _19 = Double__MINUS_(_17, 1.0);
+        double _20 = Double__MUL_(0.5, _19);
+        double f2 = _20;
+        double _25 = Double__PLUS_(xin, yin);
+        double s = _25;
+        double _34 = Double__MUL_(s, f2);
+        double _35 = Double__PLUS_(xin, _34);
+        double _36 = Double_floor(_35);
+        int _37 = Double_to_MINUS_int(_36);
+        int i = _37;
+        double _46 = Double__MUL_(s, f2);
+        double _47 = Double__PLUS_(yin, _46);
+        double _48 = Double_floor(_47);
+        int _49 = Double_to_MINUS_int(_48);
+        int j = _49;
+        double _56 = Double_sqrt(3.0);
+        double _57 = Double__MINUS_(3.0, _56);
+        double _59 = Double__DIV_(_57, 6.0);
+        double g2 = _59;
+        int _66 = Int__PLUS_(i, j);
+        double _67 = Double_from_MINUS_int(_66);
+        double _69 = Double__MUL_(_67, g2);
+        double t = _69;
+        double _76 = Double_from_MINUS_int(i);
+        double _78 = Double__MINUS_(_76, t);
+        double _79 = Double__MINUS_(xin, _78);
+        double x0 = _79;
+        double _86 = Double_from_MINUS_int(j);
+        double _88 = Double__MINUS_(_86, t);
+        double _89 = Double__MINUS_(yin, _88);
+        double y0 = _89;
+        int _102;
+        bool _95 = Double__GT_(x0, y0);
+        if (_95) {
+            int _98 = 1;
+            _102 = _98;
+        } else {
+            int _101 = 0;
+            _102 = _101;
+        }
+        int i1 = _102;
+        int _115;
+        bool _108 = Double__GT_(x0, y0);
+        if (_108) {
+            int _111 = 0;
+            _115 = _111;
+        } else {
+            int _114 = 1;
+            _115 = _114;
+        }
+        int j1 = _115;
+        double _122 = Double_from_MINUS_int(i1);
+        double _123 = Double__MINUS_(x0, _122);
+        double _125 = Double__MINUS_(_123, g2);
+        double x1 = _125;
+        double _132 = Double_from_MINUS_int(j1);
+        double _133 = Double__MINUS_(y0, _132);
+        double _135 = Double__MINUS_(_133, g2);
+        double y1 = _135;
+        double _141 = Double__MINUS_(x0, 1.0);
+        double _145 = Double__MUL_(2.0, g2);
+        double _146 = Double__MINUS_(_141, _145);
+        double x2 = _146;
+        double _152 = Double__MINUS_(y0, 1.0);
+        double _156 = Double__MUL_(2.0, g2);
+        double _157 = Double__MINUS_(_152, _156);
+        double y2 = _157;
+        int _162 = Int_bit_MINUS_and(i, 255);
+        int ii = _162;
+        int _167 = Int_bit_MINUS_and(j, 255);
+        int jj = _167;
+        int* _179 = Array_unsafe_MINUS_nth__int(p, jj);
+        int _180 = Int_copy(_179);
+        int _181 = Int__PLUS_(ii, _180);
+        int* _182 = Array_unsafe_MINUS_nth__int(p, _181);
+        int _183 = Int_copy(_182);
+        int _185 = Int_mod(_183, 12);
+        int gi0 = _185;
+        int _195 = Int__PLUS_(ii, i1);
+        int _202 = Int__PLUS_(jj, j1);
+        int* _203 = Array_unsafe_MINUS_nth__int(p, _202);
+        int _204 = Int_copy(_203);
+        int _205 = Int__PLUS_(_195, _204);
+        int* _206 = Array_unsafe_MINUS_nth__int(p, _205);
+        int _207 = Int_copy(_206);
+        int _209 = Int_mod(_207, 12);
+        int gi1 = _209;
+        int _219 = Int__PLUS_(ii, 1);
+        int _226 = Int__PLUS_(jj, 1);
+        int* _227 = Array_unsafe_MINUS_nth__int(p, _226);
+        int _228 = Int_copy(_227);
+        int _229 = Int__PLUS_(_219, _228);
+        int* _230 = Array_unsafe_MINUS_nth__int(p, _229);
+        int _231 = Int_copy(_230);
+        int _233 = Int_mod(_231, 12);
+        int gi2 = _233;
+        double _241 = Double__MUL_(x0, x0);
+        double _242 = Double__MINUS_(0.5, _241);
+        double _246 = Double__MUL_(y0, y0);
+        double _247 = Double__MINUS_(_242, _246);
+        double t0 = _247;
+        double _255 = Double__MUL_(x1, x1);
+        double _256 = Double__MINUS_(0.5, _255);
+        double _260 = Double__MUL_(y1, y1);
+        double _261 = Double__MINUS_(_256, _260);
+        double t1 = _261;
+        double _269 = Double__MUL_(x2, x2);
+        double _270 = Double__MINUS_(0.5, _269);
+        double _274 = Double__MUL_(y2, y2);
+        double _275 = Double__MINUS_(_270, _274);
+        double t2 = _275;
+        double _306;
+        bool _281 = Double__LT_(t0, 0.0);
+        if (_281) {
+            double _284 = 0.0;
+            _306 = _284;
+        } else {
+            double _304;
+            /* let */ {
+                double _291 = Double__MUL_(t0, t0);
+                double tt = _291;
+                double _297 = Double__MUL_(tt, tt);
+                double _302 = Noise_dot2(gi0, x0, y0);
+                double _303 = Double__MUL_(_297, _302);
+                _304 = _303;
+            }
+            double _305 = _304;
+            _306 = _305;
+        }
+        double n0 = _306;
+        double _337;
+        bool _312 = Double__LT_(t1, 0.0);
+        if (_312) {
+            double _315 = 0.0;
+            _337 = _315;
+        } else {
+            double _335;
+            /* let */ {
+                double _322 = Double__MUL_(t1, t1);
+                double tt = _322;
+                double _328 = Double__MUL_(tt, tt);
+                double _333 = Noise_dot2(gi1, x1, y1);
+                double _334 = Double__MUL_(_328, _333);
+                _335 = _334;
+            }
+            double _336 = _335;
+            _337 = _336;
+        }
+        double n1 = _337;
+        double _368;
+        bool _343 = Double__LT_(t2, 0.0);
+        if (_343) {
+            double _346 = 0.0;
+            _368 = _346;
+        } else {
+            double _366;
+            /* let */ {
+                double _353 = Double__MUL_(t2, t2);
+                double tt = _353;
+                double _359 = Double__MUL_(tt, tt);
+                double _364 = Noise_dot2(gi2, x2, y2);
+                double _365 = Double__MUL_(_359, _364);
+                _366 = _365;
+            }
+            double _367 = _366;
+            _368 = _367;
+        }
+        double n2 = _368;
+        double _376 = Double__PLUS_(n0, n1);
+        double _378 = Double__PLUS_(_376, n2);
+        double _379 = Double__MUL_(70.0, _378);
+        _380 = _379;
+    }
+    return _380;
+}
+
+double Noise_noise3d(NoiseState* state, double xin, double yin, double zin) {
+    double _784;
+    /* let */ {
+        Array__int* _11 = NoiseState_p(state);
+        Array__int* p = _11;
+        double _16 = Double__DIV_(1.0, 3.0);
+        double f3 = _16;
+        double _23 = Double__PLUS_(xin, yin);
+        double _25 = Double__PLUS_(_23, zin);
+        double _27 = Double__MUL_(_25, f3);
+        double s = _27;
+        double _34 = Double__PLUS_(xin, s);
+        double _35 = Double_floor(_34);
+        int _36 = Double_to_MINUS_int(_35);
+        int i = _36;
+        double _43 = Double__PLUS_(yin, s);
+        double _44 = Double_floor(_43);
+        int _45 = Double_to_MINUS_int(_44);
+        int j = _45;
+        double _52 = Double__PLUS_(zin, s);
+        double _53 = Double_floor(_52);
+        int _54 = Double_to_MINUS_int(_53);
+        int k = _54;
+        double _59 = Double__DIV_(1.0, 6.0);
+        double g3 = _59;
+        int _67 = Int__PLUS_(i, j);
+        int _69 = Int__PLUS_(_67, k);
+        double _70 = Double_from_MINUS_int(_69);
+        double _72 = Double__MUL_(_70, g3);
+        double t = _72;
+        double _79 = Double_from_MINUS_int(i);
+        double _81 = Double__MINUS_(_79, t);
+        double _82 = Double__MINUS_(xin, _81);
+        double x0 = _82;
+        double _89 = Double_from_MINUS_int(j);
+        double _91 = Double__MINUS_(_89, t);
+        double _92 = Double__MINUS_(yin, _91);
+        double y0 = _92;
+        double _99 = Double_from_MINUS_int(k);
+        double _101 = Double__MINUS_(_99, t);
+        double _102 = Double__MINUS_(zin, _101);
+        double z0 = _102;
+        int i1 = 0;
+        int j1 = 0;
+        int k1 = 0;
+        int i2 = 0;
+        int j2 = 0;
+        int k2 = 0;
+        bool _121 = _GT__EQ___double(x0, y0);
+        if (_121) {
+            bool _127 = _GT__EQ___double(y0, z0);
+            if (_127) {
+                i1 = 1;  // Int = Int
+                j1 = 0;  // Int = Int
+                k1 = 0;  // Int = Int
+                i2 = 1;  // Int = Int
+                j2 = 1;  // Int = Int
+                k2 = 0;  // Int = Int
+            } else {
+                bool _159 = _GT__EQ___double(x0, z0);
+                if (_159) {
+                    i1 = 1;  // Int = Int
+                    j1 = 0;  // Int = Int
+                    k1 = 0;  // Int = Int
+                    i2 = 1;  // Int = Int
+                    j2 = 0;  // Int = Int
+                    k2 = 1;  // Int = Int
+                } else {
+                    i1 = 0;  // Int = Int
+                    j1 = 0;  // Int = Int
+                    k1 = 1;  // Int = Int
+                    i2 = 1;  // Int = Int
+                    j2 = 0;  // Int = Int
+                    k2 = 1;  // Int = Int
+                }
+            }
+        } else {
+            bool _221 = Double__LT_(y0, z0);
+            if (_221) {
+                i1 = 0;  // Int = Int
+                j1 = 0;  // Int = Int
+                k1 = 1;  // Int = Int
+                i2 = 0;  // Int = Int
+                j2 = 1;  // Int = Int
+                k2 = 1;  // Int = Int
+            } else {
+                bool _253 = Double__LT_(x0, z0);
+                if (_253) {
+                    i1 = 0;  // Int = Int
+                    j1 = 1;  // Int = Int
+                    k1 = 0;  // Int = Int
+                    i2 = 0;  // Int = Int
+                    j2 = 1;  // Int = Int
+                    k2 = 1;  // Int = Int
+                } else {
+                    i1 = 0;  // Int = Int
+                    j1 = 1;  // Int = Int
+                    k1 = 0;  // Int = Int
+                    i2 = 1;  // Int = Int
+                    j2 = 1;  // Int = Int
+                    k2 = 0;  // Int = Int
+                }
+            }
+        }
+        double _782;
+        /* let */ {
+            double _318 = Double_from_MINUS_int(i1);
+            double _319 = Double__MINUS_(x0, _318);
+            double _321 = Double__MINUS_(_319, g3);
+            double x1 = _321;
+            double _328 = Double_from_MINUS_int(j1);
+            double _329 = Double__MINUS_(y0, _328);
+            double _331 = Double__MINUS_(_329, g3);
+            double y1 = _331;
+            double _338 = Double_from_MINUS_int(k1);
+            double _339 = Double__MINUS_(z0, _338);
+            double _341 = Double__MINUS_(_339, g3);
+            double z1 = _341;
+            double _348 = Double_from_MINUS_int(i2);
+            double _349 = Double__MINUS_(x0, _348);
+            double _353 = Double__MUL_(2.0, g3);
+            double _354 = Double__MINUS_(_349, _353);
+            double x2 = _354;
+            double _361 = Double_from_MINUS_int(j2);
+            double _362 = Double__MINUS_(y0, _361);
+            double _366 = Double__MUL_(2.0, g3);
+            double _367 = Double__MINUS_(_362, _366);
+            double y2 = _367;
+            double _374 = Double_from_MINUS_int(k2);
+            double _375 = Double__MINUS_(z0, _374);
+            double _379 = Double__MUL_(2.0, g3);
+            double _380 = Double__MINUS_(_375, _379);
+            double z2 = _380;
+            double _386 = Double__MINUS_(x0, 1.0);
+            double _390 = Double__MUL_(3.0, g3);
+            double _391 = Double__MINUS_(_386, _390);
+            double x3 = _391;
+            double _397 = Double__MINUS_(y0, 1.0);
+            double _401 = Double__MUL_(3.0, g3);
+            double _402 = Double__MINUS_(_397, _401);
+            double y3 = _402;
+            double _408 = Double__MINUS_(z0, 1.0);
+            double _412 = Double__MUL_(3.0, g3);
+            double _413 = Double__MINUS_(_408, _412);
+            double z3 = _413;
+            int _418 = Int_bit_MINUS_and(i, 255);
+            int ii = _418;
+            int _423 = Int_bit_MINUS_and(j, 255);
+            int jj = _423;
+            int _428 = Int_bit_MINUS_and(k, 255);
+            int kk = _428;
+            int* _445 = Array_unsafe_MINUS_nth__int(p, kk);
+            int _446 = Int_copy(_445);
+            int _447 = Int__PLUS_(jj, _446);
+            int* _448 = Array_unsafe_MINUS_nth__int(p, _447);
+            int _449 = Int_copy(_448);
+            int _450 = Int__PLUS_(ii, _449);
+            int* _451 = Array_unsafe_MINUS_nth__int(p, _450);
+            int _452 = Int_copy(_451);
+            int _454 = Int_mod(_452, 12);
+            int gi0 = _454;
+            int _464 = Int__PLUS_(ii, i1);
+            int _472 = Int__PLUS_(jj, j1);
+            int _479 = Int__PLUS_(kk, k1);
+            int* _480 = Array_unsafe_MINUS_nth__int(p, _479);
+            int _481 = Int_copy(_480);
+            int _482 = Int__PLUS_(_472, _481);
+            int* _483 = Array_unsafe_MINUS_nth__int(p, _482);
+            int _484 = Int_copy(_483);
+            int _485 = Int__PLUS_(_464, _484);
+            int* _486 = Array_unsafe_MINUS_nth__int(p, _485);
+            int _487 = Int_copy(_486);
+            int _489 = Int_mod(_487, 12);
+            int gi1 = _489;
+            int _499 = Int__PLUS_(ii, i2);
+            int _507 = Int__PLUS_(jj, j2);
+            int _514 = Int__PLUS_(kk, k2);
+            int* _515 = Array_unsafe_MINUS_nth__int(p, _514);
+            int _516 = Int_copy(_515);
+            int _517 = Int__PLUS_(_507, _516);
+            int* _518 = Array_unsafe_MINUS_nth__int(p, _517);
+            int _519 = Int_copy(_518);
+            int _520 = Int__PLUS_(_499, _519);
+            int* _521 = Array_unsafe_MINUS_nth__int(p, _520);
+            int _522 = Int_copy(_521);
+            int _524 = Int_mod(_522, 12);
+            int gi2 = _524;
+            int _534 = Int__PLUS_(ii, 1);
+            int _542 = Int__PLUS_(jj, 1);
+            int _549 = Int__PLUS_(kk, 1);
+            int* _550 = Array_unsafe_MINUS_nth__int(p, _549);
+            int _551 = Int_copy(_550);
+            int _552 = Int__PLUS_(_542, _551);
+            int* _553 = Array_unsafe_MINUS_nth__int(p, _552);
+            int _554 = Int_copy(_553);
+            int _555 = Int__PLUS_(_534, _554);
+            int* _556 = Array_unsafe_MINUS_nth__int(p, _555);
+            int _557 = Int_copy(_556);
+            int _559 = Int_mod(_557, 12);
+            int gi3 = _559;
+            double _568 = Double__MUL_(x0, x0);
+            double _569 = Double__MINUS_(0.6, _568);
+            double _573 = Double__MUL_(y0, y0);
+            double _574 = Double__MINUS_(_569, _573);
+            double _578 = Double__MUL_(z0, z0);
+            double _579 = Double__MINUS_(_574, _578);
+            double t0 = _579;
+            double _588 = Double__MUL_(x1, x1);
+            double _589 = Double__MINUS_(0.6, _588);
+            double _593 = Double__MUL_(y1, y1);
+            double _594 = Double__MINUS_(_589, _593);
+            double _598 = Double__MUL_(z1, z1);
+            double _599 = Double__MINUS_(_594, _598);
+            double t1 = _599;
+            double _608 = Double__MUL_(x2, x2);
+            double _609 = Double__MINUS_(0.6, _608);
+            double _613 = Double__MUL_(y2, y2);
+            double _614 = Double__MINUS_(_609, _613);
+            double _618 = Double__MUL_(z2, z2);
+            double _619 = Double__MINUS_(_614, _618);
+            double t2 = _619;
+            double _628 = Double__MUL_(x3, x3);
+            double _629 = Double__MINUS_(0.6, _628);
+            double _633 = Double__MUL_(y3, y3);
+            double _634 = Double__MINUS_(_629, _633);
+            double _638 = Double__MUL_(z3, z3);
+            double _639 = Double__MINUS_(_634, _638);
+            double t3 = _639;
+            double _671;
+            bool _645 = Double__LT_(t0, 0.0);
+            if (_645) {
+                double _648 = 0.0;
+                _671 = _648;
+            } else {
+                double _669;
+                /* let */ {
+                    double _655 = Double__MUL_(t0, t0);
+                    double tt = _655;
+                    double _661 = Double__MUL_(tt, tt);
+                    double _667 = Noise_dot3(gi0, x0, y0, z0);
+                    double _668 = Double__MUL_(_661, _667);
+                    _669 = _668;
+                }
+                double _670 = _669;
+                _671 = _670;
+            }
+            double n0 = _671;
+            double _703;
+            bool _677 = Double__LT_(t1, 0.0);
+            if (_677) {
+                double _680 = 0.0;
+                _703 = _680;
+            } else {
+                double _701;
+                /* let */ {
+                    double _687 = Double__MUL_(t1, t1);
+                    double tt = _687;
+                    double _693 = Double__MUL_(tt, tt);
+                    double _699 = Noise_dot3(gi1, x1, y1, z1);
+                    double _700 = Double__MUL_(_693, _699);
+                    _701 = _700;
+                }
+                double _702 = _701;
+                _703 = _702;
+            }
+            double n1 = _703;
+            double _735;
+            bool _709 = Double__LT_(t2, 0.0);
+            if (_709) {
+                double _712 = 0.0;
+                _735 = _712;
+            } else {
+                double _733;
+                /* let */ {
+                    double _719 = Double__MUL_(t2, t2);
+                    double tt = _719;
+                    double _725 = Double__MUL_(tt, tt);
+                    double _731 = Noise_dot3(gi2, x2, y2, z2);
+                    double _732 = Double__MUL_(_725, _731);
+                    _733 = _732;
+                }
+                double _734 = _733;
+                _735 = _734;
+            }
+            double n2 = _735;
+            double _767;
+            bool _741 = Double__LT_(t3, 0.0);
+            if (_741) {
+                double _744 = 0.0;
+                _767 = _744;
+            } else {
+                double _765;
+                /* let */ {
+                    double _751 = Double__MUL_(t3, t3);
+                    double tt = _751;
+                    double _757 = Double__MUL_(tt, tt);
+                    double _763 = Noise_dot3(gi3, x3, y3, z3);
+                    double _764 = Double__MUL_(_757, _763);
+                    _765 = _764;
+                }
+                double _766 = _765;
+                _767 = _766;
+            }
+            double n3 = _767;
+            double _776 = Double__PLUS_(n0, n1);
+            double _778 = Double__PLUS_(_776, n2);
+            double _780 = Double__PLUS_(_778, n3);
+            double _781 = Double__MUL_(32.0, _780);
+            _782 = _781;
+        }
+        double _783 = _782;
+        _784 = _783;
+    }
+    return _784;
+}
+
+NoiseState NoiseState_copy(NoiseState* pRef) {
+    NoiseState copy = *pRef;
+    copy.p = Array_copy__int(&(pRef->p));
+    return copy;
+}
+
+void NoiseState_delete(NoiseState p) {
+    Array_delete__int(p.p);
+}
+
+NoiseState NoiseState_init(Array__int p) {
+    NoiseState instance;
+    instance.p = p;
+    return instance;
+}
+
+Array__int* NoiseState_p(NoiseState* p) { return (&(p->p)); }
+
+String NoiseState_prn(NoiseState *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "NoiseState");
+  temp = Array_prn__int(&p->p); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "NoiseState");
+  temp = Array_prn__int(&p->p);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+NoiseState NoiseState_set_MINUS_p(NoiseState p, Array__int newValue) {
+    Array_delete__int(p.p);
+    p.p = newValue;
+    return p;
+}
+
+
+void NoiseState_set_MINUS_p_BANG_(NoiseState* pRef, Array__int newValue) {
+    Array_delete__int(pRef->p);
+    pRef->p = newValue;
+}
+
+
+String NoiseState_str(NoiseState *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "NoiseState");
+  temp = Array_prn__int(&p->p); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "NoiseState");
+  temp = Array_prn__int(&p->p);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+NoiseState NoiseState_update_MINUS_p(NoiseState p, Lambda *updater) {
+    p.p = (*updater).env ? ((Fn__LambdaEnv_Array__int_Array__int)(*updater).callback)((*updater).env, p.p) : ((Fn__Array__int_Array__int)(*updater).callback)(p.p);
+    return p;
+}
+
 
 Opaque Opaque_copy(Opaque* pRef) {
     Opaque copy = *pRef;
@@ -24047,6 +25556,177 @@ bool UnitRef__EQ_() {
     return true;
 }
 
+Vec3 Vec3_copy(Vec3* pRef) {
+    Vec3 copy = *pRef;
+    /* Ignore non-managed member 'x' : Double */
+    /* Ignore non-managed member 'y' : Double */
+    /* Ignore non-managed member 'z' : Double */
+    return copy;
+}
+
+void Vec3_delete(Vec3 p) {
+    /* Ignore non-managed member 'x' : Double */
+    /* Ignore non-managed member 'y' : Double */
+    /* Ignore non-managed member 'z' : Double */
+}
+
+Vec3 Vec3_init(double x, double y, double z) {
+    Vec3 instance;
+    instance.x = x;
+    instance.y = y;
+    instance.z = z;
+    return instance;
+}
+
+String Vec3_prn(Vec3 *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "Vec3");
+  temp = Double_prn(p->x); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->y); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->z); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Vec3");
+  temp = Double_prn(p->x);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->y);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->z);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+Vec3 Vec3_set_MINUS_x(Vec3 p, double newValue) {
+    /* Ignore non-managed member 'x' : Double */
+    p.x = newValue;
+    return p;
+}
+
+
+void Vec3_set_MINUS_x_BANG_(Vec3* pRef, double newValue) {
+    /* Ignore non-managed member 'x' : Double */
+    pRef->x = newValue;
+}
+
+
+Vec3 Vec3_set_MINUS_y(Vec3 p, double newValue) {
+    /* Ignore non-managed member 'y' : Double */
+    p.y = newValue;
+    return p;
+}
+
+
+void Vec3_set_MINUS_y_BANG_(Vec3* pRef, double newValue) {
+    /* Ignore non-managed member 'y' : Double */
+    pRef->y = newValue;
+}
+
+
+Vec3 Vec3_set_MINUS_z(Vec3 p, double newValue) {
+    /* Ignore non-managed member 'z' : Double */
+    p.z = newValue;
+    return p;
+}
+
+
+void Vec3_set_MINUS_z_BANG_(Vec3* pRef, double newValue) {
+    /* Ignore non-managed member 'z' : Double */
+    pRef->z = newValue;
+}
+
+
+String Vec3_str(Vec3 *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "Vec3");
+  temp = Double_prn(p->x); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->y); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->z); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Vec3");
+  temp = Double_prn(p->x);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->y);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->z);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+Vec3 Vec3_update_MINUS_x(Vec3 p, Lambda *updater) {
+    p.x = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.x) : ((Fn__double_double)(*updater).callback)(p.x);
+    return p;
+}
+
+
+Vec3 Vec3_update_MINUS_y(Vec3 p, Lambda *updater) {
+    p.y = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.y) : ((Fn__double_double)(*updater).callback)(p.y);
+    return p;
+}
+
+
+Vec3 Vec3_update_MINUS_z(Vec3 p, Lambda *updater) {
+    p.z = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.z) : ((Fn__double_double)(*updater).callback)(p.z);
+    return p;
+}
+
+
+double* Vec3_x(Vec3* p) { return (&(p->x)); }
+
+double* Vec3_y(Vec3* p) { return (&(p->y)); }
+
+double* Vec3_z(Vec3* p) { return (&(p->z)); }
+
 bool Vector2__Lambda_vapprox_19_env(bool i, bool v) {
     bool _18;
     if (i) {
@@ -25269,10 +26949,12 @@ World World_copy(World* pRef) {
 }
 
 World World_create() {
-    World _83;
+    World _90;
     /* let */ {
-        Array _5 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(Chunk) * 0) };
-        Array__Chunk world_MINUS_chunks = _5;
+        NoiseState _7 = Noise_make_MINUS_noise(1337);
+        NoiseState noise_MINUS_state = _7;
+        Array _9 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(Chunk) * 0) };
+        Array__Chunk world_MINUS_chunks = _9;
         /* let */ {
             int z = 0;
             bool _1000008 = Int__LT_(z, 4);
@@ -25288,9 +26970,10 @@ World World_create() {
                             bool _1000022 = Int__LT_(x, 4);
                             bool _1000020 = _1000022;
                             while (_1000020) {
-                                Array__Chunk* _41 = &world_MINUS_chunks; // ref
-                                Chunk _46 = Chunk_create(x, y, z);
-                                Array_push_MINUS_back_BANG___Chunk(_41, _46);
+                                Array__Chunk* _45 = &world_MINUS_chunks; // ref
+                                NoiseState* _49 = &noise_MINUS_state; // ref
+                                Chunk _53 = Chunk_create(_49, x, y, z);
+                                Array_push_MINUS_back_BANG___Chunk(_45, _53);
                                 int _1000027 = Int__PLUS_(x, 1);
                                 x = _1000027;  // Int = Int
                                 bool _1000022 = Int__LT_(x, 4);
@@ -25309,11 +26992,12 @@ World World_create() {
                 _1000006 = _1000008;
             }
         }
-        World _81 = World_init(world_MINUS_chunks, 32);
-        World _82 = _81;
-        _83 = _82;
+        World _88 = World_init(world_MINUS_chunks, 32);
+        World _89 = _88;
+        _90 = _89;
+        NoiseState_delete(noise_MINUS_state);
     }
-    return _83;
+    return _90;
 }
 
 void World_delete(World p) {
@@ -25826,7 +27510,7 @@ float World_sample_MINUS_sdf_MINUS_nearest(World* world, Vector3__double* p) {
                 _215 = _214;
                 Chunk_delete(chunk);
             }
-            else UNHANDLED("world.carp", 81);
+            else UNHANDLED("world.carp", 105);
             float _216 = _215;
             _220 = _216;
         } else {
