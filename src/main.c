@@ -5469,6 +5469,9 @@ Vector3__double Vector3_add__double(Vector3__double* a, Vector3__double* b);
 Vector3__double Vector3_copy__double(Vector3__double* pRef);
 
 // Depth 500
+Vector3__double Vector3_cross__double(Vector3__double* a, Vector3__double* b);
+
+// Depth 500
 void Vector3_delete__bool(Vector3__bool p);
 
 // Depth 500
@@ -10164,24 +10167,41 @@ void Camera_update_MINUS_vectors(Camera* cam) {
         Vector3__double* _63 = &_62; // ref
         Vector3__double _64 = Vector3_normalize__double(_63);
         Vector3__double front = _64;
-        Vector3__double* _75 = &front; // ref
-        double* _76 = Vector3_z__double(_75);
-        double _77 = Double_copy(_76);
-        double _78 = Double__MINUS_(0.0, _77);
-        Vector3__double* _84 = &front; // ref
-        double* _85 = Vector3_x__double(_84);
-        double _86 = Double_copy(_85);
-        Vector3__double _87 = Vector3_init__double(_78, 0.0, _86);
-        Vector3__double* _88 = &_87; // ref
-        Vector3__double _89 = Vector3_normalize__double(_88);
-        Vector3__double right = _89;
-        Vector3__double _95 = Vector3_init__double(0.0, 1.0, 0.0);
-        Vector3__double up = _95;
+        Vector3__double _93;
+        Vector3__double* _73 = &front; // ref
+        double* _74 = Vector3_y__double(_73);
+        double _75 = Double_copy(_74);
+        double _76 = Double_abs(_75);
+        bool _78 = Double__GT_(_76, 0.9);
+        if (_78) {
+            Vector3__double _84 = Vector3_init__double(0.0, 0.0, 1.0);
+            Vector3__double _85 = _84;
+            _93 = _85;
+        } else {
+            Vector3__double _91 = Vector3_init__double(0.0, 1.0, 0.0);
+            Vector3__double _92 = _91;
+            _93 = _92;
+        }
+        Vector3__double world_MINUS_up = _93;
+        Vector3__double* _100 = &front; // ref
+        Vector3__double* _103 = &world_MINUS_up; // ref
+        Vector3__double _104 = Vector3_cross__double(_100, _103);
+        Vector3__double* _105 = &_104; // ref
+        Vector3__double _106 = Vector3_normalize__double(_105);
+        Vector3__double right = _106;
+        Vector3__double* _113 = &right; // ref
+        Vector3__double* _116 = &front; // ref
+        Vector3__double _117 = Vector3_cross__double(_113, _116);
+        Vector3__double* _118 = &_117; // ref
+        Vector3__double _119 = Vector3_normalize__double(_118);
+        Vector3__double up = _119;
         Camera_set_MINUS_front_BANG_(cam, front);
         Camera_set_MINUS_right_BANG_(cam, right);
         Camera_set_MINUS_up_BANG_(cam, up);
+        Vector3_delete__double(_104);
+        Vector3_delete__double(_117);
         Vector3_delete__double(_62);
-        Vector3_delete__double(_87);
+        Vector3_delete__double(world_MINUS_up);
     }
 }
 
@@ -15674,6 +15694,44 @@ Vector3__double Vector3_copy__double(Vector3__double* pRef) {
     return copy;
 }
 
+Vector3__double Vector3_cross__double(Vector3__double* a, Vector3__double* b) {
+    double* _11 = Vector3_y__double(a);
+    double _12 = Double_copy(_11);
+    double* _16 = Vector3_z__double(b);
+    double _17 = Double_copy(_16);
+    double _18 = Double__MUL_(_12, _17);
+    double* _23 = Vector3_z__double(a);
+    double _24 = Double_copy(_23);
+    double* _28 = Vector3_y__double(b);
+    double _29 = Double_copy(_28);
+    double _30 = Double__MUL_(_24, _29);
+    double _31 = Double__MINUS_(_18, _30);
+    double* _37 = Vector3_z__double(a);
+    double _38 = Double_copy(_37);
+    double* _42 = Vector3_x__double(b);
+    double _43 = Double_copy(_42);
+    double _44 = Double__MUL_(_38, _43);
+    double* _49 = Vector3_x__double(a);
+    double _50 = Double_copy(_49);
+    double* _54 = Vector3_z__double(b);
+    double _55 = Double_copy(_54);
+    double _56 = Double__MUL_(_50, _55);
+    double _57 = Double__MINUS_(_44, _56);
+    double* _63 = Vector3_x__double(a);
+    double _64 = Double_copy(_63);
+    double* _68 = Vector3_y__double(b);
+    double _69 = Double_copy(_68);
+    double _70 = Double__MUL_(_64, _69);
+    double* _75 = Vector3_y__double(a);
+    double _76 = Double_copy(_75);
+    double* _80 = Vector3_x__double(b);
+    double _81 = Double_copy(_80);
+    double _82 = Double__MUL_(_76, _81);
+    double _83 = Double__MINUS_(_70, _82);
+    Vector3__double _84 = Vector3_init__double(_31, _57, _83);
+    return _84;
+}
+
 void Vector3_delete__bool(Vector3__bool p) {
     /* Ignore non-managed member 'x' : Bool */
     /* Ignore non-managed member 'y' : Bool */
@@ -17300,7 +17358,7 @@ int main(int argc, char** argv) {
                                                     Engine* _919 = &eng; // ref
                                                     Engine_end_MINUS_frame(_919, frame);
                                                 }
-                                                else UNHANDLED("main.carp", 336);
+                                                else UNHANDLED("main.carp", 339);
                                                 Engine* _927 = &eng; // ref
                                                 Engine_poll_MINUS_events__Engine_MUL_(_927);
                                                 emscripten_MINUS_sleep(16);
@@ -17323,25 +17381,25 @@ int main(int argc, char** argv) {
                                     }
                                     _956 = _955;
                                 }
-                                else UNHANDLED("main.carp", 241);
+                                else UNHANDLED("main.carp", 244);
                                 _957 = _956;
                             }
-                            else UNHANDLED("main.carp", 234);
+                            else UNHANDLED("main.carp", 237);
                             _958 = _957;
                         }
-                        else UNHANDLED("main.carp", 228);
+                        else UNHANDLED("main.carp", 231);
                         _959 = _958;
                     }
-                    else UNHANDLED("main.carp", 223);
+                    else UNHANDLED("main.carp", 226);
                     _960 = _959;
                 }
-                else UNHANDLED("main.carp", 220);
+                else UNHANDLED("main.carp", 223);
                 int _961 = _960;
                 _962 = _961;
             }
             _963 = _962;
         }
-        else UNHANDLED("main.carp", 210);
+        else UNHANDLED("main.carp", 213);
         _964 = _963;
     }
     return _964;
