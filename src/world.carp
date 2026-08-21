@@ -24,58 +24,46 @@
           p-data (Array.unsafe-raw &voxel-data)]
       (do
         (for [z 0 res]
-          (for [y 0 res]
-            (for [x 0 res]
-              (let [idx (+ (* z 1024) (+ (* y 32) x))
-                    gx (+ (* qx 32) x)
-                    gy (+ (* qy 32) y)
-                    gz (+ (* qz 32) z)
-                    
-                    ;; Procedural rolling hills using 2D simplex noise
-                    nx (* (Double.from-int gx) 0.015)
-                    nz (* (Double.from-int gz) 0.015)
-                    height (+ 20.0 (* 16.0 (Noise.noise2d noise-state nx nz)))
-                    
-                    ;; Sample height at neighbors to estimate horizontal gradient
-                    hx-pos (+ 20.0 (* 16.0 (Noise.noise2d noise-state (* (Double.from-int (+ gx 1)) 0.015) nz)))
-                    hx-neg (+ 20.0 (* 16.0 (Noise.noise2d noise-state (* (Double.from-int (- gx 1)) 0.015) nz)))
-                    hz-pos (+ 20.0 (* 16.0 (Noise.noise2d noise-state nx (* (Double.from-int (+ gz 1)) 0.015))))
-                    hz-neg (+ 20.0 (* 16.0 (Noise.noise2d noise-state nx (* (Double.from-int (- gz 1)) 0.015))))
-                    
-                    dh-dx (/ (- hx-pos hx-neg) 2.0)
-                    dh-dz (/ (- hz-pos hz-neg) 2.0)
-                    grad-len (Double.sqrt (+ 1.0 (+ (* dh-dx dh-dx) (* dh-dz dh-dz))))
-                    
-                    ;; Add some 3D noise details (like secondary layers/hills)
-                    nx2 (* (Double.from-int gx) 0.04)
-                    ny2 (* (Double.from-int gy) 0.04)
-                    nz2 (* (Double.from-int gz) 0.04)
-                    detail (* 3.0 (Noise.noise3d noise-state nx2 ny2 nz2))
-                    
-                    ;; Calculate normalized base terrain SDF
-                    base-sdf (Double.to-float (/ (- (Double.from-int gy) (+ height detail)) grad-len))
-                    
-                    ;; Add 3D noise caves!
-                    cx (* (Double.from-int gx) 0.08)
-                    cy (* (Double.from-int gy) 0.08)
-                    cz (* (Double.from-int gz) 0.08)
-                    cave-val (Noise.noise3d noise-state cx cy cz)
-                    
-                    ;; If cave-val is high, hollow out a cave (SDF subtraction: max(A, -B))
-                    cave-sdf (Double.to-float (- 0.35 cave-val))
-                    sdf (if (> cave-val 0.45)
-                            (Float.max base-sdf cave-sdf)
-                            base-sdf)
-                    
-                    ;; Material ID: Stone/sand (1.0f) for underground, Green (2.0f) for surface grass!
-                    depth (- height (Double.from-int gy))
-                    mat-id (if (< depth 1.5) 2.0f 1.0f)
-                    offset (* idx 4)]
-                (do
-                  (Pointer.set (Pointer.add p-data (Long.from-int offset)) mat-id)
-                  (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) sdf)
-                  (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
-                  (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 1.0f))))))
+          (for [x 0 res]
+            (let [gx (+ (* qx 32) x)
+                  gz (+ (* qz 32) z)
+                  
+                  ;; Procedural rolling hills using 2D simplex noise (once per column!)
+                  nx (* (Double.from-int gx) 0.015)
+                  nz (* (Double.from-int gz) 0.015)
+                  height (+ 20.0 (* 16.0 (Noise.noise2d noise-state nx nz)))]
+              (for [y 0 res]
+                (let [gy (+ (* qy 32) y)
+                      idx (+ (* z 1024) (+ (* y 32) x))
+                      
+                      ;; Add some 3D noise details
+                      nx2 (* (Double.from-int gx) 0.04)
+                      ny2 (* (Double.from-int gy) 0.04)
+                      nz2 (* (Double.from-int gz) 0.04)
+                      detail (* 3.0 (Noise.noise3d noise-state nx2 ny2 nz2))
+                      
+                      base-sdf (Double.to-float (- (Double.from-int gy) (+ height detail)))
+                      
+                      ;; 3D noise caves
+                      cx (* (Double.from-int gx) 0.08)
+                      cy (* (Double.from-int gy) 0.08)
+                      cz (* (Double.from-int gz) 0.08)
+                      cave-val (Noise.noise3d noise-state cx cy cz)
+                      
+                      cave-sdf (Double.to-float (- 0.35 cave-val))
+                      sdf (if (> cave-val 0.45)
+                              (Float.max base-sdf cave-sdf)
+                              base-sdf)
+                      
+                      ;; Material ID
+                      depth (- height (Double.from-int gy))
+                      mat-id (if (< depth 1.5) 2.0f 1.0f)
+                      offset (* idx 4)]
+                  (do
+                    (Pointer.set (Pointer.add p-data (Long.from-int offset)) mat-id)
+                    (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) sdf)
+                    (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
+                    (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 1.0f)))))))
         (Chunk.init qx qy qz voxel-data))))
 )
 

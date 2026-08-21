@@ -14556,7 +14556,7 @@ Chunk Chunk_copy(Chunk* pRef) {
 }
 
 Chunk Chunk_create(NoiseState* noise_MINUS_state, int qx, int qy, int qz) {
-    Chunk _448;
+    Chunk _336;
     /* let */ {
         int res = 32;
         int _18 = Int__MUL_(res, 4);
@@ -14574,177 +14574,138 @@ Chunk Chunk_create(NoiseState* noise_MINUS_state, int qx, int qy, int qz) {
             bool _1000006 = _1000008;
             while (_1000006) {
                 /* let */ {
-                    int y = 0;
-                    bool _1000015 = Int__LT_(y, res);
+                    int x = 0;
+                    bool _1000015 = Int__LT_(x, res);
                     bool _1000013 = _1000015;
                     while (_1000013) {
                         /* let */ {
-                            int x = 0;
-                            bool _1000022 = Int__LT_(x, res);
-                            bool _1000020 = _1000022;
-                            while (_1000020) {
-                                /* let */ {
-                                    int _69 = Int__MUL_(z, 1024);
-                                    int _74 = Int__MUL_(y, 32);
-                                    int _76 = Int__PLUS_(_74, x);
-                                    int _77 = Int__PLUS_(_69, _76);
-                                    int idx = _77;
-                                    int _83 = Int__MUL_(qx, 32);
-                                    int _85 = Int__PLUS_(_83, x);
-                                    int gx = _85;
-                                    int _91 = Int__MUL_(qy, 32);
-                                    int _93 = Int__PLUS_(_91, y);
-                                    int gy = _93;
-                                    int _99 = Int__MUL_(qz, 32);
-                                    int _101 = Int__PLUS_(_99, z);
-                                    int gz = _101;
-                                    double _106 = Double_from_MINUS_int(gx);
-                                    double _108 = Double__MUL_(_106, 1.5e-2);
-                                    double nx = _108;
-                                    double _113 = Double_from_MINUS_int(gz);
-                                    double _115 = Double__MUL_(_113, 1.5e-2);
-                                    double nz = _115;
-                                    double _125 = Noise_noise2d(noise_MINUS_state, nx, nz);
-                                    double _126 = Double__MUL_(16.0, _125);
-                                    double _127 = Double__PLUS_(20.0, _126);
-                                    double height = _127;
-                                    int _140 = Int__PLUS_(gx, 1);
-                                    double _141 = Double_from_MINUS_int(_140);
-                                    double _143 = Double__MUL_(_141, 1.5e-2);
-                                    double _145 = Noise_noise2d(noise_MINUS_state, _143, nz);
-                                    double _146 = Double__MUL_(16.0, _145);
-                                    double _147 = Double__PLUS_(20.0, _146);
-                                    double hx_MINUS_pos = _147;
-                                    int _160 = Int__MINUS_(gx, 1);
-                                    double _161 = Double_from_MINUS_int(_160);
-                                    double _163 = Double__MUL_(_161, 1.5e-2);
-                                    double _165 = Noise_noise2d(noise_MINUS_state, _163, nz);
-                                    double _166 = Double__MUL_(16.0, _165);
-                                    double _167 = Double__PLUS_(20.0, _166);
-                                    double hx_MINUS_neg = _167;
-                                    int _181 = Int__PLUS_(gz, 1);
-                                    double _182 = Double_from_MINUS_int(_181);
-                                    double _184 = Double__MUL_(_182, 1.5e-2);
-                                    double _185 = Noise_noise2d(noise_MINUS_state, nx, _184);
-                                    double _186 = Double__MUL_(16.0, _185);
-                                    double _187 = Double__PLUS_(20.0, _186);
-                                    double hz_MINUS_pos = _187;
-                                    int _201 = Int__MINUS_(gz, 1);
-                                    double _202 = Double_from_MINUS_int(_201);
-                                    double _204 = Double__MUL_(_202, 1.5e-2);
-                                    double _205 = Noise_noise2d(noise_MINUS_state, nx, _204);
-                                    double _206 = Double__MUL_(16.0, _205);
-                                    double _207 = Double__PLUS_(20.0, _206);
-                                    double hz_MINUS_neg = _207;
-                                    double _213 = Double__MINUS_(hx_MINUS_pos, hx_MINUS_neg);
-                                    double _215 = Double__DIV_(_213, 2.0);
-                                    double dh_MINUS_dx = _215;
-                                    double _221 = Double__MINUS_(hz_MINUS_pos, hz_MINUS_neg);
-                                    double _223 = Double__DIV_(_221, 2.0);
-                                    double dh_MINUS_dz = _223;
-                                    double _232 = Double__MUL_(dh_MINUS_dx, dh_MINUS_dx);
-                                    double _236 = Double__MUL_(dh_MINUS_dz, dh_MINUS_dz);
-                                    double _237 = Double__PLUS_(_232, _236);
-                                    double _238 = Double__PLUS_(1.0, _237);
-                                    double _239 = Double_sqrt(_238);
-                                    double grad_MINUS_len = _239;
-                                    double _244 = Double_from_MINUS_int(gx);
-                                    double _246 = Double__MUL_(_244, 4.0e-2);
-                                    double nx2 = _246;
-                                    double _251 = Double_from_MINUS_int(gy);
-                                    double _253 = Double__MUL_(_251, 4.0e-2);
-                                    double ny2 = _253;
-                                    double _258 = Double_from_MINUS_int(gz);
-                                    double _260 = Double__MUL_(_258, 4.0e-2);
-                                    double nz2 = _260;
-                                    double _269 = Noise_noise3d(noise_MINUS_state, nx2, ny2, nz2);
-                                    double _270 = Double__MUL_(3.0, _269);
-                                    double detail = _270;
-                                    double _277 = Double_from_MINUS_int(gy);
-                                    double _281 = Double__PLUS_(height, detail);
-                                    double _282 = Double__MINUS_(_277, _281);
-                                    double _284 = Double__DIV_(_282, grad_MINUS_len);
-                                    float _285 = Double_to_MINUS_float(_284);
-                                    float base_MINUS_sdf = _285;
-                                    double _290 = Double_from_MINUS_int(gx);
-                                    double _292 = Double__MUL_(_290, 8.0e-2);
-                                    double cx = _292;
-                                    double _297 = Double_from_MINUS_int(gy);
-                                    double _299 = Double__MUL_(_297, 8.0e-2);
-                                    double cy = _299;
-                                    double _304 = Double_from_MINUS_int(gz);
-                                    double _306 = Double__MUL_(_304, 8.0e-2);
-                                    double cz = _306;
-                                    double _313 = Noise_noise3d(noise_MINUS_state, cx, cy, cz);
-                                    double cave_MINUS_val = _313;
-                                    double _319 = Double__MINUS_(0.35, cave_MINUS_val);
-                                    float _320 = Double_to_MINUS_float(_319);
-                                    float cave_MINUS_sdf = _320;
-                                    float _336;
-                                    bool _326 = Double__GT_(cave_MINUS_val, 0.45);
-                                    if (_326) {
-                                        float _331 = max__float(base_MINUS_sdf, cave_MINUS_sdf);
-                                        float _332 = _331;
-                                        _336 = _332;
-                                    } else {
-                                        float _335 = base_MINUS_sdf;
-                                        _336 = _335;
+                            int _59 = Int__MUL_(qx, 32);
+                            int _61 = Int__PLUS_(_59, x);
+                            int gx = _61;
+                            int _67 = Int__MUL_(qz, 32);
+                            int _69 = Int__PLUS_(_67, z);
+                            int gz = _69;
+                            double _74 = Double_from_MINUS_int(gx);
+                            double _76 = Double__MUL_(_74, 1.5e-2);
+                            double nx = _76;
+                            double _81 = Double_from_MINUS_int(gz);
+                            double _83 = Double__MUL_(_81, 1.5e-2);
+                            double nz = _83;
+                            double _93 = Noise_noise2d(noise_MINUS_state, nx, nz);
+                            double _94 = Double__MUL_(16.0, _93);
+                            double _95 = Double__PLUS_(20.0, _94);
+                            double height = _95;
+                            /* let */ {
+                                int y = 0;
+                                bool _1000023 = Int__LT_(y, res);
+                                bool _1000021 = _1000023;
+                                while (_1000021) {
+                                    /* let */ {
+                                        int _113 = Int__MUL_(qy, 32);
+                                        int _115 = Int__PLUS_(_113, y);
+                                        int gy = _115;
+                                        int _121 = Int__MUL_(z, 1024);
+                                        int _126 = Int__MUL_(y, 32);
+                                        int _128 = Int__PLUS_(_126, x);
+                                        int _129 = Int__PLUS_(_121, _128);
+                                        int idx = _129;
+                                        double _134 = Double_from_MINUS_int(gx);
+                                        double _136 = Double__MUL_(_134, 4.0e-2);
+                                        double nx2 = _136;
+                                        double _141 = Double_from_MINUS_int(gy);
+                                        double _143 = Double__MUL_(_141, 4.0e-2);
+                                        double ny2 = _143;
+                                        double _148 = Double_from_MINUS_int(gz);
+                                        double _150 = Double__MUL_(_148, 4.0e-2);
+                                        double nz2 = _150;
+                                        double _159 = Noise_noise3d(noise_MINUS_state, nx2, ny2, nz2);
+                                        double _160 = Double__MUL_(3.0, _159);
+                                        double detail = _160;
+                                        double _166 = Double_from_MINUS_int(gy);
+                                        double _170 = Double__PLUS_(height, detail);
+                                        double _171 = Double__MINUS_(_166, _170);
+                                        float _172 = Double_to_MINUS_float(_171);
+                                        float base_MINUS_sdf = _172;
+                                        double _177 = Double_from_MINUS_int(gx);
+                                        double _179 = Double__MUL_(_177, 8.0e-2);
+                                        double cx = _179;
+                                        double _184 = Double_from_MINUS_int(gy);
+                                        double _186 = Double__MUL_(_184, 8.0e-2);
+                                        double cy = _186;
+                                        double _191 = Double_from_MINUS_int(gz);
+                                        double _193 = Double__MUL_(_191, 8.0e-2);
+                                        double cz = _193;
+                                        double _200 = Noise_noise3d(noise_MINUS_state, cx, cy, cz);
+                                        double cave_MINUS_val = _200;
+                                        double _206 = Double__MINUS_(0.35, cave_MINUS_val);
+                                        float _207 = Double_to_MINUS_float(_206);
+                                        float cave_MINUS_sdf = _207;
+                                        float _223;
+                                        bool _213 = Double__GT_(cave_MINUS_val, 0.45);
+                                        if (_213) {
+                                            float _218 = max__float(base_MINUS_sdf, cave_MINUS_sdf);
+                                            float _219 = _218;
+                                            _223 = _219;
+                                        } else {
+                                            float _222 = base_MINUS_sdf;
+                                            _223 = _222;
+                                        }
+                                        float sdf = _223;
+                                        double _229 = Double_from_MINUS_int(gy);
+                                        double _230 = Double__MINUS_(height, _229);
+                                        double depth = _230;
+                                        float _243;
+                                        bool _236 = Double__LT_(depth, 1.5);
+                                        if (_236) {
+                                            float _239 = 2.0f;
+                                            _243 = _239;
+                                        } else {
+                                            float _242 = 1.0f;
+                                            _243 = _242;
+                                        }
+                                        float mat_MINUS_id = _243;
+                                        int _248 = Int__MUL_(idx, 4);
+                                        int offset = _248;
+                                        Long _256 = Long_from_MINUS_int(offset);
+                                        float* _257 = Pointer_add__float(p_MINUS_data, _256);
+                                        Pointer_set__float(_257, mat_MINUS_id);
+                                        int _267 = Int__PLUS_(offset, 1);
+                                        Long _268 = Long_from_MINUS_int(_267);
+                                        float* _269 = Pointer_add__float(p_MINUS_data, _268);
+                                        Pointer_set__float(_269, sdf);
+                                        int _279 = Int__PLUS_(offset, 2);
+                                        Long _280 = Long_from_MINUS_int(_279);
+                                        float* _281 = Pointer_add__float(p_MINUS_data, _280);
+                                        Pointer_set__float(_281, 0.0f);
+                                        int _291 = Int__PLUS_(offset, 3);
+                                        Long _292 = Long_from_MINUS_int(_291);
+                                        float* _293 = Pointer_add__float(p_MINUS_data, _292);
+                                        Pointer_set__float(_293, 1.0f);
                                     }
-                                    float sdf = _336;
-                                    double _342 = Double_from_MINUS_int(gy);
-                                    double _343 = Double__MINUS_(height, _342);
-                                    double depth = _343;
-                                    float _356;
-                                    bool _349 = Double__LT_(depth, 1.5);
-                                    if (_349) {
-                                        float _352 = 2.0f;
-                                        _356 = _352;
-                                    } else {
-                                        float _355 = 1.0f;
-                                        _356 = _355;
-                                    }
-                                    float mat_MINUS_id = _356;
-                                    int _361 = Int__MUL_(idx, 4);
-                                    int offset = _361;
-                                    Long _369 = Long_from_MINUS_int(offset);
-                                    float* _370 = Pointer_add__float(p_MINUS_data, _369);
-                                    Pointer_set__float(_370, mat_MINUS_id);
-                                    int _380 = Int__PLUS_(offset, 1);
-                                    Long _381 = Long_from_MINUS_int(_380);
-                                    float* _382 = Pointer_add__float(p_MINUS_data, _381);
-                                    Pointer_set__float(_382, sdf);
-                                    int _392 = Int__PLUS_(offset, 2);
-                                    Long _393 = Long_from_MINUS_int(_392);
-                                    float* _394 = Pointer_add__float(p_MINUS_data, _393);
-                                    Pointer_set__float(_394, 0.0f);
-                                    int _404 = Int__PLUS_(offset, 3);
-                                    Long _405 = Long_from_MINUS_int(_404);
-                                    float* _406 = Pointer_add__float(p_MINUS_data, _405);
-                                    Pointer_set__float(_406, 1.0f);
+                                    int _1000036 = Int__PLUS_(y, 1);
+                                    y = _1000036;  // Int = Int
+                                    bool _1000023 = Int__LT_(y, res);
+                                    _1000021 = _1000023;
                                 }
-                                int _1000035 = Int__PLUS_(x, 1);
-                                x = _1000035;  // Int = Int
-                                bool _1000022 = Int__LT_(x, res);
-                                _1000020 = _1000022;
                             }
                         }
-                        int _1000038 = Int__PLUS_(y, 1);
-                        y = _1000038;  // Int = Int
-                        bool _1000015 = Int__LT_(y, res);
+                        int _1000039 = Int__PLUS_(x, 1);
+                        x = _1000039;  // Int = Int
+                        bool _1000015 = Int__LT_(x, res);
                         _1000013 = _1000015;
                     }
                 }
-                int _1000041 = Int__PLUS_(z, 1);
-                z = _1000041;  // Int = Int
+                int _1000042 = Int__PLUS_(z, 1);
+                z = _1000042;  // Int = Int
                 bool _1000008 = Int__LT_(z, res);
                 _1000006 = _1000008;
             }
         }
-        Chunk _446 = Chunk_init(qx, qy, qz, voxel_MINUS_data);
-        Chunk _447 = _446;
-        _448 = _447;
+        Chunk _334 = Chunk_init(qx, qy, qz, voxel_MINUS_data);
+        Chunk _335 = _334;
+        _336 = _335;
     }
-    return _448;
+    return _336;
 }
 
 void Chunk_delete(Chunk p) {
@@ -28175,7 +28136,7 @@ float World_sample_MINUS_sdf_MINUS_nearest(World* world, Vector3__double* p) {
             _154 = _153;
             Chunk_delete(chunk);
         }
-        else UNHANDLED("world.carp", 113);
+        else UNHANDLED("world.carp", 101);
         _155 = _154;
     }
     return _155;
