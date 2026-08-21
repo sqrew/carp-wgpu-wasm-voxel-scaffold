@@ -55,7 +55,7 @@ fn intersect_box(ro: vec3<f32>, rd: vec3<f32>, box_min: vec3<f32>, box_max: vec3
 fn getShadow(ro: vec3<f32>, rd: vec3<f32>, mint: f32, maxt: f32, k: f32) -> f32 {
     var res: f32 = 1.0;
     var t = mint;
-    let dims = vec3<f32>(128.0, 128.0, 128.0);
+    let dims = vec3<f32>(64.0, 64.0, 64.0);
     for (var i = 0; i < 40; i = i + 1) {
         let p = ro + rd * t;
         let uvw = clamp(p / dims, vec3<f32>(0.002), vec3<f32>(0.998));
@@ -75,7 +75,7 @@ fn getShadow(ro: vec3<f32>, rd: vec3<f32>, mint: f32, maxt: f32, k: f32) -> f32 
 fn getAO(p: vec3<f32>, n: vec3<f32>) -> f32 {
     var occ = 0.0;
     var sca = 1.0;
-    let dims = vec3<f32>(128.0, 128.0, 128.0);
+    let dims = vec3<f32>(64.0, 64.0, 64.0);
     for (var i = 0; i < 5; i = i + 1) {
         let hr = 0.05 + 0.15 * f32(i) / 4.0;
         let aopos = p + n * hr;
@@ -96,7 +96,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let rd = normalize(u.cam_dir.xyz * 2.0 + uv.x * u.cam_right.xyz + uv.y * u.cam_up.xyz);
     
     let box_min = vec3<f32>(0.0, 0.0, 0.0);
-    let box_max = vec3<f32>(128.0, 128.0, 128.0);
+    let box_max = vec3<f32>(64.0, 64.0, 64.0);
     
     var t_near: f32 = 0.0;
     var t_far: f32 = 0.0;
@@ -129,7 +129,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             let p = ro + rd * t;
             
             // Clamp normalized coordinates slightly inside [0, 1] to avoid border interpolation artifacts
-            let dims = vec3<f32>(128.0, 128.0, 128.0);
+            let dims = vec3<f32>(64.0, 64.0, 64.0);
             let uvw = clamp(p / dims, vec3<f32>(0.002), vec3<f32>(0.998));
             
             // Sample SDF value from green channel (G) and scale by 0.5 (Lipschitz constant bound for Simplex noise)
@@ -150,7 +150,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 let normal = normalize(n);
                 
                 // Fetch discrete material ID using textureLoad at the nearest integer coordinate (avoids trilinear bleeding!)
-                let ip = vec3<i32>(clamp(p, vec3<f32>(0.0), vec3<f32>(127.0, 127.0, 127.0)));
+                let ip = vec3<i32>(clamp(p, vec3<f32>(0.0), vec3<f32>(63.0, 63.0, 63.0)));
                 let raw_voxel = textureLoad(solid_texture, ip, 0);
                 let mat_id = raw_voxel.r;
                 
@@ -224,14 +224,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 (defmodule Renderer
   (defn create [eng]
     (let [ctx @(Engine.ctx eng)]
-      (match (WGPURender.create-3d-texture ctx 128 128 128 "rgba16float")
+      (match (WGPURender.create-3d-texture ctx 64 64 64 "rgba16float")
         (Result.Error e) (Result.Error (str* "Voxel texture failed: " e))
         (Result.Success voxel-tex)
-          (match (WGPURender.create-3d-texture ctx 128 128 128 "rgba16float")
+          (match (WGPURender.create-3d-texture ctx 64 64 64 "rgba16float")
             (Result.Error e) (do (WGPURender.free-render-texture voxel-tex)
                                  (Result.Error (str* "Liquid texture failed: " e)))
             (Result.Success liquid-tex)
-              (match (WGPURender.create-3d-texture ctx 128 128 128 "rgba16float")
+              (match (WGPURender.create-3d-texture ctx 64 64 64 "rgba16float")
                 (Result.Error e) (do (WGPURender.free-render-texture voxel-tex)
                                      (WGPURender.free-render-texture liquid-tex)
                                      (Result.Error (str* "Gas texture failed: " e)))

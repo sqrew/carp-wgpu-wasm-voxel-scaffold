@@ -29,7 +29,7 @@
                                (Result.Error (str* "Renderer failed: " e)))
           (Result.Success ren)
             (let [world (World.create)
-                  cam (Camera.new (Vector3.init 64.0 45.0 64.0) -90.0 0.0 1.7777777777777777)
+                  cam (Camera.new (Vector3.init 32.0 45.0 32.0) -90.0 0.0 1.7777777777777777)
                   uniforms (Array.allocate 20)
                   diag (Diagnostics.new @"diagnostics.log")]
               (do
@@ -165,7 +165,7 @@
         
         ; Draw world boundary box (red)
         (let [red-color (Vector3.init 1.0 0.1 0.1)]
-          (EngineState.draw-bounds-wireframe! ren 0.0 0.0 0.0 128.0 128.0 128.0 &red-color))
+          (EngineState.draw-bounds-wireframe! ren 0.0 0.0 0.0 64.0 64.0 64.0 &red-color))
         
         ; Raycast from camera front vector
         (let [ro (Camera.pos cam)
