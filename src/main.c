@@ -17419,6 +17419,30 @@ void EngineState_resolve_MINUS_camera_MINUS_collision_BANG_(World* world, Camera
                             } else {
                                 /* () */
                             }
+                            bool _381;
+                            bool _365 = Int__EQ_(i, 2);
+                            if (_365) {
+                                Vector3__double* _372 = &normal; // ref
+                                double* _373 = Vector3_y__double(_372);
+                                double _374 = Double_copy(_373);
+                                bool _376 = Double__LT_(_374, -0.5);
+                                bool _377 = _376;
+                                _381 = _377;
+                            } else {
+                                bool _380 = false;
+                                _381 = _380;
+                            }
+                            if (_381) {
+                                double _387 = Pointer_to_MINUS_value__double(vel_MINUS_y_MINUS_ptr);
+                                bool _389 = Double__GT_(_387, 0.0);
+                                if (_389) {
+                                    Pointer_set__double(vel_MINUS_y_MINUS_ptr, 0.0);
+                                } else {
+                                    /* () */
+                                }
+                            } else {
+                                /* () */
+                            }
                             Vector3_delete__double(_299);
                             Vector3_delete__double(_307);
                             Vector3_delete__double(dx_MINUS_neg);
@@ -17435,8 +17459,8 @@ void EngineState_resolve_MINUS_camera_MINUS_collision_BANG_(World* world, Camera
                     Vector3_delete__double(_70);
                     Vector3_delete__double(p);
                 }
-                int _1000038 = Int__PLUS_(i, 1);
-                i = _1000038;  // Int = Int
+                int _1000047 = Int__PLUS_(i, 1);
+                i = _1000047;  // Int = Int
                 bool _1000008 = Int__LT_(i, 3);
                 _1000006 = _1000008;
             }
@@ -18184,7 +18208,7 @@ void EngineState_tick(EngineState* state, GLFWwindow* win, double dt, bool* firs
                                             Renderer_update_MINUS_chunk_MINUS_texture(platform_MINUS_eng, ren, qx, qy, qz, _725);
                                             Chunk_delete(chunk);
                                         }
-                                        else UNHANDLED("engine.carp", 243);
+                                        else UNHANDLED("engine.carp", 246);
                                     }
                                     int _1000071 = Int__PLUS_(j, 1);
                                     j = _1000071;  // Int = Int
@@ -18202,7 +18226,7 @@ void EngineState_tick(EngineState* state, GLFWwindow* win, double dt, bool* firs
                 }
                 Vector3_delete__double(hit_MINUS_pos);
             }
-            else UNHANDLED("engine.carp", 217);
+            else UNHANDLED("engine.carp", 220);
         }
         Engine_handle_MINUS_resize(platform_MINUS_eng);
         static String _755 = "Renderer & Draw";

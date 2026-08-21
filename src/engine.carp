@@ -138,7 +138,10 @@
                      (do
                        (Pointer.set on-ground-ptr true)
                        (when (< (Pointer.to-value vel-y-ptr) 0.0)
-                         (Pointer.set vel-y-ptr 0.0)))))))))
+                         (Pointer.set vel-y-ptr 0.0))))
+                   (when (and (= i 2) (< @(Vector3.y &normal) -0.5))
+                     (when (> (Pointer.to-value vel-y-ptr) 0.0)
+                        (Pointer.set vel-y-ptr 0.0))))))))
         (Pointer.set p-pos cur-pos))))
 
   (defn tick [state win dt first-mouse-ptr last-x-ptr last-y-ptr]
