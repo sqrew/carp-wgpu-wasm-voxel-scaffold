@@ -3,6 +3,7 @@
 (load "camera.carp")
 (load "world.carp")
 (load "renderer.carp")
+(load "gpu_batcher.carp")
 (load "engine.carp")
 (load "../../carp-job-system/rayon.carp")
 (use Vector3)

@@ -171,3 +171,9 @@
       (GLFW.terminate)
       (WGPU.free-context @(Engine.ctx &eng))))
 )
+
+(defmodule WGPUVertexBufferWrapper
+  (deftemplate get-buffer (Fn [(Ptr WGPUVertexBufferWrapper)] WGPUBuffer)
+    "WGPUBuffer $NAME(WGPUVertexBufferWrapper* vb)"
+    "$DECL { return vb->buffer; }")
+)

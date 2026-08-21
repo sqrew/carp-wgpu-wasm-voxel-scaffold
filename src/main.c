@@ -35,6 +35,7 @@
 #include <GLFW/glfw3.h>
 #include "/home/sqrew/Desktop/Carp-fork/core/wgpu_helpers.h"
 #include "/home/sqrew/Desktop/Carp-fork/core/wgpu_render_helpers.h"
+#include "/home/sqrew/Desktop/carp-wgpu-wasm-voxel-scaffold/src/gpu_batcher.h"
 #include "/home/sqrew/Desktop/carp-job-system/jobs.h"
 #include "/home/sqrew/Desktop/carp-simd/simd.h"
 
@@ -8194,6 +8195,9 @@ String WGPUUniformBufferWrapper_str(WGPUUniformBufferWrapper* u);
 
 // Depth 500
 WGPUVertexBufferWrapper WGPUVertexBufferWrapper_copy(WGPUVertexBufferWrapper* v);
+
+// Depth 500
+WGPUBuffer WGPUVertexBufferWrapper_get_MINUS_buffer(WGPUVertexBufferWrapper* vb);
 
 // Depth 500
 String WGPUVertexBufferWrapper_prn(WGPUVertexBufferWrapper v);
@@ -27605,6 +27609,7 @@ WGPUUniformBufferWrapper WGPUUniformBufferWrapper_copy(WGPUUniformBufferWrapper*
 String WGPUUniformBufferWrapper_prn(WGPUUniformBufferWrapper u) { (void)u; return strdup("WGPUUniformBufferWrapper"); }
 String WGPUUniformBufferWrapper_str(WGPUUniformBufferWrapper* u) { (void)u; return strdup("WGPUUniformBufferWrapper"); }
 WGPUVertexBufferWrapper WGPUVertexBufferWrapper_copy(WGPUVertexBufferWrapper* v) { return *v; }
+WGPUBuffer WGPUVertexBufferWrapper_get_MINUS_buffer(WGPUVertexBufferWrapper* vb) { return vb->buffer; }
 String WGPUVertexBufferWrapper_prn(WGPUVertexBufferWrapper v) { (void)v; return strdup("WGPUVertexBufferWrapper"); }
 String WGPUVertexBufferWrapper_str(WGPUVertexBufferWrapper* v) { (void)v; return strdup("WGPUVertexBufferWrapper"); }
 Array__Chunk* World_chunks(World* p) { return (&(p->chunks)); }
@@ -28822,7 +28827,7 @@ int main(int argc, char** argv) {
             _127 = _126;
             EngineState_delete(state);
         }
-        else UNHANDLED("main.carp", 14);
+        else UNHANDLED("main.carp", 15);
         _128 = _127;
     }
     return _128;
