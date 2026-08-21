@@ -77,26 +77,29 @@
           cy (Double.to-int (Double.floor (/ @(Vector3.y cam-pos) 32.0)))
           cz (Double.to-int (Double.floor (/ @(Vector3.z cam-pos) 32.0)))
           chunks (World.chunks world)
-          noise (World.noise-state world)]
+          noise (World.noise-state world)
+          loaded-any false]
       (do
-        (for [lz 0 2]
-          (for [ly 0 2]
-            (for [lx 0 2]
-              (let [qx (- (+ cx lx) 1)
-                    qy (- (+ cy ly) 1)
-                    qz (- (+ cz lz) 1)
-                    tx (EngineState.positive-mod qx 2)
-                    ty (EngineState.positive-mod qy 2)
-                    tz (EngineState.positive-mod qz 2)
-                    slot-idx (+ tx (+ (* ty 2) (* tz 4)))
-                    current-chunk (Array.unsafe-nth chunks slot-idx)]
-                (when (or (/= @(Chunk.coord-x current-chunk) qx)
-                          (or (/= @(Chunk.coord-y current-chunk) qy)
-                              (/= @(Chunk.coord-z current-chunk) qz)))
-                  (let [new-chunk (Chunk.create noise qx qy qz)]
-                    (do
-                      (Renderer.update-chunk-texture eng ren qx qy qz (Chunk.voxel-data &new-chunk))
-                      (Array.aset! chunks slot-idx new-chunk)))))))))))
+        (for [lz 0 4]
+          (for [ly 0 4]
+            (for [lx 0 4]
+              (when (not loaded-any)
+                (let [qx (- (+ cx lx) 2)
+                      qy (- (+ cy ly) 2)
+                      qz (- (+ cz lz) 2)
+                      tx (EngineState.positive-mod qx 4)
+                      ty (EngineState.positive-mod qy 4)
+                      tz (EngineState.positive-mod qz 4)
+                      slot-idx (+ tx (+ (* ty 4) (* tz 16)))
+                      current-chunk (Array.unsafe-nth chunks slot-idx)]
+                  (when (or (/= @(Chunk.coord-x current-chunk) qx)
+                            (or (/= @(Chunk.coord-y current-chunk) qy)
+                                (/= @(Chunk.coord-z current-chunk) qz)))
+                    (let [new-chunk (Chunk.create noise qx qy qz)]
+                      (do
+                        (Renderer.update-chunk-texture eng ren qx qy qz (Chunk.voxel-data &new-chunk))
+                        (Array.aset! chunks slot-idx new-chunk)
+                        (set! loaded-any true))))))))))))
 
   (defn resolve-camera-collision! [world cam radius vel-y-ptr on-ground-ptr]
     (let [p-pos (ref-to-ptr (Camera.pos cam))
@@ -200,11 +203,11 @@
         (let [cx (Double.to-int (Double.floor (/ @(Vector3.x (Camera.pos cam)) 32.0)))
               cy (Double.to-int (Double.floor (/ @(Vector3.y (Camera.pos cam)) 32.0)))
               cz (Double.to-int (Double.floor (/ @(Vector3.z (Camera.pos cam)) 32.0)))
-              bx (Double.from-int (* (- cx 1) 32))
-              by (Double.from-int (* (- cy 1) 32))
-              bz (Double.from-int (* (- cz 1) 32))
+              bx (Double.from-int (* (- cx 2) 32))
+              by (Double.from-int (* (- cy 2) 32))
+              bz (Double.from-int (* (- cz 2) 32))
               red-color (Vector3.init 1.0 0.1 0.1)]
-          (EngineState.draw-bounds-wireframe! ren bx by bz (+ bx 64.0) (+ by 64.0) (+ bz 64.0) &red-color))
+          (EngineState.draw-bounds-wireframe! ren bx by bz (+ bx 128.0) (+ by 128.0) (+ bz 128.0) &red-color))
         
         ; Raycast from camera front vector
         (let [ro (Camera.pos cam)

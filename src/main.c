@@ -8404,7 +8404,7 @@ void carp_init_globals(int argc, char** argv) {
 #endif
     // Depth 0
     {
-        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    _pad0: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n}\n\n@group(0) @binding(0) var<uniform> u: Uniforms;\n@group(0) @binding(1) var solid_texture: texture_3d<f32>;\n@group(0) @binding(2) var voxel_sampler: sampler;\n@group(0) @binding(3) var liquid_texture: texture_3d<f32>;\n@group(0) @binding(4) var gas_texture: texture_3d<f32>;\n\nstruct VertexOutput {\n    @builtin(position) position: vec4<f32>,\n    @location(0) uv: vec2<f32>,\n}\n\n@vertex\nfn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {\n    var pos: array<vec2<f32>, 3> = array<vec2<f32>, 3>(\n        vec2<f32>(-1.0, -1.0),\n        vec2<f32>( 3.0, -1.0),\n        vec2<f32>(-1.0,  3.0),\n    );\n    var out: VertexOutput;\n    let p = pos[vi];\n    out.position = vec4<f32>(p, 0.0, 1.0);\n    out.uv = (p + 1.0) * 0.5;\n    return out;\n}\n\nfn intersect_box(ro: vec3<f32>, rd: vec3<f32>, box_min: vec3<f32>, box_max: vec3<f32>, t0: ptr<function, f32>, t1: ptr<function, f32>) -> bool {\n    let inv_d = 1.0 / rd;\n    let t_bot = inv_d * (box_min - ro);\n    let t_top = inv_d * (box_max - ro);\n    let t_min = min(t_bot, t_top);\n    let t_max = max(t_bot, t_top);\n    let t_near = max(t_min.x, max(t_min.y, t_min.z));\n    let t_far = min(t_max.x, min(t_max.y, t_max.z));\n    *t0 = t_near;\n    *t1 = t_far;\n    return t_near < t_far && t_far > 0.0;\n}\n\nfn getShadow(ro: vec3<f32>, rd: vec3<f32>, mint: f32, maxt: f32, k: f32) -> f32 {\n    var res: f32 = 1.0;\n    var t = mint;\n    let dims = vec3<f32>(64.0, 64.0, 64.0);\n    for (var i = 0; i < 40; i = i + 1) {\n        let p = ro + rd * t;\n        let uvw = clamp(p / dims, vec3<f32>(0.002), vec3<f32>(0.998));\n        let h = textureSampleLevel(solid_texture, voxel_sampler, uvw, 0.0).g * 0.5;\n        if (h < 0.008) {\n            return 0.0;\n        }\n        res = min(res, k * h / t);\n        t += max(0.05, h);\n        if (t > maxt) {\n            break;\n        }\n    }\n    return clamp(res, 0.2, 1.0);\n}\n\nfn getAO(p: vec3<f32>, n: vec3<f32>) -> f32 {\n    var occ = 0.0;\n    var sca = 1.0;\n    let dims = vec3<f32>(64.0, 64.0, 64.0);\n    for (var i = 0; i < 5; i = i + 1) {\n        let hr = 0.05 + 0.15 * f32(i) / 4.0;\n        let aopos = p + n * hr;\n        let uvw = clamp(aopos / dims, vec3<f32>(0.002), vec3<f32>(0.998));\n        let d = textureSampleLevel(solid_texture, voxel_sampler, uvw, 0.0).g * 0.5;\n        occ += -(d - hr) * sca;\n        sca *= 0.95;\n    }\n    return clamp(1.0 - occ * 4.0, 0.0, 1.0);\n}\n\n@fragment\nfn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {\n    let aspect = u.width / u.height;\n    let uv = (in.uv * 2.0 - 1.0) * vec2<f32>(aspect, 1.0);\n    \n    let ro = u.cam_pos.xyz;\n    let rd = normalize(u.cam_dir.xyz * 2.0 + uv.x * u.cam_right.xyz + uv.y * u.cam_up.xyz);\n    \n    let box_min = vec3<f32>(0.0, 0.0, 0.0);\n    let box_max = vec3<f32>(64.0, 64.0, 64.0);\n    \n    var t_near: f32 = 0.0;\n    var t_far: f32 = 0.0;\n    \n    // Create sky gradient based on ray direction Y component\n    let sky_dir_y = max(0.0, rd.y);\n    let space_color = vec3<f32>(0.05, 0.08, 0.15);\n    let horizon_color = vec3<f32>(0.15, 0.22, 0.35);\n    var color = mix(space_color, horizon_color, sky_dir_y);\n    \n    // Add a glowing sun\n    let sun_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));\n    let sun_cos = dot(rd, sun_dir);\n    if (sun_cos > 0.0) {\n        let sun_glow = pow(sun_cos, 120.0) * 1.5;\n        let sun_disk = pow(sun_cos, 1200.0) * 4.0;\n        color += vec3<f32>(1.0, 0.9, 0.7) * (sun_glow + sun_disk);\n    }\n    \n    if (intersect_box(ro, rd, box_min, box_max, &t_near, &t_far)) {\n        let t_start = max(t_near, 0.0);\n        var t = t_start;\n        var hit = false;\n        var hit_color = vec3<f32>(0.0);\n        \n        for (var step = 0; step < 200; step = step + 1) {\n            if (t > t_far) {\n                break;\n            }\n            let p = ro + rd * t;\n            \n            // Clamp normalized coordinates slightly inside [0, 1] to avoid border interpolation artifacts\n            let dims = vec3<f32>(64.0, 64.0, 64.0);\n            let uvw = clamp(p / dims, vec3<f32>(0.002), vec3<f32>(0.998));\n            \n            // Sample SDF value from green channel (G) and scale by 0.5 (Lipschitz constant bound for Simplex noise)\n            let val = textureSampleLevel(solid_texture, voxel_sampler, uvw, 0.0);\n            let dist = val.g * 0.5;\n            \n            if (dist < 0.008) {\n                // Hit! Calculate normals using finite differences\n                let eps = 0.5;\n                let n = vec3<f32>(\n                    textureSampleLevel(solid_texture, voxel_sampler, uvw + vec3<f32>(eps, 0.0, 0.0)/dims, 0.0).g - \n                    textureSampleLevel(solid_texture, voxel_sampler, uvw - vec3<f32>(eps, 0.0, 0.0)/dims, 0.0).g,\n                    textureSampleLevel(solid_texture, voxel_sampler, uvw + vec3<f32>(0.0, eps, 0.0)/dims, 0.0).g - \n                    textureSampleLevel(solid_texture, voxel_sampler, uvw - vec3<f32>(0.0, eps, 0.0)/dims, 0.0).g,\n                    textureSampleLevel(solid_texture, voxel_sampler, uvw + vec3<f32>(0.0, 0.0, eps)/dims, 0.0).g - \n                    textureSampleLevel(solid_texture, voxel_sampler, uvw - vec3<f32>(0.0, 0.0, eps)/dims, 0.0).g\n                );\n                let normal = normalize(n);\n                \n                // Fetch discrete material ID using textureLoad at the nearest integer coordinate (avoids trilinear bleeding!)\n                let ip = vec3<i32>(clamp(p, vec3<f32>(0.0), vec3<f32>(63.0, 63.0, 63.0)));\n                let raw_voxel = textureLoad(solid_texture, ip, 0);\n                let mat_id = raw_voxel.r;\n                \n                // Color based on material ID\n                var base_color = vec3<f32>(0.5, 0.5, 0.5);\n                if (mat_id > 2.5) {\n                    base_color = vec3<f32>(0.65, 0.35, 0.2); // Warm brick-red/wood\n                } else if (mat_id > 1.5) {\n                    base_color = vec3<f32>(0.2, 0.8, 0.3);   // Organic green terrain\n                } else if (mat_id > 0.5) {\n                    base_color = vec3<f32>(0.8, 0.7, 0.5);   // Stone/sand\n                } else {\n                    base_color = vec3<f32>(0.3, 0.3, 0.3);\n                }\n                \n                let light_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));\n                let diffuse = max(dot(normal, light_dir), 0.1);\n                \n                // Raymarched Shadows (soft shadows)\n                let shadow_pos = p + normal * 0.05;\n                let sha = getShadow(shadow_pos, light_dir, 0.05, 40.0, 16.0);\n                \n                // Ambient Occlusion\n                let ao = getAO(p, normal);\n                \n                // Combine Shading\n                let ambient = vec3<f32>(0.1, 0.12, 0.2) * ao;\n                let direct = vec3<f32>(1.0, 0.95, 0.85) * diffuse * sha;\n                \n                hit_color = base_color * (direct + ambient);\n                hit = true;\n                break;\n            }\n            \n            // Step forward by the SDF value\n            t = t + max(0.008, dist);\n        }\n        \n        if (hit) {\n            // Apply exponential atmospheric distance fog\n            let fog_density = 0.015;\n            let fog_factor = 1.0 - exp(-fog_density * t);\n            \n            // The fog color is the horizon color mixed with the space color\n            let fog_color = mix(space_color, horizon_color, max(0.0, rd.y));\n            color = mix(hit_color, fog_color, clamp(fog_factor, 0.0, 1.0));\n        }\n    }\n    \n    let dummy = textureSampleLevel(liquid_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r +\n                textureSampleLevel(gas_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r;\n    return vec4<f32>(color + dummy * 0.000001, 1.0);\n}\n";
+        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    _pad0: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n}\n\n@group(0) @binding(0) var<uniform> u: Uniforms;\n@group(0) @binding(1) var solid_texture: texture_3d<f32>;\n@group(0) @binding(2) var voxel_sampler: sampler;\n@group(0) @binding(3) var liquid_texture: texture_3d<f32>;\n@group(0) @binding(4) var gas_texture: texture_3d<f32>;\n\nstruct VertexOutput {\n    @builtin(position) position: vec4<f32>,\n    @location(0) uv: vec2<f32>,\n}\n\n@vertex\nfn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {\n    var pos: array<vec2<f32>, 3> = array<vec2<f32>, 3>(\n        vec2<f32>(-1.0, -1.0),\n        vec2<f32>( 3.0, -1.0),\n        vec2<f32>(-1.0,  3.0),\n    );\n    var out: VertexOutput;\n    let p = pos[vi];\n    out.position = vec4<f32>(p, 0.0, 1.0);\n    out.uv = (p + 1.0) * 0.5;\n    return out;\n}\n\nfn intersect_box(ro: vec3<f32>, rd: vec3<f32>, box_min: vec3<f32>, box_max: vec3<f32>, t0: ptr<function, f32>, t1: ptr<function, f32>) -> bool {\n    let inv_d = 1.0 / rd;\n    let t_bot = inv_d * (box_min - ro);\n    let t_top = inv_d * (box_max - ro);\n    let t_min = min(t_bot, t_top);\n    let t_max = max(t_bot, t_top);\n    let t_near = max(t_min.x, max(t_min.y, t_min.z));\n    let t_far = min(t_max.x, min(t_max.y, t_max.z));\n    *t0 = t_near;\n    *t1 = t_far;\n    return t_near < t_far && t_far > 0.0;\n}\n\nfn getShadow(ro: vec3<f32>, rd: vec3<f32>, mint: f32, maxt: f32, k: f32) -> f32 {\n    var res: f32 = 1.0;\n    var t = mint;\n    for (var i = 0; i < 40; i = i + 1) {\n        let p = ro + rd * t;\n        let wrapped_p = p - floor(p / 128.0) * 128.0;\n        let uvw = clamp(wrapped_p / 128.0, vec3<f32>(0.002), vec3<f32>(0.998));\n        let h = textureSampleLevel(solid_texture, voxel_sampler, uvw, 0.0).g * 0.5;\n        if (h < 0.008) {\n            return 0.0;\n        }\n        res = min(res, k * h / t);\n        t += max(0.05, h);\n        if (t > maxt) {\n            break;\n        }\n    }\n    return clamp(res, 0.2, 1.0);\n}\n\nfn getAO(p: vec3<f32>, n: vec3<f32>) -> f32 {\n    var occ = 0.0;\n    var sca = 1.0;\n    for (var i = 0; i < 5; i = i + 1) {\n        let hr = 0.05 + 0.15 * f32(i) / 4.0;\n        let aopos = p + n * hr;\n        let wrapped_p = aopos - floor(aopos / 128.0) * 128.0;\n        let uvw = clamp(wrapped_p / 128.0, vec3<f32>(0.002), vec3<f32>(0.998));\n        let d = textureSampleLevel(solid_texture, voxel_sampler, uvw, 0.0).g * 0.5;\n        occ += -(d - hr) * sca;\n        sca *= 0.95;\n    }\n    return clamp(1.0 - occ * 4.0, 0.0, 1.0);\n}\n\n@fragment\nfn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {\n    let aspect = u.width / u.height;\n    let uv = (in.uv * 2.0 - 1.0) * vec2<f32>(aspect, 1.0);\n    \n    let ro = u.cam_pos.xyz;\n    let rd = normalize(u.cam_dir.xyz * 2.0 + uv.x * u.cam_right.xyz + uv.y * u.cam_up.xyz);\n    \n    let cx = floor(u.cam_pos.x / 32.0);\n    let cy = floor(u.cam_pos.y / 32.0);\n    let cz = floor(u.cam_pos.z / 32.0);\n    let box_min = vec3<f32>(cx - 2.0, cy - 2.0, cz - 2.0) * 32.0;\n    let box_max = box_min + 128.0;\n    \n    var t_near: f32 = 0.0;\n    var t_far: f32 = 0.0;\n    \n    // Create sky gradient based on ray direction Y component\n    let sky_dir_y = max(0.0, rd.y);\n    let space_color = vec3<f32>(0.05, 0.08, 0.15);\n    let horizon_color = vec3<f32>(0.15, 0.22, 0.35);\n    var color = mix(space_color, horizon_color, sky_dir_y);\n    \n    // Add a glowing sun\n    let sun_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));\n    let sun_cos = dot(rd, sun_dir);\n    if (sun_cos > 0.0) {\n        let sun_glow = pow(sun_cos, 120.0) * 1.5;\n        let sun_disk = pow(sun_cos, 1200.0) * 4.0;\n        color += vec3<f32>(1.0, 0.9, 0.7) * (sun_glow + sun_disk);\n    }\n    \n    if (intersect_box(ro, rd, box_min, box_max, &t_near, &t_far)) {\n        let t_start = max(t_near, 0.0);\n        var t = t_start;\n        var hit = false;\n        var hit_color = vec3<f32>(0.0);\n        \n        for (var step = 0; step < 200; step = step + 1) {\n            if (t > t_far) {\n                break;\n            }\n            let p = ro + rd * t;\n            \n            // Clamp normalized coordinates slightly inside [0, 1] to avoid border interpolation artifacts\n            let wrapped_p = p - floor(p / 128.0) * 128.0;\n            let uvw = clamp(wrapped_p / 128.0, vec3<f32>(0.002), vec3<f32>(0.998));\n            \n            // Sample SDF value from green channel (G) and scale by 0.5 (Lipschitz constant bound for Simplex noise)\n            let val = textureSampleLevel(solid_texture, voxel_sampler, uvw, 0.0);\n            let dist = val.g * 0.5;\n            \n            if (dist < 0.008) {\n                // Hit! Calculate normals using finite differences\n                let eps = 0.5;\n                let n = vec3<f32>(\n                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p + vec3<f32>(eps, 0.0, 0.0), vec3<f32>(0.0), vec3<f32>(128.0))/128.0, 0.0).g - \n                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p - vec3<f32>(eps, 0.0, 0.0), vec3<f32>(0.0), vec3<f32>(128.0))/128.0, 0.0).g,\n                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p + vec3<f32>(0.0, eps, 0.0), vec3<f32>(0.0), vec3<f32>(128.0))/128.0, 0.0).g - \n                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p - vec3<f32>(0.0, eps, 0.0), vec3<f32>(0.0), vec3<f32>(128.0))/128.0, 0.0).g,\n                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p + vec3<f32>(0.0, 0.0, eps), vec3<f32>(0.0), vec3<f32>(128.0))/128.0, 0.0).g - \n                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p - vec3<f32>(0.0, 0.0, eps), vec3<f32>(0.0), vec3<f32>(128.0))/128.0, 0.0).g\n                );\n                let normal = normalize(n);\n                \n                // Fetch discrete material ID using textureLoad at the nearest integer coordinate (avoids trilinear bleeding!)\n                let ip = vec3<i32>(clamp(wrapped_p, vec3<f32>(0.0), vec3<f32>(127.0)));\n                let raw_voxel = textureLoad(solid_texture, ip, 0);\n                let mat_id = raw_voxel.r;\n                \n                // Color based on material ID\n                var base_color = vec3<f32>(0.5, 0.5, 0.5);\n                if (mat_id > 2.5) {\n                    base_color = vec3<f32>(0.65, 0.35, 0.2); // Warm brick-red/wood\n                } else if (mat_id > 1.5) {\n                    base_color = vec3<f32>(0.2, 0.8, 0.3);   // Organic green terrain\n                } else if (mat_id > 0.5) {\n                    base_color = vec3<f32>(0.8, 0.7, 0.5);   // Stone/sand\n                } else {\n                    base_color = vec3<f32>(0.3, 0.3, 0.3);\n                }\n                \n                let light_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));\n                let diffuse = max(dot(normal, light_dir), 0.1);\n                \n                // Raymarched Shadows (soft shadows)\n                let shadow_pos = p + normal * 0.05;\n                let sha = getShadow(shadow_pos, light_dir, 0.05, 40.0, 16.0);\n                \n                // Ambient Occlusion\n                let ao = getAO(p, normal);\n                \n                // Combine Shading\n                let ambient = vec3<f32>(0.1, 0.12, 0.2) * ao;\n                let direct = vec3<f32>(1.0, 0.95, 0.85) * diffuse * sha;\n                \n                hit_color = base_color * (direct + ambient);\n                hit = true;\n                break;\n            }\n            \n            // Step forward by the SDF value\n            t = t + max(0.008, dist);\n        }\n        \n        if (hit) {\n            // Apply exponential atmospheric distance fog\n            let fog_density = 0.015;\n            let fog_factor = 1.0 - exp(-fog_density * t);\n            \n            // The fog color is the horizon color mixed with the space color\n            let fog_color = mix(space_color, horizon_color, max(0.0, rd.y));\n            color = mix(hit_color, fog_color, clamp(fog_factor, 0.0, 1.0));\n        }\n    }\n    \n    let dummy = textureSampleLevel(liquid_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r +\n                textureSampleLevel(gas_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r;\n    return vec4<f32>(color + dummy * 0.000001, 1.0);\n}\n";
         String *_2_ref = &_2;
         voxel_MINUS_wgsl = _2_ref;
     }
@@ -17788,97 +17788,104 @@ void EngineState_stream_MINUS_chunks_BANG_(World* world, Engine* eng, Renderer* 
         Array__Chunk* chunks = _50;
         NoiseState* _54 = World_noise_MINUS_state(world);
         NoiseState* noise = _54;
+        bool loaded_MINUS_any = false;
         /* let */ {
             int lz = 0;
-            bool _1000008 = Int__LT_(lz, 2);
+            bool _1000008 = Int__LT_(lz, 4);
             bool _1000006 = _1000008;
             while (_1000006) {
                 /* let */ {
                     int ly = 0;
-                    bool _1000015 = Int__LT_(ly, 2);
+                    bool _1000015 = Int__LT_(ly, 4);
                     bool _1000013 = _1000015;
                     while (_1000013) {
                         /* let */ {
                             int lx = 0;
-                            bool _1000022 = Int__LT_(lx, 2);
+                            bool _1000022 = Int__LT_(lx, 4);
                             bool _1000020 = _1000022;
                             while (_1000020) {
-                                /* let */ {
-                                    int _93 = Int__PLUS_(cx, lx);
-                                    int _95 = Int__MINUS_(_93, 1);
-                                    int qx = _95;
-                                    int _101 = Int__PLUS_(cy, ly);
-                                    int _103 = Int__MINUS_(_101, 1);
-                                    int qy = _103;
-                                    int _109 = Int__PLUS_(cz, lz);
-                                    int _111 = Int__MINUS_(_109, 1);
-                                    int qz = _111;
-                                    int _116 = EngineState_positive_MINUS_mod(qx, 2);
-                                    int tx = _116;
-                                    int _121 = EngineState_positive_MINUS_mod(qy, 2);
-                                    int ty = _121;
-                                    int _126 = EngineState_positive_MINUS_mod(qz, 2);
-                                    int tz = _126;
-                                    int _134 = Int__MUL_(ty, 2);
-                                    int _138 = Int__MUL_(tz, 4);
-                                    int _139 = Int__PLUS_(_134, _138);
-                                    int _140 = Int__PLUS_(tx, _139);
-                                    int slot_MINUS_idx = _140;
-                                    Chunk* _145 = Array_unsafe_MINUS_nth__Chunk(chunks, slot_MINUS_idx);
-                                    Chunk* current_MINUS_chunk = _145;
-                                    bool _185;
-                                    int* _153 = Chunk_coord_MINUS_x(current_MINUS_chunk);
-                                    int _154 = Int_copy(_153);
-                                    bool _156 = _DIV__EQ___int(_154, qx);
-                                    if (_156) {
-                                        bool _159 = true;
-                                        _185 = _159;
-                                    } else {
-                                        bool _183;
-                                        int* _166 = Chunk_coord_MINUS_y(current_MINUS_chunk);
-                                        int _167 = Int_copy(_166);
-                                        bool _169 = _DIV__EQ___int(_167, qy);
-                                        if (_169) {
-                                            bool _172 = true;
-                                            _183 = _172;
+                                bool _92 = not(loaded_MINUS_any);
+                                if (_92) {
+                                    /* let */ {
+                                        int _100 = Int__PLUS_(cx, lx);
+                                        int _102 = Int__MINUS_(_100, 2);
+                                        int qx = _102;
+                                        int _108 = Int__PLUS_(cy, ly);
+                                        int _110 = Int__MINUS_(_108, 2);
+                                        int qy = _110;
+                                        int _116 = Int__PLUS_(cz, lz);
+                                        int _118 = Int__MINUS_(_116, 2);
+                                        int qz = _118;
+                                        int _123 = EngineState_positive_MINUS_mod(qx, 4);
+                                        int tx = _123;
+                                        int _128 = EngineState_positive_MINUS_mod(qy, 4);
+                                        int ty = _128;
+                                        int _133 = EngineState_positive_MINUS_mod(qz, 4);
+                                        int tz = _133;
+                                        int _141 = Int__MUL_(ty, 4);
+                                        int _145 = Int__MUL_(tz, 16);
+                                        int _146 = Int__PLUS_(_141, _145);
+                                        int _147 = Int__PLUS_(tx, _146);
+                                        int slot_MINUS_idx = _147;
+                                        Chunk* _152 = Array_unsafe_MINUS_nth__Chunk(chunks, slot_MINUS_idx);
+                                        Chunk* current_MINUS_chunk = _152;
+                                        bool _192;
+                                        int* _160 = Chunk_coord_MINUS_x(current_MINUS_chunk);
+                                        int _161 = Int_copy(_160);
+                                        bool _163 = _DIV__EQ___int(_161, qx);
+                                        if (_163) {
+                                            bool _166 = true;
+                                            _192 = _166;
                                         } else {
-                                            int* _178 = Chunk_coord_MINUS_z(current_MINUS_chunk);
-                                            int _179 = Int_copy(_178);
-                                            bool _181 = _DIV__EQ___int(_179, qz);
-                                            bool _182 = _181;
-                                            _183 = _182;
+                                            bool _190;
+                                            int* _173 = Chunk_coord_MINUS_y(current_MINUS_chunk);
+                                            int _174 = Int_copy(_173);
+                                            bool _176 = _DIV__EQ___int(_174, qy);
+                                            if (_176) {
+                                                bool _179 = true;
+                                                _190 = _179;
+                                            } else {
+                                                int* _185 = Chunk_coord_MINUS_z(current_MINUS_chunk);
+                                                int _186 = Int_copy(_185);
+                                                bool _188 = _DIV__EQ___int(_186, qz);
+                                                bool _189 = _188;
+                                                _190 = _189;
+                                            }
+                                            bool _191 = _190;
+                                            _192 = _191;
                                         }
-                                        bool _184 = _183;
-                                        _185 = _184;
-                                    }
-                                    if (_185) {
-                                        /* let */ {
-                                            Chunk _194 = Chunk_create(noise, qx, qy, qz);
-                                            Chunk new_MINUS_chunk = _194;
-                                            Chunk* _206 = &new_MINUS_chunk; // ref
-                                            Array__float* _207 = Chunk_voxel_MINUS_data(_206);
-                                            Renderer_update_MINUS_chunk_MINUS_texture(eng, ren, qx, qy, qz, _207);
-                                            Array_aset_BANG___Chunk(chunks, slot_MINUS_idx, new_MINUS_chunk);
+                                        if (_192) {
+                                            /* let */ {
+                                                Chunk _201 = Chunk_create(noise, qx, qy, qz);
+                                                Chunk new_MINUS_chunk = _201;
+                                                Chunk* _213 = &new_MINUS_chunk; // ref
+                                                Array__float* _214 = Chunk_voxel_MINUS_data(_213);
+                                                Renderer_update_MINUS_chunk_MINUS_texture(eng, ren, qx, qy, qz, _214);
+                                                Array_aset_BANG___Chunk(chunks, slot_MINUS_idx, new_MINUS_chunk);
+                                                loaded_MINUS_any = true;  // Bool = Bool
+                                            }
+                                        } else {
+                                            /* () */
                                         }
-                                    } else {
-                                        /* () */
                                     }
+                                } else {
+                                    /* () */
                                 }
-                                int _1000039 = Int__PLUS_(lx, 1);
-                                lx = _1000039;  // Int = Int
-                                bool _1000022 = Int__LT_(lx, 2);
+                                int _1000043 = Int__PLUS_(lx, 1);
+                                lx = _1000043;  // Int = Int
+                                bool _1000022 = Int__LT_(lx, 4);
                                 _1000020 = _1000022;
                             }
                         }
-                        int _1000042 = Int__PLUS_(ly, 1);
-                        ly = _1000042;  // Int = Int
-                        bool _1000015 = Int__LT_(ly, 2);
+                        int _1000046 = Int__PLUS_(ly, 1);
+                        ly = _1000046;  // Int = Int
+                        bool _1000015 = Int__LT_(ly, 4);
                         _1000013 = _1000015;
                     }
                 }
-                int _1000045 = Int__PLUS_(lz, 1);
-                lz = _1000045;  // Int = Int
-                bool _1000008 = Int__LT_(lz, 2);
+                int _1000049 = Int__PLUS_(lz, 1);
+                lz = _1000049;  // Int = Int
+                bool _1000008 = Int__LT_(lz, 4);
                 _1000006 = _1000008;
             }
         }
@@ -18089,23 +18096,23 @@ void EngineState_tick(EngineState* state, GLFWwindow* win, double dt, bool* firs
             double _449 = Double_floor(_448);
             int _450 = Double_to_MINUS_int(_449);
             int cz = _450;
-            int _457 = Int__MINUS_(cx, 1);
+            int _457 = Int__MINUS_(cx, 2);
             int _459 = Int__MUL_(_457, 32);
             double _460 = Double_from_MINUS_int(_459);
             double bx = _460;
-            int _467 = Int__MINUS_(cy, 1);
+            int _467 = Int__MINUS_(cy, 2);
             int _469 = Int__MUL_(_467, 32);
             double _470 = Double_from_MINUS_int(_469);
             double by = _470;
-            int _477 = Int__MINUS_(cz, 1);
+            int _477 = Int__MINUS_(cz, 2);
             int _479 = Int__MUL_(_477, 32);
             double _480 = Double_from_MINUS_int(_479);
             double bz = _480;
             Vector3__double _486 = Vector3_init__double(1.0, 0.1, 0.1);
             Vector3__double red_MINUS_color = _486;
-            double _496 = Double__PLUS_(bx, 64.0);
-            double _500 = Double__PLUS_(by, 64.0);
-            double _504 = Double__PLUS_(bz, 64.0);
+            double _496 = Double__PLUS_(bx, 128.0);
+            double _500 = Double__PLUS_(by, 128.0);
+            double _504 = Double__PLUS_(bz, 128.0);
             Vector3__double* _507 = &red_MINUS_color; // ref
             EngineState_draw_MINUS_bounds_MINUS_wireframe_BANG_(ren, bx, by, bz, _496, _500, _504, _507);
             Vector3_delete__double(red_MINUS_color);
@@ -18216,7 +18223,7 @@ void EngineState_tick(EngineState* state, GLFWwindow* win, double dt, bool* firs
                                             Renderer_update_MINUS_chunk_MINUS_texture(platform_MINUS_eng, ren, qx, qy, qz, _725);
                                             Chunk_delete(chunk);
                                         }
-                                        else UNHANDLED("engine.carp", 240);
+                                        else UNHANDLED("engine.carp", 243);
                                     }
                                     int _1000071 = Int__PLUS_(j, 1);
                                     j = _1000071;  // Int = Int
@@ -18234,7 +18241,7 @@ void EngineState_tick(EngineState* state, GLFWwindow* win, double dt, bool* firs
                 }
                 Vector3_delete__double(hit_MINUS_pos);
             }
-            else UNHANDLED("engine.carp", 214);
+            else UNHANDLED("engine.carp", 217);
         }
         Engine_handle_MINUS_resize(platform_MINUS_eng);
         static String _755 = "Renderer & Draw";
@@ -23071,7 +23078,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
         WGPUContext* ctx = _10;
         static String _18 = "rgba16float";
         String *_18_ref = &_18;
-        Result__WGPURenderTexture_MUL__String _19 = WGPURender_create_MINUS_3d_MINUS_texture(ctx, 64, 64, 64, _18_ref);
+        Result__WGPURenderTexture_MUL__String _19 = WGPURender_create_MINUS_3d_MINUS_texture(ctx, 128, 128, 128, _18_ref);
         Result__Renderer_String _466;
         if(_19._tag == Result__WGPURenderTexture_MUL__String_Error_tag) {
             Result__WGPURenderTexture_MUL__String _19_temp = _19;
@@ -23098,7 +23105,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
             // Case expr:
             static String _50 = "rgba16float";
             String *_50_ref = &_50;
-            Result__WGPURenderTexture_MUL__String _51 = WGPURender_create_MINUS_3d_MINUS_texture(ctx, 64, 64, 64, _50_ref);
+            Result__WGPURenderTexture_MUL__String _51 = WGPURender_create_MINUS_3d_MINUS_texture(ctx, 128, 128, 128, _50_ref);
             Result__Renderer_String _465;
             if(_51._tag == Result__WGPURenderTexture_MUL__String_Error_tag) {
                 Result__WGPURenderTexture_MUL__String _51_temp = _51;
@@ -23127,7 +23134,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                 // Case expr:
                 static String _87 = "rgba16float";
                 String *_87_ref = &_87;
-                Result__WGPURenderTexture_MUL__String _88 = WGPURender_create_MINUS_3d_MINUS_texture(ctx, 64, 64, 64, _87_ref);
+                Result__WGPURenderTexture_MUL__String _88 = WGPURender_create_MINUS_3d_MINUS_texture(ctx, 128, 128, 128, _87_ref);
                 Result__Renderer_String _464;
                 if(_88._tag == Result__WGPURenderTexture_MUL__String_Error_tag) {
                     Result__WGPURenderTexture_MUL__String _88_temp = _88;
@@ -23368,36 +23375,36 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                     Result__Renderer_String _455 = Result_Success__Renderer_String(_454);
                                                     _456 = _455;
                                                 }
-                                                else UNHANDLED("renderer.carp", 282);
+                                                else UNHANDLED("renderer.carp", 285);
                                                 _457 = _456;
                                                 String_delete(format);
                                             }
                                             _458 = _457;
                                         }
-                                        else UNHANDLED("renderer.carp", 271);
+                                        else UNHANDLED("renderer.carp", 274);
                                         _459 = _458;
                                     }
                                     _460 = _459;
                                 }
-                                else UNHANDLED("renderer.carp", 260);
+                                else UNHANDLED("renderer.carp", 263);
                                 _461 = _460;
                             }
-                            else UNHANDLED("renderer.carp", 252);
+                            else UNHANDLED("renderer.carp", 255);
                             _462 = _461;
                         }
-                        else UNHANDLED("renderer.carp", 245);
+                        else UNHANDLED("renderer.carp", 248);
                         _463 = _462;
                     }
-                    else UNHANDLED("renderer.carp", 239);
+                    else UNHANDLED("renderer.carp", 242);
                     _464 = _463;
                 }
-                else UNHANDLED("renderer.carp", 234);
+                else UNHANDLED("renderer.carp", 237);
                 _465 = _464;
             }
-            else UNHANDLED("renderer.carp", 230);
+            else UNHANDLED("renderer.carp", 233);
             _466 = _465;
         }
-        else UNHANDLED("renderer.carp", 227);
+        else UNHANDLED("renderer.carp", 230);
         _467 = _466;
     }
     return _467;
@@ -23482,7 +23489,7 @@ void Renderer_draw(Engine* eng, Renderer* ren, Camera* cam) {
                     Renderer_set_MINUS_width_BANG_(ren, curr_MINUS_w);
                     Renderer_set_MINUS_height_BANG_(ren, curr_MINUS_h);
                 }
-                else UNHANDLED("renderer.carp", 364);
+                else UNHANDLED("renderer.carp", 367);
             }
         } else {
             /* () */
@@ -23527,7 +23534,7 @@ void Renderer_draw(Engine* eng, Renderer* ren, Camera* cam) {
                 CameraMat4_delete(vp);
             }
         }
-        else UNHANDLED("renderer.carp", 372);
+        else UNHANDLED("renderer.carp", 375);
     }
 }
 
@@ -23986,11 +23993,11 @@ void Renderer_update_MINUS_chunk_MINUS_texture(Engine* eng, Renderer* ren, int q
         WGPUContext** _14 = Engine_ctx(eng);
         WGPUContext* _15 = Pointer_copy__WGPUContext(_14);
         WGPUContext* ctx = _15;
-        int _20 = Renderer_positive_MINUS_mod(qx, 2);
+        int _20 = Renderer_positive_MINUS_mod(qx, 4);
         int tx = _20;
-        int _25 = Renderer_positive_MINUS_mod(qy, 2);
+        int _25 = Renderer_positive_MINUS_mod(qy, 4);
         int ty = _25;
-        int _30 = Renderer_positive_MINUS_mod(qz, 2);
+        int _30 = Renderer_positive_MINUS_mod(qz, 4);
         int tz = _30;
         int _35 = Int__MUL_(tx, 32);
         int offset_MINUS_x = _35;
@@ -27634,17 +27641,17 @@ World World_create() {
         Array__Chunk world_MINUS_chunks = _9;
         /* let */ {
             int z = 0;
-            bool _1000008 = Int__LT_(z, 2);
+            bool _1000008 = Int__LT_(z, 4);
             bool _1000006 = _1000008;
             while (_1000006) {
                 /* let */ {
                     int y = 0;
-                    bool _1000015 = Int__LT_(y, 2);
+                    bool _1000015 = Int__LT_(y, 4);
                     bool _1000013 = _1000015;
                     while (_1000013) {
                         /* let */ {
                             int x = 0;
-                            bool _1000022 = Int__LT_(x, 2);
+                            bool _1000022 = Int__LT_(x, 4);
                             bool _1000020 = _1000022;
                             while (_1000020) {
                                 Array__Chunk* _45 = &world_MINUS_chunks; // ref
@@ -27653,19 +27660,19 @@ World World_create() {
                                 Array_push_MINUS_back_BANG___Chunk(_45, _53);
                                 int _1000027 = Int__PLUS_(x, 1);
                                 x = _1000027;  // Int = Int
-                                bool _1000022 = Int__LT_(x, 2);
+                                bool _1000022 = Int__LT_(x, 4);
                                 _1000020 = _1000022;
                             }
                         }
                         int _1000030 = Int__PLUS_(y, 1);
                         y = _1000030;  // Int = Int
-                        bool _1000015 = Int__LT_(y, 2);
+                        bool _1000015 = Int__LT_(y, 4);
                         _1000013 = _1000015;
                     }
                 }
                 int _1000033 = Int__PLUS_(z, 1);
                 z = _1000033;  // Int = Int
-                bool _1000008 = Int__LT_(z, 2);
+                bool _1000008 = Int__LT_(z, 4);
                 _1000006 = _1000008;
             }
         }
