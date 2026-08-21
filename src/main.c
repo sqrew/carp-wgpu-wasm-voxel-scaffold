@@ -1185,6 +1185,9 @@ typedef double(*Fn__NoiseState_MUL__double_double_double_double)(NoiseState*, do
 typedef Chunk(*Fn__NoiseState_MUL__int_int_int_Chunk)(NoiseState*, int, int, int);
 
 // Depth 9
+typedef NoiseState(*Fn__NoiseState_NoiseState)(NoiseState);
+
+// Depth 9
 typedef NoiseState(*Fn__int_NoiseState)(int);
 
 // Depth 9
@@ -1242,6 +1245,7 @@ typedef Maybe__Chunk(*Fn___Maybe__Chunk)();
 struct World {
     Array__Chunk chunks;
     int voxel_MINUS_resolution;
+    NoiseState noise_MINUS_state;
 };
 
 // Depth 12
@@ -1259,14 +1263,20 @@ typedef int(*Fn__Array__Chunk_MUL__int)(Array__Chunk*);
 // Depth 12
 typedef Chunk*(*Fn__Array__Chunk_MUL__int_Chunk_MUL_)(Array__Chunk*, int);
 
+// Depth 12
+typedef void(*Fn__Array__Chunk_MUL__int_Chunk_void)(Array__Chunk*, int, Chunk);
+
 // Depth 14
-typedef World(*Fn__Array__Chunk_int_World)(Array__Chunk, int);
+typedef World(*Fn__Array__Chunk_int_NoiseState_World)(Array__Chunk, int, NoiseState);
 
 // Depth 14
 typedef Array__Chunk*(*Fn__World_MUL__Array__Chunk_MUL_)(World*);
 
 // Depth 14
 typedef void(*Fn__World_MUL__Camera_MUL__double_double_MUL__bool_MUL__void)(World*, Camera*, double, double*, bool*);
+
+// Depth 14
+typedef NoiseState*(*Fn__World_MUL__NoiseState_MUL_)(World*);
 
 // Depth 14
 typedef String(*Fn__World_MUL__String)(World*);
@@ -3083,6 +3093,9 @@ typedef Result__LinePassRenderer_String(*Fn__WGPUContext_MUL__String_MUL__int_Re
 // Depth 108
 typedef Renderer(*Fn__WGPURenderPipelineWrapper_MUL__WGPUBindGroup_WGPUUniformBufferWrapper_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPUSampler_LinePassRenderer_Array__Line_WGPUDepthTexture_MUL__int_int_Renderer)(WGPURenderPipelineWrapper*, WGPUBindGroup, WGPUUniformBufferWrapper*, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*, WGPUSampler, LinePassRenderer, Array__Line, WGPUDepthTexture*, int, int);
 
+// Depth 108
+typedef void(*Fn__World_MUL__Engine_MUL__Renderer_MUL__Vector3__double_MUL__void)(World*, Engine*, Renderer*, Vector3__double*);
+
 // Depth 109
 typedef Array__ActiveTimer(*Fn__Array__ActiveTimer_Array__ActiveTimer)(Array__ActiveTimer);
 
@@ -3493,6 +3506,9 @@ typedef JobHandle*(*Fn__LambdaEnv_JobHandle_MUL__JobHandle_MUL_)(LambdaEnv, JobH
 typedef LinePassRenderer(*Fn__LambdaEnv_LinePassRenderer_LinePassRenderer)(LambdaEnv, LinePassRenderer);
 
 // Depth 505
+typedef NoiseState(*Fn__LambdaEnv_NoiseState_NoiseState)(LambdaEnv, NoiseState);
+
+// Depth 505
 typedef Renderer(*Fn__LambdaEnv_Renderer_Renderer)(LambdaEnv, Renderer);
 
 // Depth 505
@@ -3897,6 +3913,9 @@ void Array_aset_BANG___ActiveTimer (Array *aRef, int n, ActiveTimer newValue);
 
 // Depth 500
 void Array_aset_BANG___Char (Array *aRef, int n, Char newValue);
+
+// Depth 500
+void Array_aset_BANG___Chunk (Array *aRef, int n, Chunk newValue);
 
 // Depth 500
 void Array_aset_BANG___float (Array *aRef, int n, float newValue);
@@ -5409,6 +5428,9 @@ EngineState EngineState_init(Engine eng, Renderer renderer, World world, Camera 
 bool* EngineState_on_MINUS_ground(EngineState* p);
 
 // Depth 500
+int EngineState_positive_MINUS_mod(int n, int m);
+
+// Depth 500
 String EngineState_prn(EngineState *p);
 
 // Depth 500
@@ -5491,6 +5513,9 @@ void EngineState_set_MINUS_world_BANG_(EngineState* pRef, World newValue);
 
 // Depth 500
 String EngineState_str(EngineState *p);
+
+// Depth 500
+void EngineState_stream_MINUS_chunks_BANG_(World* world, Engine* eng, Renderer* ren, Vector3__double* cam_MINUS_pos);
 
 // Depth 500
 void EngineState_tick(EngineState* state, GLFWwindow* win, double dt, bool* first_MINUS_mouse_MINUS_ptr, double* last_MINUS_x_MINUS_ptr, double* last_MINUS_y_MINUS_ptr);
@@ -6794,6 +6819,9 @@ WGPURenderTexture** Renderer_liquid_MINUS_texture(Renderer* p);
 
 // Depth 500
 WGPURenderPipelineWrapper** Renderer_pipeline(Renderer* p);
+
+// Depth 500
+int Renderer_positive_MINUS_mod(int n, int m);
 
 // Depth 500
 String Renderer_prn(Renderer *p);
@@ -8194,7 +8222,10 @@ Array__ChunkCoord World_edit_MINUS_sdf_BANG_(World* world, Vector3__double* hit_
 Maybe__Chunk World_find_MINUS_chunk(World* world, int qx, int qy, int qz);
 
 // Depth 500
-World World_init(Array__Chunk chunks, int voxel_MINUS_resolution);
+World World_init(Array__Chunk chunks, int voxel_MINUS_resolution, NoiseState noise_MINUS_state);
+
+// Depth 500
+NoiseState* World_noise_MINUS_state(World* p);
 
 // Depth 500
 String World_prn(World *p);
@@ -8212,6 +8243,12 @@ World World_set_MINUS_chunks(World p, Array__Chunk newValue);
 void World_set_MINUS_chunks_BANG_(World* pRef, Array__Chunk newValue);
 
 // Depth 500
+World World_set_MINUS_noise_MINUS_state(World p, NoiseState newValue);
+
+// Depth 500
+void World_set_MINUS_noise_MINUS_state_BANG_(World* pRef, NoiseState newValue);
+
+// Depth 500
 World World_set_MINUS_voxel_MINUS_resolution(World p, int newValue);
 
 // Depth 500
@@ -8222,6 +8259,9 @@ String World_str(World *p);
 
 // Depth 500
 World World_update_MINUS_chunks(World p, Lambda *updater);
+
+// Depth 500
+World World_update_MINUS_noise_MINUS_state(World p, Lambda *updater);
 
 // Depth 500
 World World_update_MINUS_voxel_MINUS_resolution(World p, Lambda *updater);
@@ -8795,6 +8835,15 @@ void Array_aset_BANG___Char (Array *aRef, int n, Char newValue) {
     /* Ignore non-managed type inside Array: 'Char' */
 
     ((Char*)a.data)[n] = newValue;
+}
+
+void Array_aset_BANG___Chunk (Array *aRef, int n, Chunk newValue) {
+    Array a = *aRef;
+    assert(n >= 0);
+    assert(n < a.len);
+    Chunk_delete(((Chunk*)a.data)[n]);
+
+    ((Chunk*)a.data)[n] = newValue;
 }
 
 void Array_aset_BANG___float (Array *aRef, int n, float newValue) {
@@ -17101,6 +17150,26 @@ EngineState EngineState_init(Engine eng, Renderer renderer, World world, Camera 
 
 bool* EngineState_on_MINUS_ground(EngineState* p) { return (&(p->on_MINUS_ground)); }
 
+int EngineState_positive_MINUS_mod(int n, int m) {
+    int _27;
+    /* let */ {
+        int _10 = Int_mod(n, m);
+        int r = _10;
+        int _26;
+        bool _16 = Int__LT_(r, 0);
+        if (_16) {
+            int _21 = Int__PLUS_(r, m);
+            int _22 = _21;
+            _26 = _22;
+        } else {
+            int _25 = r;
+            _26 = _25;
+        }
+        _27 = _26;
+    }
+    return _27;
+}
+
 String EngineState_prn(EngineState *p) {
   // convert members to String here:
   String temp = NULL;
@@ -17695,6 +17764,127 @@ String EngineState_str(EngineState *p) {
   return buffer;
 }
 
+void EngineState_stream_MINUS_chunks_BANG_(World* world, Engine* eng, Renderer* ren, Vector3__double* cam_MINUS_pos) {
+    /* let */ {
+        double* _15 = Vector3_x__double(cam_MINUS_pos);
+        double _16 = Double_copy(_15);
+        double _18 = Double__DIV_(_16, 32.0);
+        double _19 = Double_floor(_18);
+        int _20 = Double_to_MINUS_int(_19);
+        int cx = _20;
+        double* _28 = Vector3_y__double(cam_MINUS_pos);
+        double _29 = Double_copy(_28);
+        double _31 = Double__DIV_(_29, 32.0);
+        double _32 = Double_floor(_31);
+        int _33 = Double_to_MINUS_int(_32);
+        int cy = _33;
+        double* _41 = Vector3_z__double(cam_MINUS_pos);
+        double _42 = Double_copy(_41);
+        double _44 = Double__DIV_(_42, 32.0);
+        double _45 = Double_floor(_44);
+        int _46 = Double_to_MINUS_int(_45);
+        int cz = _46;
+        Array__Chunk* _50 = World_chunks(world);
+        Array__Chunk* chunks = _50;
+        NoiseState* _54 = World_noise_MINUS_state(world);
+        NoiseState* noise = _54;
+        /* let */ {
+            int lz = 0;
+            bool _1000008 = Int__LT_(lz, 2);
+            bool _1000006 = _1000008;
+            while (_1000006) {
+                /* let */ {
+                    int ly = 0;
+                    bool _1000015 = Int__LT_(ly, 2);
+                    bool _1000013 = _1000015;
+                    while (_1000013) {
+                        /* let */ {
+                            int lx = 0;
+                            bool _1000022 = Int__LT_(lx, 2);
+                            bool _1000020 = _1000022;
+                            while (_1000020) {
+                                /* let */ {
+                                    int _93 = Int__PLUS_(cx, lx);
+                                    int _95 = Int__MINUS_(_93, 1);
+                                    int qx = _95;
+                                    int _101 = Int__PLUS_(cy, ly);
+                                    int _103 = Int__MINUS_(_101, 1);
+                                    int qy = _103;
+                                    int _109 = Int__PLUS_(cz, lz);
+                                    int _111 = Int__MINUS_(_109, 1);
+                                    int qz = _111;
+                                    int _116 = EngineState_positive_MINUS_mod(qx, 2);
+                                    int tx = _116;
+                                    int _121 = EngineState_positive_MINUS_mod(qy, 2);
+                                    int ty = _121;
+                                    int _126 = EngineState_positive_MINUS_mod(qz, 2);
+                                    int tz = _126;
+                                    int _134 = Int__MUL_(ty, 2);
+                                    int _138 = Int__MUL_(tz, 4);
+                                    int _139 = Int__PLUS_(_134, _138);
+                                    int _140 = Int__PLUS_(tx, _139);
+                                    int slot_MINUS_idx = _140;
+                                    Chunk* _145 = Array_unsafe_MINUS_nth__Chunk(chunks, slot_MINUS_idx);
+                                    Chunk* current_MINUS_chunk = _145;
+                                    bool _185;
+                                    int* _153 = Chunk_coord_MINUS_x(current_MINUS_chunk);
+                                    int _154 = Int_copy(_153);
+                                    bool _156 = _DIV__EQ___int(_154, qx);
+                                    if (_156) {
+                                        bool _159 = true;
+                                        _185 = _159;
+                                    } else {
+                                        bool _183;
+                                        int* _166 = Chunk_coord_MINUS_y(current_MINUS_chunk);
+                                        int _167 = Int_copy(_166);
+                                        bool _169 = _DIV__EQ___int(_167, qy);
+                                        if (_169) {
+                                            bool _172 = true;
+                                            _183 = _172;
+                                        } else {
+                                            int* _178 = Chunk_coord_MINUS_z(current_MINUS_chunk);
+                                            int _179 = Int_copy(_178);
+                                            bool _181 = _DIV__EQ___int(_179, qz);
+                                            bool _182 = _181;
+                                            _183 = _182;
+                                        }
+                                        bool _184 = _183;
+                                        _185 = _184;
+                                    }
+                                    if (_185) {
+                                        /* let */ {
+                                            Chunk _194 = Chunk_create(noise, qx, qy, qz);
+                                            Chunk new_MINUS_chunk = _194;
+                                            Chunk* _206 = &new_MINUS_chunk; // ref
+                                            Array__float* _207 = Chunk_voxel_MINUS_data(_206);
+                                            Renderer_update_MINUS_chunk_MINUS_texture(eng, ren, qx, qy, qz, _207);
+                                            Array_aset_BANG___Chunk(chunks, slot_MINUS_idx, new_MINUS_chunk);
+                                        }
+                                    } else {
+                                        /* () */
+                                    }
+                                }
+                                int _1000039 = Int__PLUS_(lx, 1);
+                                lx = _1000039;  // Int = Int
+                                bool _1000022 = Int__LT_(lx, 2);
+                                _1000020 = _1000022;
+                            }
+                        }
+                        int _1000042 = Int__PLUS_(ly, 1);
+                        ly = _1000042;  // Int = Int
+                        bool _1000015 = Int__LT_(ly, 2);
+                        _1000013 = _1000015;
+                    }
+                }
+                int _1000045 = Int__PLUS_(lz, 1);
+                lz = _1000045;  // Int = Int
+                bool _1000008 = Int__LT_(lz, 2);
+                _1000006 = _1000008;
+            }
+        }
+    }
+}
+
 void EngineState_tick(EngineState* state, GLFWwindow* win, double dt, bool* first_MINUS_mouse_MINUS_ptr, double* last_MINUS_x_MINUS_ptr, double* last_MINUS_y_MINUS_ptr) {
     /* let */ {
         Engine* _13 = EngineState_eng(state);
@@ -17871,129 +18061,168 @@ void EngineState_tick(EngineState* state, GLFWwindow* win, double dt, bool* firs
         bool* _388 = EngineState_on_MINUS_ground(state);
         bool* _389 = ref_MINUS_to_MINUS_ptr__bool(_388);
         EngineState_resolve_MINUS_camera_MINUS_collision_BANG_(_377, cam, 0.8, _384, _389);
-        static String _393 = "Input & Camera";
-        String *_393_ref = &_393;
-        Diagnostics_end_MINUS_zone_BANG_(diag, _393_ref);
+        World* _394 = EngineState_world(state);
+        Vector3__double* _399 = Camera_pos(cam);
+        EngineState_stream_MINUS_chunks_BANG_(_394, platform_MINUS_eng, ren, _399);
+        static String _403 = "Input & Camera";
+        String *_403_ref = &_403;
+        Diagnostics_end_MINUS_zone_BANG_(diag, _403_ref);
         /* let */ {
-            Vector3__double _401 = Vector3_init__double(1.0, 0.1, 0.1);
-            Vector3__double red_MINUS_color = _401;
-            Vector3__double* _413 = &red_MINUS_color; // ref
-            EngineState_draw_MINUS_bounds_MINUS_wireframe_BANG_(ren, 0.0, 0.0, 0.0, 64.0, 64.0, 64.0, _413);
+            Vector3__double* _414 = Camera_pos(cam);
+            double* _415 = Vector3_x__double(_414);
+            double _416 = Double_copy(_415);
+            double _418 = Double__DIV_(_416, 32.0);
+            double _419 = Double_floor(_418);
+            int _420 = Double_to_MINUS_int(_419);
+            int cx = _420;
+            Vector3__double* _429 = Camera_pos(cam);
+            double* _430 = Vector3_y__double(_429);
+            double _431 = Double_copy(_430);
+            double _433 = Double__DIV_(_431, 32.0);
+            double _434 = Double_floor(_433);
+            int _435 = Double_to_MINUS_int(_434);
+            int cy = _435;
+            Vector3__double* _444 = Camera_pos(cam);
+            double* _445 = Vector3_z__double(_444);
+            double _446 = Double_copy(_445);
+            double _448 = Double__DIV_(_446, 32.0);
+            double _449 = Double_floor(_448);
+            int _450 = Double_to_MINUS_int(_449);
+            int cz = _450;
+            int _457 = Int__MINUS_(cx, 1);
+            int _459 = Int__MUL_(_457, 32);
+            double _460 = Double_from_MINUS_int(_459);
+            double bx = _460;
+            int _467 = Int__MINUS_(cy, 1);
+            int _469 = Int__MUL_(_467, 32);
+            double _470 = Double_from_MINUS_int(_469);
+            double by = _470;
+            int _477 = Int__MINUS_(cz, 1);
+            int _479 = Int__MUL_(_477, 32);
+            double _480 = Double_from_MINUS_int(_479);
+            double bz = _480;
+            Vector3__double _486 = Vector3_init__double(1.0, 0.1, 0.1);
+            Vector3__double red_MINUS_color = _486;
+            double _496 = Double__PLUS_(bx, 64.0);
+            double _500 = Double__PLUS_(by, 64.0);
+            double _504 = Double__PLUS_(bz, 64.0);
+            Vector3__double* _507 = &red_MINUS_color; // ref
+            EngineState_draw_MINUS_bounds_MINUS_wireframe_BANG_(ren, bx, by, bz, _496, _500, _504, _507);
             Vector3_delete__double(red_MINUS_color);
         }
         /* let */ {
-            Vector3__double* _420 = Camera_pos(cam);
-            Vector3__double* ro = _420;
-            Vector3__double* _424 = Camera_front(cam);
-            Vector3__double* rd = _424;
-            World* _428 = EngineState_world(state);
-            World* world = _428;
-            Maybe__Vector3__double _435 = World_raycast(world, ro, rd, 80.0);
-            Maybe__Vector3__double hit_MINUS_opt = _435;
+            Vector3__double* _514 = Camera_pos(cam);
+            Vector3__double* ro = _514;
+            Vector3__double* _518 = Camera_front(cam);
+            Vector3__double* rd = _518;
+            World* _522 = EngineState_world(state);
+            World* world = _522;
+            Maybe__Vector3__double _529 = World_raycast(world, ro, rd, 80.0);
+            Maybe__Vector3__double hit_MINUS_opt = _529;
             if(hit_MINUS_opt._tag == Maybe__Vector3__double_Nothing_tag) {
-                Maybe__Vector3__double _438_temp = hit_MINUS_opt;
+                Maybe__Vector3__double _532_temp = hit_MINUS_opt;
                 // Case expr:
                 /* () */
             }
             else if(hit_MINUS_opt._tag == Maybe__Vector3__double_Just_tag) {
-                Maybe__Vector3__double _438_temp = hit_MINUS_opt;
-                Vector3__double hit_MINUS_pos = _438_temp.u.Just.member0;
+                Maybe__Vector3__double _532_temp = hit_MINUS_opt;
+                Vector3__double hit_MINUS_pos = _532_temp.u.Just.member0;
                 // Case expr:
                 /* let */ {
-                    Vector3__double _452 = Vector3_init__double(1.0, 1.0, 0.0);
-                    Vector3__double yellow = _452;
-                    Vector3__double* _458 = &hit_MINUS_pos; // ref
-                    double* _459 = Vector3_x__double(_458);
-                    double _460 = Double_copy(_459);
-                    double hx = _460;
-                    Vector3__double* _466 = &hit_MINUS_pos; // ref
-                    double* _467 = Vector3_y__double(_466);
-                    double _468 = Double_copy(_467);
-                    double hy = _468;
-                    Vector3__double* _474 = &hit_MINUS_pos; // ref
-                    double* _475 = Vector3_z__double(_474);
-                    double _476 = Double_copy(_475);
-                    double hz = _476;
-                    double _483 = Double__MINUS_(hx, 0.5);
-                    double _487 = Double__MINUS_(hy, 0.5);
-                    double _491 = Double__MINUS_(hz, 0.5);
-                    double _495 = Double__PLUS_(hx, 0.5);
-                    double _499 = Double__PLUS_(hy, 0.5);
-                    double _503 = Double__PLUS_(hz, 0.5);
-                    Vector3__double* _506 = &yellow; // ref
-                    EngineState_draw_MINUS_bounds_MINUS_wireframe_BANG_(ren, _483, _487, _491, _495, _499, _503, _506);
+                    Vector3__double _546 = Vector3_init__double(1.0, 1.0, 0.0);
+                    Vector3__double yellow = _546;
+                    Vector3__double* _552 = &hit_MINUS_pos; // ref
+                    double* _553 = Vector3_x__double(_552);
+                    double _554 = Double_copy(_553);
+                    double hx = _554;
+                    Vector3__double* _560 = &hit_MINUS_pos; // ref
+                    double* _561 = Vector3_y__double(_560);
+                    double _562 = Double_copy(_561);
+                    double hy = _562;
+                    Vector3__double* _568 = &hit_MINUS_pos; // ref
+                    double* _569 = Vector3_z__double(_568);
+                    double _570 = Double_copy(_569);
+                    double hz = _570;
+                    double _577 = Double__MINUS_(hx, 0.5);
+                    double _581 = Double__MINUS_(hy, 0.5);
+                    double _585 = Double__MINUS_(hz, 0.5);
+                    double _589 = Double__PLUS_(hx, 0.5);
+                    double _593 = Double__PLUS_(hy, 0.5);
+                    double _597 = Double__PLUS_(hz, 0.5);
+                    Vector3__double* _600 = &yellow; // ref
+                    EngineState_draw_MINUS_bounds_MINUS_wireframe_BANG_(ren, _577, _581, _585, _589, _593, _597, _600);
                     Vector3_delete__double(yellow);
                 }
                 /* let */ {
-                    int _515 = glfwGetMouseButton(win, 0);
-                    bool _517 = Int__EQ_(_515, GLFW_PRESS);
-                    bool left_MINUS_pressed = _517;
-                    int _523 = glfwGetMouseButton(win, 1);
-                    bool _525 = Int__EQ_(_523, GLFW_PRESS);
-                    bool right_MINUS_pressed = _525;
-                    bool _536;
+                    int _609 = glfwGetMouseButton(win, 0);
+                    bool _611 = Int__EQ_(_609, GLFW_PRESS);
+                    bool left_MINUS_pressed = _611;
+                    int _617 = glfwGetMouseButton(win, 1);
+                    bool _619 = Int__EQ_(_617, GLFW_PRESS);
+                    bool right_MINUS_pressed = _619;
+                    bool _630;
                     if (left_MINUS_pressed) {
-                        bool _532 = true;
-                        _536 = _532;
+                        bool _626 = true;
+                        _630 = _626;
                     } else {
-                        bool _535 = right_MINUS_pressed;
-                        _536 = _535;
+                        bool _629 = right_MINUS_pressed;
+                        _630 = _629;
                     }
-                    if (_536) {
+                    if (_630) {
                         /* let */ {
-                            double* _543 = EngineState_edit_MINUS_radius(state);
-                            double _544 = Double_copy(_543);
-                            double radius = _544;
-                            float* _549 = EngineState_current_MINUS_mat(state);
-                            float _550 = Float_copy(_549);
-                            float mat_MINUS_id = _550;
+                            double* _637 = EngineState_edit_MINUS_radius(state);
+                            double _638 = Double_copy(_637);
+                            double radius = _638;
+                            float* _643 = EngineState_current_MINUS_mat(state);
+                            float _644 = Float_copy(_643);
+                            float mat_MINUS_id = _644;
                             bool carve_QMARK_ = left_MINUS_pressed;
-                            Vector3__double* _558 = &hit_MINUS_pos; // ref
-                            Array__ChunkCoord _562 = World_edit_MINUS_sdf_BANG_(world, _558, radius, mat_MINUS_id, carve_QMARK_);
-                            Array__ChunkCoord modified_MINUS_coords = _562;
+                            Vector3__double* _652 = &hit_MINUS_pos; // ref
+                            Array__ChunkCoord _656 = World_edit_MINUS_sdf_BANG_(world, _652, radius, mat_MINUS_id, carve_QMARK_);
+                            Array__ChunkCoord modified_MINUS_coords = _656;
                             /* let */ {
                                 int j = 0;
-                                Array__ChunkCoord* _575 = &modified_MINUS_coords; // ref
-                                int _576 = Array_length__ChunkCoord(_575);
-                                bool _1000064 = Int__LT_(j, _576);
+                                Array__ChunkCoord* _669 = &modified_MINUS_coords; // ref
+                                int _670 = Array_length__ChunkCoord(_669);
+                                bool _1000064 = Int__LT_(j, _670);
                                 bool _1000062 = _1000064;
                                 while (_1000062) {
                                     /* let */ {
-                                        Array__ChunkCoord* _584 = &modified_MINUS_coords; // ref
-                                        ChunkCoord* _586 = Array_unsafe_MINUS_nth__ChunkCoord(_584, j);
-                                        ChunkCoord* coord = _586;
-                                        int* _591 = ChunkCoord_x(coord);
-                                        int _592 = Int_copy(_591);
-                                        int qx = _592;
-                                        int* _597 = ChunkCoord_y(coord);
-                                        int _598 = Int_copy(_597);
-                                        int qy = _598;
-                                        int* _603 = ChunkCoord_z(coord);
-                                        int _604 = Int_copy(_603);
-                                        int qz = _604;
-                                        Maybe__Chunk _611 = World_find_MINUS_chunk(world, qx, qy, qz);
-                                        Maybe__Chunk chunk_MINUS_opt = _611;
+                                        Array__ChunkCoord* _678 = &modified_MINUS_coords; // ref
+                                        ChunkCoord* _680 = Array_unsafe_MINUS_nth__ChunkCoord(_678, j);
+                                        ChunkCoord* coord = _680;
+                                        int* _685 = ChunkCoord_x(coord);
+                                        int _686 = Int_copy(_685);
+                                        int qx = _686;
+                                        int* _691 = ChunkCoord_y(coord);
+                                        int _692 = Int_copy(_691);
+                                        int qy = _692;
+                                        int* _697 = ChunkCoord_z(coord);
+                                        int _698 = Int_copy(_697);
+                                        int qz = _698;
+                                        Maybe__Chunk _705 = World_find_MINUS_chunk(world, qx, qy, qz);
+                                        Maybe__Chunk chunk_MINUS_opt = _705;
                                         if(chunk_MINUS_opt._tag == Maybe__Chunk_Nothing_tag) {
-                                            Maybe__Chunk _614_temp = chunk_MINUS_opt;
+                                            Maybe__Chunk _708_temp = chunk_MINUS_opt;
                                             // Case expr:
                                             /* () */
                                         }
                                         else if(chunk_MINUS_opt._tag == Maybe__Chunk_Just_tag) {
-                                            Maybe__Chunk _614_temp = chunk_MINUS_opt;
-                                            Chunk chunk = _614_temp.u.Just.member0;
+                                            Maybe__Chunk _708_temp = chunk_MINUS_opt;
+                                            Chunk chunk = _708_temp.u.Just.member0;
                                             // Case expr:
-                                            Chunk* _630 = &chunk; // ref
-                                            Array__float* _631 = Chunk_voxel_MINUS_data(_630);
-                                            Renderer_update_MINUS_chunk_MINUS_texture(platform_MINUS_eng, ren, qx, qy, qz, _631);
+                                            Chunk* _724 = &chunk; // ref
+                                            Array__float* _725 = Chunk_voxel_MINUS_data(_724);
+                                            Renderer_update_MINUS_chunk_MINUS_texture(platform_MINUS_eng, ren, qx, qy, qz, _725);
                                             Chunk_delete(chunk);
                                         }
-                                        else UNHANDLED("engine.carp", 201);
+                                        else UNHANDLED("engine.carp", 240);
                                     }
                                     int _1000071 = Int__PLUS_(j, 1);
                                     j = _1000071;  // Int = Int
-                                    Array__ChunkCoord* _575 = &modified_MINUS_coords; // ref
-                                    int _576 = Array_length__ChunkCoord(_575);
-                                    bool _1000064 = Int__LT_(j, _576);
+                                    Array__ChunkCoord* _669 = &modified_MINUS_coords; // ref
+                                    int _670 = Array_length__ChunkCoord(_669);
+                                    bool _1000064 = Int__LT_(j, _670);
                                     _1000062 = _1000064;
                                 }
                             }
@@ -18005,34 +18234,34 @@ void EngineState_tick(EngineState* state, GLFWwindow* win, double dt, bool* firs
                 }
                 Vector3_delete__double(hit_MINUS_pos);
             }
-            else UNHANDLED("engine.carp", 175);
+            else UNHANDLED("engine.carp", 214);
         }
         Engine_handle_MINUS_resize(platform_MINUS_eng);
-        static String _661 = "Renderer & Draw";
-        String *_661_ref = &_661;
-        Diagnostics_start_MINUS_zone_BANG_(diag, _661_ref);
-        Array__float* _669 = EngineState_uniforms(state);
-        Renderer_update_MINUS_uniforms(platform_MINUS_eng, ren, cam, _669);
+        static String _755 = "Renderer & Draw";
+        String *_755_ref = &_755;
+        Diagnostics_start_MINUS_zone_BANG_(diag, _755_ref);
+        Array__float* _763 = EngineState_uniforms(state);
+        Renderer_update_MINUS_uniforms(platform_MINUS_eng, ren, cam, _763);
         Renderer_draw(platform_MINUS_eng, ren, cam);
-        static String _678 = "Renderer & Draw";
-        String *_678_ref = &_678;
-        Diagnostics_end_MINUS_zone_BANG_(diag, _678_ref);
+        static String _772 = "Renderer & Draw";
+        String *_772_ref = &_772;
+        Diagnostics_end_MINUS_zone_BANG_(diag, _772_ref);
         Engine_poll_MINUS_events__Engine_MUL_(platform_MINUS_eng);
-        static String _685 = "Total Frame Time";
-        String *_685_ref = &_685;
-        Diagnostics_end_MINUS_zone_BANG_(diag, _685_ref);
+        static String _779 = "Total Frame Time";
+        String *_779_ref = &_779;
+        Diagnostics_end_MINUS_zone_BANG_(diag, _779_ref);
         /* let */ {
-            int* _692 = EngineState_frame_MINUS_count(state);
-            int* _693 = ref_MINUS_to_MINUS_ptr__int(_692);
-            int* p_MINUS_frames = _693;
-            int _697 = Pointer_to_MINUS_value__int(p_MINUS_frames);
-            int curr_MINUS_frames = _697;
-            int _701 = Int_inc(curr_MINUS_frames);
-            int next_MINUS_frames = _701;
+            int* _786 = EngineState_frame_MINUS_count(state);
+            int* _787 = ref_MINUS_to_MINUS_ptr__int(_786);
+            int* p_MINUS_frames = _787;
+            int _791 = Pointer_to_MINUS_value__int(p_MINUS_frames);
+            int curr_MINUS_frames = _791;
+            int _795 = Int_inc(curr_MINUS_frames);
+            int next_MINUS_frames = _795;
             Pointer_set__int(p_MINUS_frames, next_MINUS_frames);
-            int _713 = Int_mod(next_MINUS_frames, 300);
-            bool _715 = Int__EQ_(_713, 0);
-            if (_715) {
+            int _807 = Int_mod(next_MINUS_frames, 300);
+            bool _809 = Int__EQ_(_807, 0);
+            if (_809) {
                 Diagnostics_print_MINUS_stats_BANG_(diag);
             } else {
                 /* () */
@@ -23253,7 +23482,7 @@ void Renderer_draw(Engine* eng, Renderer* ren, Camera* cam) {
                     Renderer_set_MINUS_width_BANG_(ren, curr_MINUS_w);
                     Renderer_set_MINUS_height_BANG_(ren, curr_MINUS_h);
                 }
-                else UNHANDLED("renderer.carp", 357);
+                else UNHANDLED("renderer.carp", 364);
             }
         } else {
             /* () */
@@ -23298,7 +23527,7 @@ void Renderer_draw(Engine* eng, Renderer* ren, Camera* cam) {
                 CameraMat4_delete(vp);
             }
         }
-        else UNHANDLED("renderer.carp", 365);
+        else UNHANDLED("renderer.carp", 372);
     }
 }
 
@@ -23339,6 +23568,26 @@ Array__Line* Renderer_lines(Renderer* p) { return (&(p->lines)); }
 WGPURenderTexture** Renderer_liquid_MINUS_texture(Renderer* p) { return (&(p->liquid_MINUS_texture)); }
 
 WGPURenderPipelineWrapper** Renderer_pipeline(Renderer* p) { return (&(p->pipeline)); }
+
+int Renderer_positive_MINUS_mod(int n, int m) {
+    int _27;
+    /* let */ {
+        int _10 = Int_mod(n, m);
+        int r = _10;
+        int _26;
+        bool _16 = Int__LT_(r, 0);
+        if (_16) {
+            int _21 = Int__PLUS_(r, m);
+            int _22 = _21;
+            _26 = _22;
+        } else {
+            int _25 = r;
+            _26 = _25;
+        }
+        _27 = _26;
+    }
+    return _27;
+}
 
 String Renderer_prn(Renderer *p) {
   // convert members to String here:
@@ -23737,15 +23986,21 @@ void Renderer_update_MINUS_chunk_MINUS_texture(Engine* eng, Renderer* ren, int q
         WGPUContext** _14 = Engine_ctx(eng);
         WGPUContext* _15 = Pointer_copy__WGPUContext(_14);
         WGPUContext* ctx = _15;
-        int _20 = Int__MUL_(qx, 32);
-        int offset_MINUS_x = _20;
-        int _25 = Int__MUL_(qy, 32);
-        int offset_MINUS_y = _25;
-        int _30 = Int__MUL_(qz, 32);
-        int offset_MINUS_z = _30;
-        WGPURenderTexture** _37 = Renderer_voxel_MINUS_texture(ren);
-        WGPURenderTexture* _38 = Pointer_copy__WGPURenderTexture(_37);
-        WGPURender_update_MINUS_3d_MINUS_texture_MINUS_subregion_MINUS_floats(ctx, _38, offset_MINUS_x, offset_MINUS_y, offset_MINUS_z, 32, 32, 32, chunk_MINUS_data);
+        int _20 = Renderer_positive_MINUS_mod(qx, 2);
+        int tx = _20;
+        int _25 = Renderer_positive_MINUS_mod(qy, 2);
+        int ty = _25;
+        int _30 = Renderer_positive_MINUS_mod(qz, 2);
+        int tz = _30;
+        int _35 = Int__MUL_(tx, 32);
+        int offset_MINUS_x = _35;
+        int _40 = Int__MUL_(ty, 32);
+        int offset_MINUS_y = _40;
+        int _45 = Int__MUL_(tz, 32);
+        int offset_MINUS_z = _45;
+        WGPURenderTexture** _52 = Renderer_voxel_MINUS_texture(ren);
+        WGPURenderTexture* _53 = Pointer_copy__WGPURenderTexture(_52);
+        WGPURender_update_MINUS_3d_MINUS_texture_MINUS_subregion_MINUS_floats(ctx, _53, offset_MINUS_x, offset_MINUS_y, offset_MINUS_z, 32, 32, 32, chunk_MINUS_data);
     }
 }
 
@@ -27366,11 +27621,12 @@ World World_copy(World* pRef) {
     World copy = *pRef;
     copy.chunks = Array_copy__Chunk(&(pRef->chunks));
     /* Ignore non-managed member 'voxel_MINUS_resolution' : Int */
+    copy.noise_MINUS_state = NoiseState_copy(&(pRef->noise_MINUS_state));
     return copy;
 }
 
 World World_create() {
-    World _90;
+    World _91;
     /* let */ {
         NoiseState _7 = Noise_make_MINUS_noise(1337);
         NoiseState noise_MINUS_state = _7;
@@ -27413,17 +27669,17 @@ World World_create() {
                 _1000006 = _1000008;
             }
         }
-        World _88 = World_init(world_MINUS_chunks, 32);
-        World _89 = _88;
-        _90 = _89;
-        NoiseState_delete(noise_MINUS_state);
+        World _89 = World_init(world_MINUS_chunks, 32, noise_MINUS_state);
+        World _90 = _89;
+        _91 = _90;
     }
-    return _90;
+    return _91;
 }
 
 void World_delete(World p) {
     Array_delete__Chunk(p.chunks);
     /* Ignore non-managed member 'voxel_MINUS_resolution' : Int */
+    NoiseState_delete(p.noise_MINUS_state);
 }
 
 Array__ChunkCoord World_edit_MINUS_sdf_BANG_(World* world, Vector3__double* hit_MINUS_pos, double radius, float mat_MINUS_id, bool carve_QMARK_) {
@@ -27703,12 +27959,15 @@ Maybe__Chunk World_find_MINUS_chunk(World* world, int qx, int qy, int qz) {
     return _104;
 }
 
-World World_init(Array__Chunk chunks, int voxel_MINUS_resolution) {
+World World_init(Array__Chunk chunks, int voxel_MINUS_resolution, NoiseState noise_MINUS_state) {
     World instance;
     instance.chunks = chunks;
     instance.voxel_MINUS_resolution = voxel_MINUS_resolution;
+    instance.noise_MINUS_state = noise_MINUS_state;
     return instance;
 }
+
+NoiseState* World_noise_MINUS_state(World* p) { return (&(p->noise_MINUS_state)); }
 
 String World_prn(World *p) {
   // convert members to String here:
@@ -27724,6 +27983,10 @@ String World_prn(World *p) {
   size += snprintf(NULL, 0, "%s ", temp);
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
+  temp = NoiseState_prn(&p->noise_MINUS_state); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
 
   String buffer = CARP_MALLOC(size);
   String bufferPtr = buffer;
@@ -27735,6 +27998,11 @@ String World_prn(World *p) {
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
   temp = Int_prn(p->voxel_MINUS_resolution);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = NoiseState_prn(&p->noise_MINUS_state);
   tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
   bufferPtr += tempsize;
   if(temp) { CARP_FREE(temp); temp = NULL; }
@@ -27826,7 +28094,7 @@ Maybe__Vector3__double World_raycast(World* world, Vector3__double* ro, Vector3_
 }
 
 float World_sample_MINUS_sdf_MINUS_nearest(World* world, Vector3__double* p) {
-    float _221;
+    float _155;
     /* let */ {
         double* _9 = Vector3_x__double(p);
         double* x = _9;
@@ -27849,115 +28117,61 @@ float World_sample_MINUS_sdf_MINUS_nearest(World* world, Vector3__double* p) {
         double _49 = Double_floor(_48);
         int _50 = Double_to_MINUS_int(_49);
         int qz = _50;
-        float _220;
-        bool _111;
-        bool _68;
-        bool _58 = _GT__EQ___int(qx, 0);
-        if (_58) {
-            bool _63 = Int__LT_(qx, 4);
-            bool _64 = _63;
-            _68 = _64;
-        } else {
-            bool _67 = false;
-            _68 = _67;
+        Maybe__Chunk _58 = World_find_MINUS_chunk(world, qx, qy, qz);
+        float _154;
+        if(_58._tag == Maybe__Chunk_Nothing_tag) {
+            Maybe__Chunk _58_temp = _58;
+            // Case expr:
+            _154 = 1000.0f;
         }
-        if (_68) {
-            bool _106;
-            bool _85;
-            bool _75 = _GT__EQ___int(qy, 0);
-            if (_75) {
-                bool _80 = Int__LT_(qy, 2);
-                bool _81 = _80;
-                _85 = _81;
-            } else {
-                bool _84 = false;
-                _85 = _84;
+        else if(_58._tag == Maybe__Chunk_Just_tag) {
+            Maybe__Chunk _58_temp = _58;
+            Chunk chunk = _58_temp.u.Just.member0;
+            // Case expr:
+            float _153;
+            /* let */ {
+                double _74 = Double_copy(x);
+                int _79 = Int__MUL_(qx, 32);
+                double _80 = Double_from_MINUS_int(_79);
+                double _81 = Double__MINUS_(_74, _80);
+                double _82 = Double_clamp__double(0.0, 31.0, _81);
+                int _83 = Double_to_MINUS_int(_82);
+                int lx = _83;
+                double _92 = Double_copy(y);
+                int _97 = Int__MUL_(qy, 32);
+                double _98 = Double_from_MINUS_int(_97);
+                double _99 = Double__MINUS_(_92, _98);
+                double _100 = Double_clamp__double(0.0, 31.0, _99);
+                int _101 = Double_to_MINUS_int(_100);
+                int ly = _101;
+                double _110 = Double_copy(z);
+                int _115 = Int__MUL_(qz, 32);
+                double _116 = Double_from_MINUS_int(_115);
+                double _117 = Double__MINUS_(_110, _116);
+                double _118 = Double_clamp__double(0.0, 31.0, _117);
+                int _119 = Double_to_MINUS_int(_118);
+                int lz = _119;
+                int _125 = Int__MUL_(lz, 1024);
+                int _130 = Int__MUL_(ly, 32);
+                int _132 = Int__PLUS_(_130, lx);
+                int _133 = Int__PLUS_(_125, _132);
+                int idx = _133;
+                int _138 = Int__MUL_(idx, 4);
+                int offset = _138;
+                Chunk* _145 = &chunk; // ref
+                Array__float* _146 = Chunk_voxel_MINUS_data(_145);
+                int _150 = Int__PLUS_(offset, 1);
+                float* _151 = Array_unsafe_MINUS_nth__float(_146, _150);
+                float _152 = Float_copy(_151);
+                _153 = _152;
             }
-            if (_85) {
-                bool _101;
-                bool _91 = _GT__EQ___int(qz, 0);
-                if (_91) {
-                    bool _96 = Int__LT_(qz, 4);
-                    bool _97 = _96;
-                    _101 = _97;
-                } else {
-                    bool _100 = false;
-                    _101 = _100;
-                }
-                bool _102 = _101;
-                _106 = _102;
-            } else {
-                bool _105 = false;
-                _106 = _105;
-            }
-            bool _107 = _106;
-            _111 = _107;
-        } else {
-            bool _110 = false;
-            _111 = _110;
+            _154 = _153;
+            Chunk_delete(chunk);
         }
-        if (_111) {
-            Maybe__Chunk _119 = World_find_MINUS_chunk(world, qx, qy, qz);
-            float _215;
-            if(_119._tag == Maybe__Chunk_Nothing_tag) {
-                Maybe__Chunk _119_temp = _119;
-                // Case expr:
-                _215 = 1000.0f;
-            }
-            else if(_119._tag == Maybe__Chunk_Just_tag) {
-                Maybe__Chunk _119_temp = _119;
-                Chunk chunk = _119_temp.u.Just.member0;
-                // Case expr:
-                float _214;
-                /* let */ {
-                    double _135 = Double_copy(x);
-                    int _140 = Int__MUL_(qx, 32);
-                    double _141 = Double_from_MINUS_int(_140);
-                    double _142 = Double__MINUS_(_135, _141);
-                    double _143 = Double_clamp__double(0.0, 31.0, _142);
-                    int _144 = Double_to_MINUS_int(_143);
-                    int lx = _144;
-                    double _153 = Double_copy(y);
-                    int _158 = Int__MUL_(qy, 32);
-                    double _159 = Double_from_MINUS_int(_158);
-                    double _160 = Double__MINUS_(_153, _159);
-                    double _161 = Double_clamp__double(0.0, 31.0, _160);
-                    int _162 = Double_to_MINUS_int(_161);
-                    int ly = _162;
-                    double _171 = Double_copy(z);
-                    int _176 = Int__MUL_(qz, 32);
-                    double _177 = Double_from_MINUS_int(_176);
-                    double _178 = Double__MINUS_(_171, _177);
-                    double _179 = Double_clamp__double(0.0, 31.0, _178);
-                    int _180 = Double_to_MINUS_int(_179);
-                    int lz = _180;
-                    int _186 = Int__MUL_(lz, 1024);
-                    int _191 = Int__MUL_(ly, 32);
-                    int _193 = Int__PLUS_(_191, lx);
-                    int _194 = Int__PLUS_(_186, _193);
-                    int idx = _194;
-                    int _199 = Int__MUL_(idx, 4);
-                    int offset = _199;
-                    Chunk* _206 = &chunk; // ref
-                    Array__float* _207 = Chunk_voxel_MINUS_data(_206);
-                    int _211 = Int__PLUS_(offset, 1);
-                    float* _212 = Array_unsafe_MINUS_nth__float(_207, _211);
-                    float _213 = Float_copy(_212);
-                    _214 = _213;
-                }
-                _215 = _214;
-                Chunk_delete(chunk);
-            }
-            else UNHANDLED("world.carp", 115);
-            float _216 = _215;
-            _220 = _216;
-        } else {
-            float _219 = 1000.0f;
-            _220 = _219;
-        }
-        _221 = _220;
+        else UNHANDLED("world.carp", 113);
+        _155 = _154;
     }
-    return _221;
+    return _155;
 }
 
 World World_set_MINUS_chunks(World p, Array__Chunk newValue) {
@@ -27970,6 +28184,19 @@ World World_set_MINUS_chunks(World p, Array__Chunk newValue) {
 void World_set_MINUS_chunks_BANG_(World* pRef, Array__Chunk newValue) {
     Array_delete__Chunk(pRef->chunks);
     pRef->chunks = newValue;
+}
+
+
+World World_set_MINUS_noise_MINUS_state(World p, NoiseState newValue) {
+    NoiseState_delete(p.noise_MINUS_state);
+    p.noise_MINUS_state = newValue;
+    return p;
+}
+
+
+void World_set_MINUS_noise_MINUS_state_BANG_(World* pRef, NoiseState newValue) {
+    NoiseState_delete(pRef->noise_MINUS_state);
+    pRef->noise_MINUS_state = newValue;
 }
 
 
@@ -28000,6 +28227,10 @@ String World_str(World *p) {
   size += snprintf(NULL, 0, "%s ", temp);
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
+  temp = NoiseState_prn(&p->noise_MINUS_state); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
 
   String buffer = CARP_MALLOC(size);
   String bufferPtr = buffer;
@@ -28015,6 +28246,11 @@ String World_str(World *p) {
   bufferPtr += tempsize;
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
+  temp = NoiseState_prn(&p->noise_MINUS_state);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
   bufferPtr--;
   snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
   return buffer;
@@ -28022,6 +28258,12 @@ String World_str(World *p) {
 
 World World_update_MINUS_chunks(World p, Lambda *updater) {
     p.chunks = (*updater).env ? ((Fn__LambdaEnv_Array__Chunk_Array__Chunk)(*updater).callback)((*updater).env, p.chunks) : ((Fn__Array__Chunk_Array__Chunk)(*updater).callback)(p.chunks);
+    return p;
+}
+
+
+World World_update_MINUS_noise_MINUS_state(World p, Lambda *updater) {
+    p.noise_MINUS_state = (*updater).env ? ((Fn__LambdaEnv_NoiseState_NoiseState)(*updater).callback)((*updater).env, p.noise_MINUS_state) : ((Fn__NoiseState_NoiseState)(*updater).callback)(p.noise_MINUS_state);
     return p;
 }
 

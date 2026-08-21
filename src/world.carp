@@ -13,6 +13,7 @@
 (deftype World [
   chunks (Array Chunk)
   voxel-resolution Int
+  noise-state NoiseState
 ])(deftype ChunkCoord [x Int y Int z Int])
 
 (defmodule Chunk
@@ -87,7 +88,7 @@
           (for [y 0 2]
             (for [x 0 2]
               (Array.push-back! &world-chunks (Chunk.create &noise-state x y z)))))
-        (World.init world-chunks 32))))
+        (World.init world-chunks 32 noise-state))))
 
   (defn find-chunk [world qx qy qz]
     (let [chunks (World.chunks world)
@@ -109,19 +110,15 @@
           qx (Double.to-int (Double.floor (/ @x 32.0)))
           qy (Double.to-int (Double.floor (/ @y 32.0)))
           qz (Double.to-int (Double.floor (/ @z 32.0)))]
-      (if (and (and (>= qx 0) (< qx 4))
-               (and (and (>= qy 0) (< qy 2))
-                    (and (>= qz 0) (< qz 4))))
-          (match (World.find-chunk world qx qy qz)
-            (Maybe.Nothing) 1000.0f
-            (Maybe.Just chunk)
-              (let [lx (Double.to-int (Double.clamp 0.0 31.0 (- @x (Double.from-int (* qx 32)))))
-                    ly (Double.to-int (Double.clamp 0.0 31.0 (- @y (Double.from-int (* qy 32)))))
-                    lz (Double.to-int (Double.clamp 0.0 31.0 (- @z (Double.from-int (* qz 32)))))
-                    idx (+ (* lz 1024) (+ (* ly 32) lx))
-                    offset (* idx 4)]
-                @(Array.unsafe-nth (Chunk.voxel-data &chunk) (+ offset 1))))
-          1000.0f)))
+      (match (World.find-chunk world qx qy qz)
+        (Maybe.Nothing) 1000.0f
+        (Maybe.Just chunk)
+          (let [lx (Double.to-int (Double.clamp 0.0 31.0 (- @x (Double.from-int (* qx 32)))))
+                ly (Double.to-int (Double.clamp 0.0 31.0 (- @y (Double.from-int (* qy 32)))))
+                lz (Double.to-int (Double.clamp 0.0 31.0 (- @z (Double.from-int (* qz 32)))))
+                idx (+ (* lz 1024) (+ (* ly 32) lx))
+                offset (* idx 4)]
+            @(Array.unsafe-nth (Chunk.voxel-data &chunk) (+ offset 1))))))
 
   (defn raycast [world ro rd max-dist]
     (let [t 0.0

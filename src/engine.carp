@@ -68,6 +68,36 @@
         (Renderer.draw-line! ren &w2 &w6 color)
         (Renderer.draw-line! ren &w3 &w7 color))))
 
+  (defn positive-mod [n m]
+    (let [r (Int.mod n m)]
+      (if (< r 0) (+ r m) r)))
+
+  (defn stream-chunks! [world eng ren cam-pos]
+    (let [cx (Double.to-int (Double.floor (/ @(Vector3.x cam-pos) 32.0)))
+          cy (Double.to-int (Double.floor (/ @(Vector3.y cam-pos) 32.0)))
+          cz (Double.to-int (Double.floor (/ @(Vector3.z cam-pos) 32.0)))
+          chunks (World.chunks world)
+          noise (World.noise-state world)]
+      (do
+        (for [lz 0 2]
+          (for [ly 0 2]
+            (for [lx 0 2]
+              (let [qx (- (+ cx lx) 1)
+                    qy (- (+ cy ly) 1)
+                    qz (- (+ cz lz) 1)
+                    tx (EngineState.positive-mod qx 2)
+                    ty (EngineState.positive-mod qy 2)
+                    tz (EngineState.positive-mod qz 2)
+                    slot-idx (+ tx (+ (* ty 2) (* tz 4)))
+                    current-chunk (Array.unsafe-nth chunks slot-idx)]
+                (when (or (/= @(Chunk.coord-x current-chunk) qx)
+                          (or (/= @(Chunk.coord-y current-chunk) qy)
+                              (/= @(Chunk.coord-z current-chunk) qz)))
+                  (let [new-chunk (Chunk.create noise qx qy qz)]
+                    (do
+                      (Renderer.update-chunk-texture eng ren qx qy qz (Chunk.voxel-data &new-chunk))
+                      (Array.aset! chunks slot-idx new-chunk)))))))))))
+
   (defn resolve-camera-collision! [world cam radius vel-y-ptr on-ground-ptr]
     (let [p-pos (ref-to-ptr (Camera.pos cam))
           cur-pos (Pointer.to-value p-pos)]
@@ -161,11 +191,20 @@
 
         ; Resolve camera collision with terrain
         (EngineState.resolve-camera-collision! (EngineState.world state) cam 0.8 (ref-to-ptr (EngineState.vel-y state)) (ref-to-ptr (EngineState.on-ground state)))
+
+        ; Stream chunks centered on player
+        (EngineState.stream-chunks! (EngineState.world state) platform-eng ren (Camera.pos cam))
         (Diagnostics.end-zone! diag "Input & Camera")
         
-        ; Draw world boundary box (red)
-        (let [red-color (Vector3.init 1.0 0.1 0.1)]
-          (EngineState.draw-bounds-wireframe! ren 0.0 0.0 0.0 64.0 64.0 64.0 &red-color))
+        ; Draw world boundary box (red) around the currently loaded wrapping volume
+        (let [cx (Double.to-int (Double.floor (/ @(Vector3.x (Camera.pos cam)) 32.0)))
+              cy (Double.to-int (Double.floor (/ @(Vector3.y (Camera.pos cam)) 32.0)))
+              cz (Double.to-int (Double.floor (/ @(Vector3.z (Camera.pos cam)) 32.0)))
+              bx (Double.from-int (* (- cx 1) 32))
+              by (Double.from-int (* (- cy 1) 32))
+              bz (Double.from-int (* (- cz 1) 32))
+              red-color (Vector3.init 1.0 0.1 0.1)]
+          (EngineState.draw-bounds-wireframe! ren bx by bz (+ bx 64.0) (+ by 64.0) (+ bz 64.0) &red-color))
         
         ; Raycast from camera front vector
         (let [ro (Camera.pos cam)

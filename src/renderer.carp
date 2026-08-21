@@ -328,11 +328,18 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         
         (Engine.update-uniform-buffer eng @(Renderer.uniform-buffer ren) uniforms))))
 
+  (defn positive-mod [n m]
+    (let [r (Int.mod n m)]
+      (if (< r 0) (+ r m) r)))
+
   (defn update-chunk-texture [eng ren qx qy qz chunk-data]
     (let [ctx @(Engine.ctx eng)
-          offset-x (* qx 32)
-          offset-y (* qy 32)
-          offset-z (* qz 32)]
+          tx (positive-mod qx 2)
+          ty (positive-mod qy 2)
+          tz (positive-mod qz 2)
+          offset-x (* tx 32)
+          offset-y (* ty 32)
+          offset-z (* tz 32)]
       (WGPURender.update-3d-texture-subregion-floats ctx @(Renderer.voxel-texture ren) offset-x offset-y offset-z 32 32 32 chunk-data)))
 
   (defn draw-line! [ren start end color]
