@@ -232,7 +232,7 @@
       (while (not (Array.empty? lns))
         (ignore (Array.pop-back! lns)))))
 
-  (defn draw [eng ren cam]
+  (defn handle-resize! [eng ren]
     (let [curr-w @(Engine.width eng)
           curr-h @(Engine.height eng)
           old-w @(Renderer.width ren)
@@ -249,62 +249,72 @@
                   (do
                     (Renderer.set-depth-texture! ren new-dt)
                     (Renderer.set-width! ren curr-w)
-                    (Renderer.set-height! ren curr-h))))))
+                    (Renderer.set-height! ren curr-h)))))))))
 
-        ;; GPU Compute Sim/Pack Passes + Texture Copy Passes using GPUBatcher
-        (let [ctx @(Engine.ctx eng)
-              batch-encoder (GPUBatcher.begin-batch ctx)]
-          (do
-            ;; 1. Run simulation passes (reads textures, writes to SSBOs)
-            (GPUBatcher.batch-dispatch batch-encoder @(Renderer.liquid-sim-pipeline ren) @(Renderer.liquid-sim-bind-group ren) 64000)
-            (GPUBatcher.batch-dispatch batch-encoder @(Renderer.gas-sim-pipeline ren) @(Renderer.gas-sim-bind-group ren) 64000)
-            
-            ;; 2. Run pack passes (packs SSBOs into half buffers)
-            (GPUBatcher.batch-dispatch batch-encoder @(Renderer.pack-pipeline ren) @(Renderer.pack-bind-group ren) 64000)
-            (GPUBatcher.batch-dispatch batch-encoder @(Renderer.pack-pipeline ren) @(Renderer.liquid-pack-bind-group ren) 64000)
-            (GPUBatcher.batch-dispatch batch-encoder @(Renderer.pack-pipeline ren) @(Renderer.gas-pack-bind-group ren) 64000)
-            
-            ;; 3. Copy half buffers to 3D textures
-            (GPUBatcher.batch-copy-texture batch-encoder
-                                           (WGPUVertexBufferWrapper.get-buffer @(Renderer.voxel-half-buffer ren))
-                                           0l
-                                           @(Renderer.voxel-texture ren)
-                                           0 0 0
-                                           160 160 160)
-            (GPUBatcher.batch-copy-texture batch-encoder
-                                           (WGPUVertexBufferWrapper.get-buffer @(Renderer.liquid-half-buffer ren))
-                                           0l
-                                           @(Renderer.liquid-texture ren)
-                                           0 0 0
-                                           160 160 160)
-            (GPUBatcher.batch-copy-texture batch-encoder
-                                           (WGPUVertexBufferWrapper.get-buffer @(Renderer.gas-half-buffer ren))
-                                           0l
-                                           @(Renderer.gas-texture ren)
-                                           0 0 0
-                                           160 160 160)
-            (GPUBatcher.end-batch ctx batch-encoder)))
+  (defn run-simulation-passes! [eng ren]
+    (let [ctx @(Engine.ctx eng)
+          batch-encoder (GPUBatcher.begin-batch ctx)]
+      (do
+        ;; 1. Run simulation passes (reads textures, writes to SSBOs)
+        (GPUBatcher.batch-dispatch batch-encoder @(Renderer.liquid-sim-pipeline ren) @(Renderer.liquid-sim-bind-group ren) 64000)
+        (GPUBatcher.batch-dispatch batch-encoder @(Renderer.gas-sim-pipeline ren) @(Renderer.gas-sim-bind-group ren) 64000)
+        (GPUBatcher.end-batch ctx batch-encoder))))
 
-        (match (Engine.begin-frame eng)
-          (Maybe.Nothing) ()
-          (Maybe.Just frame)
-            (let [vp (Camera.view-projection cam)
-                  vp-data (CameraMat4.data &vp)
-                  ctx @(Engine.ctx eng)
-                  line-count (LinePass.update! ctx (Renderer.line-pass ren) vp-data (Renderer.lines ren))
-                  depth @(Renderer.depth-texture ren)]
-              (do
-                ;; 1. Voxel pass
-                (WGPURender.run-pass frame @(Renderer.pipeline ren) @(Renderer.bind-group ren) (Maybe.Nothing))
-                
-                ;; 2. Line pass (drawn on top)
-                (LinePass.render frame ctx (Renderer.line-pass ren) line-count depth (Maybe.Nothing))
-                
-                ;; 3. Clear lines
-                (Renderer.clear-lines! ren)
-                
-                ;; 4. Present
-                (Engine.end-frame eng frame)))))))
+  (defn pack-buffers-to-textures! [eng ren]
+    (let [ctx @(Engine.ctx eng)
+          batch-encoder (GPUBatcher.begin-batch ctx)]
+      (do
+        ;; 1. Run pack passes (packs SSBOs into half buffers)
+        (GPUBatcher.batch-dispatch batch-encoder @(Renderer.pack-pipeline ren) @(Renderer.pack-bind-group ren) 64000)
+        (GPUBatcher.batch-dispatch batch-encoder @(Renderer.pack-pipeline ren) @(Renderer.liquid-pack-bind-group ren) 64000)
+        (GPUBatcher.batch-dispatch batch-encoder @(Renderer.pack-pipeline ren) @(Renderer.gas-pack-bind-group ren) 64000)
+        
+        ;; 2. Copy half buffers to 3D textures
+        (GPUBatcher.batch-copy-texture batch-encoder
+                                       (WGPUVertexBufferWrapper.get-buffer @(Renderer.voxel-half-buffer ren))
+                                       0l
+                                       @(Renderer.voxel-texture ren)
+                                       0 0 0
+                                       160 160 160)
+        (GPUBatcher.batch-copy-texture batch-encoder
+                                       (WGPUVertexBufferWrapper.get-buffer @(Renderer.liquid-half-buffer ren))
+                                       0l
+                                       @(Renderer.liquid-texture ren)
+                                       0 0 0
+                                       160 160 160)
+        (GPUBatcher.batch-copy-texture batch-encoder
+                                       (WGPUVertexBufferWrapper.get-buffer @(Renderer.gas-half-buffer ren))
+                                       0l
+                                       @(Renderer.gas-texture ren)
+                                       0 0 0
+                                       160 160 160)
+        (GPUBatcher.end-batch ctx batch-encoder))))
+
+  (defn draw [eng ren cam]
+    (do
+      (Renderer.handle-resize! eng ren)
+      (Renderer.run-simulation-passes! eng ren)
+      (Renderer.pack-buffers-to-textures! eng ren)
+      (match (Engine.begin-frame eng)
+        (Maybe.Nothing) ()
+        (Maybe.Just frame)
+          (let [vp (Camera.view-projection cam)
+                vp-data (CameraMat4.data &vp)
+                ctx @(Engine.ctx eng)
+                line-count (LinePass.update! ctx (Renderer.line-pass ren) vp-data (Renderer.lines ren))
+                depth @(Renderer.depth-texture ren)]
+            (do
+              ;; 1. Voxel pass (raymarching render)
+              (WGPURender.run-pass frame @(Renderer.pipeline ren) @(Renderer.bind-group ren) (Maybe.Nothing))
+              
+              ;; 2. Line pass (drawn on top)
+              (LinePass.render frame ctx (Renderer.line-pass ren) line-count depth (Maybe.Nothing))
+              
+              ;; 3. Clear lines
+              (Renderer.clear-lines! ren)
+              
+              ;; 4. Present
+              (Engine.end-frame eng frame))))))
 
 
   (defn cleanup [eng ren]

@@ -7237,6 +7237,9 @@ WGPUComputePipeline* Renderer_gas_MINUS_sim_MINUS_pipeline(Renderer* p);
 WGPURenderTexture** Renderer_gas_MINUS_texture(Renderer* p);
 
 // Depth 500
+void Renderer_handle_MINUS_resize_BANG_(Engine* eng, Renderer* ren);
+
+// Depth 500
 int* Renderer_height(Renderer* p);
 
 // Depth 500
@@ -7273,6 +7276,9 @@ WGPURenderTexture** Renderer_liquid_MINUS_texture(Renderer* p);
 WGPUBindGroup* Renderer_pack_MINUS_bind_MINUS_group(Renderer* p);
 
 // Depth 500
+void Renderer_pack_MINUS_buffers_MINUS_to_MINUS_textures_BANG_(Engine* eng, Renderer* ren);
+
+// Depth 500
 WGPUComputePipeline* Renderer_pack_MINUS_pipeline(Renderer* p);
 
 // Depth 500
@@ -7283,6 +7289,9 @@ int Renderer_positive_MINUS_mod(int n, int m);
 
 // Depth 500
 String Renderer_prn(Renderer *p);
+
+// Depth 500
+void Renderer_run_MINUS_simulation_MINUS_passes_BANG_(Engine* eng, Renderer* ren);
 
 // Depth 500
 Renderer Renderer_set_MINUS_bind_MINUS_group(Renderer p, WGPUBindGroup newValue);
@@ -26751,165 +26760,50 @@ void Renderer_delete(Renderer p) {
 WGPUDepthTexture** Renderer_depth_MINUS_texture(Renderer* p) { return (&(p->depth_MINUS_texture)); }
 
 void Renderer_draw(Engine* eng, Renderer* ren, Camera* cam) {
-    /* let */ {
-        int* _11 = Engine_width(eng);
-        int _12 = Int_copy(_11);
-        int curr_MINUS_w = _12;
-        int* _17 = Engine_height(eng);
-        int _18 = Int_copy(_17);
-        int curr_MINUS_h = _18;
-        int* _23 = Renderer_width(ren);
-        int _24 = Int_copy(_23);
-        int old_MINUS_w = _24;
-        int* _29 = Renderer_height(ren);
-        int _30 = Int_copy(_29);
-        int old_MINUS_h = _30;
-        bool _48;
-        bool _38 = _DIV__EQ___int(curr_MINUS_w, old_MINUS_w);
-        if (_38) {
-            bool _41 = true;
-            _48 = _41;
-        } else {
-            bool _46 = _DIV__EQ___int(curr_MINUS_h, old_MINUS_h);
-            bool _47 = _46;
-            _48 = _47;
-        }
-        if (_48) {
-            /* let */ {
-                WGPUContext** _55 = Engine_ctx(eng);
-                WGPUContext* _56 = Pointer_copy__WGPUContext(_55);
-                WGPUContext* ctx = _56;
-                WGPUDepthTexture** _61 = Renderer_depth_MINUS_texture(ren);
-                WGPUDepthTexture* _62 = Pointer_copy__WGPUDepthTexture(_61);
-                WGPUDepthTexture* old_MINUS_dt = _62;
-                wgpu_depth_texture_free(old_MINUS_dt);
-                Result__WGPUDepthTexture_MUL__String _73 = WGPURender_create_MINUS_depth_MINUS_texture(ctx, curr_MINUS_w, curr_MINUS_h);
-                if(_73._tag == Result__WGPUDepthTexture_MUL__String_Error_tag) {
-                    Result__WGPUDepthTexture_MUL__String _73_temp = _73;
-                    String e = _73_temp.u.Error.member0;
-                    // Case expr:
-                    static String _84 = "Error recreating depth texture: ";
-                    String *_84_ref = &_84;
-                    String _1000016 = String_str(_84_ref);
-                    String* _1000015 = &_1000016; // ref
-                    String _1000018 = StringCopy_str(e);
-                    String* _1000017 = &_1000018; // ref
-                    String _1000014 = String_append(_1000015, _1000017);
-                    String* _1000013 = &_1000014; // ref
-                    String _1000012 = String_copy(_1000013);
-                    String* _95 = &_1000012; // ref
-                    IO_println(_95);
-                    String_delete(_1000012);
-                    String_delete(_1000014);
-                    String_delete(_1000016);
-                    String_delete(_1000018);
-                }
-                else if(_73._tag == Result__WGPUDepthTexture_MUL__String_Success_tag) {
-                    Result__WGPUDepthTexture_MUL__String _73_temp = _73;
-                    WGPUDepthTexture* new_MINUS_dt = _73_temp.u.Success.member0;
-                    // Case expr:
-                    Renderer_set_MINUS_depth_MINUS_texture_BANG_(ren, new_MINUS_dt);
-                    Renderer_set_MINUS_width_BANG_(ren, curr_MINUS_w);
-                    Renderer_set_MINUS_height_BANG_(ren, curr_MINUS_h);
-                }
-                else UNHANDLED("renderer.carp", 246);
-            }
-        } else {
-            /* () */
-        }
-        /* let */ {
-            WGPUContext** _127 = Engine_ctx(eng);
-            WGPUContext* _128 = Pointer_copy__WGPUContext(_127);
-            WGPUContext* ctx = _128;
-            WGPUCommandEncoder _132 = gpu_batch_begin(ctx);
-            WGPUCommandEncoder batch_MINUS_encoder = _132;
-            WGPUComputePipeline* _140 = Renderer_liquid_MINUS_sim_MINUS_pipeline(ren);
-            WGPUComputePipeline _141 = WGPUComputePipeline_copy(_140);
-            WGPUBindGroup* _145 = Renderer_liquid_MINUS_sim_MINUS_bind_MINUS_group(ren);
-            WGPUBindGroup _146 = WGPUBindGroup_copy(_145);
-            gpu_batch_dispatch(batch_MINUS_encoder, _141, _146, 64000);
-            WGPUComputePipeline* _154 = Renderer_gas_MINUS_sim_MINUS_pipeline(ren);
-            WGPUComputePipeline _155 = WGPUComputePipeline_copy(_154);
-            WGPUBindGroup* _159 = Renderer_gas_MINUS_sim_MINUS_bind_MINUS_group(ren);
-            WGPUBindGroup _160 = WGPUBindGroup_copy(_159);
-            gpu_batch_dispatch(batch_MINUS_encoder, _155, _160, 64000);
-            WGPUComputePipeline* _168 = Renderer_pack_MINUS_pipeline(ren);
-            WGPUComputePipeline _169 = WGPUComputePipeline_copy(_168);
-            WGPUBindGroup* _173 = Renderer_pack_MINUS_bind_MINUS_group(ren);
-            WGPUBindGroup _174 = WGPUBindGroup_copy(_173);
-            gpu_batch_dispatch(batch_MINUS_encoder, _169, _174, 64000);
-            WGPUComputePipeline* _182 = Renderer_pack_MINUS_pipeline(ren);
-            WGPUComputePipeline _183 = WGPUComputePipeline_copy(_182);
-            WGPUBindGroup* _187 = Renderer_liquid_MINUS_pack_MINUS_bind_MINUS_group(ren);
-            WGPUBindGroup _188 = WGPUBindGroup_copy(_187);
-            gpu_batch_dispatch(batch_MINUS_encoder, _183, _188, 64000);
-            WGPUComputePipeline* _196 = Renderer_pack_MINUS_pipeline(ren);
-            WGPUComputePipeline _197 = WGPUComputePipeline_copy(_196);
-            WGPUBindGroup* _201 = Renderer_gas_MINUS_pack_MINUS_bind_MINUS_group(ren);
-            WGPUBindGroup _202 = WGPUBindGroup_copy(_201);
-            gpu_batch_dispatch(batch_MINUS_encoder, _197, _202, 64000);
-            WGPUVertexBufferWrapper** _211 = Renderer_voxel_MINUS_half_MINUS_buffer(ren);
-            WGPUVertexBufferWrapper* _212 = Pointer_copy__WGPUVertexBufferWrapper(_211);
-            WGPUBuffer _213 = WGPUVertexBufferWrapper_get_MINUS_buffer(_212);
-            WGPURenderTexture** _218 = Renderer_voxel_MINUS_texture(ren);
-            WGPURenderTexture* _219 = Pointer_copy__WGPURenderTexture(_218);
-            gpu_batch_copy_buffer_to_3d_texture(batch_MINUS_encoder, _213, 0l, _219, 0, 0, 0, 160, 160, 160);
-            WGPUVertexBufferWrapper** _233 = Renderer_liquid_MINUS_half_MINUS_buffer(ren);
-            WGPUVertexBufferWrapper* _234 = Pointer_copy__WGPUVertexBufferWrapper(_233);
-            WGPUBuffer _235 = WGPUVertexBufferWrapper_get_MINUS_buffer(_234);
-            WGPURenderTexture** _240 = Renderer_liquid_MINUS_texture(ren);
-            WGPURenderTexture* _241 = Pointer_copy__WGPURenderTexture(_240);
-            gpu_batch_copy_buffer_to_3d_texture(batch_MINUS_encoder, _235, 0l, _241, 0, 0, 0, 160, 160, 160);
-            WGPUVertexBufferWrapper** _255 = Renderer_gas_MINUS_half_MINUS_buffer(ren);
-            WGPUVertexBufferWrapper* _256 = Pointer_copy__WGPUVertexBufferWrapper(_255);
-            WGPUBuffer _257 = WGPUVertexBufferWrapper_get_MINUS_buffer(_256);
-            WGPURenderTexture** _262 = Renderer_gas_MINUS_texture(ren);
-            WGPURenderTexture* _263 = Pointer_copy__WGPURenderTexture(_262);
-            gpu_batch_copy_buffer_to_3d_texture(batch_MINUS_encoder, _257, 0l, _263, 0, 0, 0, 160, 160, 160);
-            gpu_batch_end(ctx, batch_MINUS_encoder);
-        }
-        Maybe__WGPUFrameState_MUL_ _280 = Engine_begin_MINUS_frame(eng);
-        if(_280._tag == Maybe__WGPUFrameState_MUL__Nothing_tag) {
-            Maybe__WGPUFrameState_MUL_ _280_temp = _280;
-            // Case expr:
-            /* () */
-        }
-        else if(_280._tag == Maybe__WGPUFrameState_MUL__Just_tag) {
-            Maybe__WGPUFrameState_MUL_ _280_temp = _280;
-            WGPUFrameState* frame = _280_temp.u.Just.member0;
-            // Case expr:
-            /* let */ {
-                CameraMat4 _291 = Camera_view_MINUS_projection(cam);
-                CameraMat4 vp = _291;
-                CameraMat4* _296 = &vp; // ref
-                Array__float* _297 = CameraMat4_data(_296);
-                Array__float* vp_MINUS_data = _297;
-                WGPUContext** _302 = Engine_ctx(eng);
-                WGPUContext* _303 = Pointer_copy__WGPUContext(_302);
-                WGPUContext* ctx = _303;
-                LinePassRenderer* _309 = Renderer_line_MINUS_pass(ren);
-                Array__Line* _313 = Renderer_lines(ren);
-                int _314 = LinePass_update_BANG_(ctx, _309, vp_MINUS_data, _313);
-                int line_MINUS_count = _314;
-                WGPUDepthTexture** _319 = Renderer_depth_MINUS_texture(ren);
-                WGPUDepthTexture* _320 = Pointer_copy__WGPUDepthTexture(_319);
-                WGPUDepthTexture* depth = _320;
-                WGPURenderPipelineWrapper** _328 = Renderer_pipeline(ren);
-                WGPURenderPipelineWrapper* _329 = Pointer_copy__WGPURenderPipelineWrapper(_328);
-                WGPUBindGroup* _333 = Renderer_bind_MINUS_group(ren);
-                WGPUBindGroup _334 = WGPUBindGroup_copy(_333);
-                Maybe__WGPURenderTexture_MUL_ _336 = Maybe_Nothing__WGPURenderTexture_MUL_();
-                WGPURender_run_MINUS_pass(frame, _329, _334, _336);
-                LinePassRenderer* _343 = Renderer_line_MINUS_pass(ren);
-                Maybe__WGPURenderTexture_MUL_ _347 = Maybe_Nothing__WGPURenderTexture_MUL_();
-                LinePass_render__WGPUContext_MUL_(frame, ctx, _343, line_MINUS_count, depth, _347);
-                Renderer_clear_MINUS_lines_BANG_(ren);
-                Engine_end_MINUS_frame(eng, frame);
-                CameraMat4_delete(vp);
-            }
-        }
-        else UNHANDLED("renderer.carp", 288);
+    Renderer_handle_MINUS_resize_BANG_(eng, ren);
+    Renderer_run_MINUS_simulation_MINUS_passes_BANG_(eng, ren);
+    Renderer_pack_MINUS_buffers_MINUS_to_MINUS_textures_BANG_(eng, ren);
+    Maybe__WGPUFrameState_MUL_ _22 = Engine_begin_MINUS_frame(eng);
+    if(_22._tag == Maybe__WGPUFrameState_MUL__Nothing_tag) {
+        Maybe__WGPUFrameState_MUL_ _22_temp = _22;
+        // Case expr:
+        /* () */
     }
+    else if(_22._tag == Maybe__WGPUFrameState_MUL__Just_tag) {
+        Maybe__WGPUFrameState_MUL_ _22_temp = _22;
+        WGPUFrameState* frame = _22_temp.u.Just.member0;
+        // Case expr:
+        /* let */ {
+            CameraMat4 _33 = Camera_view_MINUS_projection(cam);
+            CameraMat4 vp = _33;
+            CameraMat4* _38 = &vp; // ref
+            Array__float* _39 = CameraMat4_data(_38);
+            Array__float* vp_MINUS_data = _39;
+            WGPUContext** _44 = Engine_ctx(eng);
+            WGPUContext* _45 = Pointer_copy__WGPUContext(_44);
+            WGPUContext* ctx = _45;
+            LinePassRenderer* _51 = Renderer_line_MINUS_pass(ren);
+            Array__Line* _55 = Renderer_lines(ren);
+            int _56 = LinePass_update_BANG_(ctx, _51, vp_MINUS_data, _55);
+            int line_MINUS_count = _56;
+            WGPUDepthTexture** _61 = Renderer_depth_MINUS_texture(ren);
+            WGPUDepthTexture* _62 = Pointer_copy__WGPUDepthTexture(_61);
+            WGPUDepthTexture* depth = _62;
+            WGPURenderPipelineWrapper** _70 = Renderer_pipeline(ren);
+            WGPURenderPipelineWrapper* _71 = Pointer_copy__WGPURenderPipelineWrapper(_70);
+            WGPUBindGroup* _75 = Renderer_bind_MINUS_group(ren);
+            WGPUBindGroup _76 = WGPUBindGroup_copy(_75);
+            Maybe__WGPURenderTexture_MUL_ _78 = Maybe_Nothing__WGPURenderTexture_MUL_();
+            WGPURender_run_MINUS_pass(frame, _71, _76, _78);
+            LinePassRenderer* _85 = Renderer_line_MINUS_pass(ren);
+            Maybe__WGPURenderTexture_MUL_ _89 = Maybe_Nothing__WGPURenderTexture_MUL_();
+            LinePass_render__WGPUContext_MUL_(frame, ctx, _85, line_MINUS_count, depth, _89);
+            Renderer_clear_MINUS_lines_BANG_(ren);
+            Engine_end_MINUS_frame(eng, frame);
+            CameraMat4_delete(vp);
+        }
+    }
+    else UNHANDLED("renderer.carp", 298);
 }
 
 void Renderer_draw_MINUS_line_BANG_(Renderer* ren, Vector3__double* start, Vector3__double* end, Vector3__double* color) {
@@ -26932,6 +26826,76 @@ WGPUBindGroup* Renderer_gas_MINUS_sim_MINUS_bind_MINUS_group(Renderer* p) { retu
 WGPUComputePipeline* Renderer_gas_MINUS_sim_MINUS_pipeline(Renderer* p) { return (&(p->gas_MINUS_sim_MINUS_pipeline)); }
 
 WGPURenderTexture** Renderer_gas_MINUS_texture(Renderer* p) { return (&(p->gas_MINUS_texture)); }
+
+void Renderer_handle_MINUS_resize_BANG_(Engine* eng, Renderer* ren) {
+    /* let */ {
+        int* _10 = Engine_width(eng);
+        int _11 = Int_copy(_10);
+        int curr_MINUS_w = _11;
+        int* _16 = Engine_height(eng);
+        int _17 = Int_copy(_16);
+        int curr_MINUS_h = _17;
+        int* _22 = Renderer_width(ren);
+        int _23 = Int_copy(_22);
+        int old_MINUS_w = _23;
+        int* _28 = Renderer_height(ren);
+        int _29 = Int_copy(_28);
+        int old_MINUS_h = _29;
+        bool _47;
+        bool _37 = _DIV__EQ___int(curr_MINUS_w, old_MINUS_w);
+        if (_37) {
+            bool _40 = true;
+            _47 = _40;
+        } else {
+            bool _45 = _DIV__EQ___int(curr_MINUS_h, old_MINUS_h);
+            bool _46 = _45;
+            _47 = _46;
+        }
+        if (_47) {
+            /* let */ {
+                WGPUContext** _54 = Engine_ctx(eng);
+                WGPUContext* _55 = Pointer_copy__WGPUContext(_54);
+                WGPUContext* ctx = _55;
+                WGPUDepthTexture** _60 = Renderer_depth_MINUS_texture(ren);
+                WGPUDepthTexture* _61 = Pointer_copy__WGPUDepthTexture(_60);
+                WGPUDepthTexture* old_MINUS_dt = _61;
+                wgpu_depth_texture_free(old_MINUS_dt);
+                Result__WGPUDepthTexture_MUL__String _72 = WGPURender_create_MINUS_depth_MINUS_texture(ctx, curr_MINUS_w, curr_MINUS_h);
+                if(_72._tag == Result__WGPUDepthTexture_MUL__String_Error_tag) {
+                    Result__WGPUDepthTexture_MUL__String _72_temp = _72;
+                    String e = _72_temp.u.Error.member0;
+                    // Case expr:
+                    static String _83 = "Error recreating depth texture: ";
+                    String *_83_ref = &_83;
+                    String _1000016 = String_str(_83_ref);
+                    String* _1000015 = &_1000016; // ref
+                    String _1000018 = StringCopy_str(e);
+                    String* _1000017 = &_1000018; // ref
+                    String _1000014 = String_append(_1000015, _1000017);
+                    String* _1000013 = &_1000014; // ref
+                    String _1000012 = String_copy(_1000013);
+                    String* _94 = &_1000012; // ref
+                    IO_println(_94);
+                    String_delete(_1000012);
+                    String_delete(_1000014);
+                    String_delete(_1000016);
+                    String_delete(_1000018);
+                }
+                else if(_72._tag == Result__WGPUDepthTexture_MUL__String_Success_tag) {
+                    Result__WGPUDepthTexture_MUL__String _72_temp = _72;
+                    WGPUDepthTexture* new_MINUS_dt = _72_temp.u.Success.member0;
+                    // Case expr:
+                    Renderer_set_MINUS_depth_MINUS_texture_BANG_(ren, new_MINUS_dt);
+                    Renderer_set_MINUS_width_BANG_(ren, curr_MINUS_w);
+                    Renderer_set_MINUS_height_BANG_(ren, curr_MINUS_h);
+                }
+                else UNHANDLED("renderer.carp", 246);
+            }
+        } else {
+            /* () */
+        }
+    }
+}
 
 int* Renderer_height(Renderer* p) { return (&(p->height)); }
 
@@ -26991,6 +26955,50 @@ WGPUComputePipeline* Renderer_liquid_MINUS_sim_MINUS_pipeline(Renderer* p) { ret
 WGPURenderTexture** Renderer_liquid_MINUS_texture(Renderer* p) { return (&(p->liquid_MINUS_texture)); }
 
 WGPUBindGroup* Renderer_pack_MINUS_bind_MINUS_group(Renderer* p) { return (&(p->pack_MINUS_bind_MINUS_group)); }
+
+void Renderer_pack_MINUS_buffers_MINUS_to_MINUS_textures_BANG_(Engine* eng, Renderer* ren) {
+    /* let */ {
+        WGPUContext** _10 = Engine_ctx(eng);
+        WGPUContext* _11 = Pointer_copy__WGPUContext(_10);
+        WGPUContext* ctx = _11;
+        WGPUCommandEncoder _15 = gpu_batch_begin(ctx);
+        WGPUCommandEncoder batch_MINUS_encoder = _15;
+        WGPUComputePipeline* _23 = Renderer_pack_MINUS_pipeline(ren);
+        WGPUComputePipeline _24 = WGPUComputePipeline_copy(_23);
+        WGPUBindGroup* _28 = Renderer_pack_MINUS_bind_MINUS_group(ren);
+        WGPUBindGroup _29 = WGPUBindGroup_copy(_28);
+        gpu_batch_dispatch(batch_MINUS_encoder, _24, _29, 64000);
+        WGPUComputePipeline* _37 = Renderer_pack_MINUS_pipeline(ren);
+        WGPUComputePipeline _38 = WGPUComputePipeline_copy(_37);
+        WGPUBindGroup* _42 = Renderer_liquid_MINUS_pack_MINUS_bind_MINUS_group(ren);
+        WGPUBindGroup _43 = WGPUBindGroup_copy(_42);
+        gpu_batch_dispatch(batch_MINUS_encoder, _38, _43, 64000);
+        WGPUComputePipeline* _51 = Renderer_pack_MINUS_pipeline(ren);
+        WGPUComputePipeline _52 = WGPUComputePipeline_copy(_51);
+        WGPUBindGroup* _56 = Renderer_gas_MINUS_pack_MINUS_bind_MINUS_group(ren);
+        WGPUBindGroup _57 = WGPUBindGroup_copy(_56);
+        gpu_batch_dispatch(batch_MINUS_encoder, _52, _57, 64000);
+        WGPUVertexBufferWrapper** _66 = Renderer_voxel_MINUS_half_MINUS_buffer(ren);
+        WGPUVertexBufferWrapper* _67 = Pointer_copy__WGPUVertexBufferWrapper(_66);
+        WGPUBuffer _68 = WGPUVertexBufferWrapper_get_MINUS_buffer(_67);
+        WGPURenderTexture** _73 = Renderer_voxel_MINUS_texture(ren);
+        WGPURenderTexture* _74 = Pointer_copy__WGPURenderTexture(_73);
+        gpu_batch_copy_buffer_to_3d_texture(batch_MINUS_encoder, _68, 0l, _74, 0, 0, 0, 160, 160, 160);
+        WGPUVertexBufferWrapper** _88 = Renderer_liquid_MINUS_half_MINUS_buffer(ren);
+        WGPUVertexBufferWrapper* _89 = Pointer_copy__WGPUVertexBufferWrapper(_88);
+        WGPUBuffer _90 = WGPUVertexBufferWrapper_get_MINUS_buffer(_89);
+        WGPURenderTexture** _95 = Renderer_liquid_MINUS_texture(ren);
+        WGPURenderTexture* _96 = Pointer_copy__WGPURenderTexture(_95);
+        gpu_batch_copy_buffer_to_3d_texture(batch_MINUS_encoder, _90, 0l, _96, 0, 0, 0, 160, 160, 160);
+        WGPUVertexBufferWrapper** _110 = Renderer_gas_MINUS_half_MINUS_buffer(ren);
+        WGPUVertexBufferWrapper* _111 = Pointer_copy__WGPUVertexBufferWrapper(_110);
+        WGPUBuffer _112 = WGPUVertexBufferWrapper_get_MINUS_buffer(_111);
+        WGPURenderTexture** _117 = Renderer_gas_MINUS_texture(ren);
+        WGPURenderTexture* _118 = Pointer_copy__WGPURenderTexture(_117);
+        gpu_batch_copy_buffer_to_3d_texture(batch_MINUS_encoder, _112, 0l, _118, 0, 0, 0, 160, 160, 160);
+        gpu_batch_end(ctx, batch_MINUS_encoder);
+    }
+}
 
 WGPUComputePipeline* Renderer_pack_MINUS_pipeline(Renderer* p) { return (&(p->pack_MINUS_pipeline)); }
 
@@ -27258,6 +27266,27 @@ String Renderer_prn(Renderer *p) {
   bufferPtr--;
   snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
   return buffer;
+}
+
+void Renderer_run_MINUS_simulation_MINUS_passes_BANG_(Engine* eng, Renderer* ren) {
+    /* let */ {
+        WGPUContext** _10 = Engine_ctx(eng);
+        WGPUContext* _11 = Pointer_copy__WGPUContext(_10);
+        WGPUContext* ctx = _11;
+        WGPUCommandEncoder _15 = gpu_batch_begin(ctx);
+        WGPUCommandEncoder batch_MINUS_encoder = _15;
+        WGPUComputePipeline* _23 = Renderer_liquid_MINUS_sim_MINUS_pipeline(ren);
+        WGPUComputePipeline _24 = WGPUComputePipeline_copy(_23);
+        WGPUBindGroup* _28 = Renderer_liquid_MINUS_sim_MINUS_bind_MINUS_group(ren);
+        WGPUBindGroup _29 = WGPUBindGroup_copy(_28);
+        gpu_batch_dispatch(batch_MINUS_encoder, _24, _29, 64000);
+        WGPUComputePipeline* _37 = Renderer_gas_MINUS_sim_MINUS_pipeline(ren);
+        WGPUComputePipeline _38 = WGPUComputePipeline_copy(_37);
+        WGPUBindGroup* _42 = Renderer_gas_MINUS_sim_MINUS_bind_MINUS_group(ren);
+        WGPUBindGroup _43 = WGPUBindGroup_copy(_42);
+        gpu_batch_dispatch(batch_MINUS_encoder, _38, _43, 64000);
+        gpu_batch_end(ctx, batch_MINUS_encoder);
+    }
 }
 
 Renderer Renderer_set_MINUS_bind_MINUS_group(Renderer p, WGPUBindGroup newValue) {
