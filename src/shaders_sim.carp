@@ -114,7 +114,7 @@ fn get_solid(p: vec3<i32>) -> vec2<f32> {
 
 fn is_solid(p: vec3<i32>) -> bool {
     let sol = get_solid(p);
-    return sol.y * 0.5 < 0.008;
+    return round(sol.x) >= 1.0 && sol.y * 0.5 < 0.008;
 }
 
 fn get_liquid(p: vec3<i32>) -> vec2<f32> {
@@ -831,7 +831,7 @@ fn get_solid(p: vec3<i32>) -> vec2<f32> {
 
 fn is_solid(p: vec3<i32>) -> bool {
     let sol = get_solid(p);
-    return sol.y * 0.5 < 0.008;
+    return round(sol.x) >= 1.0 && sol.y * 0.5 < 0.008;
 }
 
 fn get_stress(p: vec3<i32>) -> vec4<f32> {
@@ -877,7 +877,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     let sol = get_solid(ip);
     let sol_id = sol.x;
-    let is_sol_block = sol.y * 0.5 < 0.008;
+    let is_sol_block = round(sol_id) >= 1.0 && sol.y * 0.5 < 0.008;
 
     if (!is_sol_block) {
         output_buffer[idx] = vec4<f32>(0.0);
