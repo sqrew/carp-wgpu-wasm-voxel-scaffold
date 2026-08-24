@@ -7569,18 +7569,6 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
 
   
   
-  var _wgpuBufferGetSize = function(bufferPtr) {
-  
-  var ret = (() => { 
-      var buffer = WebGPU.getJsObject(bufferPtr);
-      // 64-bit
-      return buffer.size;
-     })();
-  return BigInt(ret);
-  };
-
-  
-  
   
   var _wgpuCommandEncoderBeginComputePass = (encoderPtr, descriptor) => {
       var desc;
@@ -7695,6 +7683,21 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
       WebGPU.Internals.jsObjectInsert(ptr, commandEncoder.beginRenderPass(desc));
       return ptr;
     };
+
+  
+  
+  function _wgpuCommandEncoderCopyBufferToBuffer(encoderPtr, srcPtr, srcOffset, dstPtr, dstOffset, size) {
+    srcOffset = bigintToI53Checked(srcOffset);
+    dstOffset = bigintToI53Checked(dstOffset);
+    size = bigintToI53Checked(size);
+  
+  
+      var commandEncoder = WebGPU.getJsObject(encoderPtr);
+      var src = WebGPU.getJsObject(srcPtr);
+      var dst = WebGPU.getJsObject(dstPtr);
+      commandEncoder.copyBufferToBuffer(src, srcOffset, dst, dstOffset, size);
+    ;
+  }
 
   
   var _wgpuCommandEncoderCopyBufferToTexture = (encoderPtr, srcPtr, dstPtr, copySizePtr) => {
@@ -9409,11 +9412,11 @@ var wasmImports = {
   /** @export */
   wgpuAdapterGetLimits: _wgpuAdapterGetLimits,
   /** @export */
-  wgpuBufferGetSize: _wgpuBufferGetSize,
-  /** @export */
   wgpuCommandEncoderBeginComputePass: _wgpuCommandEncoderBeginComputePass,
   /** @export */
   wgpuCommandEncoderBeginRenderPass: _wgpuCommandEncoderBeginRenderPass,
+  /** @export */
+  wgpuCommandEncoderCopyBufferToBuffer: _wgpuCommandEncoderCopyBufferToBuffer,
   /** @export */
   wgpuCommandEncoderCopyBufferToTexture: _wgpuCommandEncoderCopyBufferToTexture,
   /** @export */

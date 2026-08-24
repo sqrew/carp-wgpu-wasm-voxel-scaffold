@@ -20,6 +20,8 @@
   hit-active Float
   liquid-spawn Float
   gas-spawn Float
+  stress-view Bool
+  v-pressed Bool
 ])
 
 (defmodule EngineState
@@ -33,18 +35,18 @@
           (Result.Success ren)
             (let [world (World.create)
                   player (Player.create (Vector3.init 32.0 45.0 32.0))
-                  uniforms (Array.allocate 32)
+                  uniforms (Array.allocate 36)
                   diag (Diagnostics.new @"diagnostics.log")]
               (do
                 ; Upload all chunks to world texture
                 (let [chunks (World.chunks &world)
                       num-chunks (Array.length chunks)]
                   (for [i 0 num-chunks]
-                    (let [chunk (Array.unsafe-nth chunks i)]
-                      (Renderer.update-chunk-texture &platform-eng &ren @(Chunk.coord-x chunk) @(Chunk.coord-y chunk) @(Chunk.coord-z chunk) (Chunk.voxel-data chunk)))))
+                     (let [chunk (Array.unsafe-nth chunks i)]
+                       (Renderer.update-chunk-texture &platform-eng &ren @(Chunk.coord-x chunk) @(Chunk.coord-y chunk) @(Chunk.coord-z chunk) (Chunk.voxel-data chunk)))))
                 (Camera.update-basis! (Player.camera &player))
                 
-                (Result.Success (EngineState.init platform-eng ren world player uniforms diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f)))))))
+                (Result.Success (EngineState.init platform-eng ren world player uniforms diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f false false)))))))
 
   (defn draw-bounds-wireframe! [ren min-x min-y min-z max-x max-y max-z color]
     (let [w0 (Vector3.init min-x min-y min-z)
@@ -120,6 +122,13 @@
           cam (Player.camera player)
           world (EngineState.world state)]
       (do
+        ;; Detect key K press transition to toggle stress-view
+        (let [k-held (= (GLFW.get-key win GLFW.Keycode.K) GLFW.PRESS)]
+          (do
+            (when (and k-held (not @(EngineState.v-pressed state)))
+              (Pointer.set (ref-to-ptr (EngineState.stress-view state)) (not @(EngineState.stress-view state))))
+            (Pointer.set (ref-to-ptr (EngineState.v-pressed state)) k-held)))
+        
         ;; 1. Handle player inputs (movement, look, flying, radius presets, cycling)
         (Player.handle-input! player win dt first-mouse-ptr last-x-ptr last-y-ptr)
         (Player.handle-jump! player win)
@@ -251,6 +260,11 @@
         (Array.aset! uniforms 29 0.5f)
         (Array.aset! uniforms 30 @(EngineState.gas-spawn state))
         (Array.aset! uniforms 31 0.5f)
+        
+        (Array.aset! uniforms 32 (if @(EngineState.stress-view state) 1.0f 0.0f))
+        (Array.aset! uniforms 33 0.0f)
+        (Array.aset! uniforms 34 0.0f)
+        (Array.aset! uniforms 35 0.0f)
         
         (Engine.update-uniform-buffer eng @(Renderer.uniform-buffer ren) uniforms))))
 

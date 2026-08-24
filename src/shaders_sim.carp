@@ -27,6 +27,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 @group(0) @binding(1) var<storage, read_write> voxel_gpu_buffer_read: array<vec4<f32>>;
 @group(0) @binding(2) var<storage, read_write> voxel_gpu_buffer_write: array<vec4<f32>>;
 @group(0) @binding(3) var<uniform>             p: Params;
+@group(0) @binding(4) var<storage, read_write> stress_gpu_buffer_read: array<vec4<f32>>;
+@group(0) @binding(5) var<storage, read_write> stress_gpu_buffer_write: array<vec4<f32>>;
+@group(0) @binding(6) var<storage, read_write> liquid_gpu_buffer: array<vec4<f32>>;
+@group(0) @binding(7) var<storage, read_write> gas_gpu_buffer: array<vec4<f32>>;
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
@@ -50,6 +54,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     voxel_gpu_buffer_read[g_idx] = val;
     voxel_gpu_buffer_write[g_idx] = val;
+    stress_gpu_buffer_read[g_idx] = vec4<f32>(0.0);
+    stress_gpu_buffer_write[g_idx] = vec4<f32>(0.0);
+    liquid_gpu_buffer[g_idx] = vec4<f32>(0.0);
+    gas_gpu_buffer[g_idx] = vec4<f32>(0.0);
 }
 ")
 
@@ -66,6 +74,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     sun_dir: vec4<f32>,
     hit_pos: vec4<f32>,
     edit_params: vec4<f32>,
+    view_mode: vec4<f32>,
 }
 
 struct LiquidProps {
@@ -75,14 +84,15 @@ struct LiquidProps {
 }
 
 fn get_liq_props(id: f32) -> LiquidProps {
-    let LIQ_LUT = array<LiquidProps, 5>(
-        LiquidProps(0.0, 0.0, 0.0),
-        LiquidProps(1.0, 0.3, 0.08),
-        LiquidProps(2.0, 0.05, 0.02),
-        LiquidProps(1.2, 0.15, 0.05),
-        LiquidProps(0.8, 0.2, 0.06)
+    let LIQ_LUT = array<LiquidProps, 6>(
+        LiquidProps(0.0, 0.0, 0.0),   // Empty
+        LiquidProps(1.0, 0.3, 0.08),  // Water
+        LiquidProps(2.0, 0.05, 0.02), // Lava
+        LiquidProps(1.2, 0.15, 0.05), // Acid
+        LiquidProps(0.8, 0.2, 0.06),  // Oil
+        LiquidProps(1.8, 0.3, 0.005)  // Rubble
     );
-    let idx = clamp(i32(round(id)), 0, 4);
+    let idx = clamp(i32(round(id)), 0, 5);
     return LIQ_LUT[idx];
 }
 
@@ -94,6 +104,7 @@ fn get_liq_props(id: f32) -> LiquidProps {
 @group(0) @binding(5) var solid_texture:       texture_3d<f32>;
 @group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
+@group(0) @binding(8) var stress_texture:      texture_3d<f32>;
 
 fn get_solid(p: vec3<i32>) -> vec2<f32> {
     let wrapped = (p + vec3<i32>(160)) % 160;
@@ -112,15 +123,44 @@ fn get_liquid(p: vec3<i32>) -> vec2<f32> {
     return vec2<f32>(val.r, val.g);
 }
 
+fn get_gas(p: vec3<i32>) -> vec2<f32> {
+    let wrapped = (p + vec3<i32>(160)) % 160;
+    let val = textureLoad(gas_texture, wrapped, 0);
+    return vec2<f32>(val.r, val.g);
+}
+
+fn is_explosion_center(p: vec3<i32>) -> bool {
+    let g = get_gas(p);
+    if (g.x == 2.0 && g.y > 0.1) {
+        let dirs = array<vec3<i32>, 6>(
+            vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
+            vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
+            vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
+        );
+        for (var i = 0; i < 6; i = i + 1) {
+            let np = p + dirs[i];
+            let n_gas = get_gas(np);
+            if (n_gas.x == 3.0 && n_gas.y > 0.1) {
+                return true;
+            }
+            let n_liq = get_liquid(np);
+            if (n_liq.x == 2.0 && n_liq.y > 0.1) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let idx = global_id.x;
     if (idx >= 4096000u) { return; }
 
     // Dummy reads to prevent compiler from optimizing out unused bindings
-    let dummy_val = input_buffer[0] + solid_buffer[0] + chunk_lookup[0];
-    if (dummy_val.x > 999999.0) {
-        output_buffer[idx] = textureLoad(gas_texture, vec3<i32>(0), 0);
+    if (u.time < -1.0) {
+        let dummy_val = input_buffer[0] + solid_buffer[0] + chunk_lookup[0] + textureLoad(stress_texture, vec3<i32>(0), 0);
+        output_buffer[idx] = dummy_val + textureLoad(gas_texture, vec3<i32>(0), 0);
     }
 
     let x = idx % 160u;
@@ -128,7 +168,53 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let z = idx / 25600u;
     let ip = vec3<i32>(i32(x), i32(y), i32(z));
 
-    if (is_solid(ip)) {
+    // --- 0. Explosion Carving (runs only at the center of explosions) ---
+    if (is_explosion_center(ip)) {
+        for (var dx = -3; dx <= 3; dx = dx + 1) {
+            for (var dy = -3; dy <= 3; dy = dy + 1) {
+                for (var dz = -3; dz <= 3; dz = dz + 1) {
+                    let tp = ip + vec3<i32>(dx, dy, dz);
+                    let d = distance(vec3<f32>(ip), vec3<f32>(tp));
+                    if (d <= 3.5) {
+                        let wrapped = (tp + vec3<i32>(160)) % 160;
+                        let s_idx = u32(wrapped.x) + u32(wrapped.y) * 160u + u32(wrapped.z) * 25600u;
+                        solid_buffer[s_idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0); // Clear solid block!
+                    }
+                }
+            }
+        }
+    }
+
+    let sol_val = get_solid(ip);
+    let sol_id = sol_val.x;
+    let is_sol_block = sol_val.y * 0.5 < 0.008;
+    if (is_sol_block) {
+        // Wood (3.0) or Coal (4.0) catches fire and burns away
+        if (sol_id == 3.0 || sol_id == 4.0) {
+            var touches_fire = false;
+            let dirs = array<vec3<i32>, 6>(
+                vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
+                vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
+                vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
+            );
+            for (var i = 0; i < 6; i = i + 1) {
+                let np = ip + dirs[i];
+                let g = get_gas(np);
+                if (g.x == 3.0 && g.y > 0.1) { touches_fire = true; break; }
+                let l = get_liquid(np);
+                if (l.x == 2.0 && l.y > 0.1) { touches_fire = true; break; }
+            }
+            if (touches_fire) {
+                let rand_val = fract(sin(dot(vec3<f32>(ip) + vec3<f32>(u.time), vec3<f32>(12.9898, 78.233, 45.164))) * 43758.5453);
+                var burn_chance = 0.01; // Wood (1% chance per frame = ~1.6 seconds average)
+                if (sol_id == 4.0) {
+                    burn_chance = 0.002; // Coal (0.2% chance per frame = ~8.3 seconds average)
+                }
+                if (rand_val < burn_chance) {
+                    solid_buffer[idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0);
+                }
+            }
+        }
         output_buffer[idx] = vec4<f32>(0.0);
         return;
     }
@@ -329,11 +415,27 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
     }
 
+    // Vaporize liquid if next to an explosion
+    var adjacent_to_explosion = false;
+    if (is_explosion_center(ip)) {
+        adjacent_to_explosion = true;
+    } else {
+        for (var i = 0; i < 4; i = i + 1) {
+            if (is_explosion_center(ip + neighbors[i])) { adjacent_to_explosion = true; break; }
+        }
+        if (is_explosion_center(below_p) || is_explosion_center(above_p)) {
+            adjacent_to_explosion = true;
+        }
+    }
+    if (adjacent_to_explosion) {
+        react_empty = true;
+    }
+
     if (react_empty) {
         next_vol = 0.0;
         next_id = 0.0;
-        // Turn into Solid Stone if it was a Lava/Water collision
-        if (self_liq.x == 1.0 || self_liq.x == 2.0) {
+        // Turn into Solid Stone if it was a Lava/Water collision (and NOT an explosion!)
+        if (!adjacent_to_explosion && (self_liq.x == 1.0 || self_liq.x == 2.0)) {
             solid_buffer[idx] = vec4<f32>(1.0, -1.0, 0.0, 0.0);
         }
     }
@@ -366,6 +468,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     sun_dir: vec4<f32>,
     hit_pos: vec4<f32>,
     edit_params: vec4<f32>,
+    view_mode: vec4<f32>,
 }
 
 struct GasProps {
@@ -394,6 +497,7 @@ fn get_gas_props(id: f32) -> GasProps {
 @group(0) @binding(5) var solid_texture:       texture_3d<f32>;
 @group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
+@group(0) @binding(8) var stress_texture:      texture_3d<f32>;
 
 fn get_solid(p: vec3<i32>) -> vec2<f32> {
     let wrapped = (p + vec3<i32>(160)) % 160;
@@ -418,15 +522,38 @@ fn get_liquid(p: vec3<i32>) -> vec2<f32> {
     return vec2<f32>(val.r, val.g);
 }
 
+fn is_explosion_center(p: vec3<i32>) -> bool {
+    let g = get_gas(p);
+    if (g.x == 2.0 && g.y > 0.1) {
+        let dirs = array<vec3<i32>, 6>(
+            vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
+            vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
+            vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
+        );
+        for (var i = 0; i < 6; i = i + 1) {
+            let np = p + dirs[i];
+            let n_gas = get_gas(np);
+            if (n_gas.x == 3.0 && n_gas.y > 0.1) {
+                return true;
+            }
+            let n_liq = get_liquid(np);
+            if (n_liq.x == 2.0 && n_liq.y > 0.1) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let idx = global_id.x;
     if (idx >= 4096000u) { return; }
 
     // Dummy reads to prevent compiler from optimizing out unused bindings
-    let dummy_val = input_buffer[0] + chunk_info[0] + chunk_lookup[0];
-    if (dummy_val.x > 999999.0) {
-        output_buffer[idx] = textureLoad(liquid_texture, vec3<i32>(0), 0);
+    if (u.time < -1.0) {
+        let dummy_val = input_buffer[0] + chunk_info[0] + chunk_lookup[0] + textureLoad(stress_texture, vec3<i32>(0), 0);
+        output_buffer[idx] = dummy_val + textureLoad(liquid_texture, vec3<i32>(0), 0);
     }
 
     let x = idx % 160u;
@@ -599,6 +726,59 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_vol = min(1.0, next_vol + spawn_gas_vol);
     }
 
+    // --- 4b. Explosion Propagation ---
+    var in_explosion = false;
+    if (is_explosion_center(ip)) {
+        in_explosion = true;
+    } else {
+        for (var i = 0; i < 4; i = i + 1) {
+            if (is_explosion_center(ip + neighbors[i])) { in_explosion = true; break; }
+        }
+        if (is_explosion_center(below_p) || is_explosion_center(above_p)) {
+            in_explosion = true;
+        }
+    }
+    if (in_explosion) {
+        next_id = 3.0; // Fire
+        next_vol = 1.0;
+    }
+
+    // --- 4c. Wood/Coal Burning Spawning Fire/Smoke ---
+    if (next_id == 0.0 || next_id == 4.0) { // Empty or Smoke
+        var spawn_fire = false;
+        let dirs = array<vec3<i32>, 6>(
+            vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
+            vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
+            vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
+        );
+        for (var i = 0; i < 6; i = i + 1) {
+            let np = ip + dirs[i];
+            let sol = get_solid(np);
+            let is_sol_block = sol.y * 0.5 < 0.008;
+            if (is_sol_block && (sol.x == 3.0 || sol.x == 4.0)) { // Wood/Coal
+                // Check if this solid block touches fire or lava
+                for (var j = 0; j < 6; j = j + 1) {
+                    let nnp = np + dirs[j];
+                    let g = get_gas(nnp);
+                    if (g.x == 3.0 && g.y > 0.1) { spawn_fire = true; break; }
+                    let l = get_liquid(nnp);
+                    if (l.x == 2.0 && l.y > 0.1) { spawn_fire = true; break; }
+                }
+            }
+            if (spawn_fire) { break; }
+        }
+        if (spawn_fire) {
+            let rand_val = fract(sin(dot(vec3<f32>(ip) + vec3<f32>(u.time), vec3<f32>(12.9898, 78.233, 45.164))) * 43758.5453);
+            if (rand_val < 0.4) {
+                next_id = 4.0; // Smoke
+                next_vol = 0.8;
+            } else {
+                next_id = 3.0; // Fire
+                next_vol = 1.0;
+            }
+        }
+    }
+
     // --- 5. Evaporate, decay and clamp ---
     let next_props = get_gas_props(next_id);
     next_vol = max(0.0, next_vol - next_props.decay);
@@ -614,5 +794,199 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
 
     output_buffer[idx] = vec4<f32>(next_id, next_vol, 0.0, 0.0);
+}
+")
+
+(def solid-sim-wgsl
+  "struct Uniforms {
+    time: f32,
+    width: f32,
+    height: f32,
+    brush_radius: f32,
+    cam_pos: vec4<f32>,
+    cam_dir: vec4<f32>,
+    cam_right: vec4<f32>,
+    cam_up: vec4<f32>,
+    sun_dir: vec4<f32>,
+    hit_pos: vec4<f32>,
+    edit_params: vec4<f32>,
+    view_mode: vec4<f32>,
+}
+
+@group(0) @binding(0) var<storage, read>       input_buffer: array<vec4<f32>>;
+@group(0) @binding(1) var<storage, read_write> output_buffer: array<vec4<f32>>;
+@group(0) @binding(2) var<uniform>             u: Uniforms;
+@group(0) @binding(3) var<storage, read_write> solid_buffer: array<vec4<f32>>;
+@group(0) @binding(4) var<storage, read_write> liquid_buffer: array<vec4<f32>>;
+@group(0) @binding(5) var solid_texture:       texture_3d<f32>;
+@group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
+@group(0) @binding(7) var gas_texture:         texture_3d<f32>;
+@group(0) @binding(8) var stress_texture:      texture_3d<f32>;
+
+fn get_solid(p: vec3<i32>) -> vec2<f32> {
+    let wrapped = (p + vec3<i32>(160)) % 160;
+    let val = textureLoad(solid_texture, wrapped, 0);
+    return vec2<f32>(val.r, val.g);
+}
+
+fn is_solid(p: vec3<i32>) -> bool {
+    let sol = get_solid(p);
+    return sol.y * 0.5 < 0.008;
+}
+
+fn get_stress(p: vec3<i32>) -> vec4<f32> {
+    let wrapped = (p + vec3<i32>(160)) % 160;
+    return textureLoad(stress_texture, wrapped, 0);
+}
+
+fn get_material_density(id: f32) -> f32 {
+    let id_round = i32(round(id));
+    if (id_round == 1) { return 1.0; } // Stone
+    if (id_round == 2) { return 0.8; } // Grass
+    if (id_round == 3) { return 0.5; } // Wood
+    if (id_round == 4) { return 1.2; } // Coal
+    if (id_round == 5) { return 3.0; } // Gold
+    return 0.0;
+}
+
+fn get_material_strength(id: f32) -> f32 {
+    let id_round = i32(round(id));
+    if (id_round == 1) { return 10.0; }
+    if (id_round == 2) { return 3.0; }
+    if (id_round == 3) { return 12.0; }
+    if (id_round == 4) { return 4.0; }
+    if (id_round == 5) { return 15.0; }
+    return 999.0;
+}
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let idx = global_id.x;
+    if (idx >= 4096000u) { return; }
+
+    // Dummy reads to prevent compiler from optimizing out unused bindings
+    if (u.time < -1.0) {
+        let dummy_val = vec4<f32>(u.time) + textureLoad(liquid_texture, vec3<i32>(0), 0) + textureLoad(gas_texture, vec3<i32>(0), 0);
+        output_buffer[idx] = dummy_val;
+    }
+
+    let x = idx % 160u;
+    let y = (idx / 160u) % 160u;
+    let z = idx / 25600u;
+    let ip = vec3<i32>(i32(x), i32(y), i32(z));
+
+    let sol = get_solid(ip);
+    let sol_id = sol.x;
+    let is_sol_block = sol.y * 0.5 < 0.008;
+
+    if (!is_sol_block) {
+        output_buffer[idx] = vec4<f32>(0.0);
+        return;
+    }
+
+    let self_stress = input_buffer[idx]; // (temp, shear, comp, fatigue)
+    
+    // 1. Compressive Stress Propagation (Gravity load downwards)
+    var comp_stress = get_material_density(sol_id);
+    let above_p = ip + vec3<i32>(0, 1, 0);
+    if (ip.y < 159 && is_solid(above_p)) {
+        let above_stress = get_stress(above_p);
+        comp_stress += above_stress.z; // add compressive load from above
+    }
+
+    // 2. Shear Stress (Overhang calculation)
+    var shear_stress = 0.0;
+    let below_p = ip + vec3<i32>(0, -1, 0);
+    if (ip.y > 0 && !is_solid(below_p)) { // Air below us! (Cantilever)
+        var min_dist = 999.0;
+        
+        // Scan -X
+        for (var dx = 1; dx <= 6; dx = dx + 1) {
+            let np = ip + vec3<i32>(-dx, 0, 0);
+            if (is_solid(np)) {
+                if (is_solid(np + vec3<i32>(0, -1, 0))) {
+                    min_dist = min(min_dist, f32(dx));
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        // Scan +X
+        for (var dx = 1; dx <= 6; dx = dx + 1) {
+            let np = ip + vec3<i32>(dx, 0, 0);
+            if (is_solid(np)) {
+                if (is_solid(np + vec3<i32>(0, -1, 0))) {
+                    min_dist = min(min_dist, f32(dx));
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        // Scan -Z
+        for (var dz = 1; dz <= 6; dz = dz + 1) {
+            let np = ip + vec3<i32>(0, 0, -dz);
+            if (is_solid(np)) {
+                if (is_solid(np + vec3<i32>(0, -1, 0))) {
+                    min_dist = min(min_dist, f32(dz));
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        // Scan +Z
+        for (var dz = 1; dz <= 6; dz = dz + 1) {
+            let np = ip + vec3<i32>(0, 0, dz);
+            if (is_solid(np)) {
+                if (is_solid(np + vec3<i32>(0, -1, 0))) {
+                    min_dist = min(min_dist, f32(dz));
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        if (min_dist < 999.0) {
+            shear_stress = min_dist;
+        } else {
+            shear_stress = 6.0;
+        }
+    }
+
+    let dt = 0.016; // fixed timestep for 60 FPS
+    let total_stress = (comp_stress - 1.0) * 0.4 + shear_stress * 1.2;
+    let strength = get_material_strength(sol_id);
+
+    // Bedrock anchor logic (bottom layer is unbreakable and has zero fatigue)
+    var fatigue = self_stress.w;
+    if (ip.y <= 5) {
+        fatigue = 0.0;
+        comp_stress = 0.0;
+        shear_stress = 0.0;
+    } else {
+        let fatigue_threshold = strength * 0.65;
+        if (total_stress >= fatigue_threshold) {
+            let excess = total_stress - fatigue_threshold;
+            fatigue += (0.3 + excess * 0.2) * dt;
+        } else {
+            fatigue -= 0.05 * dt;
+        }
+    }
+    fatigue = clamp(fatigue, 0.0, 1.0);
+
+    // Check for collapse!
+    if (fatigue >= 1.0 || (total_stress >= strength && ip.y > 5)) {
+        // Destroy solid block
+        solid_buffer[idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0);
+        // Spawn falling Rubble (Liquid 5)
+        liquid_buffer[idx] = vec4<f32>(5.0, 1.0, 0.0, 0.0);
+        
+        output_buffer[idx] = vec4<f32>(0.0);
+    } else {
+        output_buffer[idx] = vec4<f32>(0.0, shear_stress, comp_stress, fatigue);
+    }
 }
 ")

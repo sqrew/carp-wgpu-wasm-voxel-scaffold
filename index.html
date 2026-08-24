@@ -199,10 +199,10 @@ canvas.emscripten { border: 0px none; background-color: black; }
         <!-- Toggles -->
         <div style="display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; font-size: 12px;">
           <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-            <input type="checkbox" id="fly-chk" onchange="window.player_flying = this.checked"> Flying Mode
+            <input type="checkbox" id="fly-chk" onchange="toggleFlying(this.checked)"> Flying Mode
           </label>
           <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-            <input type="checkbox" id="light-chk" onchange="window.player_flashlight = this.checked"> Flashlight
+            <input type="checkbox" id="light-chk" onchange="toggleFlashlight(this.checked)"> Flashlight
           </label>
         </div>
         
@@ -301,21 +301,47 @@ canvas.emscripten { border: 0px none; background-color: black; }
       function updateBrushRadius(val) {
         window.player_brush_radius = parseFloat(val);
         document.getElementById('brush-val').innerText = window.player_brush_radius.toFixed(1);
+        if (typeof Module !== 'undefined' && Module._set_brush_radius) {
+          Module._set_brush_radius(window.player_brush_radius);
+        }
       }
 
       function selectSolid(id) {
         window.player_solid_mat = parseFloat(id);
         updateActiveButtons('solid-btn', id);
+        if (typeof Module !== 'undefined' && Module._set_solid_mat) {
+          Module._set_solid_mat(window.player_solid_mat);
+        }
       }
 
       function selectLiquid(id) {
         window.player_liq_mat = parseFloat(id);
         updateActiveButtons('liq-btn', id);
+        if (typeof Module !== 'undefined' && Module._set_liq_mat) {
+          Module._set_liq_mat(window.player_liq_mat);
+        }
       }
 
       function selectGas(id) {
         window.player_gas_mat = parseFloat(id);
         updateActiveButtons('gas-btn', id);
+        if (typeof Module !== 'undefined' && Module._set_gas_mat) {
+          Module._set_gas_mat(window.player_gas_mat);
+        }
+      }
+
+      function toggleFlying(checked) {
+        window.player_flying = checked;
+        if (typeof Module !== 'undefined' && Module._set_flying) {
+          Module._set_flying(checked ? 1.0 : 0.0);
+        }
+      }
+
+      function toggleFlashlight(checked) {
+        window.player_flashlight = checked;
+        if (typeof Module !== 'undefined' && Module._set_flashlight) {
+          Module._set_flashlight(checked ? 1.0 : 0.0);
+        }
       }
 
       function updateActiveButtons(className, activeId) {

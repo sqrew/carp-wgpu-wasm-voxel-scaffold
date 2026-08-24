@@ -2160,6 +2160,9 @@ typedef bool(*Fn__WGPUBuffer_bool)(WGPUBuffer);
 typedef void(*Fn__WGPUCommandEncoder_WGPUBuffer_Long_WGPURenderTexture_MUL__int_int_int_int_int_int_void)(WGPUCommandEncoder, WGPUBuffer, Long, WGPURenderTexture*, int, int, int, int, int, int);
 
 // Depth 104
+typedef void(*Fn__WGPUCommandEncoder_WGPUBuffer_WGPUBuffer_Long_void)(WGPUCommandEncoder, WGPUBuffer, WGPUBuffer, Long);
+
+// Depth 104
 typedef void(*Fn__WGPUCommandEncoder_WGPUComputePipeline_WGPUBindGroup_int_void)(WGPUCommandEncoder, WGPUComputePipeline, WGPUBindGroup, int);
 
 // Depth 104
@@ -2188,6 +2191,9 @@ typedef WGPUBuffer(*Fn__WGPUContext_MUL__Uint64_WGPUBuffer)(WGPUContext*, Uint64
 
 // Depth 104
 typedef WGPUUniformBufferWrapper*(*Fn__WGPUContext_MUL__Uint64_WGPUUniformBufferWrapper_MUL_)(WGPUContext*, Uint64);
+
+// Depth 104
+typedef WGPUVertexBufferWrapper*(*Fn__WGPUContext_MUL__Uint64_WGPUVertexBufferWrapper_MUL_)(WGPUContext*, Uint64);
 
 // Depth 104
 typedef void(*Fn__WGPUContext_MUL__WGPUBuffer_Long_WGPURenderTexture_MUL__int_int_int_int_int_int_void)(WGPUContext*, WGPUBuffer, Long, WGPURenderTexture*, int, int, int, int, int, int);
@@ -2220,6 +2226,9 @@ typedef WGPUBindGroup(*Fn__WGPUContext_MUL__WGPUComputePipeline_WGPUBuffer_WGPUB
 typedef WGPUBindGroup(*Fn__WGPUContext_MUL__WGPUComputePipeline_WGPUBuffer_WGPUBuffer_WGPUBuffer_WGPUBuffer_WGPUBuffer_WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPUBindGroup)(WGPUContext*, WGPUComputePipeline, WGPUBuffer, WGPUBuffer, WGPUBuffer, WGPUBuffer, WGPUBuffer, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*);
 
 // Depth 104
+typedef WGPUBindGroup(*Fn__WGPUContext_MUL__WGPUComputePipeline_WGPUBuffer_WGPUBuffer_WGPUBuffer_WGPUBuffer_WGPUBuffer_WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPUBindGroup)(WGPUContext*, WGPUComputePipeline, WGPUBuffer, WGPUBuffer, WGPUBuffer, WGPUBuffer, WGPUBuffer, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*);
+
+// Depth 104
 typedef WGPUContext*(*Fn__WGPUContext_MUL__WGPUContext_MUL_)(WGPUContext*);
 
 // Depth 104
@@ -2241,7 +2250,7 @@ typedef WGPUBindGroup(*Fn__WGPUContext_MUL__WGPURenderPipelineWrapper_MUL__WGPUB
 typedef WGPUBindGroup(*Fn__WGPUContext_MUL__WGPURenderPipelineWrapper_MUL__WGPURenderTexture_MUL__WGPUDepthTexture_MUL__WGPURenderTexture_MUL__WGPUSampler_WGPUBindGroup)(WGPUContext*, WGPURenderPipelineWrapper*, WGPURenderTexture*, WGPUDepthTexture*, WGPURenderTexture*, WGPUSampler);
 
 // Depth 104
-typedef WGPUBindGroup(*Fn__WGPUContext_MUL__WGPURenderPipelineWrapper_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPUSampler_WGPUUniformBufferWrapper_MUL__WGPUBindGroup)(WGPUContext*, WGPURenderPipelineWrapper*, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*, WGPUSampler, WGPUUniformBufferWrapper*);
+typedef WGPUBindGroup(*Fn__WGPUContext_MUL__WGPURenderPipelineWrapper_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPUSampler_WGPUUniformBufferWrapper_MUL__WGPUBindGroup)(WGPUContext*, WGPURenderPipelineWrapper*, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*, WGPUSampler, WGPUUniformBufferWrapper*);
 
 // Depth 104
 typedef WGPUBindGroup(*Fn__WGPUContext_MUL__WGPURenderPipelineWrapper_MUL__WGPURenderTexture_MUL__WGPUSampler_WGPUBindGroup)(WGPUContext*, WGPURenderPipelineWrapper*, WGPURenderTexture*, WGPUSampler);
@@ -2530,6 +2539,7 @@ struct Renderer {
     WGPURenderTexture* liquid_MINUS_texture;
     WGPURenderTexture* gas_MINUS_texture;
     WGPURenderTexture* light_MINUS_texture;
+    WGPURenderTexture* stress_MINUS_texture;
     WGPUSampler voxel_MINUS_sampler;
     LinePassRenderer line_MINUS_pass;
     Array__Line lines;
@@ -2555,6 +2565,12 @@ struct Renderer {
     WGPUBindGroup liquid_MINUS_sim_MINUS_bind_MINUS_group;
     WGPUComputePipeline gas_MINUS_sim_MINUS_pipeline;
     WGPUBindGroup gas_MINUS_sim_MINUS_bind_MINUS_group;
+    WGPUVertexBufferWrapper* stress_MINUS_gpu_MINUS_buffer_MINUS_read;
+    WGPUVertexBufferWrapper* stress_MINUS_gpu_MINUS_buffer_MINUS_write;
+    WGPUVertexBufferWrapper* stress_MINUS_half_MINUS_buffer;
+    WGPUBindGroup stress_MINUS_pack_MINUS_bind_MINUS_group;
+    WGPUComputePipeline solid_MINUS_sim_MINUS_pipeline;
+    WGPUBindGroup solid_MINUS_sim_MINUS_bind_MINUS_group;
 };
 
 // Depth 106
@@ -2669,7 +2685,7 @@ typedef WGPUContext**(*Fn__Engine_MUL__WGPUContext_MUL__MUL_)(Engine*);
 typedef void(*Fn__Engine_MUL__WGPUFrameState_MUL__void)(Engine*, WGPUFrameState*);
 
 // Depth 106
-typedef Result__WGPUBindGroup_String(*Fn__Engine_MUL__WGPURenderPipelineWrapper_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPUSampler_WGPUUniformBufferWrapper_MUL__Result__WGPUBindGroup_String)(Engine*, WGPURenderPipelineWrapper*, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*, WGPUSampler, WGPUUniformBufferWrapper*);
+typedef Result__WGPUBindGroup_String(*Fn__Engine_MUL__WGPURenderPipelineWrapper_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPUSampler_WGPUUniformBufferWrapper_MUL__Result__WGPUBindGroup_String)(Engine*, WGPURenderPipelineWrapper*, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*, WGPUSampler, WGPUUniformBufferWrapper*);
 
 // Depth 106
 typedef WGPURenderSurface**(*Fn__Engine_MUL__WGPURenderSurface_MUL__MUL_)(Engine*);
@@ -2894,7 +2910,7 @@ typedef Result__WGPURenderPipelineWrapper_MUL__String(*Fn__WGPUContext_MUL__Stri
 typedef Result__WGPUGeomPipelineWrapper_MUL__String(*Fn__WGPUContext_MUL__String_MUL__String_MUL__String_MUL__String_MUL__String_MUL__int_Result__WGPUGeomPipelineWrapper_MUL__String)(WGPUContext*, String*, String*, String*, String*, String*, int);
 
 // Depth 106
-typedef Result__WGPUBindGroup_String(*Fn__WGPUContext_MUL__WGPUComputePipeline_WGPUBuffer_WGPUBuffer_WGPUBuffer_WGPUBuffer_WGPUBuffer_WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__Result__WGPUBindGroup_String)(WGPUContext*, WGPUComputePipeline, WGPUBuffer, WGPUBuffer, WGPUBuffer, WGPUBuffer, WGPUBuffer, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*);
+typedef Result__WGPUBindGroup_String(*Fn__WGPUContext_MUL__WGPUComputePipeline_WGPUBuffer_WGPUBuffer_WGPUBuffer_WGPUBuffer_WGPUBuffer_WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__Result__WGPUBindGroup_String)(WGPUContext*, WGPUComputePipeline, WGPUBuffer, WGPUBuffer, WGPUBuffer, WGPUBuffer, WGPUBuffer, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*);
 
 // Depth 106
 typedef Result__WGPUBindGroup_String(*Fn__WGPUContext_MUL__WGPUGeomPipelineWrapper_MUL__WGPUUniformBufferWrapper_MUL__Result__WGPUBindGroup_String)(WGPUContext*, WGPUGeomPipelineWrapper*, WGPUUniformBufferWrapper*);
@@ -2904,6 +2920,9 @@ typedef Result__WGPUBindGroup_String(*Fn__WGPUContext_MUL__WGPURenderPipelineWra
 
 // Depth 106
 typedef Result__WGPUUniformBufferWrapper_MUL__String(*Fn__WGPUContext_MUL__int_Result__WGPUUniformBufferWrapper_MUL__String)(WGPUContext*, int);
+
+// Depth 106
+typedef Result__WGPUVertexBufferWrapper_MUL__String(*Fn__WGPUContext_MUL__int_Result__WGPUVertexBufferWrapper_MUL__String)(WGPUContext*, int);
 
 // Depth 106
 typedef Result__WGPUDepthTexture_MUL__String(*Fn__WGPUContext_MUL__int_int_Result__WGPUDepthTexture_MUL__String)(WGPUContext*, int, int);
@@ -3223,7 +3242,7 @@ typedef Result__LinePassRenderer_String(*Fn__String_Result__LinePassRenderer_Str
 typedef Result__LinePassRenderer_String(*Fn__WGPUContext_MUL__String_MUL__int_Result__LinePassRenderer_String)(WGPUContext*, String*, int);
 
 // Depth 108
-typedef Renderer(*Fn__WGPURenderPipelineWrapper_MUL__WGPUBindGroup_WGPUUniformBufferWrapper_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPUSampler_LinePassRenderer_Array__Line_WGPUDepthTexture_MUL__int_int_WGPUVertexBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL__WGPUComputePipeline_WGPUBindGroup_WGPUVertexBufferWrapper_MUL__WGPUComputePipeline_WGPUBindGroup_WGPUUniformBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL__WGPUBindGroup_WGPUBindGroup_WGPUComputePipeline_WGPUBindGroup_WGPUComputePipeline_WGPUBindGroup_Renderer)(WGPURenderPipelineWrapper*, WGPUBindGroup, WGPUUniformBufferWrapper*, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*, WGPUSampler, LinePassRenderer, Array__Line, WGPUDepthTexture*, int, int, WGPUVertexBufferWrapper*, WGPUVertexBufferWrapper*, WGPUVertexBufferWrapper*, WGPUComputePipeline, WGPUBindGroup, WGPUVertexBufferWrapper*, WGPUComputePipeline, WGPUBindGroup, WGPUUniformBufferWrapper*, WGPUVertexBufferWrapper*, WGPUVertexBufferWrapper*, WGPUVertexBufferWrapper*, WGPUVertexBufferWrapper*, WGPUBindGroup, WGPUBindGroup, WGPUComputePipeline, WGPUBindGroup, WGPUComputePipeline, WGPUBindGroup);
+typedef Renderer(*Fn__WGPURenderPipelineWrapper_MUL__WGPUBindGroup_WGPUUniformBufferWrapper_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPURenderTexture_MUL__WGPUSampler_LinePassRenderer_Array__Line_WGPUDepthTexture_MUL__int_int_WGPUVertexBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL__WGPUComputePipeline_WGPUBindGroup_WGPUVertexBufferWrapper_MUL__WGPUComputePipeline_WGPUBindGroup_WGPUUniformBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL__WGPUBindGroup_WGPUBindGroup_WGPUComputePipeline_WGPUBindGroup_WGPUComputePipeline_WGPUBindGroup_WGPUVertexBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL__WGPUBindGroup_WGPUComputePipeline_WGPUBindGroup_Renderer)(WGPURenderPipelineWrapper*, WGPUBindGroup, WGPUUniformBufferWrapper*, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*, WGPURenderTexture*, WGPUSampler, LinePassRenderer, Array__Line, WGPUDepthTexture*, int, int, WGPUVertexBufferWrapper*, WGPUVertexBufferWrapper*, WGPUVertexBufferWrapper*, WGPUComputePipeline, WGPUBindGroup, WGPUVertexBufferWrapper*, WGPUComputePipeline, WGPUBindGroup, WGPUUniformBufferWrapper*, WGPUVertexBufferWrapper*, WGPUVertexBufferWrapper*, WGPUVertexBufferWrapper*, WGPUVertexBufferWrapper*, WGPUBindGroup, WGPUBindGroup, WGPUComputePipeline, WGPUBindGroup, WGPUComputePipeline, WGPUBindGroup, WGPUVertexBufferWrapper*, WGPUVertexBufferWrapper*, WGPUVertexBufferWrapper*, WGPUBindGroup, WGPUComputePipeline, WGPUBindGroup);
 
 // Depth 108
 typedef void(*Fn__World_MUL__Engine_MUL__Renderer_MUL__Vector3__double_MUL__void)(World*, Engine*, Renderer*, Vector3__double*);
@@ -3435,6 +3454,8 @@ struct EngineState {
     float hit_MINUS_active;
     float liquid_MINUS_spawn;
     float gas_MINUS_spawn;
+    bool stress_MINUS_view;
+    bool v_MINUS_pressed;
 };
 
 // Depth 110
@@ -3535,6 +3556,9 @@ typedef String(*Fn__EngineState_MUL__String)(EngineState*);
 typedef World*(*Fn__EngineState_MUL__World_MUL_)(EngineState*);
 
 // Depth 113
+typedef bool*(*Fn__EngineState_MUL__bool_MUL_)(EngineState*);
+
+// Depth 113
 typedef float*(*Fn__EngineState_MUL__float_MUL_)(EngineState*);
 
 // Depth 113
@@ -3544,7 +3568,7 @@ typedef int*(*Fn__EngineState_MUL__int_MUL_)(EngineState*);
 typedef void(*Fn__EngineState_MUL__void)(EngineState*);
 
 // Depth 113
-typedef EngineState(*Fn__Engine_Renderer_World_Player_Array__float_Diagnostics_int_float_float_float_float_float_float_EngineState)(Engine, Renderer, World, Player, Array__float, Diagnostics, int, float, float, float, float, float, float);
+typedef EngineState(*Fn__Engine_Renderer_World_Player_Array__float_Diagnostics_int_float_float_float_float_float_float_bool_bool_EngineState)(Engine, Renderer, World, Player, Array__float, Diagnostics, int, float, float, float, float, float, float, bool, bool);
 
 // Depth 115
 typedef Result__EngineState_String(*Fn__EngineState_Result__EngineState_String)(EngineState);
@@ -3909,7 +3933,7 @@ void Vector3__Lambda_mul__double_13_env_ty_delete(Vector3__Lambda_mul__double_13
 String* copy_MINUS_wgsl;
 
 // Depth 500
-WGPUBindGroup create_MINUS_voxel_MINUS_scaffold_MINUS_bind_MINUS_group(WGPUContext* ctx, WGPURenderPipelineWrapper* pipe, WGPURenderTexture* solid_tex, WGPURenderTexture* liquid_tex, WGPURenderTexture* gas_tex, WGPURenderTexture* light_tex, WGPUSampler sampler, WGPUUniformBufferWrapper* ub);
+WGPUBindGroup create_MINUS_voxel_MINUS_scaffold_MINUS_bind_MINUS_group(WGPUContext* ctx, WGPURenderPipelineWrapper* pipe, WGPURenderTexture* solid_tex, WGPURenderTexture* liquid_tex, WGPURenderTexture* gas_tex, WGPURenderTexture* light_tex, WGPURenderTexture* stress_tex, WGPUSampler sampler, WGPUUniformBufferWrapper* ub);
 
 // Depth 500
 void emscripten_MINUS_sleep(int ms);
@@ -4044,6 +4068,9 @@ void set_MINUS_js_MINUS_liq_MINUS_mat(float m);
 
 // Depth 500
 void set_MINUS_js_MINUS_solid_MINUS_mat(float m);
+
+// Depth 500
+String* solid_MINUS_sim_MINUS_wgsl;
 
 // Depth 500
 String* voxel_MINUS_wgsl;
@@ -5486,10 +5513,16 @@ Result__WGPUBindGroup_String Engine_create_MINUS_bind_MINUS_group(Engine* eng, W
 Result__WGPURenderPipelineWrapper_MUL__String Engine_create_MINUS_pipeline(Engine* eng, String* wgsl, String* vs_MINUS_entry, String* fs_MINUS_entry);
 
 // Depth 500
+Result__WGPUBindGroup_String Engine_create_MINUS_simulation_MINUS_bind_MINUS_group(WGPUContext* ctx, WGPUComputePipeline pipeline, WGPUBuffer in_MINUS_buf, WGPUBuffer out_MINUS_buf, WGPUBuffer ub, WGPUBuffer solid_MINUS_buf, WGPUBuffer lookup_MINUS_buf, WGPURenderTexture* solid_MINUS_tex, WGPURenderTexture* liquid_MINUS_tex, WGPURenderTexture* gas_MINUS_tex, WGPURenderTexture* stress_MINUS_tex);
+
+// Depth 500
+WGPUBindGroup Engine_create_MINUS_simulation_MINUS_bind_MINUS_group_MINUS_raw(WGPUContext* ctx, WGPUComputePipeline pipe, WGPUBuffer in_buf, WGPUBuffer out_buf, WGPUBuffer ub, WGPUBuffer solid_buf, WGPUBuffer lookup_buf, WGPURenderTexture* solid_tex, WGPURenderTexture* liquid_tex, WGPURenderTexture* gas_tex, WGPURenderTexture* stress_tex);
+
+// Depth 500
 Result__WGPUUniformBufferWrapper_MUL__String Engine_create_MINUS_uniform_MINUS_buffer(Engine* eng, int size);
 
 // Depth 500
-Result__WGPUBindGroup_String Engine_create_MINUS_voxel_MINUS_bind_MINUS_group(Engine* eng, WGPURenderPipelineWrapper* pipeline, WGPURenderTexture* solid_MINUS_tex, WGPURenderTexture* liquid_MINUS_tex, WGPURenderTexture* gas_MINUS_tex, WGPURenderTexture* light_MINUS_tex, WGPUSampler sampler, WGPUUniformBufferWrapper* uniforms);
+Result__WGPUBindGroup_String Engine_create_MINUS_voxel_MINUS_bind_MINUS_group(Engine* eng, WGPURenderPipelineWrapper* pipeline, WGPURenderTexture* solid_MINUS_tex, WGPURenderTexture* liquid_MINUS_tex, WGPURenderTexture* gas_MINUS_tex, WGPURenderTexture* light_MINUS_tex, WGPURenderTexture* stress_MINUS_tex, WGPUSampler sampler, WGPUUniformBufferWrapper* uniforms);
 
 // Depth 500
 WGPUContext** Engine_ctx(Engine* p);
@@ -5644,7 +5677,7 @@ float* EngineState_hit_MINUS_y(EngineState* p);
 float* EngineState_hit_MINUS_z(EngineState* p);
 
 // Depth 500
-EngineState EngineState_init(Engine eng, Renderer renderer, World world, Player player, Array__float uniforms, Diagnostics diag, int frame_MINUS_count, float hit_MINUS_x, float hit_MINUS_y, float hit_MINUS_z, float hit_MINUS_active, float liquid_MINUS_spawn, float gas_MINUS_spawn);
+EngineState EngineState_init(Engine eng, Renderer renderer, World world, Player player, Array__float uniforms, Diagnostics diag, int frame_MINUS_count, float hit_MINUS_x, float hit_MINUS_y, float hit_MINUS_z, float hit_MINUS_active, float liquid_MINUS_spawn, float gas_MINUS_spawn, bool stress_MINUS_view, bool v_MINUS_pressed);
 
 // Depth 500
 float* EngineState_liquid_MINUS_spawn(EngineState* p);
@@ -5743,10 +5776,22 @@ EngineState EngineState_set_MINUS_renderer(EngineState p, Renderer newValue);
 void EngineState_set_MINUS_renderer_BANG_(EngineState* pRef, Renderer newValue);
 
 // Depth 500
+EngineState EngineState_set_MINUS_stress_MINUS_view(EngineState p, bool newValue);
+
+// Depth 500
+void EngineState_set_MINUS_stress_MINUS_view_BANG_(EngineState* pRef, bool newValue);
+
+// Depth 500
 EngineState EngineState_set_MINUS_uniforms(EngineState p, Array__float newValue);
 
 // Depth 500
 void EngineState_set_MINUS_uniforms_BANG_(EngineState* pRef, Array__float newValue);
+
+// Depth 500
+EngineState EngineState_set_MINUS_v_MINUS_pressed(EngineState p, bool newValue);
+
+// Depth 500
+void EngineState_set_MINUS_v_MINUS_pressed_BANG_(EngineState* pRef, bool newValue);
 
 // Depth 500
 EngineState EngineState_set_MINUS_world(EngineState p, World newValue);
@@ -5759,6 +5804,9 @@ String EngineState_str(EngineState *p);
 
 // Depth 500
 void EngineState_stream_MINUS_chunks_BANG_(World* world, Engine* eng, Renderer* ren, Vector3__double* cam_MINUS_pos);
+
+// Depth 500
+bool* EngineState_stress_MINUS_view(EngineState* p);
 
 // Depth 500
 void EngineState_tick(EngineState* state, GLFWwindow* win, double dt, bool* first_MINUS_mouse_MINUS_ptr, double* last_MINUS_x_MINUS_ptr, double* last_MINUS_y_MINUS_ptr);
@@ -5806,10 +5854,19 @@ EngineState EngineState_update_MINUS_player(EngineState p, Lambda *updater);
 EngineState EngineState_update_MINUS_renderer(EngineState p, Lambda *updater);
 
 // Depth 500
+EngineState EngineState_update_MINUS_stress_MINUS_view(EngineState p, Lambda *updater);
+
+// Depth 500
 EngineState EngineState_update_MINUS_uniforms(EngineState p, Lambda *updater);
 
 // Depth 500
+EngineState EngineState_update_MINUS_v_MINUS_pressed(EngineState p, Lambda *updater);
+
+// Depth 500
 EngineState EngineState_update_MINUS_world(EngineState p, Lambda *updater);
+
+// Depth 500
+bool* EngineState_v_MINUS_pressed(EngineState* p);
 
 // Depth 500
 World* EngineState_world(EngineState* p);
@@ -7320,7 +7377,7 @@ void Renderer_handle_MINUS_resize_BANG_(Engine* eng, Renderer* ren);
 int* Renderer_height(Renderer* p);
 
 // Depth 500
-Renderer Renderer_init(WGPURenderPipelineWrapper* pipeline, WGPUBindGroup bind_MINUS_group, WGPUUniformBufferWrapper* uniform_MINUS_buffer, WGPURenderTexture* voxel_MINUS_texture, WGPURenderTexture* liquid_MINUS_texture, WGPURenderTexture* gas_MINUS_texture, WGPURenderTexture* light_MINUS_texture, WGPUSampler voxel_MINUS_sampler, LinePassRenderer line_MINUS_pass, Array__Line lines, WGPUDepthTexture* depth_MINUS_texture, int width, int height, WGPUVertexBufferWrapper* voxel_MINUS_gpu_MINUS_buffer_MINUS_read, WGPUVertexBufferWrapper* voxel_MINUS_gpu_MINUS_buffer_MINUS_write, WGPUVertexBufferWrapper* voxel_MINUS_half_MINUS_buffer, WGPUComputePipeline pack_MINUS_pipeline, WGPUBindGroup pack_MINUS_bind_MINUS_group, WGPUVertexBufferWrapper* voxel_MINUS_staging_MINUS_buffer, WGPUComputePipeline copy_MINUS_pipeline, WGPUBindGroup copy_MINUS_bind_MINUS_group, WGPUUniformBufferWrapper* copy_MINUS_uniform_MINUS_buffer, WGPUVertexBufferWrapper* liquid_MINUS_gpu_MINUS_buffer, WGPUVertexBufferWrapper* liquid_MINUS_half_MINUS_buffer, WGPUVertexBufferWrapper* gas_MINUS_gpu_MINUS_buffer, WGPUVertexBufferWrapper* gas_MINUS_half_MINUS_buffer, WGPUBindGroup liquid_MINUS_pack_MINUS_bind_MINUS_group, WGPUBindGroup gas_MINUS_pack_MINUS_bind_MINUS_group, WGPUComputePipeline liquid_MINUS_sim_MINUS_pipeline, WGPUBindGroup liquid_MINUS_sim_MINUS_bind_MINUS_group, WGPUComputePipeline gas_MINUS_sim_MINUS_pipeline, WGPUBindGroup gas_MINUS_sim_MINUS_bind_MINUS_group);
+Renderer Renderer_init(WGPURenderPipelineWrapper* pipeline, WGPUBindGroup bind_MINUS_group, WGPUUniformBufferWrapper* uniform_MINUS_buffer, WGPURenderTexture* voxel_MINUS_texture, WGPURenderTexture* liquid_MINUS_texture, WGPURenderTexture* gas_MINUS_texture, WGPURenderTexture* light_MINUS_texture, WGPURenderTexture* stress_MINUS_texture, WGPUSampler voxel_MINUS_sampler, LinePassRenderer line_MINUS_pass, Array__Line lines, WGPUDepthTexture* depth_MINUS_texture, int width, int height, WGPUVertexBufferWrapper* voxel_MINUS_gpu_MINUS_buffer_MINUS_read, WGPUVertexBufferWrapper* voxel_MINUS_gpu_MINUS_buffer_MINUS_write, WGPUVertexBufferWrapper* voxel_MINUS_half_MINUS_buffer, WGPUComputePipeline pack_MINUS_pipeline, WGPUBindGroup pack_MINUS_bind_MINUS_group, WGPUVertexBufferWrapper* voxel_MINUS_staging_MINUS_buffer, WGPUComputePipeline copy_MINUS_pipeline, WGPUBindGroup copy_MINUS_bind_MINUS_group, WGPUUniformBufferWrapper* copy_MINUS_uniform_MINUS_buffer, WGPUVertexBufferWrapper* liquid_MINUS_gpu_MINUS_buffer, WGPUVertexBufferWrapper* liquid_MINUS_half_MINUS_buffer, WGPUVertexBufferWrapper* gas_MINUS_gpu_MINUS_buffer, WGPUVertexBufferWrapper* gas_MINUS_half_MINUS_buffer, WGPUBindGroup liquid_MINUS_pack_MINUS_bind_MINUS_group, WGPUBindGroup gas_MINUS_pack_MINUS_bind_MINUS_group, WGPUComputePipeline liquid_MINUS_sim_MINUS_pipeline, WGPUBindGroup liquid_MINUS_sim_MINUS_bind_MINUS_group, WGPUComputePipeline gas_MINUS_sim_MINUS_pipeline, WGPUBindGroup gas_MINUS_sim_MINUS_bind_MINUS_group, WGPUVertexBufferWrapper* stress_MINUS_gpu_MINUS_buffer_MINUS_read, WGPUVertexBufferWrapper* stress_MINUS_gpu_MINUS_buffer_MINUS_write, WGPUVertexBufferWrapper* stress_MINUS_half_MINUS_buffer, WGPUBindGroup stress_MINUS_pack_MINUS_bind_MINUS_group, WGPUComputePipeline solid_MINUS_sim_MINUS_pipeline, WGPUBindGroup solid_MINUS_sim_MINUS_bind_MINUS_group);
 
 // Depth 500
 WGPURenderTexture** Renderer_light_MINUS_texture(Renderer* p);
@@ -7515,6 +7572,48 @@ Renderer Renderer_set_MINUS_pipeline(Renderer p, WGPURenderPipelineWrapper* newV
 void Renderer_set_MINUS_pipeline_BANG_(Renderer* pRef, WGPURenderPipelineWrapper* newValue);
 
 // Depth 500
+Renderer Renderer_set_MINUS_solid_MINUS_sim_MINUS_bind_MINUS_group(Renderer p, WGPUBindGroup newValue);
+
+// Depth 500
+void Renderer_set_MINUS_solid_MINUS_sim_MINUS_bind_MINUS_group_BANG_(Renderer* pRef, WGPUBindGroup newValue);
+
+// Depth 500
+Renderer Renderer_set_MINUS_solid_MINUS_sim_MINUS_pipeline(Renderer p, WGPUComputePipeline newValue);
+
+// Depth 500
+void Renderer_set_MINUS_solid_MINUS_sim_MINUS_pipeline_BANG_(Renderer* pRef, WGPUComputePipeline newValue);
+
+// Depth 500
+Renderer Renderer_set_MINUS_stress_MINUS_gpu_MINUS_buffer_MINUS_read(Renderer p, WGPUVertexBufferWrapper* newValue);
+
+// Depth 500
+void Renderer_set_MINUS_stress_MINUS_gpu_MINUS_buffer_MINUS_read_BANG_(Renderer* pRef, WGPUVertexBufferWrapper* newValue);
+
+// Depth 500
+Renderer Renderer_set_MINUS_stress_MINUS_gpu_MINUS_buffer_MINUS_write(Renderer p, WGPUVertexBufferWrapper* newValue);
+
+// Depth 500
+void Renderer_set_MINUS_stress_MINUS_gpu_MINUS_buffer_MINUS_write_BANG_(Renderer* pRef, WGPUVertexBufferWrapper* newValue);
+
+// Depth 500
+Renderer Renderer_set_MINUS_stress_MINUS_half_MINUS_buffer(Renderer p, WGPUVertexBufferWrapper* newValue);
+
+// Depth 500
+void Renderer_set_MINUS_stress_MINUS_half_MINUS_buffer_BANG_(Renderer* pRef, WGPUVertexBufferWrapper* newValue);
+
+// Depth 500
+Renderer Renderer_set_MINUS_stress_MINUS_pack_MINUS_bind_MINUS_group(Renderer p, WGPUBindGroup newValue);
+
+// Depth 500
+void Renderer_set_MINUS_stress_MINUS_pack_MINUS_bind_MINUS_group_BANG_(Renderer* pRef, WGPUBindGroup newValue);
+
+// Depth 500
+Renderer Renderer_set_MINUS_stress_MINUS_texture(Renderer p, WGPURenderTexture* newValue);
+
+// Depth 500
+void Renderer_set_MINUS_stress_MINUS_texture_BANG_(Renderer* pRef, WGPURenderTexture* newValue);
+
+// Depth 500
 Renderer Renderer_set_MINUS_uniform_MINUS_buffer(Renderer p, WGPUUniformBufferWrapper* newValue);
 
 // Depth 500
@@ -7563,7 +7662,28 @@ Renderer Renderer_set_MINUS_width(Renderer p, int newValue);
 void Renderer_set_MINUS_width_BANG_(Renderer* pRef, int newValue);
 
 // Depth 500
+WGPUBindGroup* Renderer_solid_MINUS_sim_MINUS_bind_MINUS_group(Renderer* p);
+
+// Depth 500
+WGPUComputePipeline* Renderer_solid_MINUS_sim_MINUS_pipeline(Renderer* p);
+
+// Depth 500
 String Renderer_str(Renderer *p);
+
+// Depth 500
+WGPUVertexBufferWrapper** Renderer_stress_MINUS_gpu_MINUS_buffer_MINUS_read(Renderer* p);
+
+// Depth 500
+WGPUVertexBufferWrapper** Renderer_stress_MINUS_gpu_MINUS_buffer_MINUS_write(Renderer* p);
+
+// Depth 500
+WGPUVertexBufferWrapper** Renderer_stress_MINUS_half_MINUS_buffer(Renderer* p);
+
+// Depth 500
+WGPUBindGroup* Renderer_stress_MINUS_pack_MINUS_bind_MINUS_group(Renderer* p);
+
+// Depth 500
+WGPURenderTexture** Renderer_stress_MINUS_texture(Renderer* p);
 
 // Depth 500
 WGPUUniformBufferWrapper** Renderer_uniform_MINUS_buffer(Renderer* p);
@@ -7642,6 +7762,27 @@ Renderer Renderer_update_MINUS_pack_MINUS_pipeline(Renderer p, Lambda *updater);
 
 // Depth 500
 Renderer Renderer_update_MINUS_pipeline(Renderer p, Lambda *updater);
+
+// Depth 500
+Renderer Renderer_update_MINUS_solid_MINUS_sim_MINUS_bind_MINUS_group(Renderer p, Lambda *updater);
+
+// Depth 500
+Renderer Renderer_update_MINUS_solid_MINUS_sim_MINUS_pipeline(Renderer p, Lambda *updater);
+
+// Depth 500
+Renderer Renderer_update_MINUS_stress_MINUS_gpu_MINUS_buffer_MINUS_read(Renderer p, Lambda *updater);
+
+// Depth 500
+Renderer Renderer_update_MINUS_stress_MINUS_gpu_MINUS_buffer_MINUS_write(Renderer p, Lambda *updater);
+
+// Depth 500
+Renderer Renderer_update_MINUS_stress_MINUS_half_MINUS_buffer(Renderer p, Lambda *updater);
+
+// Depth 500
+Renderer Renderer_update_MINUS_stress_MINUS_pack_MINUS_bind_MINUS_group(Renderer p, Lambda *updater);
+
+// Depth 500
+Renderer Renderer_update_MINUS_stress_MINUS_texture(Renderer p, Lambda *updater);
 
 // Depth 500
 Renderer Renderer_update_MINUS_uniform_MINUS_buffer(Renderer p, Lambda *updater);
@@ -8934,6 +9075,12 @@ String WGPUUniformBufferWrapper_str(WGPUUniformBufferWrapper* u);
 WGPUVertexBufferWrapper WGPUVertexBufferWrapper_copy(WGPUVertexBufferWrapper* v);
 
 // Depth 500
+Result__WGPUVertexBufferWrapper_MUL__String WGPUVertexBufferWrapper_create_MINUS_empty_MINUS_storage_MINUS_vertex_MINUS_buffer(WGPUContext* ctx, int size);
+
+// Depth 500
+WGPUVertexBufferWrapper* WGPUVertexBufferWrapper_create_MINUS_empty_MINUS_storage_MINUS_vertex_MINUS_buffer_MINUS_(WGPUContext* ctx, uint64_t size);
+
+// Depth 500
 WGPUBuffer WGPUVertexBufferWrapper_get_MINUS_buffer(WGPUVertexBufferWrapper* vb);
 
 // Depth 500
@@ -9148,9 +9295,16 @@ void carp_init_globals(int argc, char** argv) {
 #endif
     // Depth 0
     {
-        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    brush_radius: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n    sun_dir: vec4<f32>,\n    hit_pos: vec4<f32>,\n    edit_params: vec4<f32>,\n}\n\n@group(0) @binding(0) var<uniform> u: Uniforms;\n@group(0) @binding(1) var solid_texture: texture_3d<f32>;\n@group(0) @binding(2) var voxel_sampler: sampler;\n@group(0) @binding(3) var liquid_texture: texture_3d<f32>;\n@group(0) @binding(4) var gas_texture: texture_3d<f32>;\n@group(0) @binding(5) var light_texture: texture_3d<f32>;\n\nstruct VertexOutput {\n    @builtin(position) position: vec4<f32>,\n    @location(0) uv: vec2<f32>,\n}\n\n@vertex\nfn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {\n    var pos: array<vec2<f32>, 3> = array<vec2<f32>, 3>(\n        vec2<f32>(-1.0, -1.0),\n        vec2<f32>( 3.0, -1.0),\n        vec2<f32>(-1.0,  3.0),\n    );\n    var out: VertexOutput;\n    let p = pos[vi];\n    out.position = vec4<f32>(p, 0.0, 1.0);\n    out.uv = (p + 1.0) * 0.5;\n    return out;\n}\n\nfn intersect_box(ro: vec3<f32>, rd: vec3<f32>, box_min: vec3<f32>, box_max: vec3<f32>, t0: ptr<function, f32>, t1: ptr<function, f32>) -> bool {\n    let inv_d = 1.0 / rd;\n    let t_bot = inv_d * (box_min - ro);\n    let t_top = inv_d * (box_max - ro);\n    let t_min = min(t_bot, t_top);\n    let t_max = max(t_bot, t_top);\n    let t_near = max(t_min.x, max(t_min.y, t_min.z));\n    let t_far = min(t_max.x, min(t_max.y, t_max.z));\n    *t0 = t_near;\n    *t1 = t_far;\n    return t_near < t_far && t_far > 0.0;\n}\n\nfn getShadow(ro: vec3<f32>, rd: vec3<f32>, mint: f32, maxt: f32, k: f32) -> f32 {\n    var res: f32 = 1.0;\n    var t = mint;\n    for (var i = 0; i < 40; i = i + 1) {\n        let p = ro + rd * t;\n        let wrapped_p = p - floor(p / 160.0) * 160.0;\n        let uvw = clamp(wrapped_p / 160.0, vec3<f32>(0.002), vec3<f32>(0.998));\n        let h = textureSampleLevel(solid_texture, voxel_sampler, uvw, 0.0).g * 0.5;\n        if (h < 0.008) {\n            return 0.0;\n        }\n        res = min(res, k * h / t);\n        t += max(0.05, h);\n        if (t > maxt) {\n            break;\n        }\n    }\n    return clamp(res, 0.2, 1.0);\n}\n\nfn getAO(p: vec3<f32>, n: vec3<f32>) -> f32 {\n    var occ = 0.0;\n    var sca = 1.0;\n    for (var i = 0; i < 5; i = i + 1) {\n        let hr = 0.05 + 0.15 * f32(i) / 4.0;\n        let aopos = p + n * hr;\n        let wrapped_p = aopos - floor(aopos / 160.0) * 160.0;\n        let uvw = clamp(wrapped_p / 160.0, vec3<f32>(0.002), vec3<f32>(0.998));\n        let d = textureSampleLevel(solid_texture, voxel_sampler, uvw, 0.0).g * 0.5;\n        occ += -(d - hr) * sca;\n        sca *= 0.95;\n    }\n    return clamp(1.0 - occ * 4.0, 0.0, 1.0);\n}\n\n@fragment\nfn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {\n    let aspect = u.width / u.height;\n    let uv = (in.uv * 2.0 - 1.0) * vec2<f32>(aspect, 1.0);\n    \n    let ro = u.cam_pos.xyz;\n    let rd = normalize(u.cam_dir.xyz * 2.0 + uv.x * u.cam_right.xyz + uv.y * u.cam_up.xyz);\n    \n    let cx = floor(u.cam_pos.x / 32.0);\n    let cy = floor(u.cam_pos.y / 32.0);\n    let cz = floor(u.cam_pos.z / 32.0);\n    let box_min = vec3<f32>(cx - 2.0, cy - 2.0, cz - 2.0) * 32.0;\n    let box_max = box_min + 160.0;\n    \n    var t_near: f32 = 0.0;\n    var t_far: f32 = 0.0;\n    \n    // Create sky gradient based on ray direction Y component and orbiting sun Y height\n    let sun_h = u.sun_dir.y;\n    \n    // Day / Night interpolation factors\n    let day_factor = clamp(sun_h * 5.0 + 0.5, 0.0, 1.0);\n    let sunset_factor = clamp(1.0 - abs(sun_h) * 5.0, 0.0, 1.0);\n    \n    // Base sky colors\n    let day_space = vec3<f32>(0.05, 0.12, 0.25);\n    let day_horizon = vec3<f32>(0.2, 0.38, 0.58);\n    \n    let sunset_space = vec3<f32>(0.06, 0.04, 0.12);\n    let sunset_horizon = vec3<f32>(0.65, 0.28, 0.12);\n    \n    let night_space = vec3<f32>(0.002, 0.004, 0.008);\n    let night_horizon = vec3<f32>(0.01, 0.015, 0.035);\n    \n    let space_color = mix(mix(night_space, sunset_space, sunset_factor), day_space, day_factor);\n    let horizon_color = mix(mix(night_horizon, sunset_horizon, sunset_factor), day_horizon, day_factor);\n    \n    let sky_dir_y = max(0.0, rd.y);\n    var color = mix(space_color, horizon_color, sky_dir_y);\n    \n    // Add orbiting sun\n    let light_dir = normalize(u.sun_dir.xyz);\n    let sun_cos = dot(rd, light_dir);\n    if (sun_h > -0.2 && sun_cos > 0.0) {\n        let sun_fade = clamp(sun_h * 5.0 + 1.0, 0.0, 1.0);\n        let sun_glow = pow(sun_cos, 120.0) * 1.5 * sun_fade;\n        let sun_disk = pow(sun_cos, 1200.0) * 4.0 * sun_fade;\n        color += vec3<f32>(1.0, 0.9, 0.7) * (sun_glow + sun_disk);\n    }\n\n    // Add orbiting moon in opposite direction\n    let moon_dir = -light_dir;\n    let moon_cos = dot(rd, moon_dir);\n    if (sun_h < 0.2 && moon_cos > 0.0) {\n        let moon_fade = clamp(-sun_h * 5.0 + 1.0, 0.0, 1.0);\n        let moon_glow = pow(moon_cos, 160.0) * 0.4 * moon_fade;\n        let moon_disk = pow(moon_cos, 2000.0) * 1.2 * moon_fade;\n        color += vec3<f32>(0.7, 0.8, 1.0) * (moon_glow + moon_disk);\n    }\n    \n    if (intersect_box(ro, rd, box_min, box_max, &t_near, &t_far)) {\n        let t_start = max(t_near, 0.0);\n        var t = t_start;\n        var hit = false;\n        var hit_color = vec3<f32>(0.0);\n        var accum_color = vec3<f32>(0.0);\n        var accum_alpha: f32 = 0.0;\n        \n        for (var step = 0; step < 128; step = step + 1) {\n            if (t > t_far) {\n                break;\n            }\n            let p = ro + rd * t;\n            \n            // Clamp normalized coordinates slightly inside [0, 1] to avoid border interpolation artifacts\n            let wrapped_p = p - floor(p / 160.0) * 160.0;\n            let uvw = clamp(wrapped_p / 160.0, vec3<f32>(0.002), vec3<f32>(0.998));\n            \n            // Sample SDF value from green channel (G) and scale by 0.5 (Lipschitz constant bound for Simplex noise)\n            let val = textureSampleLevel(solid_texture, voxel_sampler, uvw, 0.0);\n            let dist = val.g * 0.5;\n            \n            // Accumulate Fluids and Gases\n            let liq_val = textureSampleLevel(liquid_texture, voxel_sampler, uvw, 0.0);\n            if (liq_val.g > 0.05) {\n                var liq_color = vec3<f32>(0.1, 0.4, 0.8); // Default Water\n                var absorb = 2.0;\n                let id = round(liq_val.r);\n                if (id == 2.0) {\n                    liq_color = vec3<f32>(1.0, 0.3, 0.0); // Lava\n                    absorb = 5.0;\n                } else if (id == 3.0) {\n                    liq_color = vec3<f32>(0.15, 0.85, 0.25); // Acid (green)\n                    absorb = 3.0;\n                } else if (id == 4.0) {\n                    liq_color = vec3<f32>(0.35, 0.25, 0.1); // Oil (dark yellow/brown)\n                    absorb = 4.5;\n                }\n                let step_size = max(0.008, dist);\n                let alpha = 1.0 - exp(-liq_val.g * step_size * absorb);\n                accum_color = mix(accum_color, liq_color, alpha * (1.0 - accum_alpha));\n                accum_alpha = accum_alpha + alpha * (1.0 - accum_alpha);\n            }\n\n            let gas_val = textureSampleLevel(gas_texture, voxel_sampler, uvw, 0.0);\n            if (gas_val.g > 0.05) {\n                var gas_color = vec3<f32>(0.7, 0.7, 0.75); // Steam\n                var absorb = 0.8;\n                let id = round(gas_val.r);\n                if (id == 2.0) {\n                    gas_color = vec3<f32>(0.4, 0.9, 0.1); // Toxic Gas\n                    absorb = 1.2;\n                } else if (id == 3.0) {\n                    let flicker = sin(u.time * 15.0 + dot(uvw, vec3<f32>(100.0))) * 0.15 + 0.85;\n                    gas_color = vec3<f32>(1.0, 0.35 * flicker, 0.0); // Fire\n                    absorb = 2.0 * flicker;\n                } else if (id == 4.0) {\n                    gas_color = vec3<f32>(0.15, 0.15, 0.15); // Smoke\n                    absorb = 1.8;\n                }\n                let step_size = max(0.008, dist);\n                let alpha = (1.0 - exp(-gas_val.g * step_size * absorb)) * 0.4;\n                accum_color = mix(accum_color, gas_color, alpha * (1.0 - accum_alpha));\n                accum_alpha = accum_alpha + alpha * (1.0 - accum_alpha);\n            }\n            \n            if (dist < 0.008) {\n                // Hit! Calculate normals using finite differences\n                let eps = 0.5;\n                let n = vec3<f32>(\n                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p + vec3<f32>(eps, 0.0, 0.0), vec3<f32>(0.0), vec3<f32>(160.0))/160.0, 0.0).g - \n                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p - vec3<f32>(eps, 0.0, 0.0), vec3<f32>(0.0), vec3<f32>(160.0))/160.0, 0.0).g,\n                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p + vec3<f32>(0.0, eps, 0.0), vec3<f32>(0.0), vec3<f32>(160.0))/160.0, 0.0).g - \n                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p - vec3<f32>(0.0, eps, 0.0), vec3<f32>(0.0), vec3<f32>(160.0))/160.0, 0.0).g,\n                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p + vec3<f32>(0.0, 0.0, eps), vec3<f32>(0.0), vec3<f32>(160.0))/160.0, 0.0).g - \n                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p - vec3<f32>(0.0, 0.0, eps), vec3<f32>(0.0), vec3<f32>(160.0))/160.0, 0.0).g\n                );\n                let normal = normalize(n);\n                \n                // Fetch discrete material ID using textureLoad at the nearest integer coordinate (avoids trilinear bleeding!)\n                let ip = vec3<i32>(clamp(wrapped_p, vec3<f32>(0.0), vec3<f32>(159.0)));\n                let raw_voxel = textureLoad(solid_texture, ip, 0);\n                let mat_id = raw_voxel.r;\n                \n                // Color based on material ID\n                var base_color = vec3<f32>(0.3, 0.3, 0.3);\n                let id = round(mat_id);\n                if (id == 1.0) {\n                    base_color = vec3<f32>(0.45, 0.45, 0.45); // Stone\n                } else if (id == 2.0) {\n                    base_color = vec3<f32>(0.2, 0.6, 0.25);   // Grass / Soil\n                } else if (id == 3.0) {\n                    base_color = vec3<f32>(0.5, 0.3, 0.15);   // Wood\n                } else if (id == 4.0) {\n                    base_color = vec3<f32>(0.1, 0.1, 0.1);    // Coal\n                } else if (id == 5.0) {\n                    base_color = vec3<f32>(0.95, 0.75, 0.15);  // Gold\n                }\n                \n                let light_dir = normalize(u.sun_dir.xyz);\n                let sun_intensity = clamp(u.sun_dir.y * 4.0, 0.0, 1.0);\n                let diffuse = max(dot(normal, light_dir), 0.0);\n                \n                // Raymarched Shadows (only computed when sun is above horizon!)\n                var sha: f32 = 1.0;\n                if (sun_intensity > 0.0) {\n                    let shadow_pos = p + normal * 0.05;\n                    sha = getShadow(shadow_pos, light_dir, 0.05, 40.0, 16.0);\n                }\n                \n                // Moon light (faint blue direct light at night)\n                let moon_dir = -light_dir;\n                let moon_intensity = clamp(-u.sun_dir.y * 4.0, 0.0, 1.0) * 0.15;\n                let moon_diffuse = max(dot(normal, moon_dir), 0.0);\n                let moon_light = vec3<f32>(0.7, 0.8, 1.0) * moon_diffuse * moon_intensity;\n                \n                // Ambient Occlusion\n                let ao = getAO(p, normal);\n                \n                // Blend ambient sunlight and night sky ambient\n                let ambient_intensity = clamp(u.sun_dir.y * 3.0 + 0.3, 0.05, 1.0);\n                \n                // Combine Shading with Light Texture\n                let light_val = textureSampleLevel(light_texture, voxel_sampler, uvw, 0.0) + vec4<f32>(0.0, 0.0, 0.0, 1.0);\n                let ambient = vec3<f32>(0.1, 0.12, 0.2) * ao * light_val.a * ambient_intensity;\n                let direct = vec3<f32>(1.0, 0.95, 0.85) * diffuse * sha * light_val.a * sun_intensity;\n                let block_light = light_val.rgb;\n                \n                // Player Ambient Glow (spherical light source centered on player)\n                var player_glow = vec3<f32>(0.0);\n                if (u.cam_pos.w > 0.5) {\n                    let attenuation = 1.0 / (1.0 + 0.05 * t + 0.012 * t * t);\n                    player_glow = vec3<f32>(1.0, 0.96, 0.88) * attenuation * 2.5;\n                }\n                \n                let solid_col = base_color * (direct + ambient + moon_light + block_light + player_glow);\n                hit_color = mix(solid_col, accum_color, accum_alpha);\n                hit = true;\n                break;\n            }\n            \n            // Step forward by the SDF value, capped to prevent jumping over volumes\n            t = t + clamp(dist, 0.008, 1.2);\n        }\n        \n        if (hit) {\n            // Apply linear atmospheric distance fog ending at the world box boundary (80 units)\n            let fog_factor = clamp((t - 40.0) / 40.0, 0.0, 1.0);\n            \n            // The fog color is the horizon color mixed with the space color\n            let fog_color = mix(space_color, horizon_color, max(0.0, rd.y));\n            color = mix(hit_color, fog_color, fog_factor);\n        } else {\n            color = mix(color, accum_color, accum_alpha);\n        }\n    }\n    \n    let dummy = textureSampleLevel(liquid_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r +\n                textureSampleLevel(gas_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r;\n    return vec4<f32>(color + dummy * 0.000001, 1.0);\n}\n";
+        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    brush_radius: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n    sun_dir: vec4<f32>,\n    hit_pos: vec4<f32>,\n    edit_params: vec4<f32>,\n    view_mode: vec4<f32>,\n}\n\n@group(0) @binding(0) var<uniform> u: Uniforms;\n@group(0) @binding(1) var solid_texture: texture_3d<f32>;\n@group(0) @binding(2) var voxel_sampler: sampler;\n@group(0) @binding(3) var liquid_texture: texture_3d<f32>;\n@group(0) @binding(4) var gas_texture: texture_3d<f32>;\n@group(0) @binding(5) var light_texture: texture_3d<f32>;\n@group(0) @binding(6) var stress_texture: texture_3d<f32>;\n\nstruct VertexOutput {\n    @builtin(position) position: vec4<f32>,\n    @location(0) uv: vec2<f32>,\n}\n\n@vertex\nfn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {\n    var pos: array<vec2<f32>, 3> = array<vec2<f32>, 3>(\n        vec2<f32>(-1.0, -1.0),\n        vec2<f32>( 3.0, -1.0),\n        vec2<f32>(-1.0,  3.0),\n    );\n    var out: VertexOutput;\n    let p = pos[vi];\n    out.position = vec4<f32>(p, 0.0, 1.0);\n    out.uv = (p + 1.0) * 0.5;\n    return out;\n}\n\nfn intersect_box(ro: vec3<f32>, rd: vec3<f32>, box_min: vec3<f32>, box_max: vec3<f32>, t0: ptr<function, f32>, t1: ptr<function, f32>) -> bool {\n    let inv_d = 1.0 / rd;\n    let t_bot = inv_d * (box_min - ro);\n    let t_top = inv_d * (box_max - ro);\n    let t_min = min(t_bot, t_top);\n    let t_max = max(t_bot, t_top);\n    let t_near = max(t_min.x, max(t_min.y, t_min.z));\n    let t_far = min(t_max.x, min(t_max.y, t_max.z));\n    *t0 = t_near;\n    *t1 = t_far;\n    return t_near < t_far && t_far > 0.0;\n}\n\nfn getShadow(ro: vec3<f32>, rd: vec3<f32>, mint: f32, maxt: f32, k: f32) -> f32 {\n    var res: f32 = 1.0;\n    var t = mint;\n    for (var i = 0; i < 40; i = i + 1) {\n        let p = ro + rd * t;\n        let wrapped_p = p - floor(p / 160.0) * 160.0;\n        let uvw = clamp(wrapped_p / 160.0, vec3<f32>(0.002), vec3<f32>(0.998));\n        let h = textureSampleLevel(solid_texture, voxel_sampler, uvw, 0.0).g * 0.5;\n        if (h < 0.008) {\n            return 0.0;\n        }\n        res = min(res, k * h / t);\n        t += max(0.05, h);\n        if (t > maxt) {\n            break;\n        }\n    }\n    return clamp(res, 0.2, 1.0);\n}\n\nfn getAO(p: vec3<f32>, n: vec3<f32>) -> f32 {\n    var occ = 0.0;\n    var sca = 1.0;\n    for (var i = 0; i < 5; i = i + 1) {\n        let hr = 0.05 + 0.15 * f32(i) / 4.0;\n        let aopos = p + n * hr;\n        let wrapped_p = aopos - floor(aopos / 160.0) * 160.0;\n        let uvw = clamp(wrapped_p / 160.0, vec3<f32>(0.002), vec3<f32>(0.998));\n        let d = textureSampleLevel(solid_texture, voxel_sampler, uvw, 0.0).g * 0.5;\n        occ += -(d - hr) * sca;\n        sca *= 0.95;\n    }\n    return clamp(1.0 - occ * 4.0, 0.0, 1.0);\n}\n\n@fragment\nfn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {\n    let aspect = u.width / u.height;\n    let uv = (in.uv * 2.0 - 1.0) * vec2<f32>(aspect, 1.0);\n    \n    let ro = u.cam_pos.xyz;\n    let rd = normalize(u.cam_dir.xyz * 2.0 + uv.x * u.cam_right.xyz + uv.y * u.cam_up.xyz);\n    \n    let cx = floor(u.cam_pos.x / 32.0);\n    let cy = floor(u.cam_pos.y / 32.0);\n    let cz = floor(u.cam_pos.z / 32.0);\n    let box_min = vec3<f32>(cx - 2.0, cy - 2.0, cz - 2.0) * 32.0;\n    let box_max = box_min + 160.0;\n    \n    var t_near: f32 = 0.0;\n    var t_far: f32 = 0.0;\n    \n    // Create sky gradient based on ray direction Y component and orbiting sun Y height\n    let sun_h = u.sun_dir.y;\n    \n    // Day / Night interpolation factors\n    let day_factor = clamp(sun_h * 5.0 + 0.5, 0.0, 1.0);\n    let sunset_factor = clamp(1.0 - abs(sun_h) * 5.0, 0.0, 1.0);\n    \n    // Base sky colors\n    let day_space = vec3<f32>(0.05, 0.12, 0.25);\n    let day_horizon = vec3<f32>(0.2, 0.38, 0.58);\n    \n    let sunset_space = vec3<f32>(0.06, 0.04, 0.12);\n    let sunset_horizon = vec3<f32>(0.65, 0.28, 0.12);\n    \n    let night_space = vec3<f32>(0.002, 0.004, 0.008);\n    let night_horizon = vec3<f32>(0.01, 0.015, 0.035);\n    \n    let space_color = mix(mix(night_space, sunset_space, sunset_factor), day_space, day_factor);\n    let horizon_color = mix(mix(night_horizon, sunset_horizon, sunset_factor), day_horizon, day_factor);\n    \n    let sky_dir_y = max(0.0, rd.y);\n    var color = mix(space_color, horizon_color, sky_dir_y);\n    \n    // Add orbiting sun\n    let light_dir = normalize(u.sun_dir.xyz);\n    let sun_cos = dot(rd, light_dir);\n    if (sun_h > -0.2 && sun_cos > 0.0) {\n        let sun_fade = clamp(sun_h * 5.0 + 1.0, 0.0, 1.0);\n        let sun_glow = pow(sun_cos, 120.0) * 1.5 * sun_fade;\n        let sun_disk = pow(sun_cos, 1200.0) * 4.0 * sun_fade;\n        color += vec3<f32>(1.0, 0.9, 0.7) * (sun_glow + sun_disk);\n    }\n\n    // Add orbiting moon in opposite direction\n    let moon_dir = -light_dir;\n    let moon_cos = dot(rd, moon_dir);\n    if (sun_h < 0.2 && moon_cos > 0.0) {\n        let moon_fade = clamp(-sun_h * 5.0 + 1.0, 0.0, 1.0);\n        let moon_glow = pow(moon_cos, 160.0) * 0.4 * moon_fade;\n        let moon_disk = pow(moon_cos, 2000.0) * 1.2 * moon_fade;\n        color += vec3<f32>(0.7, 0.8, 1.0) * (moon_glow + moon_disk);\n    }\n    \n    if (intersect_box(ro, rd, box_min, box_max, &t_near, &t_far)) {\n        let t_start = max(t_near, 0.0);\n        var t = t_start;\n        var hit = false;\n        var hit_color = vec3<f32>(0.0);\n        var accum_color = vec3<f32>(0.0);\n        var accum_alpha: f32 = 0.0;\n        \n        for (var step = 0; step < 128; step = step + 1) {\n            if (t > t_far) {\n                break;\n            }\n            let p = ro + rd * t;\n            \n            // Clamp normalized coordinates slightly inside [0, 1] to avoid border interpolation artifacts\n            let wrapped_p = p - floor(p / 160.0) * 160.0;\n            let uvw = clamp(wrapped_p / 160.0, vec3<f32>(0.002), vec3<f32>(0.998));\n            \n            // Sample SDF value from green channel (G) and scale by 0.5 (Lipschitz constant bound for Simplex noise)\n            let val = textureSampleLevel(solid_texture, voxel_sampler, uvw, 0.0);\n            let dist = val.g * 0.5;\n            \n            // Accumulate Fluids and Gases\n            let ip_cell = vec3<i32>(clamp(wrapped_p, vec3<f32>(0.0), vec3<f32>(159.0)));\n\n            let liq_val = textureSampleLevel(liquid_texture, voxel_sampler, uvw, 0.0);\n            if (liq_val.g > 0.05) {\n                var liq_color = vec3<f32>(0.1, 0.4, 0.8); // Default Water\n                var absorb = 2.0;\n                let raw_liq = textureLoad(liquid_texture, ip_cell, 0);\n                let id = round(raw_liq.r);\n                if (id == 2.0) {\n                    liq_color = vec3<f32>(1.0, 0.3, 0.0); // Lava\n                    absorb = 5.0;\n                } else if (id == 3.0) {\n                    liq_color = vec3<f32>(0.15, 0.85, 0.25); // Acid (green)\n                    absorb = 3.0;\n                } else if (id == 4.0) {\n                    liq_color = vec3<f32>(0.35, 0.25, 0.1); // Oil (dark yellow/brown)\n                    absorb = 4.5;\n                } else if (id == 5.0) {\n                    liq_color = vec3<f32>(0.42, 0.38, 0.35); // Rubble (grey-brown stone dust)\n                    absorb = 8.0; // highly opaque\n                }\n                let step_size = max(0.008, dist);\n                let alpha = 1.0 - exp(-liq_val.g * step_size * absorb);\n                accum_color = mix(accum_color, liq_color, alpha * (1.0 - accum_alpha));\n                accum_alpha = accum_alpha + alpha * (1.0 - accum_alpha);\n            }\n\n            let gas_val = textureSampleLevel(gas_texture, voxel_sampler, uvw, 0.0);\n            if (gas_val.g > 0.05) {\n                var gas_color = vec3<f32>(0.7, 0.7, 0.75); // Steam\n                var absorb = 0.8;\n                let raw_gas = textureLoad(gas_texture, ip_cell, 0);\n                let id = round(raw_gas.r);\n                if (id == 2.0) {\n                    gas_color = vec3<f32>(0.4, 0.9, 0.1); // Toxic Gas\n                    absorb = 1.2;\n                } else if (id == 3.0) {\n                    let flicker = sin(u.time * 15.0 + dot(uvw, vec3<f32>(100.0))) * 0.15 + 0.85;\n                    gas_color = vec3<f32>(1.0, 0.35 * flicker, 0.0); // Fire\n                    absorb = 2.0 * flicker;\n                } else if (id == 4.0) {\n                    gas_color = vec3<f32>(0.15, 0.15, 0.15); // Smoke\n                    absorb = 1.8;\n                }\n                let step_size = max(0.008, dist);\n                let alpha = (1.0 - exp(-gas_val.g * step_size * absorb)) * 0.4;\n                accum_color = mix(accum_color, gas_color, alpha * (1.0 - accum_alpha));\n                accum_alpha = accum_alpha + alpha * (1.0 - accum_alpha);\n            }\n            \n            if (dist < 0.008) {\n                // Hit! Calculate normals using finite differences\n                let eps = 0.5;\n                let n = vec3<f32>(\n                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p + vec3<f32>(eps, 0.0, 0.0), vec3<f32>(0.0), vec3<f32>(160.0))/160.0, 0.0).g - \n                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p - vec3<f32>(eps, 0.0, 0.0), vec3<f32>(0.0), vec3<f32>(160.0))/160.0, 0.0).g,\n                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p + vec3<f32>(0.0, eps, 0.0), vec3<f32>(0.0), vec3<f32>(160.0))/160.0, 0.0).g - \n                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p - vec3<f32>(0.0, eps, 0.0), vec3<f32>(0.0), vec3<f32>(160.0))/160.0, 0.0).g,\n                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p + vec3<f32>(0.0, 0.0, eps), vec3<f32>(0.0), vec3<f32>(160.0))/160.0, 0.0).g - \n                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p - vec3<f32>(0.0, 0.0, eps), vec3<f32>(0.0), vec3<f32>(160.0))/160.0, 0.0).g\n                );\n                let normal = normalize(n);\n                \n                // Fetch discrete material ID using textureLoad at the nearest integer coordinate (avoids trilinear bleeding!)\n                let ip = vec3<i32>(clamp(wrapped_p, vec3<f32>(0.0), vec3<f32>(159.0)));\n                let raw_voxel = textureLoad(solid_texture, ip, 0);\n                let mat_id = raw_voxel.r;\n                \n                // Color based on material ID\n                var base_color = vec3<f32>(0.3, 0.3, 0.3);\n                let id = round(mat_id);\n                if (id == 1.0) {\n                    base_color = vec3<f32>(0.45, 0.45, 0.45); // Stone\n                } else if (id == 2.0) {\n                    base_color = vec3<f32>(0.2, 0.6, 0.25);   // Grass / Soil\n                } else if (id == 3.0) {\n                    base_color = vec3<f32>(0.5, 0.3, 0.15);   // Wood\n                } else if (id == 4.0) {\n                    base_color = vec3<f32>(0.1, 0.1, 0.1);    // Coal\n                } else if (id == 5.0) {\n                    base_color = vec3<f32>(0.95, 0.75, 0.15);  // Gold\n                }\n                \n                // Visualizing structural stress/fatigue by tinting red OR using full blue-to-red mapping\n                let stress_val = textureLoad(stress_texture, ip, 0);\n                let fatigue = stress_val.w;\n                let total_s = stress_val.y + stress_val.z;\n                \n                if (u.view_mode.x > 0.5) {\n                    // Full blue-to-red stress mapping\n                    let norm_stress = clamp(total_s / 12.0, 0.0, 1.0);\n                    let color_val = max(norm_stress, fatigue);\n                    base_color = mix(vec3<f32>(0.1, 0.25, 0.8), vec3<f32>(0.9, 0.1, 0.1), color_val);\n                } else {\n                    // Regular view: no stress mapping, but minor red tint on highly damaged blocks\n                    if (fatigue > 0.05) {\n                        base_color = mix(base_color, vec3<f32>(0.9, 0.1, 0.1), fatigue * 0.5);\n                    }\n                }\n                \n                let light_dir = normalize(u.sun_dir.xyz);\n                let sun_intensity = clamp(u.sun_dir.y * 4.0, 0.0, 1.0);\n                let diffuse = max(dot(normal, light_dir), 0.0);\n                \n                // Raymarched Shadows (only computed when sun is above horizon!)\n                var sha: f32 = 1.0;\n                if (sun_intensity > 0.0) {\n                    let shadow_pos = p + normal * 0.05;\n                    sha = getShadow(shadow_pos, light_dir, 0.05, 40.0, 16.0);\n                }\n                \n                // Moon light (faint blue direct light at night)\n                let moon_dir = -light_dir;\n                let moon_intensity = clamp(-u.sun_dir.y * 4.0, 0.0, 1.0) * 0.15;\n                let moon_diffuse = max(dot(normal, moon_dir), 0.0);\n                let moon_light = vec3<f32>(0.7, 0.8, 1.0) * moon_diffuse * moon_intensity;\n                \n                // Ambient Occlusion\n                let ao = getAO(p, normal);\n                \n                // Blend ambient sunlight and night sky ambient\n                let ambient_intensity = clamp(u.sun_dir.y * 3.0 + 0.3, 0.05, 1.0);\n                \n                // Combine Shading with Light Texture\n                let light_val = textureSampleLevel(light_texture, voxel_sampler, uvw, 0.0) + vec4<f32>(0.0, 0.0, 0.0, 1.0);\n                let ambient = vec3<f32>(0.1, 0.12, 0.2) * ao * light_val.a * ambient_intensity;\n                let direct = vec3<f32>(1.0, 0.95, 0.85) * diffuse * sha * light_val.a * sun_intensity;\n                let block_light = light_val.rgb;\n                \n                // Player Ambient Glow (spherical light source centered on player)\n                var player_glow = vec3<f32>(0.0);\n                if (u.cam_pos.w > 0.5) {\n                    let attenuation = 1.0 / (1.0 + 0.05 * t + 0.012 * t * t);\n                    player_glow = vec3<f32>(1.0, 0.96, 0.88) * attenuation * 2.5;\n                }\n                \n                let solid_col = base_color * (direct + ambient + moon_light + block_light + player_glow);\n                hit_color = mix(solid_col, accum_color, accum_alpha);\n                hit = true;\n                break;\n            }\n            \n            // Step forward by the SDF value, capped to prevent jumping over volumes\n            t = t + clamp(dist, 0.008, 1.2);\n        }\n        \n        if (hit) {\n            // Apply linear atmospheric distance fog ending at the world box boundary (80 units)\n            let fog_factor = clamp((t - 40.0) / 40.0, 0.0, 1.0);\n            \n            // The fog color is the horizon color mixed with the space color\n            let fog_color = mix(space_color, horizon_color, max(0.0, rd.y));\n            color = mix(hit_color, fog_color, fog_factor);\n        } else {\n            color = mix(color, accum_color, accum_alpha);\n        }\n    }\n    \n    let dummy = textureSampleLevel(liquid_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r +\n                textureSampleLevel(gas_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r;\n    return vec4<f32>(color + dummy * 0.000001, 1.0);\n}\n";
         String *_2_ref = &_2;
         voxel_MINUS_wgsl = _2_ref;
+    }
+
+    // Depth 0
+    {
+        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    brush_radius: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n    sun_dir: vec4<f32>,\n    hit_pos: vec4<f32>,\n    edit_params: vec4<f32>,\n    view_mode: vec4<f32>,\n}\n\n@group(0) @binding(0) var<storage, read>       input_buffer: array<vec4<f32>>;\n@group(0) @binding(1) var<storage, read_write> output_buffer: array<vec4<f32>>;\n@group(0) @binding(2) var<uniform>             u: Uniforms;\n@group(0) @binding(3) var<storage, read_write> solid_buffer: array<vec4<f32>>;\n@group(0) @binding(4) var<storage, read_write> liquid_buffer: array<vec4<f32>>;\n@group(0) @binding(5) var solid_texture:       texture_3d<f32>;\n@group(0) @binding(6) var liquid_texture:      texture_3d<f32>;\n@group(0) @binding(7) var gas_texture:         texture_3d<f32>;\n@group(0) @binding(8) var stress_texture:      texture_3d<f32>;\n\nfn get_solid(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(solid_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\nfn is_solid(p: vec3<i32>) -> bool {\n    let sol = get_solid(p);\n    return sol.y * 0.5 < 0.008;\n}\n\nfn get_stress(p: vec3<i32>) -> vec4<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    return textureLoad(stress_texture, wrapped, 0);\n}\n\nfn get_material_density(id: f32) -> f32 {\n    let id_round = i32(round(id));\n    if (id_round == 1) { return 1.0; } // Stone\n    if (id_round == 2) { return 0.8; } // Grass\n    if (id_round == 3) { return 0.5; } // Wood\n    if (id_round == 4) { return 1.2; } // Coal\n    if (id_round == 5) { return 3.0; } // Gold\n    return 0.0;\n}\n\nfn get_material_strength(id: f32) -> f32 {\n    let id_round = i32(round(id));\n    if (id_round == 1) { return 10.0; }\n    if (id_round == 2) { return 3.0; }\n    if (id_round == 3) { return 12.0; }\n    if (id_round == 4) { return 4.0; }\n    if (id_round == 5) { return 15.0; }\n    return 999.0;\n}\n\n@compute @workgroup_size(64)\nfn main(@builtin(global_invocation_id) global_id: vec3<u32>) {\n    let idx = global_id.x;\n    if (idx >= 4096000u) { return; }\n\n    // Dummy reads to prevent compiler from optimizing out unused bindings\n    if (u.time < -1.0) {\n        let dummy_val = vec4<f32>(u.time) + textureLoad(liquid_texture, vec3<i32>(0), 0) + textureLoad(gas_texture, vec3<i32>(0), 0);\n        output_buffer[idx] = dummy_val;\n    }\n\n    let x = idx % 160u;\n    let y = (idx / 160u) % 160u;\n    let z = idx / 25600u;\n    let ip = vec3<i32>(i32(x), i32(y), i32(z));\n\n    let sol = get_solid(ip);\n    let sol_id = sol.x;\n    let is_sol_block = sol.y * 0.5 < 0.008;\n\n    if (!is_sol_block) {\n        output_buffer[idx] = vec4<f32>(0.0);\n        return;\n    }\n\n    let self_stress = input_buffer[idx]; // (temp, shear, comp, fatigue)\n    \n    // 1. Compressive Stress Propagation (Gravity load downwards)\n    var comp_stress = get_material_density(sol_id);\n    let above_p = ip + vec3<i32>(0, 1, 0);\n    if (ip.y < 159 && is_solid(above_p)) {\n        let above_stress = get_stress(above_p);\n        comp_stress += above_stress.z; // add compressive load from above\n    }\n\n    // 2. Shear Stress (Overhang calculation)\n    var shear_stress = 0.0;\n    let below_p = ip + vec3<i32>(0, -1, 0);\n    if (ip.y > 0 && !is_solid(below_p)) { // Air below us! (Cantilever)\n        var min_dist = 999.0;\n        \n        // Scan -X\n        for (var dx = 1; dx <= 6; dx = dx + 1) {\n            let np = ip + vec3<i32>(-dx, 0, 0);\n            if (is_solid(np)) {\n                if (is_solid(np + vec3<i32>(0, -1, 0))) {\n                    min_dist = min(min_dist, f32(dx));\n                    break;\n                }\n            } else {\n                break;\n            }\n        }\n        // Scan +X\n        for (var dx = 1; dx <= 6; dx = dx + 1) {\n            let np = ip + vec3<i32>(dx, 0, 0);\n            if (is_solid(np)) {\n                if (is_solid(np + vec3<i32>(0, -1, 0))) {\n                    min_dist = min(min_dist, f32(dx));\n                    break;\n                }\n            } else {\n                break;\n            }\n        }\n        // Scan -Z\n        for (var dz = 1; dz <= 6; dz = dz + 1) {\n            let np = ip + vec3<i32>(0, 0, -dz);\n            if (is_solid(np)) {\n                if (is_solid(np + vec3<i32>(0, -1, 0))) {\n                    min_dist = min(min_dist, f32(dz));\n                    break;\n                }\n            } else {\n                break;\n            }\n        }\n        // Scan +Z\n        for (var dz = 1; dz <= 6; dz = dz + 1) {\n            let np = ip + vec3<i32>(0, 0, dz);\n            if (is_solid(np)) {\n                if (is_solid(np + vec3<i32>(0, -1, 0))) {\n                    min_dist = min(min_dist, f32(dz));\n                    break;\n                }\n            } else {\n                break;\n            }\n        }\n\n        if (min_dist < 999.0) {\n            shear_stress = min_dist;\n        } else {\n            shear_stress = 6.0;\n        }\n    }\n\n    let dt = 0.016; // fixed timestep for 60 FPS\n    let total_stress = (comp_stress - 1.0) * 0.4 + shear_stress * 1.2;\n    let strength = get_material_strength(sol_id);\n\n    // Bedrock anchor logic (bottom layer is unbreakable and has zero fatigue)\n    var fatigue = self_stress.w;\n    if (ip.y <= 5) {\n        fatigue = 0.0;\n        comp_stress = 0.0;\n        shear_stress = 0.0;\n    } else {\n        let fatigue_threshold = strength * 0.65;\n        if (total_stress >= fatigue_threshold) {\n            let excess = total_stress - fatigue_threshold;\n            fatigue += (0.3 + excess * 0.2) * dt;\n        } else {\n            fatigue -= 0.05 * dt;\n        }\n    }\n    fatigue = clamp(fatigue, 0.0, 1.0);\n\n    // Check for collapse!\n    if (fatigue >= 1.0 || (total_stress >= strength && ip.y > 5)) {\n        // Destroy solid block\n        solid_buffer[idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0);\n        // Spawn falling Rubble (Liquid 5)\n        liquid_buffer[idx] = vec4<f32>(5.0, 1.0, 0.0, 0.0);\n        \n        output_buffer[idx] = vec4<f32>(0.0);\n    } else {\n        output_buffer[idx] = vec4<f32>(0.0, shear_stress, comp_stress, fatigue);\n    }\n}\n";
+        String *_2_ref = &_2;
+        solid_MINUS_sim_MINUS_wgsl = _2_ref;
     }
 
     // Depth 0
@@ -9162,21 +9316,21 @@ void carp_init_globals(int argc, char** argv) {
 
     // Depth 0
     {
-        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    brush_radius: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n    sun_dir: vec4<f32>,\n    hit_pos: vec4<f32>,\n    edit_params: vec4<f32>,\n}\n\nstruct LiquidProps {\n    density: f32,\n    g_rate: f32,\n    l_rate: f32,\n}\n\nfn get_liq_props(id: f32) -> LiquidProps {\n    let LIQ_LUT = array<LiquidProps, 5>(\n        LiquidProps(0.0, 0.0, 0.0),\n        LiquidProps(1.0, 0.3, 0.08),\n        LiquidProps(2.0, 0.05, 0.02),\n        LiquidProps(1.2, 0.15, 0.05),\n        LiquidProps(0.8, 0.2, 0.06)\n    );\n    let idx = clamp(i32(round(id)), 0, 4);\n    return LIQ_LUT[idx];\n}\n\n@group(0) @binding(0) var<storage, read>       input_buffer: array<vec4<f32>>;\n@group(0) @binding(1) var<storage, read_write> output_buffer: array<vec4<f32>>;\n@group(0) @binding(2) var<uniform>             u: Uniforms;\n@group(0) @binding(3) var<storage, read_write> solid_buffer: array<vec4<f32>>;\n@group(0) @binding(4) var<storage, read>       chunk_lookup: array<vec4<f32>>;\n@group(0) @binding(5) var solid_texture:       texture_3d<f32>;\n@group(0) @binding(6) var liquid_texture:      texture_3d<f32>;\n@group(0) @binding(7) var gas_texture:         texture_3d<f32>;\n\nfn get_solid(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(solid_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\nfn is_solid(p: vec3<i32>) -> bool {\n    let sol = get_solid(p);\n    return sol.y * 0.5 < 0.008;\n}\n\nfn get_liquid(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(liquid_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\n@compute @workgroup_size(64)\nfn main(@builtin(global_invocation_id) global_id: vec3<u32>) {\n    let idx = global_id.x;\n    if (idx >= 4096000u) { return; }\n\n    // Dummy reads to prevent compiler from optimizing out unused bindings\n    let dummy_val = input_buffer[0] + solid_buffer[0] + chunk_lookup[0];\n    if (dummy_val.x > 999999.0) {\n        output_buffer[idx] = textureLoad(gas_texture, vec3<i32>(0), 0);\n    }\n\n    let x = idx % 160u;\n    let y = (idx / 160u) % 160u;\n    let z = idx / 25600u;\n    let ip = vec3<i32>(i32(x), i32(y), i32(z));\n\n    if (is_solid(ip)) {\n        output_buffer[idx] = vec4<f32>(0.0);\n        return;\n    }\n\n    let self_liq = get_liquid(ip);\n    let self_vol = self_liq.y;\n    var next_id = self_liq.x;\n    var next_vol = self_vol;\n\n    let self_props = get_liq_props(self_liq.x);\n\n    let below_p = ip + vec3<i32>(0, -1, 0);\n    let above_p = ip + vec3<i32>(0, 1, 0);\n\n    let neighbors = array<vec3<i32>, 4>(\n        vec3<i32>(-1, 0, 0),\n        vec3<i32>(1, 0, 0),\n        vec3<i32>(0, 0, -1),\n        vec3<i32>(0, 0, 1)\n    );\n\n    // --- 1. Density Buoyancy Swapping (1-to-1 parity matching) ---\n    var swapped = false;\n    let frame_step = i32(u.time) % 2;\n    let is_even_pair = (ip.y % 2) == frame_step;\n\n    if (self_vol > 0.05) {\n        if (is_even_pair) {\n            // Look down\n            if (ip.y > 0 && !is_solid(below_p)) {\n                let below = get_liquid(below_p);\n                let below_props = get_liq_props(below.x);\n                if (below.y > 0.05 && self_props.density > below_props.density) {\n                    next_id = below.x;\n                    next_vol = below.y;\n                    swapped = true;\n                }\n            }\n        } else {\n            // Look up\n            if (ip.y < 159 && !is_solid(above_p)) {\n                let above = get_liquid(above_p);\n                let above_props = get_liq_props(above.x);\n                if (above.y > 0.05 && above_props.density > self_props.density) {\n                    next_id = above.x;\n                    next_vol = above.y;\n                    swapped = true;\n                }\n            }\n        }\n    }\n\n    // --- 2. Gravity & Lateral Flow (only calculated if not swapped) ---\n    var net_flow = 0.0;\n    var max_inflow = 0.0;\n\n    if (!swapped) {\n        let g_rate = self_props.g_rate;\n        let l_rate = self_props.l_rate;\n\n        // Downward gravity flow\n        if (!is_solid(below_p)) {\n            let below = get_liquid(below_p);\n            let below_props = get_liq_props(below.x);\n            if (below.y <= 0.05 || self_props.density >= below_props.density) {\n                let flow_out = min(self_vol, max(0.0, 1.0 - below.y)) * g_rate;\n                net_flow -= flow_out;\n            }\n        }\n        if (!is_solid(above_p)) {\n            let above = get_liquid(above_p);\n            let above_props = get_liq_props(above.x);\n            if (self_vol <= 0.05 || above_props.density >= self_props.density) {\n                let flow_in = min(above.y, max(0.0, 1.0 - self_vol)) * above_props.g_rate;\n                net_flow += flow_in;\n                if (flow_in > max_inflow) {\n                    max_inflow = flow_in;\n                    next_id = above.x;\n                }\n            }\n        }\n\n        // Lateral flow\n        for (var i = 0; i < 4; i = i + 1) {\n            let np = ip + neighbors[i];\n            if (!is_solid(np)) {\n                let n_liq = get_liquid(np);\n                let n_props = get_liq_props(n_liq.x);\n                if (self_vol > n_liq.y && (n_liq.y <= 0.05 || self_props.density >= n_props.density)) {\n                    let flow_out = (self_vol - n_liq.y) * l_rate;\n                    net_flow -= flow_out;\n                }\n                if (n_liq.y > self_vol && (self_vol <= 0.05 || n_props.density >= self_props.density)) {\n                    let flow_in = (n_liq.y - self_vol) * n_props.l_rate;\n                    net_flow += flow_in;\n                    if (flow_in > max_inflow) {\n                        max_inflow = flow_in;\n                        next_id = n_liq.x;\n                    }\n                }\n            }\n        }\n\n        next_vol = next_vol + net_flow;\n    }\n\n    // --- 3. Spawn liquid if click is active ---\n    if (u.hit_pos.w > 0.5) {\n        let dist = distance(vec3<f32>(ip), u.hit_pos.xyz);\n        if (dist <= u.brush_radius && u.edit_params.x > 0.5) {\n            next_id = u.edit_params.x;\n            next_vol = min(1.0, next_vol + u.edit_params.y);\n        }\n    }\n\n    // --- 4. Multi-Phase Reactions ---\n    var react_empty = false;\n    let below_liq = get_liquid(below_p);\n    let above_liq = get_liquid(above_p);\n    if (next_vol > 0.05) {\n        if (next_id == 1.0) { // Water\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 2.0) { react_empty = true; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 2.0) { react_empty = true; }\n            if (above_liq.y > 0.05 && above_liq.x == 2.0) { react_empty = true; }\n        } else if (next_id == 2.0) { // Lava\n            // React with Water\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 1.0) { react_empty = true; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 1.0) { react_empty = true; }\n            if (above_liq.y > 0.05 && above_liq.x == 1.0) { react_empty = true; }\n\n            // React with Oil\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 4.0) { react_empty = true; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 4.0) { react_empty = true; }\n            if (above_liq.y > 0.05 && above_liq.x == 4.0) { react_empty = true; }\n        } else if (next_id == 3.0) { // Acid\n            var touches_water = false;\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 1.0) { touches_water = true; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 1.0) { touches_water = true; }\n            if (above_liq.y > 0.05 && above_liq.x == 1.0) { touches_water = true; }\n\n            if (touches_water) {\n                next_id = 1.0; // Dilutes to Water\n            } else {\n                var dissolved_solid = false;\n                let dirs = array<vec3<i32>, 6>(\n                    vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),\n                    vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),\n                    vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)\n                );\n                for (var i = 0; i < 6; i = i + 1) {\n                    let sp = ip + dirs[i];\n                    if (sp.x >= 0 && sp.x < 160 && sp.y >= 0 && sp.y < 160 && sp.z >= 0 && sp.z < 160) {\n                        let sol = get_solid(sp);\n                        let is_sol_block = sol.y * 0.5 < 0.008;\n                        let sol_id = sol.x;\n                        if (is_sol_block) {\n                            if (sol_id == 2.0 || sol_id == 3.0) { // Grass/Wood\n                                dissolved_solid = true;\n                                let s_idx = u32(sp.x) + u32(sp.y) * 160u + u32(sp.z) * 25600u;\n                                solid_buffer[s_idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0);\n                                break;\n                            } else if (sol_id == 1.0) { // Stone\n                                let rand_val = fract(sin(dot(vec3<f32>(ip) + vec3<f32>(u.time), vec3<f32>(12.9898, 78.233, 45.164))) * 43758.5453);\n                                if (rand_val < 0.02) { // 2% chance\n                                    dissolved_solid = true;\n                                    let s_idx = u32(sp.x) + u32(sp.y) * 160u + u32(sp.z) * 25600u;\n                                    solid_buffer[s_idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0);\n                                    break;\n                                }\n                            }\n                        }\n                    }\n                }\n                if (dissolved_solid) {\n                    react_empty = true;\n                }\n            }\n        } else if (next_id == 4.0) { // Oil\n            // Burned by Lava\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 2.0) { react_empty = true; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 2.0) { react_empty = true; }\n            if (above_liq.y > 0.05 && above_liq.x == 2.0) { react_empty = true; }\n        }\n    }\n\n    if (react_empty) {\n        next_vol = 0.0;\n        next_id = 0.0;\n        // Turn into Solid Stone if it was a Lava/Water collision\n        if (self_liq.x == 1.0 || self_liq.x == 2.0) {\n            solid_buffer[idx] = vec4<f32>(1.0, -1.0, 0.0, 0.0);\n        }\n    }\n\n    // --- 5. Evaporate and clamp ---\n    if (next_vol < 0.01) {\n        next_vol = 0.0;\n        next_id = 0.0;\n    }\n    \n    next_vol = clamp(next_vol, 0.0, 1.0);\n    if (next_vol == 0.0) {\n        next_id = 0.0;\n    }\n\n    output_buffer[idx] = vec4<f32>(next_id, next_vol, 0.0, 0.0);\n}\n";
+        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    brush_radius: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n    sun_dir: vec4<f32>,\n    hit_pos: vec4<f32>,\n    edit_params: vec4<f32>,\n    view_mode: vec4<f32>,\n}\n\nstruct LiquidProps {\n    density: f32,\n    g_rate: f32,\n    l_rate: f32,\n}\n\nfn get_liq_props(id: f32) -> LiquidProps {\n    let LIQ_LUT = array<LiquidProps, 6>(\n        LiquidProps(0.0, 0.0, 0.0),   // Empty\n        LiquidProps(1.0, 0.3, 0.08),  // Water\n        LiquidProps(2.0, 0.05, 0.02), // Lava\n        LiquidProps(1.2, 0.15, 0.05), // Acid\n        LiquidProps(0.8, 0.2, 0.06),  // Oil\n        LiquidProps(1.8, 0.3, 0.005)  // Rubble\n    );\n    let idx = clamp(i32(round(id)), 0, 5);\n    return LIQ_LUT[idx];\n}\n\n@group(0) @binding(0) var<storage, read>       input_buffer: array<vec4<f32>>;\n@group(0) @binding(1) var<storage, read_write> output_buffer: array<vec4<f32>>;\n@group(0) @binding(2) var<uniform>             u: Uniforms;\n@group(0) @binding(3) var<storage, read_write> solid_buffer: array<vec4<f32>>;\n@group(0) @binding(4) var<storage, read>       chunk_lookup: array<vec4<f32>>;\n@group(0) @binding(5) var solid_texture:       texture_3d<f32>;\n@group(0) @binding(6) var liquid_texture:      texture_3d<f32>;\n@group(0) @binding(7) var gas_texture:         texture_3d<f32>;\n@group(0) @binding(8) var stress_texture:      texture_3d<f32>;\n\nfn get_solid(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(solid_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\nfn is_solid(p: vec3<i32>) -> bool {\n    let sol = get_solid(p);\n    return sol.y * 0.5 < 0.008;\n}\n\nfn get_liquid(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(liquid_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\nfn get_gas(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(gas_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\nfn is_explosion_center(p: vec3<i32>) -> bool {\n    let g = get_gas(p);\n    if (g.x == 2.0 && g.y > 0.1) {\n        let dirs = array<vec3<i32>, 6>(\n            vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),\n            vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),\n            vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)\n        );\n        for (var i = 0; i < 6; i = i + 1) {\n            let np = p + dirs[i];\n            let n_gas = get_gas(np);\n            if (n_gas.x == 3.0 && n_gas.y > 0.1) {\n                return true;\n            }\n            let n_liq = get_liquid(np);\n            if (n_liq.x == 2.0 && n_liq.y > 0.1) {\n                return true;\n            }\n        }\n    }\n    return false;\n}\n\n@compute @workgroup_size(64)\nfn main(@builtin(global_invocation_id) global_id: vec3<u32>) {\n    let idx = global_id.x;\n    if (idx >= 4096000u) { return; }\n\n    // Dummy reads to prevent compiler from optimizing out unused bindings\n    if (u.time < -1.0) {\n        let dummy_val = input_buffer[0] + solid_buffer[0] + chunk_lookup[0] + textureLoad(stress_texture, vec3<i32>(0), 0);\n        output_buffer[idx] = dummy_val + textureLoad(gas_texture, vec3<i32>(0), 0);\n    }\n\n    let x = idx % 160u;\n    let y = (idx / 160u) % 160u;\n    let z = idx / 25600u;\n    let ip = vec3<i32>(i32(x), i32(y), i32(z));\n\n    // --- 0. Explosion Carving (runs only at the center of explosions) ---\n    if (is_explosion_center(ip)) {\n        for (var dx = -3; dx <= 3; dx = dx + 1) {\n            for (var dy = -3; dy <= 3; dy = dy + 1) {\n                for (var dz = -3; dz <= 3; dz = dz + 1) {\n                    let tp = ip + vec3<i32>(dx, dy, dz);\n                    let d = distance(vec3<f32>(ip), vec3<f32>(tp));\n                    if (d <= 3.5) {\n                        let wrapped = (tp + vec3<i32>(160)) % 160;\n                        let s_idx = u32(wrapped.x) + u32(wrapped.y) * 160u + u32(wrapped.z) * 25600u;\n                        solid_buffer[s_idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0); // Clear solid block!\n                    }\n                }\n            }\n        }\n    }\n\n    let sol_val = get_solid(ip);\n    let sol_id = sol_val.x;\n    let is_sol_block = sol_val.y * 0.5 < 0.008;\n    if (is_sol_block) {\n        // Wood (3.0) or Coal (4.0) catches fire and burns away\n        if (sol_id == 3.0 || sol_id == 4.0) {\n            var touches_fire = false;\n            let dirs = array<vec3<i32>, 6>(\n                vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),\n                vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),\n                vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)\n            );\n            for (var i = 0; i < 6; i = i + 1) {\n                let np = ip + dirs[i];\n                let g = get_gas(np);\n                if (g.x == 3.0 && g.y > 0.1) { touches_fire = true; break; }\n                let l = get_liquid(np);\n                if (l.x == 2.0 && l.y > 0.1) { touches_fire = true; break; }\n            }\n            if (touches_fire) {\n                let rand_val = fract(sin(dot(vec3<f32>(ip) + vec3<f32>(u.time), vec3<f32>(12.9898, 78.233, 45.164))) * 43758.5453);\n                var burn_chance = 0.01; // Wood (1% chance per frame = ~1.6 seconds average)\n                if (sol_id == 4.0) {\n                    burn_chance = 0.002; // Coal (0.2% chance per frame = ~8.3 seconds average)\n                }\n                if (rand_val < burn_chance) {\n                    solid_buffer[idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0);\n                }\n            }\n        }\n        output_buffer[idx] = vec4<f32>(0.0);\n        return;\n    }\n\n    let self_liq = get_liquid(ip);\n    let self_vol = self_liq.y;\n    var next_id = self_liq.x;\n    var next_vol = self_vol;\n\n    let self_props = get_liq_props(self_liq.x);\n\n    let below_p = ip + vec3<i32>(0, -1, 0);\n    let above_p = ip + vec3<i32>(0, 1, 0);\n\n    let neighbors = array<vec3<i32>, 4>(\n        vec3<i32>(-1, 0, 0),\n        vec3<i32>(1, 0, 0),\n        vec3<i32>(0, 0, -1),\n        vec3<i32>(0, 0, 1)\n    );\n\n    // --- 1. Density Buoyancy Swapping (1-to-1 parity matching) ---\n    var swapped = false;\n    let frame_step = i32(u.time) % 2;\n    let is_even_pair = (ip.y % 2) == frame_step;\n\n    if (self_vol > 0.05) {\n        if (is_even_pair) {\n            // Look down\n            if (ip.y > 0 && !is_solid(below_p)) {\n                let below = get_liquid(below_p);\n                let below_props = get_liq_props(below.x);\n                if (below.y > 0.05 && self_props.density > below_props.density) {\n                    next_id = below.x;\n                    next_vol = below.y;\n                    swapped = true;\n                }\n            }\n        } else {\n            // Look up\n            if (ip.y < 159 && !is_solid(above_p)) {\n                let above = get_liquid(above_p);\n                let above_props = get_liq_props(above.x);\n                if (above.y > 0.05 && above_props.density > self_props.density) {\n                    next_id = above.x;\n                    next_vol = above.y;\n                    swapped = true;\n                }\n            }\n        }\n    }\n\n    // --- 2. Gravity & Lateral Flow (only calculated if not swapped) ---\n    var net_flow = 0.0;\n    var max_inflow = 0.0;\n\n    if (!swapped) {\n        let g_rate = self_props.g_rate;\n        let l_rate = self_props.l_rate;\n\n        // Downward gravity flow\n        if (!is_solid(below_p)) {\n            let below = get_liquid(below_p);\n            let below_props = get_liq_props(below.x);\n            if (below.y <= 0.05 || self_props.density >= below_props.density) {\n                let flow_out = min(self_vol, max(0.0, 1.0 - below.y)) * g_rate;\n                net_flow -= flow_out;\n            }\n        }\n        if (!is_solid(above_p)) {\n            let above = get_liquid(above_p);\n            let above_props = get_liq_props(above.x);\n            if (self_vol <= 0.05 || above_props.density >= self_props.density) {\n                let flow_in = min(above.y, max(0.0, 1.0 - self_vol)) * above_props.g_rate;\n                net_flow += flow_in;\n                if (flow_in > max_inflow) {\n                    max_inflow = flow_in;\n                    next_id = above.x;\n                }\n            }\n        }\n\n        // Lateral flow\n        for (var i = 0; i < 4; i = i + 1) {\n            let np = ip + neighbors[i];\n            if (!is_solid(np)) {\n                let n_liq = get_liquid(np);\n                let n_props = get_liq_props(n_liq.x);\n                if (self_vol > n_liq.y && (n_liq.y <= 0.05 || self_props.density >= n_props.density)) {\n                    let flow_out = (self_vol - n_liq.y) * l_rate;\n                    net_flow -= flow_out;\n                }\n                if (n_liq.y > self_vol && (self_vol <= 0.05 || n_props.density >= self_props.density)) {\n                    let flow_in = (n_liq.y - self_vol) * n_props.l_rate;\n                    net_flow += flow_in;\n                    if (flow_in > max_inflow) {\n                        max_inflow = flow_in;\n                        next_id = n_liq.x;\n                    }\n                }\n            }\n        }\n\n        next_vol = next_vol + net_flow;\n    }\n\n    // --- 3. Spawn liquid if click is active ---\n    if (u.hit_pos.w > 0.5) {\n        let dist = distance(vec3<f32>(ip), u.hit_pos.xyz);\n        if (dist <= u.brush_radius && u.edit_params.x > 0.5) {\n            next_id = u.edit_params.x;\n            next_vol = min(1.0, next_vol + u.edit_params.y);\n        }\n    }\n\n    // --- 4. Multi-Phase Reactions ---\n    var react_empty = false;\n    let below_liq = get_liquid(below_p);\n    let above_liq = get_liquid(above_p);\n    if (next_vol > 0.05) {\n        if (next_id == 1.0) { // Water\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 2.0) { react_empty = true; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 2.0) { react_empty = true; }\n            if (above_liq.y > 0.05 && above_liq.x == 2.0) { react_empty = true; }\n        } else if (next_id == 2.0) { // Lava\n            // React with Water\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 1.0) { react_empty = true; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 1.0) { react_empty = true; }\n            if (above_liq.y > 0.05 && above_liq.x == 1.0) { react_empty = true; }\n\n            // React with Oil\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 4.0) { react_empty = true; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 4.0) { react_empty = true; }\n            if (above_liq.y > 0.05 && above_liq.x == 4.0) { react_empty = true; }\n        } else if (next_id == 3.0) { // Acid\n            var touches_water = false;\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 1.0) { touches_water = true; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 1.0) { touches_water = true; }\n            if (above_liq.y > 0.05 && above_liq.x == 1.0) { touches_water = true; }\n\n            if (touches_water) {\n                next_id = 1.0; // Dilutes to Water\n            } else {\n                var dissolved_solid = false;\n                let dirs = array<vec3<i32>, 6>(\n                    vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),\n                    vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),\n                    vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)\n                );\n                for (var i = 0; i < 6; i = i + 1) {\n                    let sp = ip + dirs[i];\n                    if (sp.x >= 0 && sp.x < 160 && sp.y >= 0 && sp.y < 160 && sp.z >= 0 && sp.z < 160) {\n                        let sol = get_solid(sp);\n                        let is_sol_block = sol.y * 0.5 < 0.008;\n                        let sol_id = sol.x;\n                        if (is_sol_block) {\n                            if (sol_id == 2.0 || sol_id == 3.0) { // Grass/Wood\n                                dissolved_solid = true;\n                                let s_idx = u32(sp.x) + u32(sp.y) * 160u + u32(sp.z) * 25600u;\n                                solid_buffer[s_idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0);\n                                break;\n                            } else if (sol_id == 1.0) { // Stone\n                                let rand_val = fract(sin(dot(vec3<f32>(ip) + vec3<f32>(u.time), vec3<f32>(12.9898, 78.233, 45.164))) * 43758.5453);\n                                if (rand_val < 0.02) { // 2% chance\n                                    dissolved_solid = true;\n                                    let s_idx = u32(sp.x) + u32(sp.y) * 160u + u32(sp.z) * 25600u;\n                                    solid_buffer[s_idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0);\n                                    break;\n                                }\n                            }\n                        }\n                    }\n                }\n                if (dissolved_solid) {\n                    react_empty = true;\n                }\n            }\n        } else if (next_id == 4.0) { // Oil\n            // Burned by Lava\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 2.0) { react_empty = true; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 2.0) { react_empty = true; }\n            if (above_liq.y > 0.05 && above_liq.x == 2.0) { react_empty = true; }\n        }\n    }\n\n    // Vaporize liquid if next to an explosion\n    var adjacent_to_explosion = false;\n    if (is_explosion_center(ip)) {\n        adjacent_to_explosion = true;\n    } else {\n        for (var i = 0; i < 4; i = i + 1) {\n            if (is_explosion_center(ip + neighbors[i])) { adjacent_to_explosion = true; break; }\n        }\n        if (is_explosion_center(below_p) || is_explosion_center(above_p)) {\n            adjacent_to_explosion = true;\n        }\n    }\n    if (adjacent_to_explosion) {\n        react_empty = true;\n    }\n\n    if (react_empty) {\n        next_vol = 0.0;\n        next_id = 0.0;\n        // Turn into Solid Stone if it was a Lava/Water collision (and NOT an explosion!)\n        if (!adjacent_to_explosion && (self_liq.x == 1.0 || self_liq.x == 2.0)) {\n            solid_buffer[idx] = vec4<f32>(1.0, -1.0, 0.0, 0.0);\n        }\n    }\n\n    // --- 5. Evaporate and clamp ---\n    if (next_vol < 0.01) {\n        next_vol = 0.0;\n        next_id = 0.0;\n    }\n    \n    next_vol = clamp(next_vol, 0.0, 1.0);\n    if (next_vol == 0.0) {\n        next_id = 0.0;\n    }\n\n    output_buffer[idx] = vec4<f32>(next_id, next_vol, 0.0, 0.0);\n}\n";
         String *_2_ref = &_2;
         liquid_MINUS_sim_MINUS_wgsl = _2_ref;
     }
 
     // Depth 0
     {
-        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    brush_radius: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n    sun_dir: vec4<f32>,\n    hit_pos: vec4<f32>,\n    edit_params: vec4<f32>,\n}\n\nstruct GasProps {\n    g_rate: f32,\n    l_rate: f32,\n    decay: f32,\n}\n\nfn get_gas_props(id: f32) -> GasProps {\n    let GAS_LUT = array<GasProps, 5>(\n        GasProps(0.0, 0.0, 0.0),\n        GasProps(0.4, 0.1, 0.05),\n        GasProps(0.15, 0.05, 0.01),\n        GasProps(0.25, 0.08, 0.08),\n        GasProps(0.2, 0.04, 0.04)\n    );\n    let idx = clamp(i32(round(id)), 0, 4);\n    return GAS_LUT[idx];\n}\n\n@group(0) @binding(0) var<storage, read>       input_buffer: array<vec4<f32>>;\n@group(0) @binding(1) var<storage, read_write> output_buffer: array<vec4<f32>>;\n@group(0) @binding(2) var<uniform>             u: Uniforms;\n@group(0) @binding(3) var<storage, read>       chunk_info: array<vec4<f32>>;\n@group(0) @binding(4) var<storage, read>       chunk_lookup: array<vec4<f32>>;\n@group(0) @binding(5) var solid_texture:       texture_3d<f32>;\n@group(0) @binding(6) var liquid_texture:      texture_3d<f32>;\n@group(0) @binding(7) var gas_texture:         texture_3d<f32>;\n\nfn get_solid(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(solid_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\nfn is_solid(p: vec3<i32>) -> bool {\n    let sol = get_solid(p);\n    return sol.y * 0.5 < 0.008;\n}\n\nfn get_gas(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(gas_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\nfn get_liquid(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(liquid_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\n@compute @workgroup_size(64)\nfn main(@builtin(global_invocation_id) global_id: vec3<u32>) {\n    let idx = global_id.x;\n    if (idx >= 4096000u) { return; }\n\n    // Dummy reads to prevent compiler from optimizing out unused bindings\n    let dummy_val = input_buffer[0] + chunk_info[0] + chunk_lookup[0];\n    if (dummy_val.x > 999999.0) {\n        output_buffer[idx] = textureLoad(liquid_texture, vec3<i32>(0), 0);\n    }\n\n    let x = idx % 160u;\n    let y = (idx / 160u) % 160u;\n    let z = idx / 25600u;\n    let ip = vec3<i32>(i32(x), i32(y), i32(z));\n\n    if (is_solid(ip)) {\n        output_buffer[idx] = vec4<f32>(0.0);\n        return;\n    }\n\n    let self_gas = get_gas(ip);\n    let self_vol = self_gas.y;\n    var next_id = self_gas.x;\n    var next_vol = self_vol;\n\n    let below_p = ip + vec3<i32>(0, -1, 0);\n    let above_p = ip + vec3<i32>(0, 1, 0);\n\n    let neighbors = array<vec3<i32>, 4>(\n        vec3<i32>(-1, 0, 0),\n        vec3<i32>(1, 0, 0),\n        vec3<i32>(0, 0, -1),\n        vec3<i32>(0, 0, 1)\n    );\n\n    let self_props = get_gas_props(self_gas.x);\n    let g_rate = self_props.g_rate;\n    let l_rate = self_props.l_rate;\n\n    var net_flow = 0.0;\n    var max_inflow = 0.0;\n\n    // --- 1. Upward rising flow ---\n    // Flow out to above\n    if (!is_solid(above_p)) {\n        let above = get_gas(above_p);\n        let flow_out = min(self_vol, max(0.0, 1.0 - above.y)) * g_rate;\n        net_flow -= flow_out;\n    }\n    // Flow in from below\n    if (!is_solid(below_p)) {\n        let below = get_gas(below_p);\n        let below_props = get_gas_props(below.x);\n        let flow_in = min(below.y, max(0.0, 1.0 - self_vol)) * below_props.g_rate;\n        net_flow += flow_in;\n        if (flow_in > max_inflow) {\n            max_inflow = flow_in;\n            next_id = below.x;\n        }\n    }\n\n    // --- 2. Lateral flow ---\n    for (var i = 0; i < 4; i = i + 1) {\n        let np = ip + neighbors[i];\n        if (!is_solid(np)) {\n            let n_gas = get_gas(np);\n            let n_props = get_gas_props(n_gas.x);\n            // Flow out to neighbor if we have more\n            if (self_vol > n_gas.y) {\n                let flow_out = (self_vol - n_gas.y) * l_rate;\n                net_flow -= flow_out;\n            }\n            // Flow in from neighbor if it has more\n            if (n_gas.y > self_vol) {\n                let flow_in = (n_gas.y - self_vol) * n_props.l_rate;\n                net_flow += flow_in;\n                if (flow_in > max_inflow) {\n                    max_inflow = flow_in;\n                    next_id = n_gas.x;\n                }\n            }\n        }\n    }\n\n    next_vol = next_vol + net_flow;\n\n    // --- 3. Spawn gas if click is active ---\n    if (u.hit_pos.w > 0.5) {\n        let dist = distance(vec3<f32>(ip), u.hit_pos.xyz);\n        if (dist <= u.brush_radius && u.edit_params.z > 0.5) {\n            next_id = u.edit_params.z;\n            next_vol = min(1.0, next_vol + u.edit_params.w);\n        }\n    }\n\n    // --- 4. Multi-Phase Gas Reactions ---\n    var spawn_gas_id = 0.0;\n    var spawn_gas_vol = 0.0;\n\n    let my_liq = get_liquid(ip);\n    let below_liq = get_liquid(below_p);\n    let above_liq = get_liquid(above_p);\n    if (my_liq.y > 0.05) {\n        if (my_liq.x == 1.0) { // Water\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 2.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 2.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; }\n            if (above_liq.y > 0.05 && above_liq.x == 2.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; }\n        } else if (my_liq.x == 2.0) { // Lava\n            // Steam\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 1.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 1.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; }\n            if (above_liq.y > 0.05 && above_liq.x == 1.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; }\n            \n            // Fire/Smoke from Lava + Oil\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 4.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 4.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; }\n            if (above_liq.y > 0.05 && above_liq.x == 4.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; }\n            \n            // Fire/Smoke from Lava + Wood (Solid 3)\n            for (var i = 0; i < 4; i = i + 1) {\n                let sol = get_solid(ip + neighbors[i]);\n                let is_sol_block = sol.y * 0.5 < 0.008;\n                if (is_sol_block && sol.x == 3.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; break; }\n            }\n            let below_sol = get_solid(below_p);\n            if (below_sol.y * 0.5 < 0.008 && below_sol.x == 3.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; }\n            let above_sol = get_solid(above_p);\n            if (above_sol.y * 0.5 < 0.008 && above_sol.x == 3.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; }\n        } else if (my_liq.x == 3.0) { // Acid\n            // Toxic Gas from Acid + Grass/Wood/Stone\n            var acid_react = false;\n            for (var i = 0; i < 4; i = i + 1) {\n                let sol = get_solid(ip + neighbors[i]);\n                if (sol.y * 0.5 < 0.008 && (sol.x == 1.0 || sol.x == 2.0 || sol.x == 3.0)) { acid_react = true; break; }\n            }\n            let below_sol = get_solid(below_p);\n            if (below_sol.y * 0.5 < 0.008 && (below_sol.x == 1.0 || below_sol.x == 2.0 || below_sol.x == 3.0)) { acid_react = true; }\n            let above_sol = get_solid(above_p);\n            if (above_sol.y * 0.5 < 0.008 && (above_sol.x == 1.0 || above_sol.x == 2.0 || above_sol.x == 3.0)) { acid_react = true; }\n            \n            if (acid_react) {\n                spawn_gas_id = 2.0; // Toxic Gas\n                spawn_gas_vol = 1.0;\n            }\n        }\n    }\n\n    // Fire + Water ➔ Steam\n    if (next_id == 3.0 && next_vol > 0.05) {\n        var touches_water = false;\n        if (my_liq.y > 0.05 && my_liq.x == 1.0) { touches_water = true; }\n        for (var i = 0; i < 4; i = i + 1) {\n            let n_liq = get_liquid(ip + neighbors[i]);\n            if (n_liq.y > 0.05 && n_liq.x == 1.0) { touches_water = true; break; }\n        }\n        let below_liq = get_liquid(below_p);\n        if (below_liq.y > 0.05 && below_liq.x == 1.0) { touches_water = true; }\n        let above_liq = get_liquid(above_p);\n        if (above_liq.y > 0.05 && above_liq.x == 1.0) { touches_water = true; }\n        \n        if (touches_water) {\n            next_id = 1.0; // Steam\n            next_vol = 0.5;\n        }\n    }\n\n    if (spawn_gas_vol > 0.0) {\n        next_id = spawn_gas_id;\n        next_vol = min(1.0, next_vol + spawn_gas_vol);\n    }\n\n    // --- 5. Evaporate, decay and clamp ---\n    let next_props = get_gas_props(next_id);\n    next_vol = max(0.0, next_vol - next_props.decay);\n\n    if (next_vol < 0.01) {\n        next_vol = 0.0;\n        next_id = 0.0;\n    }\n    \n    next_vol = clamp(next_vol, 0.0, 1.0);\n    if (next_vol == 0.0) {\n        next_id = 0.0;\n    }\n\n    output_buffer[idx] = vec4<f32>(next_id, next_vol, 0.0, 0.0);\n}\n";
+        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    brush_radius: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n    sun_dir: vec4<f32>,\n    hit_pos: vec4<f32>,\n    edit_params: vec4<f32>,\n    view_mode: vec4<f32>,\n}\n\nstruct GasProps {\n    g_rate: f32,\n    l_rate: f32,\n    decay: f32,\n}\n\nfn get_gas_props(id: f32) -> GasProps {\n    let GAS_LUT = array<GasProps, 5>(\n        GasProps(0.0, 0.0, 0.0),\n        GasProps(0.4, 0.1, 0.05),\n        GasProps(0.15, 0.05, 0.01),\n        GasProps(0.25, 0.08, 0.08),\n        GasProps(0.2, 0.04, 0.04)\n    );\n    let idx = clamp(i32(round(id)), 0, 4);\n    return GAS_LUT[idx];\n}\n\n@group(0) @binding(0) var<storage, read>       input_buffer: array<vec4<f32>>;\n@group(0) @binding(1) var<storage, read_write> output_buffer: array<vec4<f32>>;\n@group(0) @binding(2) var<uniform>             u: Uniforms;\n@group(0) @binding(3) var<storage, read>       chunk_info: array<vec4<f32>>;\n@group(0) @binding(4) var<storage, read>       chunk_lookup: array<vec4<f32>>;\n@group(0) @binding(5) var solid_texture:       texture_3d<f32>;\n@group(0) @binding(6) var liquid_texture:      texture_3d<f32>;\n@group(0) @binding(7) var gas_texture:         texture_3d<f32>;\n@group(0) @binding(8) var stress_texture:      texture_3d<f32>;\n\nfn get_solid(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(solid_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\nfn is_solid(p: vec3<i32>) -> bool {\n    let sol = get_solid(p);\n    return sol.y * 0.5 < 0.008;\n}\n\nfn get_gas(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(gas_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\nfn get_liquid(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(liquid_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\nfn is_explosion_center(p: vec3<i32>) -> bool {\n    let g = get_gas(p);\n    if (g.x == 2.0 && g.y > 0.1) {\n        let dirs = array<vec3<i32>, 6>(\n            vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),\n            vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),\n            vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)\n        );\n        for (var i = 0; i < 6; i = i + 1) {\n            let np = p + dirs[i];\n            let n_gas = get_gas(np);\n            if (n_gas.x == 3.0 && n_gas.y > 0.1) {\n                return true;\n            }\n            let n_liq = get_liquid(np);\n            if (n_liq.x == 2.0 && n_liq.y > 0.1) {\n                return true;\n            }\n        }\n    }\n    return false;\n}\n\n@compute @workgroup_size(64)\nfn main(@builtin(global_invocation_id) global_id: vec3<u32>) {\n    let idx = global_id.x;\n    if (idx >= 4096000u) { return; }\n\n    // Dummy reads to prevent compiler from optimizing out unused bindings\n    if (u.time < -1.0) {\n        let dummy_val = input_buffer[0] + chunk_info[0] + chunk_lookup[0] + textureLoad(stress_texture, vec3<i32>(0), 0);\n        output_buffer[idx] = dummy_val + textureLoad(liquid_texture, vec3<i32>(0), 0);\n    }\n\n    let x = idx % 160u;\n    let y = (idx / 160u) % 160u;\n    let z = idx / 25600u;\n    let ip = vec3<i32>(i32(x), i32(y), i32(z));\n\n    if (is_solid(ip)) {\n        output_buffer[idx] = vec4<f32>(0.0);\n        return;\n    }\n\n    let self_gas = get_gas(ip);\n    let self_vol = self_gas.y;\n    var next_id = self_gas.x;\n    var next_vol = self_vol;\n\n    let below_p = ip + vec3<i32>(0, -1, 0);\n    let above_p = ip + vec3<i32>(0, 1, 0);\n\n    let neighbors = array<vec3<i32>, 4>(\n        vec3<i32>(-1, 0, 0),\n        vec3<i32>(1, 0, 0),\n        vec3<i32>(0, 0, -1),\n        vec3<i32>(0, 0, 1)\n    );\n\n    let self_props = get_gas_props(self_gas.x);\n    let g_rate = self_props.g_rate;\n    let l_rate = self_props.l_rate;\n\n    var net_flow = 0.0;\n    var max_inflow = 0.0;\n\n    // --- 1. Upward rising flow ---\n    // Flow out to above\n    if (!is_solid(above_p)) {\n        let above = get_gas(above_p);\n        let flow_out = min(self_vol, max(0.0, 1.0 - above.y)) * g_rate;\n        net_flow -= flow_out;\n    }\n    // Flow in from below\n    if (!is_solid(below_p)) {\n        let below = get_gas(below_p);\n        let below_props = get_gas_props(below.x);\n        let flow_in = min(below.y, max(0.0, 1.0 - self_vol)) * below_props.g_rate;\n        net_flow += flow_in;\n        if (flow_in > max_inflow) {\n            max_inflow = flow_in;\n            next_id = below.x;\n        }\n    }\n\n    // --- 2. Lateral flow ---\n    for (var i = 0; i < 4; i = i + 1) {\n        let np = ip + neighbors[i];\n        if (!is_solid(np)) {\n            let n_gas = get_gas(np);\n            let n_props = get_gas_props(n_gas.x);\n            // Flow out to neighbor if we have more\n            if (self_vol > n_gas.y) {\n                let flow_out = (self_vol - n_gas.y) * l_rate;\n                net_flow -= flow_out;\n            }\n            // Flow in from neighbor if it has more\n            if (n_gas.y > self_vol) {\n                let flow_in = (n_gas.y - self_vol) * n_props.l_rate;\n                net_flow += flow_in;\n                if (flow_in > max_inflow) {\n                    max_inflow = flow_in;\n                    next_id = n_gas.x;\n                }\n            }\n        }\n    }\n\n    next_vol = next_vol + net_flow;\n\n    // --- 3. Spawn gas if click is active ---\n    if (u.hit_pos.w > 0.5) {\n        let dist = distance(vec3<f32>(ip), u.hit_pos.xyz);\n        if (dist <= u.brush_radius && u.edit_params.z > 0.5) {\n            next_id = u.edit_params.z;\n            next_vol = min(1.0, next_vol + u.edit_params.w);\n        }\n    }\n\n    // --- 4. Multi-Phase Gas Reactions ---\n    var spawn_gas_id = 0.0;\n    var spawn_gas_vol = 0.0;\n\n    let my_liq = get_liquid(ip);\n    let below_liq = get_liquid(below_p);\n    let above_liq = get_liquid(above_p);\n    if (my_liq.y > 0.05) {\n        if (my_liq.x == 1.0) { // Water\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 2.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 2.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; }\n            if (above_liq.y > 0.05 && above_liq.x == 2.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; }\n        } else if (my_liq.x == 2.0) { // Lava\n            // Steam\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 1.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 1.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; }\n            if (above_liq.y > 0.05 && above_liq.x == 1.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; }\n            \n            // Fire/Smoke from Lava + Oil\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 4.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 4.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; }\n            if (above_liq.y > 0.05 && above_liq.x == 4.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; }\n            \n            // Fire/Smoke from Lava + Wood (Solid 3)\n            for (var i = 0; i < 4; i = i + 1) {\n                let sol = get_solid(ip + neighbors[i]);\n                let is_sol_block = sol.y * 0.5 < 0.008;\n                if (is_sol_block && sol.x == 3.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; break; }\n            }\n            let below_sol = get_solid(below_p);\n            if (below_sol.y * 0.5 < 0.008 && below_sol.x == 3.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; }\n            let above_sol = get_solid(above_p);\n            if (above_sol.y * 0.5 < 0.008 && above_sol.x == 3.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; }\n        } else if (my_liq.x == 3.0) { // Acid\n            // Toxic Gas from Acid + Grass/Wood/Stone\n            var acid_react = false;\n            for (var i = 0; i < 4; i = i + 1) {\n                let sol = get_solid(ip + neighbors[i]);\n                if (sol.y * 0.5 < 0.008 && (sol.x == 1.0 || sol.x == 2.0 || sol.x == 3.0)) { acid_react = true; break; }\n            }\n            let below_sol = get_solid(below_p);\n            if (below_sol.y * 0.5 < 0.008 && (below_sol.x == 1.0 || below_sol.x == 2.0 || below_sol.x == 3.0)) { acid_react = true; }\n            let above_sol = get_solid(above_p);\n            if (above_sol.y * 0.5 < 0.008 && (above_sol.x == 1.0 || above_sol.x == 2.0 || above_sol.x == 3.0)) { acid_react = true; }\n            \n            if (acid_react) {\n                spawn_gas_id = 2.0; // Toxic Gas\n                spawn_gas_vol = 1.0;\n            }\n        }\n    }\n\n    // Fire + Water ➔ Steam\n    if (next_id == 3.0 && next_vol > 0.05) {\n        var touches_water = false;\n        if (my_liq.y > 0.05 && my_liq.x == 1.0) { touches_water = true; }\n        for (var i = 0; i < 4; i = i + 1) {\n            let n_liq = get_liquid(ip + neighbors[i]);\n            if (n_liq.y > 0.05 && n_liq.x == 1.0) { touches_water = true; break; }\n        }\n        let below_liq = get_liquid(below_p);\n        if (below_liq.y > 0.05 && below_liq.x == 1.0) { touches_water = true; }\n        let above_liq = get_liquid(above_p);\n        if (above_liq.y > 0.05 && above_liq.x == 1.0) { touches_water = true; }\n        \n        if (touches_water) {\n            next_id = 1.0; // Steam\n            next_vol = 0.5;\n        }\n    }\n\n    if (spawn_gas_vol > 0.0) {\n        next_id = spawn_gas_id;\n        next_vol = min(1.0, next_vol + spawn_gas_vol);\n    }\n\n    // --- 4b. Explosion Propagation ---\n    var in_explosion = false;\n    if (is_explosion_center(ip)) {\n        in_explosion = true;\n    } else {\n        for (var i = 0; i < 4; i = i + 1) {\n            if (is_explosion_center(ip + neighbors[i])) { in_explosion = true; break; }\n        }\n        if (is_explosion_center(below_p) || is_explosion_center(above_p)) {\n            in_explosion = true;\n        }\n    }\n    if (in_explosion) {\n        next_id = 3.0; // Fire\n        next_vol = 1.0;\n    }\n\n    // --- 4c. Wood/Coal Burning Spawning Fire/Smoke ---\n    if (next_id == 0.0 || next_id == 4.0) { // Empty or Smoke\n        var spawn_fire = false;\n        let dirs = array<vec3<i32>, 6>(\n            vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),\n            vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),\n            vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)\n        );\n        for (var i = 0; i < 6; i = i + 1) {\n            let np = ip + dirs[i];\n            let sol = get_solid(np);\n            let is_sol_block = sol.y * 0.5 < 0.008;\n            if (is_sol_block && (sol.x == 3.0 || sol.x == 4.0)) { // Wood/Coal\n                // Check if this solid block touches fire or lava\n                for (var j = 0; j < 6; j = j + 1) {\n                    let nnp = np + dirs[j];\n                    let g = get_gas(nnp);\n                    if (g.x == 3.0 && g.y > 0.1) { spawn_fire = true; break; }\n                    let l = get_liquid(nnp);\n                    if (l.x == 2.0 && l.y > 0.1) { spawn_fire = true; break; }\n                }\n            }\n            if (spawn_fire) { break; }\n        }\n        if (spawn_fire) {\n            let rand_val = fract(sin(dot(vec3<f32>(ip) + vec3<f32>(u.time), vec3<f32>(12.9898, 78.233, 45.164))) * 43758.5453);\n            if (rand_val < 0.4) {\n                next_id = 4.0; // Smoke\n                next_vol = 0.8;\n            } else {\n                next_id = 3.0; // Fire\n                next_vol = 1.0;\n            }\n        }\n    }\n\n    // --- 5. Evaporate, decay and clamp ---\n    let next_props = get_gas_props(next_id);\n    next_vol = max(0.0, next_vol - next_props.decay);\n\n    if (next_vol < 0.01) {\n        next_vol = 0.0;\n        next_id = 0.0;\n    }\n    \n    next_vol = clamp(next_vol, 0.0, 1.0);\n    if (next_vol == 0.0) {\n        next_id = 0.0;\n    }\n\n    output_buffer[idx] = vec4<f32>(next_id, next_vol, 0.0, 0.0);\n}\n";
         String *_2_ref = &_2;
         gas_MINUS_sim_MINUS_wgsl = _2_ref;
     }
 
     // Depth 0
     {
-        static String _2 = "struct Params {\n    offset_x: f32,\n    offset_y: f32,\n    offset_z: f32,\n    _pad: f32,\n}\n\n@group(0) @binding(0) var<storage, read>       staging_buffer: array<vec4<f32>>;\n@group(0) @binding(1) var<storage, read_write> voxel_gpu_buffer_read: array<vec4<f32>>;\n@group(0) @binding(2) var<storage, read_write> voxel_gpu_buffer_write: array<vec4<f32>>;\n@group(0) @binding(3) var<uniform>             p: Params;\n\n@compute @workgroup_size(64)\nfn main(@builtin(global_invocation_id) global_id: vec3<u32>) {\n    let idx = global_id.x;\n    if (idx >= 32768u) { return; }\n\n    let lx = idx % 32u;\n    let ly = (idx / 32u) % 32u;\n    let lz = idx / 1024u;\n\n    let val = staging_buffer[idx];\n\n    let ox = u32(p.offset_x);\n    let oy = u32(p.offset_y);\n    let oz = u32(p.offset_z);\n\n    let gx = ox + lx;\n    let gy = oy + ly;\n    let gz = oz + lz;\n    let g_idx = gx + gy * 160u + gz * 25600u;\n\n    voxel_gpu_buffer_read[g_idx] = val;\n    voxel_gpu_buffer_write[g_idx] = val;\n}\n";
+        static String _2 = "struct Params {\n    offset_x: f32,\n    offset_y: f32,\n    offset_z: f32,\n    _pad: f32,\n}\n\n@group(0) @binding(0) var<storage, read>       staging_buffer: array<vec4<f32>>;\n@group(0) @binding(1) var<storage, read_write> voxel_gpu_buffer_read: array<vec4<f32>>;\n@group(0) @binding(2) var<storage, read_write> voxel_gpu_buffer_write: array<vec4<f32>>;\n@group(0) @binding(3) var<uniform>             p: Params;\n@group(0) @binding(4) var<storage, read_write> stress_gpu_buffer_read: array<vec4<f32>>;\n@group(0) @binding(5) var<storage, read_write> stress_gpu_buffer_write: array<vec4<f32>>;\n@group(0) @binding(6) var<storage, read_write> liquid_gpu_buffer: array<vec4<f32>>;\n@group(0) @binding(7) var<storage, read_write> gas_gpu_buffer: array<vec4<f32>>;\n\n@compute @workgroup_size(64)\nfn main(@builtin(global_invocation_id) global_id: vec3<u32>) {\n    let idx = global_id.x;\n    if (idx >= 32768u) { return; }\n\n    let lx = idx % 32u;\n    let ly = (idx / 32u) % 32u;\n    let lz = idx / 1024u;\n\n    let val = staging_buffer[idx];\n\n    let ox = u32(p.offset_x);\n    let oy = u32(p.offset_y);\n    let oz = u32(p.offset_z);\n\n    let gx = ox + lx;\n    let gy = oy + ly;\n    let gz = oz + lz;\n    let g_idx = gx + gy * 160u + gz * 25600u;\n\n    voxel_gpu_buffer_read[g_idx] = val;\n    voxel_gpu_buffer_write[g_idx] = val;\n    stress_gpu_buffer_read[g_idx] = vec4<f32>(0.0);\n    stress_gpu_buffer_write[g_idx] = vec4<f32>(0.0);\n    liquid_gpu_buffer[g_idx] = vec4<f32>(0.0);\n    gas_gpu_buffer[g_idx] = vec4<f32>(0.0);\n}\n";
         String *_2_ref = &_2;
         copy_MINUS_wgsl = _2_ref;
     }
@@ -16926,7 +17080,7 @@ Maybe__WGPUFrameState_MUL_ Engine_begin_MINUS_frame(Engine* eng) {
             Maybe__WGPUFrameState_MUL_ _33 = Maybe_Just__WGPUFrameState_MUL_(frame);
             _34 = _33;
         }
-        else UNHANDLED("scaffold.carp", 181);
+        else UNHANDLED("scaffold.carp", 185);
         _35 = _34;
     }
     return _35;
@@ -17054,7 +17208,7 @@ Result__Engine_String Engine_create(String* title, int init_MINUS_w, int init_MI
                             Result__Engine_String _140 = Result_Success__Engine_String(_139);
                             _141 = _140;
                         }
-                        else UNHANDLED("scaffold.carp", 145);
+                        else UNHANDLED("scaffold.carp", 149);
                         Result__Engine_String _142 = _141;
                         _143 = _142;
                     }
@@ -17067,7 +17221,7 @@ Result__Engine_String Engine_create(String* title, int init_MINUS_w, int init_MI
         }
         _148 = _147;
     }
-    else UNHANDLED("scaffold.carp", 129);
+    else UNHANDLED("scaffold.carp", 133);
     return _148;
 }
 
@@ -17090,6 +17244,58 @@ Result__WGPURenderPipelineWrapper_MUL__String Engine_create_MINUS_pipeline(Engin
     return _25;
 }
 
+Result__WGPUBindGroup_String Engine_create_MINUS_simulation_MINUS_bind_MINUS_group(WGPUContext* ctx, WGPUComputePipeline pipeline, WGPUBuffer in_MINUS_buf, WGPUBuffer out_MINUS_buf, WGPUBuffer ub, WGPUBuffer solid_MINUS_buf, WGPUBuffer lookup_MINUS_buf, WGPURenderTexture* solid_MINUS_tex, WGPURenderTexture* liquid_MINUS_tex, WGPURenderTexture* gas_MINUS_tex, WGPURenderTexture* stress_MINUS_tex) {
+    Result__WGPUBindGroup_String _47;
+    /* let */ {
+        WGPUBindGroup _28 = Engine_create_MINUS_simulation_MINUS_bind_MINUS_group_MINUS_raw(ctx, pipeline, in_MINUS_buf, out_MINUS_buf, ub, solid_MINUS_buf, lookup_MINUS_buf, solid_MINUS_tex, liquid_MINUS_tex, gas_MINUS_tex, stress_MINUS_tex);
+        WGPUBindGroup bg = _28;
+        Result__WGPUBindGroup_String _46;
+        bool _33 = wgpu_bindgroup_is_null(bg);
+        if (_33) {
+            static String _37 = "Failed to create simulation bind group";
+            String *_37_ref = &_37;
+            String _38 = String_copy(_37_ref);
+            Result__WGPUBindGroup_String _39 = Result_Error__String_WGPUBindGroup(_38);
+            Result__WGPUBindGroup_String _40 = _39;
+            _46 = _40;
+        } else {
+            Result__WGPUBindGroup_String _44 = Result_Success__WGPUBindGroup_String(bg);
+            Result__WGPUBindGroup_String _45 = _44;
+            _46 = _45;
+        }
+        _47 = _46;
+    }
+    return _47;
+}
+
+WGPUBindGroup Engine_create_MINUS_simulation_MINUS_bind_MINUS_group_MINUS_raw(WGPUContext* ctx, WGPUComputePipeline pipe, WGPUBuffer in_buf, WGPUBuffer out_buf, WGPUBuffer ub, WGPUBuffer solid_buf, WGPUBuffer lookup_buf, WGPURenderTexture* solid_tex, WGPURenderTexture* liquid_tex, WGPURenderTexture* gas_tex, WGPURenderTexture* stress_tex) {
+      if (!ctx || !pipe || !in_buf || !out_buf || !ub || !solid_buf || !lookup_buf || !solid_tex || !liquid_tex || !gas_tex || !stress_tex) {
+          return NULL;
+      }
+      WGPUBindGroupLayout layout = wgpuComputePipelineGetBindGroupLayout(pipe, 0);
+      if (!layout) {
+          return NULL;
+      }
+      WGPUBindGroupEntry entries[9] = {
+          { .binding = 0, .buffer = in_buf, .offset = 0, .size = WGPU_WHOLE_SIZE },
+          { .binding = 1, .buffer = out_buf, .offset = 0, .size = WGPU_WHOLE_SIZE },
+          { .binding = 2, .buffer = ub, .offset = 0, .size = WGPU_WHOLE_SIZE },
+          { .binding = 3, .buffer = solid_buf, .offset = 0, .size = WGPU_WHOLE_SIZE },
+          { .binding = 4, .buffer = lookup_buf, .offset = 0, .size = WGPU_WHOLE_SIZE },
+          { .binding = 5, .textureView = solid_tex->view },
+          { .binding = 6, .textureView = liquid_tex->view },
+          { .binding = 7, .textureView = gas_tex->view },
+          { .binding = 8, .textureView = stress_tex->view }
+      };
+      WGPUBindGroupDescriptor desc = {
+          .layout     = layout,
+          .entryCount = 9,
+          .entries    = entries,
+      };
+      WGPUBindGroup bg = wgpuDeviceCreateBindGroup(ctx->device, &desc);
+      wgpuBindGroupLayoutRelease(layout);
+      return bg;
+  }
 Result__WGPUUniformBufferWrapper_MUL__String Engine_create_MINUS_uniform_MINUS_buffer(Engine* eng, int size) {
     WGPUContext** _9 = Engine_ctx(eng);
     WGPUContext* _10 = Pointer_copy__WGPUContext(_9);
@@ -17097,30 +17303,30 @@ Result__WGPUUniformBufferWrapper_MUL__String Engine_create_MINUS_uniform_MINUS_b
     return _12;
 }
 
-Result__WGPUBindGroup_String Engine_create_MINUS_voxel_MINUS_bind_MINUS_group(Engine* eng, WGPURenderPipelineWrapper* pipeline, WGPURenderTexture* solid_MINUS_tex, WGPURenderTexture* liquid_MINUS_tex, WGPURenderTexture* gas_MINUS_tex, WGPURenderTexture* light_MINUS_tex, WGPUSampler sampler, WGPUUniformBufferWrapper* uniforms) {
-    Result__WGPUBindGroup_String _45;
+Result__WGPUBindGroup_String Engine_create_MINUS_voxel_MINUS_bind_MINUS_group(Engine* eng, WGPURenderPipelineWrapper* pipeline, WGPURenderTexture* solid_MINUS_tex, WGPURenderTexture* liquid_MINUS_tex, WGPURenderTexture* gas_MINUS_tex, WGPURenderTexture* light_MINUS_tex, WGPURenderTexture* stress_MINUS_tex, WGPUSampler sampler, WGPUUniformBufferWrapper* uniforms) {
+    Result__WGPUBindGroup_String _47;
     /* let */ {
-        WGPUContext** _17 = Engine_ctx(eng);
-        WGPUContext* _18 = Pointer_copy__WGPUContext(_17);
-        WGPUBindGroup _26 = create_MINUS_voxel_MINUS_scaffold_MINUS_bind_MINUS_group(_18, pipeline, solid_MINUS_tex, liquid_MINUS_tex, gas_MINUS_tex, light_MINUS_tex, sampler, uniforms);
-        WGPUBindGroup bg = _26;
-        Result__WGPUBindGroup_String _44;
-        bool _31 = wgpu_bindgroup_is_null(bg);
-        if (_31) {
-            static String _35 = "Failed to create voxel scaffold bind group";
-            String *_35_ref = &_35;
-            String _36 = String_copy(_35_ref);
-            Result__WGPUBindGroup_String _37 = Result_Error__String_WGPUBindGroup(_36);
-            Result__WGPUBindGroup_String _38 = _37;
-            _44 = _38;
+        WGPUContext** _18 = Engine_ctx(eng);
+        WGPUContext* _19 = Pointer_copy__WGPUContext(_18);
+        WGPUBindGroup _28 = create_MINUS_voxel_MINUS_scaffold_MINUS_bind_MINUS_group(_19, pipeline, solid_MINUS_tex, liquid_MINUS_tex, gas_MINUS_tex, light_MINUS_tex, stress_MINUS_tex, sampler, uniforms);
+        WGPUBindGroup bg = _28;
+        Result__WGPUBindGroup_String _46;
+        bool _33 = wgpu_bindgroup_is_null(bg);
+        if (_33) {
+            static String _37 = "Failed to create voxel scaffold bind group";
+            String *_37_ref = &_37;
+            String _38 = String_copy(_37_ref);
+            Result__WGPUBindGroup_String _39 = Result_Error__String_WGPUBindGroup(_38);
+            Result__WGPUBindGroup_String _40 = _39;
+            _46 = _40;
         } else {
-            Result__WGPUBindGroup_String _42 = Result_Success__WGPUBindGroup_String(bg);
-            Result__WGPUBindGroup_String _43 = _42;
-            _44 = _43;
+            Result__WGPUBindGroup_String _44 = Result_Success__WGPUBindGroup_String(bg);
+            Result__WGPUBindGroup_String _45 = _44;
+            _46 = _45;
         }
-        _45 = _44;
+        _47 = _46;
     }
-    return _45;
+    return _47;
 }
 
 WGPUContext** Engine_ctx(Engine* p) { return (&(p->ctx)); }
@@ -17532,12 +17738,14 @@ EngineState EngineState_copy(EngineState* pRef) {
     /* Ignore non-managed member 'hit_MINUS_active' : Float */
     /* Ignore non-managed member 'liquid_MINUS_spawn' : Float */
     /* Ignore non-managed member 'gas_MINUS_spawn' : Float */
+    /* Ignore non-managed member 'stress_MINUS_view' : Bool */
+    /* Ignore non-managed member 'v_MINUS_pressed' : Bool */
     return copy;
 }
 
 Result__EngineState_String EngineState_create(String* title, int width, int height) {
     Result__Engine_String _11 = Engine_create(title, width, height);
-    Result__EngineState_String _189;
+    Result__EngineState_String _191;
     if(_11._tag == Result__Engine_String_Error_tag) {
         Result__Engine_String _11_temp = _11;
         String e = _11_temp.u.Error.member0;
@@ -17552,7 +17760,7 @@ Result__EngineState_String EngineState_create(String* title, int width, int heig
         String* _1000004 = &_1000005; // ref
         String _1000003 = String_copy(_1000004);
         Result__EngineState_String _32 = Result_Error__String_EngineState(_1000003);
-        _189 = _32;
+        _191 = _32;
         String_delete(_1000005);
         String_delete(_1000007);
         String_delete(_1000009);
@@ -17563,7 +17771,7 @@ Result__EngineState_String EngineState_create(String* title, int width, int heig
         // Case expr:
         Engine* _40 = &platform_MINUS_eng; // ref
         Result__Renderer_String _41 = Renderer_create(_40);
-        Result__EngineState_String _188;
+        Result__EngineState_String _190;
         if(_41._tag == Result__Renderer_String_Error_tag) {
             Result__Renderer_String _41_temp = _41;
             String e = _41_temp.u.Error.member0;
@@ -17580,7 +17788,7 @@ Result__EngineState_String EngineState_create(String* title, int width, int heig
             String _1000012 = String_copy(_1000013);
             Result__EngineState_String _66 = Result_Error__String_EngineState(_1000012);
             Result__EngineState_String _67 = _66;
-            _188 = _67;
+            _190 = _67;
             String_delete(_1000014);
             String_delete(_1000016);
             String_delete(_1000018);
@@ -17589,14 +17797,14 @@ Result__EngineState_String EngineState_create(String* title, int width, int heig
             Result__Renderer_String _41_temp = _41;
             Renderer ren = _41_temp.u.Success.member0;
             // Case expr:
-            Result__EngineState_String _187;
+            Result__EngineState_String _189;
             /* let */ {
                 World _74 = World_create();
                 World world = _74;
                 Vector3__double _81 = Vector3_init__double(32.0, 45.0, 32.0);
                 Player _82 = Player_create(_81);
                 Player player = _82;
-                Array__float _86 = Array_allocate__float(32);
+                Array__float _86 = Array_allocate__float(36);
                 Array__float uniforms = _86;
                 static String _90 = "diagnostics.log";
                 String *_90_ref = &_90;
@@ -17638,18 +17846,18 @@ Result__EngineState_String EngineState_create(String* title, int width, int heig
                 Player* _166 = &player; // ref
                 Camera* _167 = Player_camera(_166);
                 Camera_update_MINUS_basis_BANG_(_167);
-                EngineState _184 = EngineState_init(platform_MINUS_eng, ren, world, player, uniforms, diag, 0, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
-                Result__EngineState_String _185 = Result_Success__EngineState_String(_184);
-                Result__EngineState_String _186 = _185;
-                _187 = _186;
+                EngineState _186 = EngineState_init(platform_MINUS_eng, ren, world, player, uniforms, diag, 0, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, false, false);
+                Result__EngineState_String _187 = Result_Success__EngineState_String(_186);
+                Result__EngineState_String _188 = _187;
+                _189 = _188;
             }
-            _188 = _187;
+            _190 = _189;
         }
-        else UNHANDLED("engine.carp", 30);
-        _189 = _188;
+        else UNHANDLED("engine.carp", 32);
+        _191 = _190;
     }
-    else UNHANDLED("engine.carp", 27);
-    return _189;
+    else UNHANDLED("engine.carp", 29);
+    return _191;
 }
 
 void EngineState_delete(EngineState p) {
@@ -17666,6 +17874,8 @@ void EngineState_delete(EngineState p) {
     /* Ignore non-managed member 'hit_MINUS_active' : Float */
     /* Ignore non-managed member 'liquid_MINUS_spawn' : Float */
     /* Ignore non-managed member 'gas_MINUS_spawn' : Float */
+    /* Ignore non-managed member 'stress_MINUS_view' : Bool */
+    /* Ignore non-managed member 'v_MINUS_pressed' : Bool */
 }
 
 Diagnostics* EngineState_diag(EngineState* p) { return (&(p->diag)); }
@@ -17749,7 +17959,7 @@ float* EngineState_hit_MINUS_y(EngineState* p) { return (&(p->hit_MINUS_y)); }
 
 float* EngineState_hit_MINUS_z(EngineState* p) { return (&(p->hit_MINUS_z)); }
 
-EngineState EngineState_init(Engine eng, Renderer renderer, World world, Player player, Array__float uniforms, Diagnostics diag, int frame_MINUS_count, float hit_MINUS_x, float hit_MINUS_y, float hit_MINUS_z, float hit_MINUS_active, float liquid_MINUS_spawn, float gas_MINUS_spawn) {
+EngineState EngineState_init(Engine eng, Renderer renderer, World world, Player player, Array__float uniforms, Diagnostics diag, int frame_MINUS_count, float hit_MINUS_x, float hit_MINUS_y, float hit_MINUS_z, float hit_MINUS_active, float liquid_MINUS_spawn, float gas_MINUS_spawn, bool stress_MINUS_view, bool v_MINUS_pressed) {
     EngineState instance;
     instance.eng = eng;
     instance.renderer = renderer;
@@ -17764,6 +17974,8 @@ EngineState EngineState_init(Engine eng, Renderer renderer, World world, Player 
     instance.hit_MINUS_active = hit_MINUS_active;
     instance.liquid_MINUS_spawn = liquid_MINUS_spawn;
     instance.gas_MINUS_spawn = gas_MINUS_spawn;
+    instance.stress_MINUS_view = stress_MINUS_view;
+    instance.v_MINUS_pressed = v_MINUS_pressed;
     return instance;
 }
 
@@ -17962,6 +18174,14 @@ String EngineState_prn(EngineState *p) {
   size += snprintf(NULL, 0, "%s ", temp);
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
+  temp = Bool_prn(p->stress_MINUS_view); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Bool_prn(p->v_MINUS_pressed); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
 
   String buffer = CARP_MALLOC(size);
   String bufferPtr = buffer;
@@ -18028,6 +18248,16 @@ String EngineState_prn(EngineState *p) {
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
   temp = Float_prn(p->gas_MINUS_spawn);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Bool_prn(p->stress_MINUS_view);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Bool_prn(p->v_MINUS_pressed);
   tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
   bufferPtr += tempsize;
   if(temp) { CARP_FREE(temp); temp = NULL; }
@@ -18195,6 +18425,19 @@ void EngineState_set_MINUS_renderer_BANG_(EngineState* pRef, Renderer newValue) 
 }
 
 
+EngineState EngineState_set_MINUS_stress_MINUS_view(EngineState p, bool newValue) {
+    /* Ignore non-managed member 'stress_MINUS_view' : Bool */
+    p.stress_MINUS_view = newValue;
+    return p;
+}
+
+
+void EngineState_set_MINUS_stress_MINUS_view_BANG_(EngineState* pRef, bool newValue) {
+    /* Ignore non-managed member 'stress_MINUS_view' : Bool */
+    pRef->stress_MINUS_view = newValue;
+}
+
+
 EngineState EngineState_set_MINUS_uniforms(EngineState p, Array__float newValue) {
     Array_delete__float(p.uniforms);
     p.uniforms = newValue;
@@ -18205,6 +18448,19 @@ EngineState EngineState_set_MINUS_uniforms(EngineState p, Array__float newValue)
 void EngineState_set_MINUS_uniforms_BANG_(EngineState* pRef, Array__float newValue) {
     Array_delete__float(pRef->uniforms);
     pRef->uniforms = newValue;
+}
+
+
+EngineState EngineState_set_MINUS_v_MINUS_pressed(EngineState p, bool newValue) {
+    /* Ignore non-managed member 'v_MINUS_pressed' : Bool */
+    p.v_MINUS_pressed = newValue;
+    return p;
+}
+
+
+void EngineState_set_MINUS_v_MINUS_pressed_BANG_(EngineState* pRef, bool newValue) {
+    /* Ignore non-managed member 'v_MINUS_pressed' : Bool */
+    pRef->v_MINUS_pressed = newValue;
 }
 
 
@@ -18279,6 +18535,14 @@ String EngineState_str(EngineState *p) {
   size += snprintf(NULL, 0, "%s ", temp);
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
+  temp = Bool_prn(p->stress_MINUS_view); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Bool_prn(p->v_MINUS_pressed); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
 
   String buffer = CARP_MALLOC(size);
   String bufferPtr = buffer;
@@ -18345,6 +18609,16 @@ String EngineState_str(EngineState *p) {
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
   temp = Float_prn(p->gas_MINUS_spawn);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Bool_prn(p->stress_MINUS_view);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Bool_prn(p->v_MINUS_pressed);
   tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
   bufferPtr += tempsize;
   if(temp) { CARP_FREE(temp); temp = NULL; }
@@ -18482,6 +18756,8 @@ void EngineState_stream_MINUS_chunks_BANG_(World* world, Engine* eng, Renderer* 
     }
 }
 
+bool* EngineState_stress_MINUS_view(EngineState* p) { return (&(p->stress_MINUS_view)); }
+
 void EngineState_tick(EngineState* state, GLFWwindow* win, double dt, bool* first_MINUS_mouse_MINUS_ptr, double* last_MINUS_x_MINUS_ptr, double* last_MINUS_y_MINUS_ptr) {
     EngineState_pre_MINUS_update_BANG___GLFWwindow_MUL_(state, win);
     EngineState_update_BANG_(state, win, dt, first_MINUS_mouse_MINUS_ptr, last_MINUS_x_MINUS_ptr, last_MINUS_y_MINUS_ptr);
@@ -18505,214 +18781,243 @@ void EngineState_update_BANG_(EngineState* state, GLFWwindow* win, double dt, bo
         Camera* cam = _25;
         World* _29 = EngineState_world(state);
         World* world = _29;
+        /* let */ {
+            int _38 = glfwGetKey(win, GLFW_KEY_K);
+            bool _40 = Int__EQ_(_38, GLFW_PRESS);
+            bool k_MINUS_held = _40;
+            bool _58;
+            if (k_MINUS_held) {
+                bool* _51 = EngineState_v_MINUS_pressed(state);
+                bool _52 = Bool_copy(_51);
+                bool _53 = not(_52);
+                bool _54 = _53;
+                _58 = _54;
+            } else {
+                bool _57 = false;
+                _58 = _57;
+            }
+            if (_58) {
+                bool* _64 = EngineState_stress_MINUS_view(state);
+                bool* _65 = ref_MINUS_to_MINUS_ptr__bool(_64);
+                bool* _70 = EngineState_stress_MINUS_view(state);
+                bool _71 = Bool_copy(_70);
+                bool _72 = not(_71);
+                Pointer_set__bool(_65, _72);
+            } else {
+                /* () */
+            }
+            bool* _83 = EngineState_v_MINUS_pressed(state);
+            bool* _84 = ref_MINUS_to_MINUS_ptr__bool(_83);
+            Pointer_set__bool(_84, k_MINUS_held);
+        }
         Player_handle_MINUS_input_BANG_(player, win, dt, first_MINUS_mouse_MINUS_ptr, last_MINUS_x_MINUS_ptr, last_MINUS_y_MINUS_ptr);
         Player_handle_MINUS_jump_BANG_(player, win);
         Player_update_MINUS_physics_BANG_(player, world, dt);
-        Vector3__double* _55 = Camera_pos(cam);
-        EngineState_stream_MINUS_chunks_BANG_(world, platform_MINUS_eng, ren, _55);
+        Vector3__double* _112 = Camera_pos(cam);
+        EngineState_stream_MINUS_chunks_BANG_(world, platform_MINUS_eng, ren, _112);
         /* let */ {
-            Vector3__double* _61 = Camera_pos(cam);
-            Vector3__double* ro = _61;
-            Vector3__double* _65 = Camera_front(cam);
-            Vector3__double* rd = _65;
-            Maybe__Vector3__double _72 = World_raycast(world, ro, rd, 80.0);
-            Maybe__Vector3__double hit_MINUS_opt = _72;
+            Vector3__double* _118 = Camera_pos(cam);
+            Vector3__double* ro = _118;
+            Vector3__double* _122 = Camera_front(cam);
+            Vector3__double* rd = _122;
+            Maybe__Vector3__double _129 = World_raycast(world, ro, rd, 80.0);
+            Maybe__Vector3__double hit_MINUS_opt = _129;
             if(hit_MINUS_opt._tag == Maybe__Vector3__double_Nothing_tag) {
-                Maybe__Vector3__double _75_temp = hit_MINUS_opt;
+                Maybe__Vector3__double _132_temp = hit_MINUS_opt;
                 // Case expr:
-                float* _83 = EngineState_hit_MINUS_active(state);
-                float* _84 = ref_MINUS_to_MINUS_ptr__float(_83);
-                Pointer_set__float(_84, 0.0f);
-                float* _91 = EngineState_liquid_MINUS_spawn(state);
-                float* _92 = ref_MINUS_to_MINUS_ptr__float(_91);
-                Pointer_set__float(_92, 0.0f);
-                float* _99 = EngineState_gas_MINUS_spawn(state);
-                float* _100 = ref_MINUS_to_MINUS_ptr__float(_99);
-                Pointer_set__float(_100, 0.0f);
+                float* _140 = EngineState_hit_MINUS_active(state);
+                float* _141 = ref_MINUS_to_MINUS_ptr__float(_140);
+                Pointer_set__float(_141, 0.0f);
+                float* _148 = EngineState_liquid_MINUS_spawn(state);
+                float* _149 = ref_MINUS_to_MINUS_ptr__float(_148);
+                Pointer_set__float(_149, 0.0f);
+                float* _156 = EngineState_gas_MINUS_spawn(state);
+                float* _157 = ref_MINUS_to_MINUS_ptr__float(_156);
+                Pointer_set__float(_157, 0.0f);
             }
             else if(hit_MINUS_opt._tag == Maybe__Vector3__double_Just_tag) {
-                Maybe__Vector3__double _75_temp = hit_MINUS_opt;
-                Vector3__double hit_MINUS_pos = _75_temp.u.Just.member0;
+                Maybe__Vector3__double _132_temp = hit_MINUS_opt;
+                Vector3__double hit_MINUS_pos = _132_temp.u.Just.member0;
                 // Case expr:
                 /* let */ {
-                    Vector3__double _114 = Vector3_init__double(1.0, 1.0, 0.0);
-                    Vector3__double yellow = _114;
-                    Vector3__double* _120 = &hit_MINUS_pos; // ref
-                    double* _121 = Vector3_x__double(_120);
-                    double _122 = Double_copy(_121);
-                    double hx = _122;
-                    Vector3__double* _128 = &hit_MINUS_pos; // ref
-                    double* _129 = Vector3_y__double(_128);
-                    double _130 = Double_copy(_129);
-                    double hy = _130;
-                    Vector3__double* _136 = &hit_MINUS_pos; // ref
-                    double* _137 = Vector3_z__double(_136);
-                    double _138 = Double_copy(_137);
-                    double hz = _138;
-                    double _145 = Double__MINUS_(hx, 0.5);
-                    double _149 = Double__MINUS_(hy, 0.5);
-                    double _153 = Double__MINUS_(hz, 0.5);
-                    double _157 = Double__PLUS_(hx, 0.5);
-                    double _161 = Double__PLUS_(hy, 0.5);
-                    double _165 = Double__PLUS_(hz, 0.5);
-                    Vector3__double* _168 = &yellow; // ref
-                    EngineState_draw_MINUS_bounds_MINUS_wireframe_BANG_(ren, _145, _149, _153, _157, _161, _165, _168);
+                    Vector3__double _171 = Vector3_init__double(1.0, 1.0, 0.0);
+                    Vector3__double yellow = _171;
+                    Vector3__double* _177 = &hit_MINUS_pos; // ref
+                    double* _178 = Vector3_x__double(_177);
+                    double _179 = Double_copy(_178);
+                    double hx = _179;
+                    Vector3__double* _185 = &hit_MINUS_pos; // ref
+                    double* _186 = Vector3_y__double(_185);
+                    double _187 = Double_copy(_186);
+                    double hy = _187;
+                    Vector3__double* _193 = &hit_MINUS_pos; // ref
+                    double* _194 = Vector3_z__double(_193);
+                    double _195 = Double_copy(_194);
+                    double hz = _195;
+                    double _202 = Double__MINUS_(hx, 0.5);
+                    double _206 = Double__MINUS_(hy, 0.5);
+                    double _210 = Double__MINUS_(hz, 0.5);
+                    double _214 = Double__PLUS_(hx, 0.5);
+                    double _218 = Double__PLUS_(hy, 0.5);
+                    double _222 = Double__PLUS_(hz, 0.5);
+                    Vector3__double* _225 = &yellow; // ref
+                    EngineState_draw_MINUS_bounds_MINUS_wireframe_BANG_(ren, _202, _206, _210, _214, _218, _222, _225);
                     Vector3_delete__double(yellow);
                 }
                 /* let */ {
-                    int _177 = glfwGetMouseButton(win, 0);
-                    bool _179 = Int__EQ_(_177, GLFW_PRESS);
-                    bool left_MINUS_pressed = _179;
-                    int _185 = glfwGetMouseButton(win, 1);
-                    bool _187 = Int__EQ_(_185, GLFW_PRESS);
-                    bool right_MINUS_pressed = _187;
-                    int _193 = glfwGetKey(win, GLFW_KEY_F);
-                    bool _195 = Int__EQ_(_193, GLFW_PRESS);
-                    bool f_MINUS_held = _195;
-                    int _201 = glfwGetKey(win, GLFW_KEY_H);
-                    bool _203 = Int__EQ_(_201, GLFW_PRESS);
-                    bool h_MINUS_held = _203;
-                    int _209 = glfwGetKey(win, GLFW_KEY_G);
-                    bool _211 = Int__EQ_(_209, GLFW_PRESS);
-                    bool g_MINUS_held = _211;
-                    float* _218 = EngineState_hit_MINUS_x(state);
-                    float* _219 = ref_MINUS_to_MINUS_ptr__float(_218);
-                    Vector3__double* _225 = &hit_MINUS_pos; // ref
-                    double* _226 = Vector3_x__double(_225);
-                    double _227 = Double_copy(_226);
-                    float _228 = Double_to_MINUS_float(_227);
-                    Pointer_set__float(_219, _228);
-                    float* _234 = EngineState_hit_MINUS_y(state);
-                    float* _235 = ref_MINUS_to_MINUS_ptr__float(_234);
-                    Vector3__double* _241 = &hit_MINUS_pos; // ref
-                    double* _242 = Vector3_y__double(_241);
-                    double _243 = Double_copy(_242);
-                    float _244 = Double_to_MINUS_float(_243);
-                    Pointer_set__float(_235, _244);
-                    float* _250 = EngineState_hit_MINUS_z(state);
-                    float* _251 = ref_MINUS_to_MINUS_ptr__float(_250);
-                    Vector3__double* _257 = &hit_MINUS_pos; // ref
-                    double* _258 = Vector3_z__double(_257);
-                    double _259 = Double_copy(_258);
-                    float _260 = Double_to_MINUS_float(_259);
-                    Pointer_set__float(_251, _260);
-                    bool _271;
+                    int _234 = glfwGetMouseButton(win, 0);
+                    bool _236 = Int__EQ_(_234, GLFW_PRESS);
+                    bool left_MINUS_pressed = _236;
+                    int _242 = glfwGetMouseButton(win, 1);
+                    bool _244 = Int__EQ_(_242, GLFW_PRESS);
+                    bool right_MINUS_pressed = _244;
+                    int _250 = glfwGetKey(win, GLFW_KEY_F);
+                    bool _252 = Int__EQ_(_250, GLFW_PRESS);
+                    bool f_MINUS_held = _252;
+                    int _258 = glfwGetKey(win, GLFW_KEY_H);
+                    bool _260 = Int__EQ_(_258, GLFW_PRESS);
+                    bool h_MINUS_held = _260;
+                    int _266 = glfwGetKey(win, GLFW_KEY_G);
+                    bool _268 = Int__EQ_(_266, GLFW_PRESS);
+                    bool g_MINUS_held = _268;
+                    float* _275 = EngineState_hit_MINUS_x(state);
+                    float* _276 = ref_MINUS_to_MINUS_ptr__float(_275);
+                    Vector3__double* _282 = &hit_MINUS_pos; // ref
+                    double* _283 = Vector3_x__double(_282);
+                    double _284 = Double_copy(_283);
+                    float _285 = Double_to_MINUS_float(_284);
+                    Pointer_set__float(_276, _285);
+                    float* _291 = EngineState_hit_MINUS_y(state);
+                    float* _292 = ref_MINUS_to_MINUS_ptr__float(_291);
+                    Vector3__double* _298 = &hit_MINUS_pos; // ref
+                    double* _299 = Vector3_y__double(_298);
+                    double _300 = Double_copy(_299);
+                    float _301 = Double_to_MINUS_float(_300);
+                    Pointer_set__float(_292, _301);
+                    float* _307 = EngineState_hit_MINUS_z(state);
+                    float* _308 = ref_MINUS_to_MINUS_ptr__float(_307);
+                    Vector3__double* _314 = &hit_MINUS_pos; // ref
+                    double* _315 = Vector3_z__double(_314);
+                    double _316 = Double_copy(_315);
+                    float _317 = Double_to_MINUS_float(_316);
+                    Pointer_set__float(_308, _317);
+                    bool _328;
                     if (left_MINUS_pressed) {
-                        bool _267 = true;
-                        _271 = _267;
+                        bool _324 = true;
+                        _328 = _324;
                     } else {
-                        bool _270 = right_MINUS_pressed;
-                        _271 = _270;
+                        bool _327 = right_MINUS_pressed;
+                        _328 = _327;
                     }
-                    if (_271) {
-                        float* _277 = EngineState_hit_MINUS_active(state);
-                        float* _278 = ref_MINUS_to_MINUS_ptr__float(_277);
-                        Pointer_set__float(_278, 1.0f);
+                    if (_328) {
+                        float* _334 = EngineState_hit_MINUS_active(state);
+                        float* _335 = ref_MINUS_to_MINUS_ptr__float(_334);
+                        Pointer_set__float(_335, 1.0f);
                         if (h_MINUS_held) {
-                            float* _288 = EngineState_liquid_MINUS_spawn(state);
-                            float* _289 = ref_MINUS_to_MINUS_ptr__float(_288);
-                            float* _293 = Player_current_MINUS_liq(player);
-                            float _294 = Float_copy(_293);
-                            Pointer_set__float(_289, _294);
+                            float* _345 = EngineState_liquid_MINUS_spawn(state);
+                            float* _346 = ref_MINUS_to_MINUS_ptr__float(_345);
+                            float* _350 = Player_current_MINUS_liq(player);
+                            float _351 = Float_copy(_350);
+                            Pointer_set__float(_346, _351);
                         } else {
-                            float* _302 = EngineState_liquid_MINUS_spawn(state);
-                            float* _303 = ref_MINUS_to_MINUS_ptr__float(_302);
-                            Pointer_set__float(_303, 0.0f);
+                            float* _359 = EngineState_liquid_MINUS_spawn(state);
+                            float* _360 = ref_MINUS_to_MINUS_ptr__float(_359);
+                            Pointer_set__float(_360, 0.0f);
                         }
                         if (g_MINUS_held) {
-                            float* _315 = EngineState_gas_MINUS_spawn(state);
-                            float* _316 = ref_MINUS_to_MINUS_ptr__float(_315);
-                            float* _320 = Player_current_MINUS_gas(player);
-                            float _321 = Float_copy(_320);
-                            Pointer_set__float(_316, _321);
+                            float* _372 = EngineState_gas_MINUS_spawn(state);
+                            float* _373 = ref_MINUS_to_MINUS_ptr__float(_372);
+                            float* _377 = Player_current_MINUS_gas(player);
+                            float _378 = Float_copy(_377);
+                            Pointer_set__float(_373, _378);
                         } else {
-                            float* _329 = EngineState_gas_MINUS_spawn(state);
-                            float* _330 = ref_MINUS_to_MINUS_ptr__float(_329);
-                            Pointer_set__float(_330, 0.0f);
+                            float* _386 = EngineState_gas_MINUS_spawn(state);
+                            float* _387 = ref_MINUS_to_MINUS_ptr__float(_386);
+                            Pointer_set__float(_387, 0.0f);
                         }
                     } else {
-                        float* _341 = EngineState_hit_MINUS_active(state);
-                        float* _342 = ref_MINUS_to_MINUS_ptr__float(_341);
-                        Pointer_set__float(_342, 0.0f);
-                        float* _349 = EngineState_liquid_MINUS_spawn(state);
-                        float* _350 = ref_MINUS_to_MINUS_ptr__float(_349);
-                        Pointer_set__float(_350, 0.0f);
-                        float* _357 = EngineState_gas_MINUS_spawn(state);
-                        float* _358 = ref_MINUS_to_MINUS_ptr__float(_357);
-                        Pointer_set__float(_358, 0.0f);
+                        float* _398 = EngineState_hit_MINUS_active(state);
+                        float* _399 = ref_MINUS_to_MINUS_ptr__float(_398);
+                        Pointer_set__float(_399, 0.0f);
+                        float* _406 = EngineState_liquid_MINUS_spawn(state);
+                        float* _407 = ref_MINUS_to_MINUS_ptr__float(_406);
+                        Pointer_set__float(_407, 0.0f);
+                        float* _414 = EngineState_gas_MINUS_spawn(state);
+                        float* _415 = ref_MINUS_to_MINUS_ptr__float(_414);
+                        Pointer_set__float(_415, 0.0f);
                     }
-                    bool _380;
-                    bool _373;
+                    bool _437;
+                    bool _430;
                     if (left_MINUS_pressed) {
-                        bool _369 = true;
-                        _373 = _369;
+                        bool _426 = true;
+                        _430 = _426;
                     } else {
-                        bool _372 = right_MINUS_pressed;
-                        _373 = _372;
+                        bool _429 = right_MINUS_pressed;
+                        _430 = _429;
                     }
-                    if (_373) {
-                        bool _376 = f_MINUS_held;
-                        _380 = _376;
+                    if (_430) {
+                        bool _433 = f_MINUS_held;
+                        _437 = _433;
                     } else {
-                        bool _379 = false;
-                        _380 = _379;
+                        bool _436 = false;
+                        _437 = _436;
                     }
-                    if (_380) {
+                    if (_437) {
                         /* let */ {
-                            double* _387 = Player_edit_MINUS_radius(player);
-                            double _388 = Double_copy(_387);
-                            double radius = _388;
-                            float* _393 = Player_current_MINUS_mat(player);
-                            float _394 = Float_copy(_393);
-                            float mat_MINUS_id = _394;
+                            double* _444 = Player_edit_MINUS_radius(player);
+                            double _445 = Double_copy(_444);
+                            double radius = _445;
+                            float* _450 = Player_current_MINUS_mat(player);
+                            float _451 = Float_copy(_450);
+                            float mat_MINUS_id = _451;
                             bool carve_QMARK_ = left_MINUS_pressed;
-                            Vector3__double* _402 = &hit_MINUS_pos; // ref
-                            Array__ChunkCoord _406 = World_edit_MINUS_sdf_BANG_(world, _402, radius, mat_MINUS_id, carve_QMARK_);
-                            Array__ChunkCoord modified_MINUS_coords = _406;
+                            Vector3__double* _459 = &hit_MINUS_pos; // ref
+                            Array__ChunkCoord _463 = World_edit_MINUS_sdf_BANG_(world, _459, radius, mat_MINUS_id, carve_QMARK_);
+                            Array__ChunkCoord modified_MINUS_coords = _463;
                             /* let */ {
                                 int j = 0;
-                                Array__ChunkCoord* _419 = &modified_MINUS_coords; // ref
-                                int _420 = Array_length__ChunkCoord(_419);
-                                bool _1000037 = Int__LT_(j, _420);
-                                bool _1000035 = _1000037;
-                                while (_1000035) {
+                                Array__ChunkCoord* _476 = &modified_MINUS_coords; // ref
+                                int _477 = Array_length__ChunkCoord(_476);
+                                bool _1000045 = Int__LT_(j, _477);
+                                bool _1000043 = _1000045;
+                                while (_1000043) {
                                     /* let */ {
-                                        Array__ChunkCoord* _428 = &modified_MINUS_coords; // ref
-                                        ChunkCoord* _430 = Array_unsafe_MINUS_nth__ChunkCoord(_428, j);
-                                        ChunkCoord* coord = _430;
-                                        int* _435 = ChunkCoord_x(coord);
-                                        int _436 = Int_copy(_435);
-                                        int qx = _436;
-                                        int* _441 = ChunkCoord_y(coord);
-                                        int _442 = Int_copy(_441);
-                                        int qy = _442;
-                                        int* _447 = ChunkCoord_z(coord);
-                                        int _448 = Int_copy(_447);
-                                        int qz = _448;
-                                        Maybe__Chunk _455 = World_find_MINUS_chunk(world, qx, qy, qz);
-                                        Maybe__Chunk chunk_MINUS_opt = _455;
+                                        Array__ChunkCoord* _485 = &modified_MINUS_coords; // ref
+                                        ChunkCoord* _487 = Array_unsafe_MINUS_nth__ChunkCoord(_485, j);
+                                        ChunkCoord* coord = _487;
+                                        int* _492 = ChunkCoord_x(coord);
+                                        int _493 = Int_copy(_492);
+                                        int qx = _493;
+                                        int* _498 = ChunkCoord_y(coord);
+                                        int _499 = Int_copy(_498);
+                                        int qy = _499;
+                                        int* _504 = ChunkCoord_z(coord);
+                                        int _505 = Int_copy(_504);
+                                        int qz = _505;
+                                        Maybe__Chunk _512 = World_find_MINUS_chunk(world, qx, qy, qz);
+                                        Maybe__Chunk chunk_MINUS_opt = _512;
                                         if(chunk_MINUS_opt._tag == Maybe__Chunk_Nothing_tag) {
-                                            Maybe__Chunk _458_temp = chunk_MINUS_opt;
+                                            Maybe__Chunk _515_temp = chunk_MINUS_opt;
                                             // Case expr:
                                             /* () */
                                         }
                                         else if(chunk_MINUS_opt._tag == Maybe__Chunk_Just_tag) {
-                                            Maybe__Chunk _458_temp = chunk_MINUS_opt;
-                                            Chunk chunk = _458_temp.u.Just.member0;
+                                            Maybe__Chunk _515_temp = chunk_MINUS_opt;
+                                            Chunk chunk = _515_temp.u.Just.member0;
                                             // Case expr:
-                                            Chunk* _474 = &chunk; // ref
-                                            Array__float* _475 = Chunk_voxel_MINUS_data(_474);
-                                            Renderer_update_MINUS_chunk_MINUS_texture(platform_MINUS_eng, ren, qx, qy, qz, _475);
+                                            Chunk* _531 = &chunk; // ref
+                                            Array__float* _532 = Chunk_voxel_MINUS_data(_531);
+                                            Renderer_update_MINUS_chunk_MINUS_texture(platform_MINUS_eng, ren, qx, qy, qz, _532);
                                             Chunk_delete(chunk);
                                         }
-                                        else UNHANDLED("engine.carp", 189);
+                                        else UNHANDLED("engine.carp", 198);
                                     }
-                                    int _1000044 = Int__PLUS_(j, 1);
-                                    j = _1000044;  // Int = Int
-                                    Array__ChunkCoord* _419 = &modified_MINUS_coords; // ref
-                                    int _420 = Array_length__ChunkCoord(_419);
-                                    bool _1000037 = Int__LT_(j, _420);
-                                    _1000035 = _1000037;
+                                    int _1000052 = Int__PLUS_(j, 1);
+                                    j = _1000052;  // Int = Int
+                                    Array__ChunkCoord* _476 = &modified_MINUS_coords; // ref
+                                    int _477 = Array_length__ChunkCoord(_476);
+                                    bool _1000045 = Int__LT_(j, _477);
+                                    _1000043 = _1000045;
                                 }
                             }
                             Array_delete__ChunkCoord(modified_MINUS_coords);
@@ -18723,7 +19028,7 @@ void EngineState_update_BANG_(EngineState* state, GLFWwindow* win, double dt, bo
                 }
                 Vector3_delete__double(hit_MINUS_pos);
             }
-            else UNHANDLED("engine.carp", 135);
+            else UNHANDLED("engine.carp", 144);
         }
     }
 }
@@ -18887,9 +19192,23 @@ void EngineState_update_MINUS_gpu_MINUS_uniforms(EngineState* state) {
         float _355 = Float_copy(_354);
         Array_aset_BANG___float(uniforms, 30, _355);
         Array_aset_BANG___float(uniforms, 31, 0.5f);
-        WGPUUniformBufferWrapper** _367 = Renderer_uniform_MINUS_buffer(ren);
-        WGPUUniformBufferWrapper* _368 = Pointer_copy__WGPUUniformBufferWrapper(_367);
-        Engine_update_MINUS_uniform_MINUS_buffer(eng, _368, uniforms);
+        float _377;
+        bool* _369 = EngineState_stress_MINUS_view(state);
+        bool _370 = Bool_copy(_369);
+        if (_370) {
+            float _373 = 1.0f;
+            _377 = _373;
+        } else {
+            float _376 = 0.0f;
+            _377 = _376;
+        }
+        Array_aset_BANG___float(uniforms, 32, _377);
+        Array_aset_BANG___float(uniforms, 33, 0.0f);
+        Array_aset_BANG___float(uniforms, 34, 0.0f);
+        Array_aset_BANG___float(uniforms, 35, 0.0f);
+        WGPUUniformBufferWrapper** _399 = Renderer_uniform_MINUS_buffer(ren);
+        WGPUUniformBufferWrapper* _400 = Pointer_copy__WGPUUniformBufferWrapper(_399);
+        Engine_update_MINUS_uniform_MINUS_buffer(eng, _400, uniforms);
     }
 }
 
@@ -18935,8 +19254,20 @@ EngineState EngineState_update_MINUS_renderer(EngineState p, Lambda *updater) {
 }
 
 
+EngineState EngineState_update_MINUS_stress_MINUS_view(EngineState p, Lambda *updater) {
+    p.stress_MINUS_view = (*updater).env ? ((Fn__LambdaEnv_bool_bool)(*updater).callback)((*updater).env, p.stress_MINUS_view) : ((Fn__bool_bool)(*updater).callback)(p.stress_MINUS_view);
+    return p;
+}
+
+
 EngineState EngineState_update_MINUS_uniforms(EngineState p, Lambda *updater) {
     p.uniforms = (*updater).env ? ((Fn__LambdaEnv_Array__float_Array__float)(*updater).callback)((*updater).env, p.uniforms) : ((Fn__Array__float_Array__float)(*updater).callback)(p.uniforms);
+    return p;
+}
+
+
+EngineState EngineState_update_MINUS_v_MINUS_pressed(EngineState p, Lambda *updater) {
+    p.v_MINUS_pressed = (*updater).env ? ((Fn__LambdaEnv_bool_bool)(*updater).callback)((*updater).env, p.v_MINUS_pressed) : ((Fn__bool_bool)(*updater).callback)(p.v_MINUS_pressed);
     return p;
 }
 
@@ -18946,6 +19277,8 @@ EngineState EngineState_update_MINUS_world(EngineState p, Lambda *updater) {
     return p;
 }
 
+
+bool* EngineState_v_MINUS_pressed(EngineState* p) { return (&(p->v_MINUS_pressed)); }
 
 World* EngineState_world(EngineState* p) { return (&(p->world)); }
 
@@ -25448,6 +25781,7 @@ Renderer Renderer_copy(Renderer* pRef) {
     /* Ignore non-managed member 'liquid_MINUS_texture' : (Ptr WGPURenderTexture) */
     /* Ignore non-managed member 'gas_MINUS_texture' : (Ptr WGPURenderTexture) */
     /* Ignore non-managed member 'light_MINUS_texture' : (Ptr WGPURenderTexture) */
+    /* Ignore non-managed member 'stress_MINUS_texture' : (Ptr WGPURenderTexture) */
     /* Ignore non-managed member 'voxel_MINUS_sampler' : WGPUSampler */
     copy.line_MINUS_pass = LinePassRenderer_copy(&(pRef->line_MINUS_pass));
     copy.lines = Array_copy__Line(&(pRef->lines));
@@ -25473,6 +25807,12 @@ Renderer Renderer_copy(Renderer* pRef) {
     /* Ignore non-managed member 'liquid_MINUS_sim_MINUS_bind_MINUS_group' : WGPUBindGroup */
     /* Ignore non-managed member 'gas_MINUS_sim_MINUS_pipeline' : WGPUComputePipeline */
     /* Ignore non-managed member 'gas_MINUS_sim_MINUS_bind_MINUS_group' : WGPUBindGroup */
+    /* Ignore non-managed member 'stress_MINUS_gpu_MINUS_buffer_MINUS_read' : (Ptr WGPUVertexBufferWrapper) */
+    /* Ignore non-managed member 'stress_MINUS_gpu_MINUS_buffer_MINUS_write' : (Ptr WGPUVertexBufferWrapper) */
+    /* Ignore non-managed member 'stress_MINUS_half_MINUS_buffer' : (Ptr WGPUVertexBufferWrapper) */
+    /* Ignore non-managed member 'stress_MINUS_pack_MINUS_bind_MINUS_group' : WGPUBindGroup */
+    /* Ignore non-managed member 'solid_MINUS_sim_MINUS_pipeline' : WGPUComputePipeline */
+    /* Ignore non-managed member 'solid_MINUS_sim_MINUS_bind_MINUS_group' : WGPUBindGroup */
     return copy;
 }
 
@@ -25483,7 +25823,7 @@ WGPUComputePipeline* Renderer_copy_MINUS_pipeline(Renderer* p) { return (&(p->co
 WGPUUniformBufferWrapper** Renderer_copy_MINUS_uniform_MINUS_buffer(Renderer* p) { return (&(p->copy_MINUS_uniform_MINUS_buffer)); }
 
 Result__Renderer_String Renderer_create(Engine* eng) {
-    Result__Renderer_String _2407;
+    Result__Renderer_String _3314;
     /* let */ {
         WGPUContext** _9 = Engine_ctx(eng);
         WGPUContext* _10 = Pointer_copy__WGPUContext(_9);
@@ -25491,7 +25831,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
         static String _18 = "rgba16float";
         String *_18_ref = &_18;
         Result__WGPURenderTexture_MUL__String _19 = WGPURender_create_MINUS_3d_MINUS_texture(ctx, 160, 160, 160, _18_ref);
-        Result__Renderer_String _2406;
+        Result__Renderer_String _3313;
         if(_19._tag == Result__WGPURenderTexture_MUL__String_Error_tag) {
             Result__WGPURenderTexture_MUL__String _19_temp = _19;
             String e = _19_temp.u.Error.member0;
@@ -25506,7 +25846,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
             String* _1000005 = &_1000006; // ref
             String _1000004 = String_copy(_1000005);
             Result__Renderer_String _40 = Result_Error__String_Renderer(_1000004);
-            _2406 = _40;
+            _3313 = _40;
             String_delete(_1000006);
             String_delete(_1000008);
             String_delete(_1000010);
@@ -25518,7 +25858,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
             static String _50 = "rgba16float";
             String *_50_ref = &_50;
             Result__WGPURenderTexture_MUL__String _51 = WGPURender_create_MINUS_3d_MINUS_texture(ctx, 160, 160, 160, _50_ref);
-            Result__Renderer_String _2405;
+            Result__Renderer_String _3312;
             if(_51._tag == Result__WGPURenderTexture_MUL__String_Error_tag) {
                 Result__WGPURenderTexture_MUL__String _51_temp = _51;
                 String e = _51_temp.u.Error.member0;
@@ -25535,7 +25875,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                 String _1000013 = String_copy(_1000014);
                 Result__Renderer_String _76 = Result_Error__String_Renderer(_1000013);
                 Result__Renderer_String _77 = _76;
-                _2405 = _77;
+                _3312 = _77;
                 String_delete(_1000015);
                 String_delete(_1000017);
                 String_delete(_1000019);
@@ -25547,7 +25887,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                 static String _87 = "rgba16float";
                 String *_87_ref = &_87;
                 Result__WGPURenderTexture_MUL__String _88 = WGPURender_create_MINUS_3d_MINUS_texture(ctx, 160, 160, 160, _87_ref);
-                Result__Renderer_String _2404;
+                Result__Renderer_String _3311;
                 if(_88._tag == Result__WGPURenderTexture_MUL__String_Error_tag) {
                     Result__WGPURenderTexture_MUL__String _88_temp = _88;
                     String e = _88_temp.u.Error.member0;
@@ -25565,7 +25905,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                     String _1000022 = String_copy(_1000023);
                     Result__Renderer_String _116 = Result_Error__String_Renderer(_1000022);
                     Result__Renderer_String _117 = _116;
-                    _2404 = _117;
+                    _3311 = _117;
                     String_delete(_1000024);
                     String_delete(_1000026);
                     String_delete(_1000028);
@@ -25577,7 +25917,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                     static String _127 = "rgba16float";
                     String *_127_ref = &_127;
                     Result__WGPURenderTexture_MUL__String _128 = WGPURender_create_MINUS_3d_MINUS_texture(ctx, 160, 160, 160, _127_ref);
-                    Result__Renderer_String _2403;
+                    Result__Renderer_String _3310;
                     if(_128._tag == Result__WGPURenderTexture_MUL__String_Error_tag) {
                         Result__WGPURenderTexture_MUL__String _128_temp = _128;
                         String e = _128_temp.u.Error.member0;
@@ -25596,7 +25936,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                         String _1000031 = String_copy(_1000032);
                         Result__Renderer_String _159 = Result_Error__String_Renderer(_1000031);
                         Result__Renderer_String _160 = _159;
-                        _2403 = _160;
+                        _3310 = _160;
                         String_delete(_1000033);
                         String_delete(_1000035);
                         String_delete(_1000037);
@@ -25605,143 +25945,143 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                         Result__WGPURenderTexture_MUL__String _128_temp = _128;
                         WGPURenderTexture* light_MINUS_tex = _128_temp.u.Success.member0;
                         // Case expr:
-                        Result__WGPUSampler_String _167 = WGPURender_create_MINUS_sampler(ctx);
-                        Result__Renderer_String _2402;
-                        if(_167._tag == Result__WGPUSampler_String_Error_tag) {
-                            Result__WGPUSampler_String _167_temp = _167;
-                            String e = _167_temp.u.Error.member0;
+                        static String _170 = "rgba16float";
+                        String *_170_ref = &_170;
+                        Result__WGPURenderTexture_MUL__String _171 = WGPURender_create_MINUS_3d_MINUS_texture(ctx, 160, 160, 160, _170_ref);
+                        Result__Renderer_String _3309;
+                        if(_171._tag == Result__WGPURenderTexture_MUL__String_Error_tag) {
+                            Result__WGPURenderTexture_MUL__String _171_temp = _171;
+                            String e = _171_temp.u.Error.member0;
                             // Case expr:
                             wgpu_render_texture_free(voxel_MINUS_tex);
                             wgpu_render_texture_free(liquid_MINUS_tex);
                             wgpu_render_texture_free(gas_MINUS_tex);
                             wgpu_render_texture_free(light_MINUS_tex);
-                            static String _190 = "Sampler failed: ";
-                            String *_190_ref = &_190;
-                            String _1000044 = String_str(_190_ref);
+                            static String _194 = "Stress texture failed: ";
+                            String *_194_ref = &_194;
+                            String _1000044 = String_str(_194_ref);
                             String* _1000043 = &_1000044; // ref
                             String _1000046 = StringCopy_str(e);
                             String* _1000045 = &_1000046; // ref
                             String _1000042 = String_append(_1000043, _1000045);
                             String* _1000041 = &_1000042; // ref
                             String _1000040 = String_copy(_1000041);
-                            Result__Renderer_String _201 = Result_Error__String_Renderer(_1000040);
-                            Result__Renderer_String _202 = _201;
-                            _2402 = _202;
+                            Result__Renderer_String _205 = Result_Error__String_Renderer(_1000040);
+                            Result__Renderer_String _206 = _205;
+                            _3309 = _206;
                             String_delete(_1000042);
                             String_delete(_1000044);
                             String_delete(_1000046);
                         }
-                        else if(_167._tag == Result__WGPUSampler_String_Success_tag) {
-                            Result__WGPUSampler_String _167_temp = _167;
-                            WGPUSampler voxel_MINUS_sampler = _167_temp.u.Success.member0;
+                        else if(_171._tag == Result__WGPURenderTexture_MUL__String_Success_tag) {
+                            Result__WGPURenderTexture_MUL__String _171_temp = _171;
+                            WGPURenderTexture* stress_MINUS_tex = _171_temp.u.Success.member0;
                             // Case expr:
-                            Result__WGPUUniformBufferWrapper_MUL__String _210 = WGPURender_create_MINUS_uniform_MINUS_buffer(ctx, 128);
-                            Result__Renderer_String _2401;
-                            if(_210._tag == Result__WGPUUniformBufferWrapper_MUL__String_Error_tag) {
-                                Result__WGPUUniformBufferWrapper_MUL__String _210_temp = _210;
-                                String e = _210_temp.u.Error.member0;
+                            Result__WGPUSampler_String _213 = WGPURender_create_MINUS_sampler(ctx);
+                            Result__Renderer_String _3308;
+                            if(_213._tag == Result__WGPUSampler_String_Error_tag) {
+                                Result__WGPUSampler_String _213_temp = _213;
+                                String e = _213_temp.u.Error.member0;
                                 // Case expr:
-                                wgpuSamplerRelease(voxel_MINUS_sampler);
                                 wgpu_render_texture_free(voxel_MINUS_tex);
                                 wgpu_render_texture_free(liquid_MINUS_tex);
                                 wgpu_render_texture_free(gas_MINUS_tex);
                                 wgpu_render_texture_free(light_MINUS_tex);
-                                static String _236 = "Uniforms failed: ";
-                                String *_236_ref = &_236;
-                                String _1000053 = String_str(_236_ref);
+                                wgpu_render_texture_free(stress_MINUS_tex);
+                                static String _239 = "Sampler failed: ";
+                                String *_239_ref = &_239;
+                                String _1000053 = String_str(_239_ref);
                                 String* _1000052 = &_1000053; // ref
                                 String _1000055 = StringCopy_str(e);
                                 String* _1000054 = &_1000055; // ref
                                 String _1000051 = String_append(_1000052, _1000054);
                                 String* _1000050 = &_1000051; // ref
                                 String _1000049 = String_copy(_1000050);
-                                Result__Renderer_String _247 = Result_Error__String_Renderer(_1000049);
-                                Result__Renderer_String _248 = _247;
-                                _2401 = _248;
+                                Result__Renderer_String _250 = Result_Error__String_Renderer(_1000049);
+                                Result__Renderer_String _251 = _250;
+                                _3308 = _251;
                                 String_delete(_1000051);
                                 String_delete(_1000053);
                                 String_delete(_1000055);
                             }
-                            else if(_210._tag == Result__WGPUUniformBufferWrapper_MUL__String_Success_tag) {
-                                Result__WGPUUniformBufferWrapper_MUL__String _210_temp = _210;
-                                WGPUUniformBufferWrapper* ub = _210_temp.u.Success.member0;
+                            else if(_213._tag == Result__WGPUSampler_String_Success_tag) {
+                                Result__WGPUSampler_String _213_temp = _213;
+                                WGPUSampler voxel_MINUS_sampler = _213_temp.u.Success.member0;
                                 // Case expr:
-                                static String _256 = "vs_main";
-                                String *_256_ref = &_256;
-                                static String _257 = "fs_main";
-                                String *_257_ref = &_257;
-                                Result__WGPURenderPipelineWrapper_MUL__String _258 = Engine_create_MINUS_pipeline(eng, voxel_MINUS_wgsl, _256_ref, _257_ref);
-                                Result__Renderer_String _2400;
-                                if(_258._tag == Result__WGPURenderPipelineWrapper_MUL__String_Error_tag) {
-                                    Result__WGPURenderPipelineWrapper_MUL__String _258_temp = _258;
-                                    String e = _258_temp.u.Error.member0;
+                                Result__WGPUUniformBufferWrapper_MUL__String _259 = WGPURender_create_MINUS_uniform_MINUS_buffer(ctx, 144);
+                                Result__Renderer_String _3307;
+                                if(_259._tag == Result__WGPUUniformBufferWrapper_MUL__String_Error_tag) {
+                                    Result__WGPUUniformBufferWrapper_MUL__String _259_temp = _259;
+                                    String e = _259_temp.u.Error.member0;
                                     // Case expr:
-                                    Engine_free_MINUS_uniform_MINUS_buffer(ub);
                                     wgpuSamplerRelease(voxel_MINUS_sampler);
                                     wgpu_render_texture_free(voxel_MINUS_tex);
                                     wgpu_render_texture_free(liquid_MINUS_tex);
                                     wgpu_render_texture_free(gas_MINUS_tex);
                                     wgpu_render_texture_free(light_MINUS_tex);
-                                    static String _287 = "Pipeline failed: ";
-                                    String *_287_ref = &_287;
-                                    String _1000062 = String_str(_287_ref);
+                                    wgpu_render_texture_free(stress_MINUS_tex);
+                                    static String _288 = "Uniforms failed: ";
+                                    String *_288_ref = &_288;
+                                    String _1000062 = String_str(_288_ref);
                                     String* _1000061 = &_1000062; // ref
                                     String _1000064 = StringCopy_str(e);
                                     String* _1000063 = &_1000064; // ref
                                     String _1000060 = String_append(_1000061, _1000063);
                                     String* _1000059 = &_1000060; // ref
                                     String _1000058 = String_copy(_1000059);
-                                    Result__Renderer_String _298 = Result_Error__String_Renderer(_1000058);
-                                    Result__Renderer_String _299 = _298;
-                                    _2400 = _299;
+                                    Result__Renderer_String _299 = Result_Error__String_Renderer(_1000058);
+                                    Result__Renderer_String _300 = _299;
+                                    _3307 = _300;
                                     String_delete(_1000060);
                                     String_delete(_1000062);
                                     String_delete(_1000064);
                                 }
-                                else if(_258._tag == Result__WGPURenderPipelineWrapper_MUL__String_Success_tag) {
-                                    Result__WGPURenderPipelineWrapper_MUL__String _258_temp = _258;
-                                    WGPURenderPipelineWrapper* pipe = _258_temp.u.Success.member0;
+                                else if(_259._tag == Result__WGPUUniformBufferWrapper_MUL__String_Success_tag) {
+                                    Result__WGPUUniformBufferWrapper_MUL__String _259_temp = _259;
+                                    WGPUUniformBufferWrapper* ub = _259_temp.u.Success.member0;
                                     // Case expr:
-                                    Result__WGPUBindGroup_String _313 = Engine_create_MINUS_voxel_MINUS_bind_MINUS_group(eng, pipe, voxel_MINUS_tex, liquid_MINUS_tex, gas_MINUS_tex, light_MINUS_tex, voxel_MINUS_sampler, ub);
-                                    Result__Renderer_String _2399;
-                                    if(_313._tag == Result__WGPUBindGroup_String_Error_tag) {
-                                        Result__WGPUBindGroup_String _313_temp = _313;
-                                        String e = _313_temp.u.Error.member0;
+                                    static String _308 = "vs_main";
+                                    String *_308_ref = &_308;
+                                    static String _309 = "fs_main";
+                                    String *_309_ref = &_309;
+                                    Result__WGPURenderPipelineWrapper_MUL__String _310 = Engine_create_MINUS_pipeline(eng, voxel_MINUS_wgsl, _308_ref, _309_ref);
+                                    Result__Renderer_String _3306;
+                                    if(_310._tag == Result__WGPURenderPipelineWrapper_MUL__String_Error_tag) {
+                                        Result__WGPURenderPipelineWrapper_MUL__String _310_temp = _310;
+                                        String e = _310_temp.u.Error.member0;
                                         // Case expr:
-                                        Engine_free_MINUS_pipeline(pipe);
                                         Engine_free_MINUS_uniform_MINUS_buffer(ub);
                                         wgpuSamplerRelease(voxel_MINUS_sampler);
                                         wgpu_render_texture_free(voxel_MINUS_tex);
                                         wgpu_render_texture_free(liquid_MINUS_tex);
                                         wgpu_render_texture_free(gas_MINUS_tex);
                                         wgpu_render_texture_free(light_MINUS_tex);
-                                        static String _345 = "Bind group failed: ";
-                                        String *_345_ref = &_345;
-                                        String _1000071 = String_str(_345_ref);
+                                        wgpu_render_texture_free(stress_MINUS_tex);
+                                        static String _342 = "Pipeline failed: ";
+                                        String *_342_ref = &_342;
+                                        String _1000071 = String_str(_342_ref);
                                         String* _1000070 = &_1000071; // ref
                                         String _1000073 = StringCopy_str(e);
                                         String* _1000072 = &_1000073; // ref
                                         String _1000069 = String_append(_1000070, _1000072);
                                         String* _1000068 = &_1000069; // ref
                                         String _1000067 = String_copy(_1000068);
-                                        Result__Renderer_String _356 = Result_Error__String_Renderer(_1000067);
-                                        Result__Renderer_String _357 = _356;
-                                        _2399 = _357;
+                                        Result__Renderer_String _353 = Result_Error__String_Renderer(_1000067);
+                                        Result__Renderer_String _354 = _353;
+                                        _3306 = _354;
                                         String_delete(_1000069);
                                         String_delete(_1000071);
                                         String_delete(_1000073);
                                     }
-                                    else if(_313._tag == Result__WGPUBindGroup_String_Success_tag) {
-                                        Result__WGPUBindGroup_String _313_temp = _313;
-                                        WGPUBindGroup bg = _313_temp.u.Success.member0;
+                                    else if(_310._tag == Result__WGPURenderPipelineWrapper_MUL__String_Success_tag) {
+                                        Result__WGPURenderPipelineWrapper_MUL__String _310_temp = _310;
+                                        WGPURenderPipelineWrapper* pipe = _310_temp.u.Success.member0;
                                         // Case expr:
-                                        static String _365 = "main";
-                                        String *_365_ref = &_365;
-                                        Result__WGPUComputePipeline_String _366 = WGPU_create_MINUS_pipeline(ctx, pack_MINUS_wgsl, _365_ref);
-                                        Result__Renderer_String _2398;
-                                        if(_366._tag == Result__WGPUComputePipeline_String_Error_tag) {
-                                            Result__WGPUComputePipeline_String _366_temp = _366;
-                                            String e = _366_temp.u.Error.member0;
+                                        Result__WGPUBindGroup_String _369 = Engine_create_MINUS_voxel_MINUS_bind_MINUS_group(eng, pipe, voxel_MINUS_tex, liquid_MINUS_tex, gas_MINUS_tex, light_MINUS_tex, stress_MINUS_tex, voxel_MINUS_sampler, ub);
+                                        Result__Renderer_String _3305;
+                                        if(_369._tag == Result__WGPUBindGroup_String_Error_tag) {
+                                            Result__WGPUBindGroup_String _369_temp = _369;
+                                            String e = _369_temp.u.Error.member0;
                                             // Case expr:
                                             Engine_free_MINUS_pipeline(pipe);
                                             Engine_free_MINUS_uniform_MINUS_buffer(ub);
@@ -25750,78 +26090,73 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                             wgpu_render_texture_free(liquid_MINUS_tex);
                                             wgpu_render_texture_free(gas_MINUS_tex);
                                             wgpu_render_texture_free(light_MINUS_tex);
-                                            Engine_free_MINUS_bind_MINUS_group(bg);
-                                            static String _401 = "Pack compute pipeline failed: ";
-                                            String *_401_ref = &_401;
-                                            String _1000080 = String_str(_401_ref);
+                                            wgpu_render_texture_free(stress_MINUS_tex);
+                                            static String _404 = "Bind group failed: ";
+                                            String *_404_ref = &_404;
+                                            String _1000080 = String_str(_404_ref);
                                             String* _1000079 = &_1000080; // ref
                                             String _1000082 = StringCopy_str(e);
                                             String* _1000081 = &_1000082; // ref
                                             String _1000078 = String_append(_1000079, _1000081);
                                             String* _1000077 = &_1000078; // ref
                                             String _1000076 = String_copy(_1000077);
-                                            Result__Renderer_String _412 = Result_Error__String_Renderer(_1000076);
-                                            Result__Renderer_String _413 = _412;
-                                            _2398 = _413;
+                                            Result__Renderer_String _415 = Result_Error__String_Renderer(_1000076);
+                                            Result__Renderer_String _416 = _415;
+                                            _3305 = _416;
                                             String_delete(_1000078);
                                             String_delete(_1000080);
                                             String_delete(_1000082);
                                         }
-                                        else if(_366._tag == Result__WGPUComputePipeline_String_Success_tag) {
-                                            Result__WGPUComputePipeline_String _366_temp = _366;
-                                            WGPUComputePipeline pack_MINUS_pipe = _366_temp.u.Success.member0;
+                                        else if(_369._tag == Result__WGPUBindGroup_String_Success_tag) {
+                                            Result__WGPUBindGroup_String _369_temp = _369;
+                                            WGPUBindGroup bg = _369_temp.u.Success.member0;
                                             // Case expr:
-                                            Result__Renderer_String _2397;
-                                            /* let */ {
-                                                float zero = 0.0f;
-                                                float* _425 = &zero; // ref
-                                                Array__float _426 = Array_replicate__float(16384000, _425);
-                                                Array__float initial_MINUS_data_MINUS_read = _426;
-                                                float* _432 = &zero; // ref
-                                                Array__float _433 = Array_replicate__float(8192000, _432);
-                                                Array__float initial_MINUS_data_MINUS_half = _433;
-                                                Array__float* _440 = &initial_MINUS_data_MINUS_read; // ref
-                                                Result__WGPUVertexBufferWrapper_MUL__String _441 = WGPURender_create_MINUS_storage_MINUS_vertex_MINUS_buffer(ctx, _440);
-                                                Result__Renderer_String _2396;
-                                                if(_441._tag == Result__WGPUVertexBufferWrapper_MUL__String_Error_tag) {
-                                                    Result__WGPUVertexBufferWrapper_MUL__String _441_temp = _441;
-                                                    String e = _441_temp.u.Error.member0;
-                                                    // Case expr:
-                                                    Engine_free_MINUS_pipeline(pipe);
-                                                    Engine_free_MINUS_uniform_MINUS_buffer(ub);
-                                                    wgpuSamplerRelease(voxel_MINUS_sampler);
-                                                    wgpu_render_texture_free(voxel_MINUS_tex);
-                                                    wgpu_render_texture_free(liquid_MINUS_tex);
-                                                    wgpu_render_texture_free(gas_MINUS_tex);
-                                                    wgpu_render_texture_free(light_MINUS_tex);
-                                                    Engine_free_MINUS_bind_MINUS_group(bg);
-                                                    wgpuComputePipelineRelease(pack_MINUS_pipe);
-                                                    static String _479 = "Read SSBO failed: ";
-                                                    String *_479_ref = &_479;
-                                                    String _1000090 = String_str(_479_ref);
-                                                    String* _1000089 = &_1000090; // ref
-                                                    String _1000092 = StringCopy_str(e);
-                                                    String* _1000091 = &_1000092; // ref
-                                                    String _1000088 = String_append(_1000089, _1000091);
-                                                    String* _1000087 = &_1000088; // ref
-                                                    String _1000086 = String_copy(_1000087);
-                                                    Result__Renderer_String _490 = Result_Error__String_Renderer(_1000086);
-                                                    Result__Renderer_String _491 = _490;
-                                                    _2396 = _491;
-                                                    String_delete(_1000088);
-                                                    String_delete(_1000090);
-                                                    String_delete(_1000092);
-                                                }
-                                                else if(_441._tag == Result__WGPUVertexBufferWrapper_MUL__String_Success_tag) {
-                                                    Result__WGPUVertexBufferWrapper_MUL__String _441_temp = _441;
-                                                    WGPUVertexBufferWrapper* read_MINUS_buf = _441_temp.u.Success.member0;
-                                                    // Case expr:
-                                                    Array__float* _500 = &initial_MINUS_data_MINUS_read; // ref
-                                                    Result__WGPUVertexBufferWrapper_MUL__String _501 = WGPURender_create_MINUS_storage_MINUS_vertex_MINUS_buffer(ctx, _500);
-                                                    Result__Renderer_String _2395;
-                                                    if(_501._tag == Result__WGPUVertexBufferWrapper_MUL__String_Error_tag) {
-                                                        Result__WGPUVertexBufferWrapper_MUL__String _501_temp = _501;
-                                                        String e = _501_temp.u.Error.member0;
+                                            static String _424 = "main";
+                                            String *_424_ref = &_424;
+                                            Result__WGPUComputePipeline_String _425 = WGPU_create_MINUS_pipeline(ctx, pack_MINUS_wgsl, _424_ref);
+                                            Result__Renderer_String _3304;
+                                            if(_425._tag == Result__WGPUComputePipeline_String_Error_tag) {
+                                                Result__WGPUComputePipeline_String _425_temp = _425;
+                                                String e = _425_temp.u.Error.member0;
+                                                // Case expr:
+                                                Engine_free_MINUS_pipeline(pipe);
+                                                Engine_free_MINUS_uniform_MINUS_buffer(ub);
+                                                wgpuSamplerRelease(voxel_MINUS_sampler);
+                                                wgpu_render_texture_free(voxel_MINUS_tex);
+                                                wgpu_render_texture_free(liquid_MINUS_tex);
+                                                wgpu_render_texture_free(gas_MINUS_tex);
+                                                wgpu_render_texture_free(light_MINUS_tex);
+                                                wgpu_render_texture_free(stress_MINUS_tex);
+                                                Engine_free_MINUS_bind_MINUS_group(bg);
+                                                static String _463 = "Pack compute pipeline failed: ";
+                                                String *_463_ref = &_463;
+                                                String _1000089 = String_str(_463_ref);
+                                                String* _1000088 = &_1000089; // ref
+                                                String _1000091 = StringCopy_str(e);
+                                                String* _1000090 = &_1000091; // ref
+                                                String _1000087 = String_append(_1000088, _1000090);
+                                                String* _1000086 = &_1000087; // ref
+                                                String _1000085 = String_copy(_1000086);
+                                                Result__Renderer_String _474 = Result_Error__String_Renderer(_1000085);
+                                                Result__Renderer_String _475 = _474;
+                                                _3304 = _475;
+                                                String_delete(_1000087);
+                                                String_delete(_1000089);
+                                                String_delete(_1000091);
+                                            }
+                                            else if(_425._tag == Result__WGPUComputePipeline_String_Success_tag) {
+                                                Result__WGPUComputePipeline_String _425_temp = _425;
+                                                WGPUComputePipeline pack_MINUS_pipe = _425_temp.u.Success.member0;
+                                                // Case expr:
+                                                Result__Renderer_String _3303;
+                                                /* let */ {
+                                                    int read_MINUS_size = 65536000;
+                                                    int half_MINUS_size = 32768000;
+                                                    Result__WGPUVertexBufferWrapper_MUL__String _489 = WGPUVertexBufferWrapper_create_MINUS_empty_MINUS_storage_MINUS_vertex_MINUS_buffer(ctx, read_MINUS_size);
+                                                    Result__Renderer_String _3302;
+                                                    if(_489._tag == Result__WGPUVertexBufferWrapper_MUL__String_Error_tag) {
+                                                        Result__WGPUVertexBufferWrapper_MUL__String _489_temp = _489;
+                                                        String e = _489_temp.u.Error.member0;
                                                         // Case expr:
                                                         Engine_free_MINUS_pipeline(pipe);
                                                         Engine_free_MINUS_uniform_MINUS_buffer(ub);
@@ -25830,35 +26165,34 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                         wgpu_render_texture_free(liquid_MINUS_tex);
                                                         wgpu_render_texture_free(gas_MINUS_tex);
                                                         wgpu_render_texture_free(light_MINUS_tex);
+                                                        wgpu_render_texture_free(stress_MINUS_tex);
                                                         Engine_free_MINUS_bind_MINUS_group(bg);
                                                         wgpuComputePipelineRelease(pack_MINUS_pipe);
-                                                        wgpu_vertex_buffer_free(read_MINUS_buf);
-                                                        static String _542 = "Write SSBO failed: ";
-                                                        String *_542_ref = &_542;
-                                                        String _1000099 = String_str(_542_ref);
+                                                        static String _530 = "Read SSBO failed: ";
+                                                        String *_530_ref = &_530;
+                                                        String _1000099 = String_str(_530_ref);
                                                         String* _1000098 = &_1000099; // ref
                                                         String _1000101 = StringCopy_str(e);
                                                         String* _1000100 = &_1000101; // ref
                                                         String _1000097 = String_append(_1000098, _1000100);
                                                         String* _1000096 = &_1000097; // ref
                                                         String _1000095 = String_copy(_1000096);
-                                                        Result__Renderer_String _553 = Result_Error__String_Renderer(_1000095);
-                                                        Result__Renderer_String _554 = _553;
-                                                        _2395 = _554;
+                                                        Result__Renderer_String _541 = Result_Error__String_Renderer(_1000095);
+                                                        Result__Renderer_String _542 = _541;
+                                                        _3302 = _542;
                                                         String_delete(_1000097);
                                                         String_delete(_1000099);
                                                         String_delete(_1000101);
                                                     }
-                                                    else if(_501._tag == Result__WGPUVertexBufferWrapper_MUL__String_Success_tag) {
-                                                        Result__WGPUVertexBufferWrapper_MUL__String _501_temp = _501;
-                                                        WGPUVertexBufferWrapper* write_MINUS_buf = _501_temp.u.Success.member0;
+                                                    else if(_489._tag == Result__WGPUVertexBufferWrapper_MUL__String_Success_tag) {
+                                                        Result__WGPUVertexBufferWrapper_MUL__String _489_temp = _489;
+                                                        WGPUVertexBufferWrapper* read_MINUS_buf = _489_temp.u.Success.member0;
                                                         // Case expr:
-                                                        Array__float* _563 = &initial_MINUS_data_MINUS_half; // ref
-                                                        Result__WGPUVertexBufferWrapper_MUL__String _564 = WGPURender_create_MINUS_storage_MINUS_vertex_MINUS_buffer(ctx, _563);
-                                                        Result__Renderer_String _2394;
-                                                        if(_564._tag == Result__WGPUVertexBufferWrapper_MUL__String_Error_tag) {
-                                                            Result__WGPUVertexBufferWrapper_MUL__String _564_temp = _564;
-                                                            String e = _564_temp.u.Error.member0;
+                                                        Result__WGPUVertexBufferWrapper_MUL__String _550 = WGPUVertexBufferWrapper_create_MINUS_empty_MINUS_storage_MINUS_vertex_MINUS_buffer(ctx, read_MINUS_size);
+                                                        Result__Renderer_String _3301;
+                                                        if(_550._tag == Result__WGPUVertexBufferWrapper_MUL__String_Error_tag) {
+                                                            Result__WGPUVertexBufferWrapper_MUL__String _550_temp = _550;
+                                                            String e = _550_temp.u.Error.member0;
                                                             // Case expr:
                                                             Engine_free_MINUS_pipeline(pipe);
                                                             Engine_free_MINUS_uniform_MINUS_buffer(ub);
@@ -25867,36 +26201,35 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                             wgpu_render_texture_free(liquid_MINUS_tex);
                                                             wgpu_render_texture_free(gas_MINUS_tex);
                                                             wgpu_render_texture_free(light_MINUS_tex);
+                                                            wgpu_render_texture_free(stress_MINUS_tex);
                                                             Engine_free_MINUS_bind_MINUS_group(bg);
                                                             wgpuComputePipelineRelease(pack_MINUS_pipe);
                                                             wgpu_vertex_buffer_free(read_MINUS_buf);
-                                                            wgpu_vertex_buffer_free(write_MINUS_buf);
-                                                            static String _608 = "Half SSBO failed: ";
-                                                            String *_608_ref = &_608;
-                                                            String _1000108 = String_str(_608_ref);
+                                                            static String _594 = "Write SSBO failed: ";
+                                                            String *_594_ref = &_594;
+                                                            String _1000108 = String_str(_594_ref);
                                                             String* _1000107 = &_1000108; // ref
                                                             String _1000110 = StringCopy_str(e);
                                                             String* _1000109 = &_1000110; // ref
                                                             String _1000106 = String_append(_1000107, _1000109);
                                                             String* _1000105 = &_1000106; // ref
                                                             String _1000104 = String_copy(_1000105);
-                                                            Result__Renderer_String _619 = Result_Error__String_Renderer(_1000104);
-                                                            Result__Renderer_String _620 = _619;
-                                                            _2394 = _620;
+                                                            Result__Renderer_String _605 = Result_Error__String_Renderer(_1000104);
+                                                            Result__Renderer_String _606 = _605;
+                                                            _3301 = _606;
                                                             String_delete(_1000106);
                                                             String_delete(_1000108);
                                                             String_delete(_1000110);
                                                         }
-                                                        else if(_564._tag == Result__WGPUVertexBufferWrapper_MUL__String_Success_tag) {
-                                                            Result__WGPUVertexBufferWrapper_MUL__String _564_temp = _564;
-                                                            WGPUVertexBufferWrapper* half_MINUS_buf = _564_temp.u.Success.member0;
+                                                        else if(_550._tag == Result__WGPUVertexBufferWrapper_MUL__String_Success_tag) {
+                                                            Result__WGPUVertexBufferWrapper_MUL__String _550_temp = _550;
+                                                            WGPUVertexBufferWrapper* write_MINUS_buf = _550_temp.u.Success.member0;
                                                             // Case expr:
-                                                            Array__float* _629 = &initial_MINUS_data_MINUS_read; // ref
-                                                            Result__WGPUVertexBufferWrapper_MUL__String _630 = WGPURender_create_MINUS_storage_MINUS_vertex_MINUS_buffer(ctx, _629);
-                                                            Result__Renderer_String _2393;
-                                                            if(_630._tag == Result__WGPUVertexBufferWrapper_MUL__String_Error_tag) {
-                                                                Result__WGPUVertexBufferWrapper_MUL__String _630_temp = _630;
-                                                                String e = _630_temp.u.Error.member0;
+                                                            Result__WGPUVertexBufferWrapper_MUL__String _614 = WGPUVertexBufferWrapper_create_MINUS_empty_MINUS_storage_MINUS_vertex_MINUS_buffer(ctx, half_MINUS_size);
+                                                            Result__Renderer_String _3300;
+                                                            if(_614._tag == Result__WGPUVertexBufferWrapper_MUL__String_Error_tag) {
+                                                                Result__WGPUVertexBufferWrapper_MUL__String _614_temp = _614;
+                                                                String e = _614_temp.u.Error.member0;
                                                                 // Case expr:
                                                                 Engine_free_MINUS_pipeline(pipe);
                                                                 Engine_free_MINUS_uniform_MINUS_buffer(ub);
@@ -25905,37 +26238,36 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                 wgpu_render_texture_free(liquid_MINUS_tex);
                                                                 wgpu_render_texture_free(gas_MINUS_tex);
                                                                 wgpu_render_texture_free(light_MINUS_tex);
+                                                                wgpu_render_texture_free(stress_MINUS_tex);
                                                                 Engine_free_MINUS_bind_MINUS_group(bg);
                                                                 wgpuComputePipelineRelease(pack_MINUS_pipe);
                                                                 wgpu_vertex_buffer_free(read_MINUS_buf);
                                                                 wgpu_vertex_buffer_free(write_MINUS_buf);
-                                                                wgpu_vertex_buffer_free(half_MINUS_buf);
-                                                                static String _677 = "Liquid GPU buffer failed: ";
-                                                                String *_677_ref = &_677;
-                                                                String _1000117 = String_str(_677_ref);
+                                                                static String _661 = "Half SSBO failed: ";
+                                                                String *_661_ref = &_661;
+                                                                String _1000117 = String_str(_661_ref);
                                                                 String* _1000116 = &_1000117; // ref
                                                                 String _1000119 = StringCopy_str(e);
                                                                 String* _1000118 = &_1000119; // ref
                                                                 String _1000115 = String_append(_1000116, _1000118);
                                                                 String* _1000114 = &_1000115; // ref
                                                                 String _1000113 = String_copy(_1000114);
-                                                                Result__Renderer_String _688 = Result_Error__String_Renderer(_1000113);
-                                                                Result__Renderer_String _689 = _688;
-                                                                _2393 = _689;
+                                                                Result__Renderer_String _672 = Result_Error__String_Renderer(_1000113);
+                                                                Result__Renderer_String _673 = _672;
+                                                                _3300 = _673;
                                                                 String_delete(_1000115);
                                                                 String_delete(_1000117);
                                                                 String_delete(_1000119);
                                                             }
-                                                            else if(_630._tag == Result__WGPUVertexBufferWrapper_MUL__String_Success_tag) {
-                                                                Result__WGPUVertexBufferWrapper_MUL__String _630_temp = _630;
-                                                                WGPUVertexBufferWrapper* liquid_MINUS_gpu_MINUS_buf = _630_temp.u.Success.member0;
+                                                            else if(_614._tag == Result__WGPUVertexBufferWrapper_MUL__String_Success_tag) {
+                                                                Result__WGPUVertexBufferWrapper_MUL__String _614_temp = _614;
+                                                                WGPUVertexBufferWrapper* half_MINUS_buf = _614_temp.u.Success.member0;
                                                                 // Case expr:
-                                                                Array__float* _698 = &initial_MINUS_data_MINUS_half; // ref
-                                                                Result__WGPUVertexBufferWrapper_MUL__String _699 = WGPURender_create_MINUS_storage_MINUS_vertex_MINUS_buffer(ctx, _698);
-                                                                Result__Renderer_String _2392;
-                                                                if(_699._tag == Result__WGPUVertexBufferWrapper_MUL__String_Error_tag) {
-                                                                    Result__WGPUVertexBufferWrapper_MUL__String _699_temp = _699;
-                                                                    String e = _699_temp.u.Error.member0;
+                                                                Result__WGPUVertexBufferWrapper_MUL__String _681 = WGPUVertexBufferWrapper_create_MINUS_empty_MINUS_storage_MINUS_vertex_MINUS_buffer(ctx, read_MINUS_size);
+                                                                Result__Renderer_String _3299;
+                                                                if(_681._tag == Result__WGPUVertexBufferWrapper_MUL__String_Error_tag) {
+                                                                    Result__WGPUVertexBufferWrapper_MUL__String _681_temp = _681;
+                                                                    String e = _681_temp.u.Error.member0;
                                                                     // Case expr:
                                                                     Engine_free_MINUS_pipeline(pipe);
                                                                     Engine_free_MINUS_uniform_MINUS_buffer(ub);
@@ -25944,38 +26276,37 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                     wgpu_render_texture_free(liquid_MINUS_tex);
                                                                     wgpu_render_texture_free(gas_MINUS_tex);
                                                                     wgpu_render_texture_free(light_MINUS_tex);
+                                                                    wgpu_render_texture_free(stress_MINUS_tex);
                                                                     Engine_free_MINUS_bind_MINUS_group(bg);
                                                                     wgpuComputePipelineRelease(pack_MINUS_pipe);
                                                                     wgpu_vertex_buffer_free(read_MINUS_buf);
                                                                     wgpu_vertex_buffer_free(write_MINUS_buf);
                                                                     wgpu_vertex_buffer_free(half_MINUS_buf);
-                                                                    wgpu_vertex_buffer_free(liquid_MINUS_gpu_MINUS_buf);
-                                                                    static String _749 = "Liquid half buffer failed: ";
-                                                                    String *_749_ref = &_749;
-                                                                    String _1000126 = String_str(_749_ref);
+                                                                    static String _731 = "Liquid GPU buffer failed: ";
+                                                                    String *_731_ref = &_731;
+                                                                    String _1000126 = String_str(_731_ref);
                                                                     String* _1000125 = &_1000126; // ref
                                                                     String _1000128 = StringCopy_str(e);
                                                                     String* _1000127 = &_1000128; // ref
                                                                     String _1000124 = String_append(_1000125, _1000127);
                                                                     String* _1000123 = &_1000124; // ref
                                                                     String _1000122 = String_copy(_1000123);
-                                                                    Result__Renderer_String _760 = Result_Error__String_Renderer(_1000122);
-                                                                    Result__Renderer_String _761 = _760;
-                                                                    _2392 = _761;
+                                                                    Result__Renderer_String _742 = Result_Error__String_Renderer(_1000122);
+                                                                    Result__Renderer_String _743 = _742;
+                                                                    _3299 = _743;
                                                                     String_delete(_1000124);
                                                                     String_delete(_1000126);
                                                                     String_delete(_1000128);
                                                                 }
-                                                                else if(_699._tag == Result__WGPUVertexBufferWrapper_MUL__String_Success_tag) {
-                                                                    Result__WGPUVertexBufferWrapper_MUL__String _699_temp = _699;
-                                                                    WGPUVertexBufferWrapper* liquid_MINUS_half_MINUS_buf = _699_temp.u.Success.member0;
+                                                                else if(_681._tag == Result__WGPUVertexBufferWrapper_MUL__String_Success_tag) {
+                                                                    Result__WGPUVertexBufferWrapper_MUL__String _681_temp = _681;
+                                                                    WGPUVertexBufferWrapper* liquid_MINUS_gpu_MINUS_buf = _681_temp.u.Success.member0;
                                                                     // Case expr:
-                                                                    Array__float* _770 = &initial_MINUS_data_MINUS_read; // ref
-                                                                    Result__WGPUVertexBufferWrapper_MUL__String _771 = WGPURender_create_MINUS_storage_MINUS_vertex_MINUS_buffer(ctx, _770);
-                                                                    Result__Renderer_String _2391;
-                                                                    if(_771._tag == Result__WGPUVertexBufferWrapper_MUL__String_Error_tag) {
-                                                                        Result__WGPUVertexBufferWrapper_MUL__String _771_temp = _771;
-                                                                        String e = _771_temp.u.Error.member0;
+                                                                    Result__WGPUVertexBufferWrapper_MUL__String _751 = WGPUVertexBufferWrapper_create_MINUS_empty_MINUS_storage_MINUS_vertex_MINUS_buffer(ctx, half_MINUS_size);
+                                                                    Result__Renderer_String _3298;
+                                                                    if(_751._tag == Result__WGPUVertexBufferWrapper_MUL__String_Error_tag) {
+                                                                        Result__WGPUVertexBufferWrapper_MUL__String _751_temp = _751;
+                                                                        String e = _751_temp.u.Error.member0;
                                                                         // Case expr:
                                                                         Engine_free_MINUS_pipeline(pipe);
                                                                         Engine_free_MINUS_uniform_MINUS_buffer(ub);
@@ -25984,39 +26315,38 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                         wgpu_render_texture_free(liquid_MINUS_tex);
                                                                         wgpu_render_texture_free(gas_MINUS_tex);
                                                                         wgpu_render_texture_free(light_MINUS_tex);
+                                                                        wgpu_render_texture_free(stress_MINUS_tex);
                                                                         Engine_free_MINUS_bind_MINUS_group(bg);
                                                                         wgpuComputePipelineRelease(pack_MINUS_pipe);
                                                                         wgpu_vertex_buffer_free(read_MINUS_buf);
                                                                         wgpu_vertex_buffer_free(write_MINUS_buf);
                                                                         wgpu_vertex_buffer_free(half_MINUS_buf);
                                                                         wgpu_vertex_buffer_free(liquid_MINUS_gpu_MINUS_buf);
-                                                                        wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
-                                                                        static String _824 = "Gas GPU buffer failed: ";
-                                                                        String *_824_ref = &_824;
-                                                                        String _1000135 = String_str(_824_ref);
+                                                                        static String _804 = "Liquid half buffer failed: ";
+                                                                        String *_804_ref = &_804;
+                                                                        String _1000135 = String_str(_804_ref);
                                                                         String* _1000134 = &_1000135; // ref
                                                                         String _1000137 = StringCopy_str(e);
                                                                         String* _1000136 = &_1000137; // ref
                                                                         String _1000133 = String_append(_1000134, _1000136);
                                                                         String* _1000132 = &_1000133; // ref
                                                                         String _1000131 = String_copy(_1000132);
-                                                                        Result__Renderer_String _835 = Result_Error__String_Renderer(_1000131);
-                                                                        Result__Renderer_String _836 = _835;
-                                                                        _2391 = _836;
+                                                                        Result__Renderer_String _815 = Result_Error__String_Renderer(_1000131);
+                                                                        Result__Renderer_String _816 = _815;
+                                                                        _3298 = _816;
                                                                         String_delete(_1000133);
                                                                         String_delete(_1000135);
                                                                         String_delete(_1000137);
                                                                     }
-                                                                    else if(_771._tag == Result__WGPUVertexBufferWrapper_MUL__String_Success_tag) {
-                                                                        Result__WGPUVertexBufferWrapper_MUL__String _771_temp = _771;
-                                                                        WGPUVertexBufferWrapper* gas_MINUS_gpu_MINUS_buf = _771_temp.u.Success.member0;
+                                                                    else if(_751._tag == Result__WGPUVertexBufferWrapper_MUL__String_Success_tag) {
+                                                                        Result__WGPUVertexBufferWrapper_MUL__String _751_temp = _751;
+                                                                        WGPUVertexBufferWrapper* liquid_MINUS_half_MINUS_buf = _751_temp.u.Success.member0;
                                                                         // Case expr:
-                                                                        Array__float* _845 = &initial_MINUS_data_MINUS_half; // ref
-                                                                        Result__WGPUVertexBufferWrapper_MUL__String _846 = WGPURender_create_MINUS_storage_MINUS_vertex_MINUS_buffer(ctx, _845);
-                                                                        Result__Renderer_String _2390;
-                                                                        if(_846._tag == Result__WGPUVertexBufferWrapper_MUL__String_Error_tag) {
-                                                                            Result__WGPUVertexBufferWrapper_MUL__String _846_temp = _846;
-                                                                            String e = _846_temp.u.Error.member0;
+                                                                        Result__WGPUVertexBufferWrapper_MUL__String _824 = WGPUVertexBufferWrapper_create_MINUS_empty_MINUS_storage_MINUS_vertex_MINUS_buffer(ctx, read_MINUS_size);
+                                                                        Result__Renderer_String _3297;
+                                                                        if(_824._tag == Result__WGPUVertexBufferWrapper_MUL__String_Error_tag) {
+                                                                            Result__WGPUVertexBufferWrapper_MUL__String _824_temp = _824;
+                                                                            String e = _824_temp.u.Error.member0;
                                                                             // Case expr:
                                                                             Engine_free_MINUS_pipeline(pipe);
                                                                             Engine_free_MINUS_uniform_MINUS_buffer(ub);
@@ -26025,6 +26355,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                             wgpu_render_texture_free(liquid_MINUS_tex);
                                                                             wgpu_render_texture_free(gas_MINUS_tex);
                                                                             wgpu_render_texture_free(light_MINUS_tex);
+                                                                            wgpu_render_texture_free(stress_MINUS_tex);
                                                                             Engine_free_MINUS_bind_MINUS_group(bg);
                                                                             wgpuComputePipelineRelease(pack_MINUS_pipe);
                                                                             wgpu_vertex_buffer_free(read_MINUS_buf);
@@ -26032,59 +26363,73 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                             wgpu_vertex_buffer_free(half_MINUS_buf);
                                                                             wgpu_vertex_buffer_free(liquid_MINUS_gpu_MINUS_buf);
                                                                             wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
-                                                                            wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
-                                                                            static String _902 = "Gas half buffer failed: ";
-                                                                            String *_902_ref = &_902;
-                                                                            String _1000144 = String_str(_902_ref);
+                                                                            static String _880 = "Gas GPU buffer failed: ";
+                                                                            String *_880_ref = &_880;
+                                                                            String _1000144 = String_str(_880_ref);
                                                                             String* _1000143 = &_1000144; // ref
                                                                             String _1000146 = StringCopy_str(e);
                                                                             String* _1000145 = &_1000146; // ref
                                                                             String _1000142 = String_append(_1000143, _1000145);
                                                                             String* _1000141 = &_1000142; // ref
                                                                             String _1000140 = String_copy(_1000141);
-                                                                            Result__Renderer_String _913 = Result_Error__String_Renderer(_1000140);
-                                                                            Result__Renderer_String _914 = _913;
-                                                                            _2390 = _914;
+                                                                            Result__Renderer_String _891 = Result_Error__String_Renderer(_1000140);
+                                                                            Result__Renderer_String _892 = _891;
+                                                                            _3297 = _892;
                                                                             String_delete(_1000142);
                                                                             String_delete(_1000144);
                                                                             String_delete(_1000146);
                                                                         }
-                                                                        else if(_846._tag == Result__WGPUVertexBufferWrapper_MUL__String_Success_tag) {
-                                                                            Result__WGPUVertexBufferWrapper_MUL__String _846_temp = _846;
-                                                                            WGPUVertexBufferWrapper* gas_MINUS_half_MINUS_buf = _846_temp.u.Success.member0;
+                                                                        else if(_824._tag == Result__WGPUVertexBufferWrapper_MUL__String_Success_tag) {
+                                                                            Result__WGPUVertexBufferWrapper_MUL__String _824_temp = _824;
+                                                                            WGPUVertexBufferWrapper* gas_MINUS_gpu_MINUS_buf = _824_temp.u.Success.member0;
                                                                             // Case expr:
-                                                                            Result__Renderer_String _2389;
-                                                                            /* let */ {
-                                                                                WGPUBuffer _922 = WGPUVertexBufferWrapper_get_MINUS_buffer(read_MINUS_buf);
-                                                                                WGPUBuffer read_MINUS_raw = _922;
-                                                                                WGPUBuffer _926 = WGPUVertexBufferWrapper_get_MINUS_buffer(half_MINUS_buf);
-                                                                                WGPUBuffer half_MINUS_raw = _926;
-                                                                                Array _930 = { .len = 2, .capacity = 2, .data = CARP_MALLOC(sizeof(WGPUBuffer) * 2) };
-                                                                                ((WGPUBuffer*)_930.data)[0] = read_MINUS_raw;
-                                                                                ((WGPUBuffer*)_930.data)[1] = half_MINUS_raw;
-                                                                                Array__WGPUBuffer bufs = _930;
-                                                                                WGPUBuffer _934 = WGPUVertexBufferWrapper_get_MINUS_buffer(liquid_MINUS_gpu_MINUS_buf);
-                                                                                WGPUBuffer liquid_MINUS_raw = _934;
-                                                                                WGPUBuffer _938 = WGPUVertexBufferWrapper_get_MINUS_buffer(liquid_MINUS_half_MINUS_buf);
-                                                                                WGPUBuffer liquid_MINUS_half_MINUS_raw = _938;
-                                                                                Array _942 = { .len = 2, .capacity = 2, .data = CARP_MALLOC(sizeof(WGPUBuffer) * 2) };
-                                                                                ((WGPUBuffer*)_942.data)[0] = liquid_MINUS_raw;
-                                                                                ((WGPUBuffer*)_942.data)[1] = liquid_MINUS_half_MINUS_raw;
-                                                                                Array__WGPUBuffer liquid_MINUS_bufs = _942;
-                                                                                WGPUBuffer _946 = WGPUVertexBufferWrapper_get_MINUS_buffer(gas_MINUS_gpu_MINUS_buf);
-                                                                                WGPUBuffer gas_MINUS_raw = _946;
-                                                                                WGPUBuffer _950 = WGPUVertexBufferWrapper_get_MINUS_buffer(gas_MINUS_half_MINUS_buf);
-                                                                                WGPUBuffer gas_MINUS_half_MINUS_raw = _950;
-                                                                                Array _954 = { .len = 2, .capacity = 2, .data = CARP_MALLOC(sizeof(WGPUBuffer) * 2) };
-                                                                                ((WGPUBuffer*)_954.data)[0] = gas_MINUS_raw;
-                                                                                ((WGPUBuffer*)_954.data)[1] = gas_MINUS_half_MINUS_raw;
-                                                                                Array__WGPUBuffer gas_MINUS_bufs = _954;
-                                                                                Array__WGPUBuffer* _962 = &bufs; // ref
-                                                                                Result__WGPUBindGroup_String _963 = WGPU_create_MINUS_bind_MINUS_group(ctx, pack_MINUS_pipe, _962);
-                                                                                Result__Renderer_String _2388;
-                                                                                if(_963._tag == Result__WGPUBindGroup_String_Error_tag) {
-                                                                                    Result__WGPUBindGroup_String _963_temp = _963;
-                                                                                    String e = _963_temp.u.Error.member0;
+                                                                            Result__WGPUVertexBufferWrapper_MUL__String _900 = WGPUVertexBufferWrapper_create_MINUS_empty_MINUS_storage_MINUS_vertex_MINUS_buffer(ctx, half_MINUS_size);
+                                                                            Result__Renderer_String _3296;
+                                                                            if(_900._tag == Result__WGPUVertexBufferWrapper_MUL__String_Error_tag) {
+                                                                                Result__WGPUVertexBufferWrapper_MUL__String _900_temp = _900;
+                                                                                String e = _900_temp.u.Error.member0;
+                                                                                // Case expr:
+                                                                                Engine_free_MINUS_pipeline(pipe);
+                                                                                Engine_free_MINUS_uniform_MINUS_buffer(ub);
+                                                                                wgpuSamplerRelease(voxel_MINUS_sampler);
+                                                                                wgpu_render_texture_free(voxel_MINUS_tex);
+                                                                                wgpu_render_texture_free(liquid_MINUS_tex);
+                                                                                wgpu_render_texture_free(gas_MINUS_tex);
+                                                                                wgpu_render_texture_free(light_MINUS_tex);
+                                                                                wgpu_render_texture_free(stress_MINUS_tex);
+                                                                                Engine_free_MINUS_bind_MINUS_group(bg);
+                                                                                wgpuComputePipelineRelease(pack_MINUS_pipe);
+                                                                                wgpu_vertex_buffer_free(read_MINUS_buf);
+                                                                                wgpu_vertex_buffer_free(write_MINUS_buf);
+                                                                                wgpu_vertex_buffer_free(half_MINUS_buf);
+                                                                                wgpu_vertex_buffer_free(liquid_MINUS_gpu_MINUS_buf);
+                                                                                wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
+                                                                                wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
+                                                                                static String _959 = "Gas half buffer failed: ";
+                                                                                String *_959_ref = &_959;
+                                                                                String _1000153 = String_str(_959_ref);
+                                                                                String* _1000152 = &_1000153; // ref
+                                                                                String _1000155 = StringCopy_str(e);
+                                                                                String* _1000154 = &_1000155; // ref
+                                                                                String _1000151 = String_append(_1000152, _1000154);
+                                                                                String* _1000150 = &_1000151; // ref
+                                                                                String _1000149 = String_copy(_1000150);
+                                                                                Result__Renderer_String _970 = Result_Error__String_Renderer(_1000149);
+                                                                                Result__Renderer_String _971 = _970;
+                                                                                _3296 = _971;
+                                                                                String_delete(_1000151);
+                                                                                String_delete(_1000153);
+                                                                                String_delete(_1000155);
+                                                                            }
+                                                                            else if(_900._tag == Result__WGPUVertexBufferWrapper_MUL__String_Success_tag) {
+                                                                                Result__WGPUVertexBufferWrapper_MUL__String _900_temp = _900;
+                                                                                WGPUVertexBufferWrapper* gas_MINUS_half_MINUS_buf = _900_temp.u.Success.member0;
+                                                                                // Case expr:
+                                                                                Result__WGPUVertexBufferWrapper_MUL__String _979 = WGPUVertexBufferWrapper_create_MINUS_empty_MINUS_storage_MINUS_vertex_MINUS_buffer(ctx, read_MINUS_size);
+                                                                                Result__Renderer_String _3295;
+                                                                                if(_979._tag == Result__WGPUVertexBufferWrapper_MUL__String_Error_tag) {
+                                                                                    Result__WGPUVertexBufferWrapper_MUL__String _979_temp = _979;
+                                                                                    String e = _979_temp.u.Error.member0;
                                                                                     // Case expr:
                                                                                     Engine_free_MINUS_pipeline(pipe);
                                                                                     Engine_free_MINUS_uniform_MINUS_buffer(ub);
@@ -26093,6 +26438,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                                     wgpu_render_texture_free(liquid_MINUS_tex);
                                                                                     wgpu_render_texture_free(gas_MINUS_tex);
                                                                                     wgpu_render_texture_free(light_MINUS_tex);
+                                                                                    wgpu_render_texture_free(stress_MINUS_tex);
                                                                                     Engine_free_MINUS_bind_MINUS_group(bg);
                                                                                     wgpuComputePipelineRelease(pack_MINUS_pipe);
                                                                                     wgpu_vertex_buffer_free(read_MINUS_buf);
@@ -26102,32 +26448,31 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                                     wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
                                                                                     wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
                                                                                     wgpu_vertex_buffer_free(gas_MINUS_half_MINUS_buf);
-                                                                                    static String _1022 = "Pack bind group failed: ";
-                                                                                    String *_1022_ref = &_1022;
-                                                                                    String _1000154 = String_str(_1022_ref);
-                                                                                    String* _1000153 = &_1000154; // ref
-                                                                                    String _1000156 = StringCopy_str(e);
-                                                                                    String* _1000155 = &_1000156; // ref
-                                                                                    String _1000152 = String_append(_1000153, _1000155);
-                                                                                    String* _1000151 = &_1000152; // ref
-                                                                                    String _1000150 = String_copy(_1000151);
-                                                                                    Result__Renderer_String _1033 = Result_Error__String_Renderer(_1000150);
-                                                                                    Result__Renderer_String _1034 = _1033;
-                                                                                    _2388 = _1034;
-                                                                                    String_delete(_1000152);
-                                                                                    String_delete(_1000154);
-                                                                                    String_delete(_1000156);
+                                                                                    static String _1041 = "Stress read buffer failed: ";
+                                                                                    String *_1041_ref = &_1041;
+                                                                                    String _1000162 = String_str(_1041_ref);
+                                                                                    String* _1000161 = &_1000162; // ref
+                                                                                    String _1000164 = StringCopy_str(e);
+                                                                                    String* _1000163 = &_1000164; // ref
+                                                                                    String _1000160 = String_append(_1000161, _1000163);
+                                                                                    String* _1000159 = &_1000160; // ref
+                                                                                    String _1000158 = String_copy(_1000159);
+                                                                                    Result__Renderer_String _1052 = Result_Error__String_Renderer(_1000158);
+                                                                                    Result__Renderer_String _1053 = _1052;
+                                                                                    _3295 = _1053;
+                                                                                    String_delete(_1000160);
+                                                                                    String_delete(_1000162);
+                                                                                    String_delete(_1000164);
                                                                                 }
-                                                                                else if(_963._tag == Result__WGPUBindGroup_String_Success_tag) {
-                                                                                    Result__WGPUBindGroup_String _963_temp = _963;
-                                                                                    WGPUBindGroup pack_MINUS_bg = _963_temp.u.Success.member0;
+                                                                                else if(_979._tag == Result__WGPUVertexBufferWrapper_MUL__String_Success_tag) {
+                                                                                    Result__WGPUVertexBufferWrapper_MUL__String _979_temp = _979;
+                                                                                    WGPUVertexBufferWrapper* stress_MINUS_gpu_MINUS_buf_MINUS_read = _979_temp.u.Success.member0;
                                                                                     // Case expr:
-                                                                                    Array__WGPUBuffer* _1044 = &liquid_MINUS_bufs; // ref
-                                                                                    Result__WGPUBindGroup_String _1045 = WGPU_create_MINUS_bind_MINUS_group(ctx, pack_MINUS_pipe, _1044);
-                                                                                    Result__Renderer_String _2387;
-                                                                                    if(_1045._tag == Result__WGPUBindGroup_String_Error_tag) {
-                                                                                        Result__WGPUBindGroup_String _1045_temp = _1045;
-                                                                                        String e = _1045_temp.u.Error.member0;
+                                                                                    Result__WGPUVertexBufferWrapper_MUL__String _1061 = WGPUVertexBufferWrapper_create_MINUS_empty_MINUS_storage_MINUS_vertex_MINUS_buffer(ctx, read_MINUS_size);
+                                                                                    Result__Renderer_String _3294;
+                                                                                    if(_1061._tag == Result__WGPUVertexBufferWrapper_MUL__String_Error_tag) {
+                                                                                        Result__WGPUVertexBufferWrapper_MUL__String _1061_temp = _1061;
+                                                                                        String e = _1061_temp.u.Error.member0;
                                                                                         // Case expr:
                                                                                         Engine_free_MINUS_pipeline(pipe);
                                                                                         Engine_free_MINUS_uniform_MINUS_buffer(ub);
@@ -26136,6 +26481,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                                         wgpu_render_texture_free(liquid_MINUS_tex);
                                                                                         wgpu_render_texture_free(gas_MINUS_tex);
                                                                                         wgpu_render_texture_free(light_MINUS_tex);
+                                                                                        wgpu_render_texture_free(stress_MINUS_tex);
                                                                                         Engine_free_MINUS_bind_MINUS_group(bg);
                                                                                         wgpuComputePipelineRelease(pack_MINUS_pipe);
                                                                                         wgpu_vertex_buffer_free(read_MINUS_buf);
@@ -26145,33 +26491,32 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                                         wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
                                                                                         wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
                                                                                         wgpu_vertex_buffer_free(gas_MINUS_half_MINUS_buf);
-                                                                                        wgpuBindGroupRelease(pack_MINUS_bg);
-                                                                                        static String _1107 = "Liquid pack bind group failed: ";
-                                                                                        String *_1107_ref = &_1107;
-                                                                                        String _1000163 = String_str(_1107_ref);
-                                                                                        String* _1000162 = &_1000163; // ref
-                                                                                        String _1000165 = StringCopy_str(e);
-                                                                                        String* _1000164 = &_1000165; // ref
-                                                                                        String _1000161 = String_append(_1000162, _1000164);
-                                                                                        String* _1000160 = &_1000161; // ref
-                                                                                        String _1000159 = String_copy(_1000160);
-                                                                                        Result__Renderer_String _1118 = Result_Error__String_Renderer(_1000159);
-                                                                                        Result__Renderer_String _1119 = _1118;
-                                                                                        _2387 = _1119;
-                                                                                        String_delete(_1000161);
-                                                                                        String_delete(_1000163);
-                                                                                        String_delete(_1000165);
+                                                                                        wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_read);
+                                                                                        static String _1126 = "Stress write buffer failed: ";
+                                                                                        String *_1126_ref = &_1126;
+                                                                                        String _1000171 = String_str(_1126_ref);
+                                                                                        String* _1000170 = &_1000171; // ref
+                                                                                        String _1000173 = StringCopy_str(e);
+                                                                                        String* _1000172 = &_1000173; // ref
+                                                                                        String _1000169 = String_append(_1000170, _1000172);
+                                                                                        String* _1000168 = &_1000169; // ref
+                                                                                        String _1000167 = String_copy(_1000168);
+                                                                                        Result__Renderer_String _1137 = Result_Error__String_Renderer(_1000167);
+                                                                                        Result__Renderer_String _1138 = _1137;
+                                                                                        _3294 = _1138;
+                                                                                        String_delete(_1000169);
+                                                                                        String_delete(_1000171);
+                                                                                        String_delete(_1000173);
                                                                                     }
-                                                                                    else if(_1045._tag == Result__WGPUBindGroup_String_Success_tag) {
-                                                                                        Result__WGPUBindGroup_String _1045_temp = _1045;
-                                                                                        WGPUBindGroup liquid_MINUS_pack_MINUS_bg = _1045_temp.u.Success.member0;
+                                                                                    else if(_1061._tag == Result__WGPUVertexBufferWrapper_MUL__String_Success_tag) {
+                                                                                        Result__WGPUVertexBufferWrapper_MUL__String _1061_temp = _1061;
+                                                                                        WGPUVertexBufferWrapper* stress_MINUS_gpu_MINUS_buf_MINUS_write = _1061_temp.u.Success.member0;
                                                                                         // Case expr:
-                                                                                        Array__WGPUBuffer* _1129 = &gas_MINUS_bufs; // ref
-                                                                                        Result__WGPUBindGroup_String _1130 = WGPU_create_MINUS_bind_MINUS_group(ctx, pack_MINUS_pipe, _1129);
-                                                                                        Result__Renderer_String _2386;
-                                                                                        if(_1130._tag == Result__WGPUBindGroup_String_Error_tag) {
-                                                                                            Result__WGPUBindGroup_String _1130_temp = _1130;
-                                                                                            String e = _1130_temp.u.Error.member0;
+                                                                                        Result__WGPUVertexBufferWrapper_MUL__String _1146 = WGPUVertexBufferWrapper_create_MINUS_empty_MINUS_storage_MINUS_vertex_MINUS_buffer(ctx, half_MINUS_size);
+                                                                                        Result__Renderer_String _3293;
+                                                                                        if(_1146._tag == Result__WGPUVertexBufferWrapper_MUL__String_Error_tag) {
+                                                                                            Result__WGPUVertexBufferWrapper_MUL__String _1146_temp = _1146;
+                                                                                            String e = _1146_temp.u.Error.member0;
                                                                                             // Case expr:
                                                                                             Engine_free_MINUS_pipeline(pipe);
                                                                                             Engine_free_MINUS_uniform_MINUS_buffer(ub);
@@ -26180,6 +26525,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                                             wgpu_render_texture_free(liquid_MINUS_tex);
                                                                                             wgpu_render_texture_free(gas_MINUS_tex);
                                                                                             wgpu_render_texture_free(light_MINUS_tex);
+                                                                                            wgpu_render_texture_free(stress_MINUS_tex);
                                                                                             Engine_free_MINUS_bind_MINUS_group(bg);
                                                                                             wgpuComputePipelineRelease(pack_MINUS_pipe);
                                                                                             wgpu_vertex_buffer_free(read_MINUS_buf);
@@ -26189,87 +26535,117 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                                             wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
                                                                                             wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
                                                                                             wgpu_vertex_buffer_free(gas_MINUS_half_MINUS_buf);
-                                                                                            wgpuBindGroupRelease(pack_MINUS_bg);
-                                                                                            wgpuBindGroupRelease(liquid_MINUS_pack_MINUS_bg);
-                                                                                            static String _1195 = "Gas pack bind group failed: ";
-                                                                                            String *_1195_ref = &_1195;
-                                                                                            String _1000172 = String_str(_1195_ref);
-                                                                                            String* _1000171 = &_1000172; // ref
-                                                                                            String _1000174 = StringCopy_str(e);
-                                                                                            String* _1000173 = &_1000174; // ref
-                                                                                            String _1000170 = String_append(_1000171, _1000173);
-                                                                                            String* _1000169 = &_1000170; // ref
-                                                                                            String _1000168 = String_copy(_1000169);
-                                                                                            Result__Renderer_String _1206 = Result_Error__String_Renderer(_1000168);
-                                                                                            Result__Renderer_String _1207 = _1206;
-                                                                                            _2386 = _1207;
-                                                                                            String_delete(_1000170);
-                                                                                            String_delete(_1000172);
-                                                                                            String_delete(_1000174);
+                                                                                            wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_read);
+                                                                                            wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_write);
+                                                                                            static String _1214 = "Stress half buffer failed: ";
+                                                                                            String *_1214_ref = &_1214;
+                                                                                            String _1000180 = String_str(_1214_ref);
+                                                                                            String* _1000179 = &_1000180; // ref
+                                                                                            String _1000182 = StringCopy_str(e);
+                                                                                            String* _1000181 = &_1000182; // ref
+                                                                                            String _1000178 = String_append(_1000179, _1000181);
+                                                                                            String* _1000177 = &_1000178; // ref
+                                                                                            String _1000176 = String_copy(_1000177);
+                                                                                            Result__Renderer_String _1225 = Result_Error__String_Renderer(_1000176);
+                                                                                            Result__Renderer_String _1226 = _1225;
+                                                                                            _3293 = _1226;
+                                                                                            String_delete(_1000178);
+                                                                                            String_delete(_1000180);
+                                                                                            String_delete(_1000182);
                                                                                         }
-                                                                                        else if(_1130._tag == Result__WGPUBindGroup_String_Success_tag) {
-                                                                                            Result__WGPUBindGroup_String _1130_temp = _1130;
-                                                                                            WGPUBindGroup gas_MINUS_pack_MINUS_bg = _1130_temp.u.Success.member0;
+                                                                                        else if(_1146._tag == Result__WGPUVertexBufferWrapper_MUL__String_Success_tag) {
+                                                                                            Result__WGPUVertexBufferWrapper_MUL__String _1146_temp = _1146;
+                                                                                            WGPUVertexBufferWrapper* stress_MINUS_half_MINUS_buf = _1146_temp.u.Success.member0;
                                                                                             // Case expr:
-                                                                                            static String _1215 = "main";
-                                                                                            String *_1215_ref = &_1215;
-                                                                                            Result__WGPUComputePipeline_String _1216 = WGPU_create_MINUS_pipeline(ctx, copy_MINUS_wgsl, _1215_ref);
-                                                                                            Result__Renderer_String _2385;
-                                                                                            if(_1216._tag == Result__WGPUComputePipeline_String_Error_tag) {
-                                                                                                Result__WGPUComputePipeline_String _1216_temp = _1216;
-                                                                                                String e = _1216_temp.u.Error.member0;
-                                                                                                // Case expr:
-                                                                                                Engine_free_MINUS_pipeline(pipe);
-                                                                                                Engine_free_MINUS_uniform_MINUS_buffer(ub);
-                                                                                                wgpuSamplerRelease(voxel_MINUS_sampler);
-                                                                                                wgpu_render_texture_free(voxel_MINUS_tex);
-                                                                                                wgpu_render_texture_free(liquid_MINUS_tex);
-                                                                                                wgpu_render_texture_free(gas_MINUS_tex);
-                                                                                                wgpu_render_texture_free(light_MINUS_tex);
-                                                                                                Engine_free_MINUS_bind_MINUS_group(bg);
-                                                                                                wgpuComputePipelineRelease(pack_MINUS_pipe);
-                                                                                                wgpu_vertex_buffer_free(read_MINUS_buf);
-                                                                                                wgpu_vertex_buffer_free(write_MINUS_buf);
-                                                                                                wgpu_vertex_buffer_free(half_MINUS_buf);
-                                                                                                wgpu_vertex_buffer_free(liquid_MINUS_gpu_MINUS_buf);
-                                                                                                wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
-                                                                                                wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
-                                                                                                wgpu_vertex_buffer_free(gas_MINUS_half_MINUS_buf);
-                                                                                                wgpuBindGroupRelease(pack_MINUS_bg);
-                                                                                                wgpuBindGroupRelease(liquid_MINUS_pack_MINUS_bg);
-                                                                                                wgpuBindGroupRelease(gas_MINUS_pack_MINUS_bg);
-                                                                                                static String _1284 = "Copy compute pipeline failed: ";
-                                                                                                String *_1284_ref = &_1284;
-                                                                                                String _1000181 = String_str(_1284_ref);
-                                                                                                String* _1000180 = &_1000181; // ref
-                                                                                                String _1000183 = StringCopy_str(e);
-                                                                                                String* _1000182 = &_1000183; // ref
-                                                                                                String _1000179 = String_append(_1000180, _1000182);
-                                                                                                String* _1000178 = &_1000179; // ref
-                                                                                                String _1000177 = String_copy(_1000178);
-                                                                                                Result__Renderer_String _1295 = Result_Error__String_Renderer(_1000177);
-                                                                                                Result__Renderer_String _1296 = _1295;
-                                                                                                _2385 = _1296;
-                                                                                                String_delete(_1000179);
-                                                                                                String_delete(_1000181);
-                                                                                                String_delete(_1000183);
-                                                                                            }
-                                                                                            else if(_1216._tag == Result__WGPUComputePipeline_String_Success_tag) {
-                                                                                                Result__WGPUComputePipeline_String _1216_temp = _1216;
-                                                                                                WGPUComputePipeline copy_MINUS_pipe = _1216_temp.u.Success.member0;
-                                                                                                // Case expr:
-                                                                                                Result__Renderer_String _2384;
-                                                                                                /* let */ {
-                                                                                                    float zero = 0.0f;
-                                                                                                    float* _1308 = &zero; // ref
-                                                                                                    Array__float _1309 = Array_replicate__float(131072, _1308);
-                                                                                                    Array__float staging_MINUS_initial = _1309;
-                                                                                                    Array__float* _1316 = &staging_MINUS_initial; // ref
-                                                                                                    Result__WGPUVertexBufferWrapper_MUL__String _1317 = WGPURender_create_MINUS_storage_MINUS_vertex_MINUS_buffer(ctx, _1316);
-                                                                                                    Result__Renderer_String _2383;
-                                                                                                    if(_1317._tag == Result__WGPUVertexBufferWrapper_MUL__String_Error_tag) {
-                                                                                                        Result__WGPUVertexBufferWrapper_MUL__String _1317_temp = _1317;
-                                                                                                        String e = _1317_temp.u.Error.member0;
+                                                                                            Result__Renderer_String _3292;
+                                                                                            /* let */ {
+                                                                                                WGPUBuffer _1234 = WGPUVertexBufferWrapper_get_MINUS_buffer(read_MINUS_buf);
+                                                                                                WGPUBuffer read_MINUS_raw = _1234;
+                                                                                                WGPUBuffer _1238 = WGPUVertexBufferWrapper_get_MINUS_buffer(half_MINUS_buf);
+                                                                                                WGPUBuffer half_MINUS_raw = _1238;
+                                                                                                Array _1242 = { .len = 2, .capacity = 2, .data = CARP_MALLOC(sizeof(WGPUBuffer) * 2) };
+                                                                                                ((WGPUBuffer*)_1242.data)[0] = read_MINUS_raw;
+                                                                                                ((WGPUBuffer*)_1242.data)[1] = half_MINUS_raw;
+                                                                                                Array__WGPUBuffer bufs = _1242;
+                                                                                                WGPUBuffer _1246 = WGPUVertexBufferWrapper_get_MINUS_buffer(liquid_MINUS_gpu_MINUS_buf);
+                                                                                                WGPUBuffer liquid_MINUS_raw = _1246;
+                                                                                                WGPUBuffer _1250 = WGPUVertexBufferWrapper_get_MINUS_buffer(liquid_MINUS_half_MINUS_buf);
+                                                                                                WGPUBuffer liquid_MINUS_half_MINUS_raw = _1250;
+                                                                                                Array _1254 = { .len = 2, .capacity = 2, .data = CARP_MALLOC(sizeof(WGPUBuffer) * 2) };
+                                                                                                ((WGPUBuffer*)_1254.data)[0] = liquid_MINUS_raw;
+                                                                                                ((WGPUBuffer*)_1254.data)[1] = liquid_MINUS_half_MINUS_raw;
+                                                                                                Array__WGPUBuffer liquid_MINUS_bufs = _1254;
+                                                                                                WGPUBuffer _1258 = WGPUVertexBufferWrapper_get_MINUS_buffer(gas_MINUS_gpu_MINUS_buf);
+                                                                                                WGPUBuffer gas_MINUS_raw = _1258;
+                                                                                                WGPUBuffer _1262 = WGPUVertexBufferWrapper_get_MINUS_buffer(gas_MINUS_half_MINUS_buf);
+                                                                                                WGPUBuffer gas_MINUS_half_MINUS_raw = _1262;
+                                                                                                Array _1266 = { .len = 2, .capacity = 2, .data = CARP_MALLOC(sizeof(WGPUBuffer) * 2) };
+                                                                                                ((WGPUBuffer*)_1266.data)[0] = gas_MINUS_raw;
+                                                                                                ((WGPUBuffer*)_1266.data)[1] = gas_MINUS_half_MINUS_raw;
+                                                                                                Array__WGPUBuffer gas_MINUS_bufs = _1266;
+                                                                                                WGPUBuffer _1270 = WGPUVertexBufferWrapper_get_MINUS_buffer(stress_MINUS_gpu_MINUS_buf_MINUS_read);
+                                                                                                WGPUBuffer stress_MINUS_raw = _1270;
+                                                                                                WGPUBuffer _1274 = WGPUVertexBufferWrapper_get_MINUS_buffer(stress_MINUS_gpu_MINUS_buf_MINUS_write);
+                                                                                                WGPUBuffer stress_MINUS_write_MINUS_raw = _1274;
+                                                                                                WGPUBuffer _1278 = WGPUVertexBufferWrapper_get_MINUS_buffer(stress_MINUS_half_MINUS_buf);
+                                                                                                WGPUBuffer stress_MINUS_half_MINUS_raw = _1278;
+                                                                                                Array _1282 = { .len = 2, .capacity = 2, .data = CARP_MALLOC(sizeof(WGPUBuffer) * 2) };
+                                                                                                ((WGPUBuffer*)_1282.data)[0] = stress_MINUS_write_MINUS_raw;
+                                                                                                ((WGPUBuffer*)_1282.data)[1] = stress_MINUS_half_MINUS_raw;
+                                                                                                Array__WGPUBuffer stress_MINUS_bufs = _1282;
+                                                                                                Array__WGPUBuffer* _1290 = &bufs; // ref
+                                                                                                Result__WGPUBindGroup_String _1291 = WGPU_create_MINUS_bind_MINUS_group(ctx, pack_MINUS_pipe, _1290);
+                                                                                                Result__Renderer_String _3291;
+                                                                                                if(_1291._tag == Result__WGPUBindGroup_String_Error_tag) {
+                                                                                                    Result__WGPUBindGroup_String _1291_temp = _1291;
+                                                                                                    String e = _1291_temp.u.Error.member0;
+                                                                                                    // Case expr:
+                                                                                                    Engine_free_MINUS_pipeline(pipe);
+                                                                                                    Engine_free_MINUS_uniform_MINUS_buffer(ub);
+                                                                                                    wgpuSamplerRelease(voxel_MINUS_sampler);
+                                                                                                    wgpu_render_texture_free(voxel_MINUS_tex);
+                                                                                                    wgpu_render_texture_free(liquid_MINUS_tex);
+                                                                                                    wgpu_render_texture_free(gas_MINUS_tex);
+                                                                                                    wgpu_render_texture_free(light_MINUS_tex);
+                                                                                                    wgpu_render_texture_free(stress_MINUS_tex);
+                                                                                                    Engine_free_MINUS_bind_MINUS_group(bg);
+                                                                                                    wgpuComputePipelineRelease(pack_MINUS_pipe);
+                                                                                                    wgpu_vertex_buffer_free(read_MINUS_buf);
+                                                                                                    wgpu_vertex_buffer_free(write_MINUS_buf);
+                                                                                                    wgpu_vertex_buffer_free(half_MINUS_buf);
+                                                                                                    wgpu_vertex_buffer_free(liquid_MINUS_gpu_MINUS_buf);
+                                                                                                    wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
+                                                                                                    wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
+                                                                                                    wgpu_vertex_buffer_free(gas_MINUS_half_MINUS_buf);
+                                                                                                    wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_read);
+                                                                                                    wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_write);
+                                                                                                    wgpu_vertex_buffer_free(stress_MINUS_half_MINUS_buf);
+                                                                                                    static String _1362 = "Pack bind group failed: ";
+                                                                                                    String *_1362_ref = &_1362;
+                                                                                                    String _1000190 = String_str(_1362_ref);
+                                                                                                    String* _1000189 = &_1000190; // ref
+                                                                                                    String _1000192 = StringCopy_str(e);
+                                                                                                    String* _1000191 = &_1000192; // ref
+                                                                                                    String _1000188 = String_append(_1000189, _1000191);
+                                                                                                    String* _1000187 = &_1000188; // ref
+                                                                                                    String _1000186 = String_copy(_1000187);
+                                                                                                    Result__Renderer_String _1373 = Result_Error__String_Renderer(_1000186);
+                                                                                                    Result__Renderer_String _1374 = _1373;
+                                                                                                    _3291 = _1374;
+                                                                                                    String_delete(_1000188);
+                                                                                                    String_delete(_1000190);
+                                                                                                    String_delete(_1000192);
+                                                                                                }
+                                                                                                else if(_1291._tag == Result__WGPUBindGroup_String_Success_tag) {
+                                                                                                    Result__WGPUBindGroup_String _1291_temp = _1291;
+                                                                                                    WGPUBindGroup pack_MINUS_bg = _1291_temp.u.Success.member0;
+                                                                                                    // Case expr:
+                                                                                                    Array__WGPUBuffer* _1384 = &liquid_MINUS_bufs; // ref
+                                                                                                    Result__WGPUBindGroup_String _1385 = WGPU_create_MINUS_bind_MINUS_group(ctx, pack_MINUS_pipe, _1384);
+                                                                                                    Result__Renderer_String _3290;
+                                                                                                    if(_1385._tag == Result__WGPUBindGroup_String_Error_tag) {
+                                                                                                        Result__WGPUBindGroup_String _1385_temp = _1385;
+                                                                                                        String e = _1385_temp.u.Error.member0;
                                                                                                         // Case expr:
                                                                                                         Engine_free_MINUS_pipeline(pipe);
                                                                                                         Engine_free_MINUS_uniform_MINUS_buffer(ub);
@@ -26278,6 +26654,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                                                         wgpu_render_texture_free(liquid_MINUS_tex);
                                                                                                         wgpu_render_texture_free(gas_MINUS_tex);
                                                                                                         wgpu_render_texture_free(light_MINUS_tex);
+                                                                                                        wgpu_render_texture_free(stress_MINUS_tex);
                                                                                                         Engine_free_MINUS_bind_MINUS_group(bg);
                                                                                                         wgpuComputePipelineRelease(pack_MINUS_pipe);
                                                                                                         wgpu_vertex_buffer_free(read_MINUS_buf);
@@ -26287,35 +26664,36 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                                                         wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
                                                                                                         wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
                                                                                                         wgpu_vertex_buffer_free(gas_MINUS_half_MINUS_buf);
+                                                                                                        wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_read);
+                                                                                                        wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_write);
+                                                                                                        wgpu_vertex_buffer_free(stress_MINUS_half_MINUS_buf);
                                                                                                         wgpuBindGroupRelease(pack_MINUS_bg);
-                                                                                                        wgpuBindGroupRelease(liquid_MINUS_pack_MINUS_bg);
-                                                                                                        wgpuBindGroupRelease(gas_MINUS_pack_MINUS_bg);
-                                                                                                        wgpuComputePipelineRelease(copy_MINUS_pipe);
-                                                                                                        static String _1388 = "Staging buffer failed: ";
-                                                                                                        String *_1388_ref = &_1388;
-                                                                                                        String _1000191 = String_str(_1388_ref);
-                                                                                                        String* _1000190 = &_1000191; // ref
-                                                                                                        String _1000193 = StringCopy_str(e);
-                                                                                                        String* _1000192 = &_1000193; // ref
-                                                                                                        String _1000189 = String_append(_1000190, _1000192);
-                                                                                                        String* _1000188 = &_1000189; // ref
-                                                                                                        String _1000187 = String_copy(_1000188);
-                                                                                                        Result__Renderer_String _1399 = Result_Error__String_Renderer(_1000187);
-                                                                                                        Result__Renderer_String _1400 = _1399;
-                                                                                                        _2383 = _1400;
-                                                                                                        String_delete(_1000189);
-                                                                                                        String_delete(_1000191);
-                                                                                                        String_delete(_1000193);
+                                                                                                        static String _1459 = "Liquid pack bind group failed: ";
+                                                                                                        String *_1459_ref = &_1459;
+                                                                                                        String _1000199 = String_str(_1459_ref);
+                                                                                                        String* _1000198 = &_1000199; // ref
+                                                                                                        String _1000201 = StringCopy_str(e);
+                                                                                                        String* _1000200 = &_1000201; // ref
+                                                                                                        String _1000197 = String_append(_1000198, _1000200);
+                                                                                                        String* _1000196 = &_1000197; // ref
+                                                                                                        String _1000195 = String_copy(_1000196);
+                                                                                                        Result__Renderer_String _1470 = Result_Error__String_Renderer(_1000195);
+                                                                                                        Result__Renderer_String _1471 = _1470;
+                                                                                                        _3290 = _1471;
+                                                                                                        String_delete(_1000197);
+                                                                                                        String_delete(_1000199);
+                                                                                                        String_delete(_1000201);
                                                                                                     }
-                                                                                                    else if(_1317._tag == Result__WGPUVertexBufferWrapper_MUL__String_Success_tag) {
-                                                                                                        Result__WGPUVertexBufferWrapper_MUL__String _1317_temp = _1317;
-                                                                                                        WGPUVertexBufferWrapper* staging_MINUS_buf = _1317_temp.u.Success.member0;
+                                                                                                    else if(_1385._tag == Result__WGPUBindGroup_String_Success_tag) {
+                                                                                                        Result__WGPUBindGroup_String _1385_temp = _1385;
+                                                                                                        WGPUBindGroup liquid_MINUS_pack_MINUS_bg = _1385_temp.u.Success.member0;
                                                                                                         // Case expr:
-                                                                                                        Result__WGPUUniformBufferWrapper_MUL__String _1408 = WGPURender_create_MINUS_uniform_MINUS_buffer(ctx, 16);
-                                                                                                        Result__Renderer_String _2382;
-                                                                                                        if(_1408._tag == Result__WGPUUniformBufferWrapper_MUL__String_Error_tag) {
-                                                                                                            Result__WGPUUniformBufferWrapper_MUL__String _1408_temp = _1408;
-                                                                                                            String e = _1408_temp.u.Error.member0;
+                                                                                                        Array__WGPUBuffer* _1481 = &gas_MINUS_bufs; // ref
+                                                                                                        Result__WGPUBindGroup_String _1482 = WGPU_create_MINUS_bind_MINUS_group(ctx, pack_MINUS_pipe, _1481);
+                                                                                                        Result__Renderer_String _3289;
+                                                                                                        if(_1482._tag == Result__WGPUBindGroup_String_Error_tag) {
+                                                                                                            Result__WGPUBindGroup_String _1482_temp = _1482;
+                                                                                                            String e = _1482_temp.u.Error.member0;
                                                                                                             // Case expr:
                                                                                                             Engine_free_MINUS_pipeline(pipe);
                                                                                                             Engine_free_MINUS_uniform_MINUS_buffer(ub);
@@ -26324,6 +26702,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                                                             wgpu_render_texture_free(liquid_MINUS_tex);
                                                                                                             wgpu_render_texture_free(gas_MINUS_tex);
                                                                                                             wgpu_render_texture_free(light_MINUS_tex);
+                                                                                                            wgpu_render_texture_free(stress_MINUS_tex);
                                                                                                             Engine_free_MINUS_bind_MINUS_group(bg);
                                                                                                             wgpuComputePipelineRelease(pack_MINUS_pipe);
                                                                                                             wgpu_vertex_buffer_free(read_MINUS_buf);
@@ -26333,53 +26712,88 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                                                             wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
                                                                                                             wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
                                                                                                             wgpu_vertex_buffer_free(gas_MINUS_half_MINUS_buf);
+                                                                                                            wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_read);
+                                                                                                            wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_write);
+                                                                                                            wgpu_vertex_buffer_free(stress_MINUS_half_MINUS_buf);
                                                                                                             wgpuBindGroupRelease(pack_MINUS_bg);
                                                                                                             wgpuBindGroupRelease(liquid_MINUS_pack_MINUS_bg);
-                                                                                                            wgpuBindGroupRelease(gas_MINUS_pack_MINUS_bg);
-                                                                                                            wgpuComputePipelineRelease(copy_MINUS_pipe);
-                                                                                                            wgpu_vertex_buffer_free(staging_MINUS_buf);
-                                                                                                            static String _1482 = "Copy uniforms failed: ";
-                                                                                                            String *_1482_ref = &_1482;
-                                                                                                            String _1000200 = String_str(_1482_ref);
-                                                                                                            String* _1000199 = &_1000200; // ref
-                                                                                                            String _1000202 = StringCopy_str(e);
-                                                                                                            String* _1000201 = &_1000202; // ref
-                                                                                                            String _1000198 = String_append(_1000199, _1000201);
-                                                                                                            String* _1000197 = &_1000198; // ref
-                                                                                                            String _1000196 = String_copy(_1000197);
-                                                                                                            Result__Renderer_String _1493 = Result_Error__String_Renderer(_1000196);
-                                                                                                            Result__Renderer_String _1494 = _1493;
-                                                                                                            _2382 = _1494;
-                                                                                                            String_delete(_1000198);
-                                                                                                            String_delete(_1000200);
-                                                                                                            String_delete(_1000202);
+                                                                                                            static String _1559 = "Gas pack bind group failed: ";
+                                                                                                            String *_1559_ref = &_1559;
+                                                                                                            String _1000208 = String_str(_1559_ref);
+                                                                                                            String* _1000207 = &_1000208; // ref
+                                                                                                            String _1000210 = StringCopy_str(e);
+                                                                                                            String* _1000209 = &_1000210; // ref
+                                                                                                            String _1000206 = String_append(_1000207, _1000209);
+                                                                                                            String* _1000205 = &_1000206; // ref
+                                                                                                            String _1000204 = String_copy(_1000205);
+                                                                                                            Result__Renderer_String _1570 = Result_Error__String_Renderer(_1000204);
+                                                                                                            Result__Renderer_String _1571 = _1570;
+                                                                                                            _3289 = _1571;
+                                                                                                            String_delete(_1000206);
+                                                                                                            String_delete(_1000208);
+                                                                                                            String_delete(_1000210);
                                                                                                         }
-                                                                                                        else if(_1408._tag == Result__WGPUUniformBufferWrapper_MUL__String_Success_tag) {
-                                                                                                            Result__WGPUUniformBufferWrapper_MUL__String _1408_temp = _1408;
-                                                                                                            WGPUUniformBufferWrapper* copy_MINUS_ub = _1408_temp.u.Success.member0;
+                                                                                                        else if(_1482._tag == Result__WGPUBindGroup_String_Success_tag) {
+                                                                                                            Result__WGPUBindGroup_String _1482_temp = _1482;
+                                                                                                            WGPUBindGroup gas_MINUS_pack_MINUS_bg = _1482_temp.u.Success.member0;
                                                                                                             // Case expr:
-                                                                                                            Result__Renderer_String _2381;
-                                                                                                            /* let */ {
-                                                                                                                WGPUBuffer _1502 = WGPUVertexBufferWrapper_get_MINUS_buffer(staging_MINUS_buf);
-                                                                                                                WGPUBuffer staging_MINUS_raw = _1502;
-                                                                                                                WGPUBuffer _1506 = WGPUVertexBufferWrapper_get_MINUS_buffer(read_MINUS_buf);
-                                                                                                                WGPUBuffer read_MINUS_raw = _1506;
-                                                                                                                WGPUBuffer _1510 = WGPUVertexBufferWrapper_get_MINUS_buffer(write_MINUS_buf);
-                                                                                                                WGPUBuffer write_MINUS_raw = _1510;
-                                                                                                                WGPUBuffer _1514 = wgpu_uniform_buffer_get_buffer(copy_MINUS_ub);
-                                                                                                                WGPUBuffer ub_MINUS_raw = _1514;
-                                                                                                                Array _1520 = { .len = 4, .capacity = 4, .data = CARP_MALLOC(sizeof(WGPUBuffer) * 4) };
-                                                                                                                ((WGPUBuffer*)_1520.data)[0] = staging_MINUS_raw;
-                                                                                                                ((WGPUBuffer*)_1520.data)[1] = read_MINUS_raw;
-                                                                                                                ((WGPUBuffer*)_1520.data)[2] = write_MINUS_raw;
-                                                                                                                ((WGPUBuffer*)_1520.data)[3] = ub_MINUS_raw;
-                                                                                                                Array__WGPUBuffer copy_MINUS_bufs = _1520;
-                                                                                                                Array__WGPUBuffer* _1528 = &copy_MINUS_bufs; // ref
-                                                                                                                Result__WGPUBindGroup_String _1529 = WGPU_create_MINUS_bind_MINUS_group(ctx, copy_MINUS_pipe, _1528);
-                                                                                                                Result__Renderer_String _2380;
-                                                                                                                if(_1529._tag == Result__WGPUBindGroup_String_Error_tag) {
-                                                                                                                    Result__WGPUBindGroup_String _1529_temp = _1529;
-                                                                                                                    String e = _1529_temp.u.Error.member0;
+                                                                                                            Array__WGPUBuffer* _1581 = &stress_MINUS_bufs; // ref
+                                                                                                            Result__WGPUBindGroup_String _1582 = WGPU_create_MINUS_bind_MINUS_group(ctx, pack_MINUS_pipe, _1581);
+                                                                                                            Result__Renderer_String _3288;
+                                                                                                            if(_1582._tag == Result__WGPUBindGroup_String_Error_tag) {
+                                                                                                                Result__WGPUBindGroup_String _1582_temp = _1582;
+                                                                                                                String e = _1582_temp.u.Error.member0;
+                                                                                                                // Case expr:
+                                                                                                                Engine_free_MINUS_pipeline(pipe);
+                                                                                                                Engine_free_MINUS_uniform_MINUS_buffer(ub);
+                                                                                                                wgpuSamplerRelease(voxel_MINUS_sampler);
+                                                                                                                wgpu_render_texture_free(voxel_MINUS_tex);
+                                                                                                                wgpu_render_texture_free(liquid_MINUS_tex);
+                                                                                                                wgpu_render_texture_free(gas_MINUS_tex);
+                                                                                                                wgpu_render_texture_free(light_MINUS_tex);
+                                                                                                                wgpu_render_texture_free(stress_MINUS_tex);
+                                                                                                                Engine_free_MINUS_bind_MINUS_group(bg);
+                                                                                                                wgpuComputePipelineRelease(pack_MINUS_pipe);
+                                                                                                                wgpu_vertex_buffer_free(read_MINUS_buf);
+                                                                                                                wgpu_vertex_buffer_free(write_MINUS_buf);
+                                                                                                                wgpu_vertex_buffer_free(half_MINUS_buf);
+                                                                                                                wgpu_vertex_buffer_free(liquid_MINUS_gpu_MINUS_buf);
+                                                                                                                wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
+                                                                                                                wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
+                                                                                                                wgpu_vertex_buffer_free(gas_MINUS_half_MINUS_buf);
+                                                                                                                wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_read);
+                                                                                                                wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_write);
+                                                                                                                wgpu_vertex_buffer_free(stress_MINUS_half_MINUS_buf);
+                                                                                                                wgpuBindGroupRelease(pack_MINUS_bg);
+                                                                                                                wgpuBindGroupRelease(liquid_MINUS_pack_MINUS_bg);
+                                                                                                                wgpuBindGroupRelease(gas_MINUS_pack_MINUS_bg);
+                                                                                                                static String _1662 = "Stress pack bind group failed: ";
+                                                                                                                String *_1662_ref = &_1662;
+                                                                                                                String _1000217 = String_str(_1662_ref);
+                                                                                                                String* _1000216 = &_1000217; // ref
+                                                                                                                String _1000219 = StringCopy_str(e);
+                                                                                                                String* _1000218 = &_1000219; // ref
+                                                                                                                String _1000215 = String_append(_1000216, _1000218);
+                                                                                                                String* _1000214 = &_1000215; // ref
+                                                                                                                String _1000213 = String_copy(_1000214);
+                                                                                                                Result__Renderer_String _1673 = Result_Error__String_Renderer(_1000213);
+                                                                                                                Result__Renderer_String _1674 = _1673;
+                                                                                                                _3288 = _1674;
+                                                                                                                String_delete(_1000215);
+                                                                                                                String_delete(_1000217);
+                                                                                                                String_delete(_1000219);
+                                                                                                            }
+                                                                                                            else if(_1582._tag == Result__WGPUBindGroup_String_Success_tag) {
+                                                                                                                Result__WGPUBindGroup_String _1582_temp = _1582;
+                                                                                                                WGPUBindGroup stress_MINUS_pack_MINUS_bg = _1582_temp.u.Success.member0;
+                                                                                                                // Case expr:
+                                                                                                                static String _1682 = "main";
+                                                                                                                String *_1682_ref = &_1682;
+                                                                                                                Result__WGPUComputePipeline_String _1683 = WGPU_create_MINUS_pipeline(ctx, copy_MINUS_wgsl, _1682_ref);
+                                                                                                                Result__Renderer_String _3287;
+                                                                                                                if(_1683._tag == Result__WGPUComputePipeline_String_Error_tag) {
+                                                                                                                    Result__WGPUComputePipeline_String _1683_temp = _1683;
+                                                                                                                    String e = _1683_temp.u.Error.member0;
                                                                                                                     // Case expr:
                                                                                                                     Engine_free_MINUS_pipeline(pipe);
                                                                                                                     Engine_free_MINUS_uniform_MINUS_buffer(ub);
@@ -26388,6 +26802,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                                                                     wgpu_render_texture_free(liquid_MINUS_tex);
                                                                                                                     wgpu_render_texture_free(gas_MINUS_tex);
                                                                                                                     wgpu_render_texture_free(light_MINUS_tex);
+                                                                                                                    wgpu_render_texture_free(stress_MINUS_tex);
                                                                                                                     Engine_free_MINUS_bind_MINUS_group(bg);
                                                                                                                     wgpuComputePipelineRelease(pack_MINUS_pipe);
                                                                                                                     wgpu_vertex_buffer_free(read_MINUS_buf);
@@ -26397,90 +26812,45 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                                                                     wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
                                                                                                                     wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
                                                                                                                     wgpu_vertex_buffer_free(gas_MINUS_half_MINUS_buf);
+                                                                                                                    wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_read);
+                                                                                                                    wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_write);
+                                                                                                                    wgpu_vertex_buffer_free(stress_MINUS_half_MINUS_buf);
                                                                                                                     wgpuBindGroupRelease(pack_MINUS_bg);
                                                                                                                     wgpuBindGroupRelease(liquid_MINUS_pack_MINUS_bg);
                                                                                                                     wgpuBindGroupRelease(gas_MINUS_pack_MINUS_bg);
-                                                                                                                    wgpuComputePipelineRelease(copy_MINUS_pipe);
-                                                                                                                    wgpu_vertex_buffer_free(staging_MINUS_buf);
-                                                                                                                    Engine_free_MINUS_uniform_MINUS_buffer(copy_MINUS_ub);
-                                                                                                                    static String _1606 = "Copy bind group failed: ";
-                                                                                                                    String *_1606_ref = &_1606;
-                                                                                                                    String _1000210 = String_str(_1606_ref);
-                                                                                                                    String* _1000209 = &_1000210; // ref
-                                                                                                                    String _1000212 = StringCopy_str(e);
-                                                                                                                    String* _1000211 = &_1000212; // ref
-                                                                                                                    String _1000208 = String_append(_1000209, _1000211);
-                                                                                                                    String* _1000207 = &_1000208; // ref
-                                                                                                                    String _1000206 = String_copy(_1000207);
-                                                                                                                    Result__Renderer_String _1617 = Result_Error__String_Renderer(_1000206);
-                                                                                                                    Result__Renderer_String _1618 = _1617;
-                                                                                                                    _2380 = _1618;
-                                                                                                                    String_delete(_1000208);
-                                                                                                                    String_delete(_1000210);
-                                                                                                                    String_delete(_1000212);
+                                                                                                                    wgpuBindGroupRelease(stress_MINUS_pack_MINUS_bg);
+                                                                                                                    static String _1766 = "Copy compute pipeline failed: ";
+                                                                                                                    String *_1766_ref = &_1766;
+                                                                                                                    String _1000226 = String_str(_1766_ref);
+                                                                                                                    String* _1000225 = &_1000226; // ref
+                                                                                                                    String _1000228 = StringCopy_str(e);
+                                                                                                                    String* _1000227 = &_1000228; // ref
+                                                                                                                    String _1000224 = String_append(_1000225, _1000227);
+                                                                                                                    String* _1000223 = &_1000224; // ref
+                                                                                                                    String _1000222 = String_copy(_1000223);
+                                                                                                                    Result__Renderer_String _1777 = Result_Error__String_Renderer(_1000222);
+                                                                                                                    Result__Renderer_String _1778 = _1777;
+                                                                                                                    _3287 = _1778;
+                                                                                                                    String_delete(_1000224);
+                                                                                                                    String_delete(_1000226);
+                                                                                                                    String_delete(_1000228);
                                                                                                                 }
-                                                                                                                else if(_1529._tag == Result__WGPUBindGroup_String_Success_tag) {
-                                                                                                                    Result__WGPUBindGroup_String _1529_temp = _1529;
-                                                                                                                    WGPUBindGroup copy_MINUS_bg = _1529_temp.u.Success.member0;
+                                                                                                                else if(_1683._tag == Result__WGPUComputePipeline_String_Success_tag) {
+                                                                                                                    Result__WGPUComputePipeline_String _1683_temp = _1683;
+                                                                                                                    WGPUComputePipeline copy_MINUS_pipe = _1683_temp.u.Success.member0;
                                                                                                                     // Case expr:
-                                                                                                                    static String _1626 = "main";
-                                                                                                                    String *_1626_ref = &_1626;
-                                                                                                                    Result__WGPUComputePipeline_String _1627 = WGPU_create_MINUS_pipeline(ctx, liquid_MINUS_sim_MINUS_wgsl, _1626_ref);
-                                                                                                                    Result__Renderer_String _2379;
-                                                                                                                    if(_1627._tag == Result__WGPUComputePipeline_String_Error_tag) {
-                                                                                                                        Result__WGPUComputePipeline_String _1627_temp = _1627;
-                                                                                                                        String e = _1627_temp.u.Error.member0;
-                                                                                                                        // Case expr:
-                                                                                                                        Engine_free_MINUS_pipeline(pipe);
-                                                                                                                        Engine_free_MINUS_uniform_MINUS_buffer(ub);
-                                                                                                                        wgpuSamplerRelease(voxel_MINUS_sampler);
-                                                                                                                        wgpu_render_texture_free(voxel_MINUS_tex);
-                                                                                                                        wgpu_render_texture_free(liquid_MINUS_tex);
-                                                                                                                        wgpu_render_texture_free(gas_MINUS_tex);
-                                                                                                                        wgpu_render_texture_free(light_MINUS_tex);
-                                                                                                                        Engine_free_MINUS_bind_MINUS_group(bg);
-                                                                                                                        wgpuComputePipelineRelease(pack_MINUS_pipe);
-                                                                                                                        wgpu_vertex_buffer_free(read_MINUS_buf);
-                                                                                                                        wgpu_vertex_buffer_free(write_MINUS_buf);
-                                                                                                                        wgpu_vertex_buffer_free(half_MINUS_buf);
-                                                                                                                        wgpu_vertex_buffer_free(liquid_MINUS_gpu_MINUS_buf);
-                                                                                                                        wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
-                                                                                                                        wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
-                                                                                                                        wgpu_vertex_buffer_free(gas_MINUS_half_MINUS_buf);
-                                                                                                                        wgpuBindGroupRelease(pack_MINUS_bg);
-                                                                                                                        wgpuBindGroupRelease(liquid_MINUS_pack_MINUS_bg);
-                                                                                                                        wgpuBindGroupRelease(gas_MINUS_pack_MINUS_bg);
-                                                                                                                        wgpuComputePipelineRelease(copy_MINUS_pipe);
-                                                                                                                        wgpu_vertex_buffer_free(staging_MINUS_buf);
-                                                                                                                        Engine_free_MINUS_uniform_MINUS_buffer(copy_MINUS_ub);
-                                                                                                                        wgpuBindGroupRelease(copy_MINUS_bg);
-                                                                                                                        static String _1707 = "Liquid sim pipeline failed: ";
-                                                                                                                        String *_1707_ref = &_1707;
-                                                                                                                        String _1000219 = String_str(_1707_ref);
-                                                                                                                        String* _1000218 = &_1000219; // ref
-                                                                                                                        String _1000221 = StringCopy_str(e);
-                                                                                                                        String* _1000220 = &_1000221; // ref
-                                                                                                                        String _1000217 = String_append(_1000218, _1000220);
-                                                                                                                        String* _1000216 = &_1000217; // ref
-                                                                                                                        String _1000215 = String_copy(_1000216);
-                                                                                                                        Result__Renderer_String _1718 = Result_Error__String_Renderer(_1000215);
-                                                                                                                        Result__Renderer_String _1719 = _1718;
-                                                                                                                        _2379 = _1719;
-                                                                                                                        String_delete(_1000217);
-                                                                                                                        String_delete(_1000219);
-                                                                                                                        String_delete(_1000221);
-                                                                                                                    }
-                                                                                                                    else if(_1627._tag == Result__WGPUComputePipeline_String_Success_tag) {
-                                                                                                                        Result__WGPUComputePipeline_String _1627_temp = _1627;
-                                                                                                                        WGPUComputePipeline liquid_MINUS_sim_MINUS_pipe = _1627_temp.u.Success.member0;
-                                                                                                                        // Case expr:
-                                                                                                                        static String _1727 = "main";
-                                                                                                                        String *_1727_ref = &_1727;
-                                                                                                                        Result__WGPUComputePipeline_String _1728 = WGPU_create_MINUS_pipeline(ctx, gas_MINUS_sim_MINUS_wgsl, _1727_ref);
-                                                                                                                        Result__Renderer_String _2378;
-                                                                                                                        if(_1728._tag == Result__WGPUComputePipeline_String_Error_tag) {
-                                                                                                                            Result__WGPUComputePipeline_String _1728_temp = _1728;
-                                                                                                                            String e = _1728_temp.u.Error.member0;
+                                                                                                                    Result__Renderer_String _3286;
+                                                                                                                    /* let */ {
+                                                                                                                        float zero = 0.0f;
+                                                                                                                        float* _1790 = &zero; // ref
+                                                                                                                        Array__float _1791 = Array_replicate__float(131072, _1790);
+                                                                                                                        Array__float staging_MINUS_initial = _1791;
+                                                                                                                        Array__float* _1798 = &staging_MINUS_initial; // ref
+                                                                                                                        Result__WGPUVertexBufferWrapper_MUL__String _1799 = WGPURender_create_MINUS_storage_MINUS_vertex_MINUS_buffer(ctx, _1798);
+                                                                                                                        Result__Renderer_String _3285;
+                                                                                                                        if(_1799._tag == Result__WGPUVertexBufferWrapper_MUL__String_Error_tag) {
+                                                                                                                            Result__WGPUVertexBufferWrapper_MUL__String _1799_temp = _1799;
+                                                                                                                            String e = _1799_temp.u.Error.member0;
                                                                                                                             // Case expr:
                                                                                                                             Engine_free_MINUS_pipeline(pipe);
                                                                                                                             Engine_free_MINUS_uniform_MINUS_buffer(ub);
@@ -26489,6 +26859,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                                                                             wgpu_render_texture_free(liquid_MINUS_tex);
                                                                                                                             wgpu_render_texture_free(gas_MINUS_tex);
                                                                                                                             wgpu_render_texture_free(light_MINUS_tex);
+                                                                                                                            wgpu_render_texture_free(stress_MINUS_tex);
                                                                                                                             Engine_free_MINUS_bind_MINUS_group(bg);
                                                                                                                             wgpuComputePipelineRelease(pack_MINUS_pipe);
                                                                                                                             wgpu_vertex_buffer_free(read_MINUS_buf);
@@ -26498,102 +26869,116 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                                                                             wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
                                                                                                                             wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
                                                                                                                             wgpu_vertex_buffer_free(gas_MINUS_half_MINUS_buf);
+                                                                                                                            wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_read);
+                                                                                                                            wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_write);
+                                                                                                                            wgpu_vertex_buffer_free(stress_MINUS_half_MINUS_buf);
                                                                                                                             wgpuBindGroupRelease(pack_MINUS_bg);
                                                                                                                             wgpuBindGroupRelease(liquid_MINUS_pack_MINUS_bg);
                                                                                                                             wgpuBindGroupRelease(gas_MINUS_pack_MINUS_bg);
+                                                                                                                            wgpuBindGroupRelease(stress_MINUS_pack_MINUS_bg);
                                                                                                                             wgpuComputePipelineRelease(copy_MINUS_pipe);
-                                                                                                                            wgpu_vertex_buffer_free(staging_MINUS_buf);
-                                                                                                                            Engine_free_MINUS_uniform_MINUS_buffer(copy_MINUS_ub);
-                                                                                                                            wgpuBindGroupRelease(copy_MINUS_bg);
-                                                                                                                            wgpuComputePipelineRelease(liquid_MINUS_sim_MINUS_pipe);
-                                                                                                                            static String _1811 = "Gas sim pipeline failed: ";
-                                                                                                                            String *_1811_ref = &_1811;
-                                                                                                                            String _1000228 = String_str(_1811_ref);
-                                                                                                                            String* _1000227 = &_1000228; // ref
-                                                                                                                            String _1000230 = StringCopy_str(e);
-                                                                                                                            String* _1000229 = &_1000230; // ref
-                                                                                                                            String _1000226 = String_append(_1000227, _1000229);
-                                                                                                                            String* _1000225 = &_1000226; // ref
-                                                                                                                            String _1000224 = String_copy(_1000225);
-                                                                                                                            Result__Renderer_String _1822 = Result_Error__String_Renderer(_1000224);
-                                                                                                                            Result__Renderer_String _1823 = _1822;
-                                                                                                                            _2378 = _1823;
-                                                                                                                            String_delete(_1000226);
-                                                                                                                            String_delete(_1000228);
-                                                                                                                            String_delete(_1000230);
+                                                                                                                            static String _1885 = "Staging buffer failed: ";
+                                                                                                                            String *_1885_ref = &_1885;
+                                                                                                                            String _1000236 = String_str(_1885_ref);
+                                                                                                                            String* _1000235 = &_1000236; // ref
+                                                                                                                            String _1000238 = StringCopy_str(e);
+                                                                                                                            String* _1000237 = &_1000238; // ref
+                                                                                                                            String _1000234 = String_append(_1000235, _1000237);
+                                                                                                                            String* _1000233 = &_1000234; // ref
+                                                                                                                            String _1000232 = String_copy(_1000233);
+                                                                                                                            Result__Renderer_String _1896 = Result_Error__String_Renderer(_1000232);
+                                                                                                                            Result__Renderer_String _1897 = _1896;
+                                                                                                                            _3285 = _1897;
+                                                                                                                            String_delete(_1000234);
+                                                                                                                            String_delete(_1000236);
+                                                                                                                            String_delete(_1000238);
                                                                                                                         }
-                                                                                                                        else if(_1728._tag == Result__WGPUComputePipeline_String_Success_tag) {
-                                                                                                                            Result__WGPUComputePipeline_String _1728_temp = _1728;
-                                                                                                                            WGPUComputePipeline gas_MINUS_sim_MINUS_pipe = _1728_temp.u.Success.member0;
+                                                                                                                        else if(_1799._tag == Result__WGPUVertexBufferWrapper_MUL__String_Success_tag) {
+                                                                                                                            Result__WGPUVertexBufferWrapper_MUL__String _1799_temp = _1799;
+                                                                                                                            WGPUVertexBufferWrapper* staging_MINUS_buf = _1799_temp.u.Success.member0;
                                                                                                                             // Case expr:
-                                                                                                                            Result__Renderer_String _2377;
-                                                                                                                            /* let */ {
-                                                                                                                                WGPUBuffer _1831 = WGPUVertexBufferWrapper_get_MINUS_buffer(read_MINUS_buf);
-                                                                                                                                WGPUBuffer read_MINUS_raw = _1831;
-                                                                                                                                WGPUBuffer _1835 = WGPUVertexBufferWrapper_get_MINUS_buffer(write_MINUS_buf);
-                                                                                                                                WGPUBuffer write_MINUS_raw = _1835;
-                                                                                                                                WGPUBuffer _1839 = WGPUVertexBufferWrapper_get_MINUS_buffer(liquid_MINUS_gpu_MINUS_buf);
-                                                                                                                                WGPUBuffer liquid_MINUS_raw = _1839;
-                                                                                                                                WGPUBuffer _1843 = WGPUVertexBufferWrapper_get_MINUS_buffer(gas_MINUS_gpu_MINUS_buf);
-                                                                                                                                WGPUBuffer gas_MINUS_raw = _1843;
-                                                                                                                                WGPUBuffer _1853 = wgpu_uniform_buffer_get_buffer(ub);
-                                                                                                                                Result__WGPUBindGroup_String _1859 = WGPURender_create_MINUS_jit_MINUS_bind_MINUS_group_MINUS_water(ctx, liquid_MINUS_sim_MINUS_pipe, read_MINUS_raw, liquid_MINUS_raw, _1853, write_MINUS_raw, read_MINUS_raw, voxel_MINUS_tex, liquid_MINUS_tex, gas_MINUS_tex);
-                                                                                                                                Result__Renderer_String _2376;
-                                                                                                                                if(_1859._tag == Result__WGPUBindGroup_String_Error_tag) {
-                                                                                                                                    Result__WGPUBindGroup_String _1859_temp = _1859;
-                                                                                                                                    String e = _1859_temp.u.Error.member0;
-                                                                                                                                    // Case expr:
-                                                                                                                                    Engine_free_MINUS_pipeline(pipe);
-                                                                                                                                    Engine_free_MINUS_uniform_MINUS_buffer(ub);
-                                                                                                                                    wgpuSamplerRelease(voxel_MINUS_sampler);
-                                                                                                                                    wgpu_render_texture_free(voxel_MINUS_tex);
-                                                                                                                                    wgpu_render_texture_free(liquid_MINUS_tex);
-                                                                                                                                    wgpu_render_texture_free(gas_MINUS_tex);
-                                                                                                                                    wgpu_render_texture_free(light_MINUS_tex);
-                                                                                                                                    Engine_free_MINUS_bind_MINUS_group(bg);
-                                                                                                                                    wgpuComputePipelineRelease(pack_MINUS_pipe);
-                                                                                                                                    wgpu_vertex_buffer_free(read_MINUS_buf);
-                                                                                                                                    wgpu_vertex_buffer_free(write_MINUS_buf);
-                                                                                                                                    wgpu_vertex_buffer_free(half_MINUS_buf);
-                                                                                                                                    wgpu_vertex_buffer_free(liquid_MINUS_gpu_MINUS_buf);
-                                                                                                                                    wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
-                                                                                                                                    wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
-                                                                                                                                    wgpu_vertex_buffer_free(gas_MINUS_half_MINUS_buf);
-                                                                                                                                    wgpuBindGroupRelease(pack_MINUS_bg);
-                                                                                                                                    wgpuBindGroupRelease(liquid_MINUS_pack_MINUS_bg);
-                                                                                                                                    wgpuBindGroupRelease(gas_MINUS_pack_MINUS_bg);
-                                                                                                                                    wgpuComputePipelineRelease(copy_MINUS_pipe);
-                                                                                                                                    wgpu_vertex_buffer_free(staging_MINUS_buf);
-                                                                                                                                    Engine_free_MINUS_uniform_MINUS_buffer(copy_MINUS_ub);
-                                                                                                                                    wgpuBindGroupRelease(copy_MINUS_bg);
-                                                                                                                                    wgpuComputePipelineRelease(liquid_MINUS_sim_MINUS_pipe);
-                                                                                                                                    wgpuComputePipelineRelease(gas_MINUS_sim_MINUS_pipe);
-                                                                                                                                    static String _1945 = "Liquid sim bind group failed: ";
-                                                                                                                                    String *_1945_ref = &_1945;
-                                                                                                                                    String _1000238 = String_str(_1945_ref);
-                                                                                                                                    String* _1000237 = &_1000238; // ref
-                                                                                                                                    String _1000240 = StringCopy_str(e);
-                                                                                                                                    String* _1000239 = &_1000240; // ref
-                                                                                                                                    String _1000236 = String_append(_1000237, _1000239);
-                                                                                                                                    String* _1000235 = &_1000236; // ref
-                                                                                                                                    String _1000234 = String_copy(_1000235);
-                                                                                                                                    Result__Renderer_String _1956 = Result_Error__String_Renderer(_1000234);
-                                                                                                                                    Result__Renderer_String _1957 = _1956;
-                                                                                                                                    _2376 = _1957;
-                                                                                                                                    String_delete(_1000236);
-                                                                                                                                    String_delete(_1000238);
-                                                                                                                                    String_delete(_1000240);
-                                                                                                                                }
-                                                                                                                                else if(_1859._tag == Result__WGPUBindGroup_String_Success_tag) {
-                                                                                                                                    Result__WGPUBindGroup_String _1859_temp = _1859;
-                                                                                                                                    WGPUBindGroup liquid_MINUS_sim_MINUS_bg = _1859_temp.u.Success.member0;
-                                                                                                                                    // Case expr:
-                                                                                                                                    WGPUBuffer _1969 = wgpu_uniform_buffer_get_buffer(ub);
-                                                                                                                                    Result__WGPUBindGroup_String _1975 = WGPURender_create_MINUS_jit_MINUS_bind_MINUS_group_MINUS_water(ctx, gas_MINUS_sim_MINUS_pipe, read_MINUS_raw, gas_MINUS_raw, _1969, read_MINUS_raw, read_MINUS_raw, voxel_MINUS_tex, liquid_MINUS_tex, gas_MINUS_tex);
-                                                                                                                                    Result__Renderer_String _2375;
-                                                                                                                                    if(_1975._tag == Result__WGPUBindGroup_String_Error_tag) {
-                                                                                                                                        Result__WGPUBindGroup_String _1975_temp = _1975;
-                                                                                                                                        String e = _1975_temp.u.Error.member0;
+                                                                                                                            Result__WGPUUniformBufferWrapper_MUL__String _1905 = WGPURender_create_MINUS_uniform_MINUS_buffer(ctx, 16);
+                                                                                                                            Result__Renderer_String _3284;
+                                                                                                                            if(_1905._tag == Result__WGPUUniformBufferWrapper_MUL__String_Error_tag) {
+                                                                                                                                Result__WGPUUniformBufferWrapper_MUL__String _1905_temp = _1905;
+                                                                                                                                String e = _1905_temp.u.Error.member0;
+                                                                                                                                // Case expr:
+                                                                                                                                Engine_free_MINUS_pipeline(pipe);
+                                                                                                                                Engine_free_MINUS_uniform_MINUS_buffer(ub);
+                                                                                                                                wgpuSamplerRelease(voxel_MINUS_sampler);
+                                                                                                                                wgpu_render_texture_free(voxel_MINUS_tex);
+                                                                                                                                wgpu_render_texture_free(liquid_MINUS_tex);
+                                                                                                                                wgpu_render_texture_free(gas_MINUS_tex);
+                                                                                                                                wgpu_render_texture_free(light_MINUS_tex);
+                                                                                                                                wgpu_render_texture_free(stress_MINUS_tex);
+                                                                                                                                Engine_free_MINUS_bind_MINUS_group(bg);
+                                                                                                                                wgpuComputePipelineRelease(pack_MINUS_pipe);
+                                                                                                                                wgpu_vertex_buffer_free(read_MINUS_buf);
+                                                                                                                                wgpu_vertex_buffer_free(write_MINUS_buf);
+                                                                                                                                wgpu_vertex_buffer_free(half_MINUS_buf);
+                                                                                                                                wgpu_vertex_buffer_free(liquid_MINUS_gpu_MINUS_buf);
+                                                                                                                                wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
+                                                                                                                                wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
+                                                                                                                                wgpu_vertex_buffer_free(gas_MINUS_half_MINUS_buf);
+                                                                                                                                wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_read);
+                                                                                                                                wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_write);
+                                                                                                                                wgpu_vertex_buffer_free(stress_MINUS_half_MINUS_buf);
+                                                                                                                                wgpuBindGroupRelease(pack_MINUS_bg);
+                                                                                                                                wgpuBindGroupRelease(liquid_MINUS_pack_MINUS_bg);
+                                                                                                                                wgpuBindGroupRelease(gas_MINUS_pack_MINUS_bg);
+                                                                                                                                wgpuBindGroupRelease(stress_MINUS_pack_MINUS_bg);
+                                                                                                                                wgpuComputePipelineRelease(copy_MINUS_pipe);
+                                                                                                                                wgpu_vertex_buffer_free(staging_MINUS_buf);
+                                                                                                                                static String _1994 = "Copy uniforms failed: ";
+                                                                                                                                String *_1994_ref = &_1994;
+                                                                                                                                String _1000245 = String_str(_1994_ref);
+                                                                                                                                String* _1000244 = &_1000245; // ref
+                                                                                                                                String _1000247 = StringCopy_str(e);
+                                                                                                                                String* _1000246 = &_1000247; // ref
+                                                                                                                                String _1000243 = String_append(_1000244, _1000246);
+                                                                                                                                String* _1000242 = &_1000243; // ref
+                                                                                                                                String _1000241 = String_copy(_1000242);
+                                                                                                                                Result__Renderer_String _2005 = Result_Error__String_Renderer(_1000241);
+                                                                                                                                Result__Renderer_String _2006 = _2005;
+                                                                                                                                _3284 = _2006;
+                                                                                                                                String_delete(_1000243);
+                                                                                                                                String_delete(_1000245);
+                                                                                                                                String_delete(_1000247);
+                                                                                                                            }
+                                                                                                                            else if(_1905._tag == Result__WGPUUniformBufferWrapper_MUL__String_Success_tag) {
+                                                                                                                                Result__WGPUUniformBufferWrapper_MUL__String _1905_temp = _1905;
+                                                                                                                                WGPUUniformBufferWrapper* copy_MINUS_ub = _1905_temp.u.Success.member0;
+                                                                                                                                // Case expr:
+                                                                                                                                Result__Renderer_String _3283;
+                                                                                                                                /* let */ {
+                                                                                                                                    WGPUBuffer _2014 = WGPUVertexBufferWrapper_get_MINUS_buffer(staging_MINUS_buf);
+                                                                                                                                    WGPUBuffer staging_MINUS_raw = _2014;
+                                                                                                                                    WGPUBuffer _2018 = WGPUVertexBufferWrapper_get_MINUS_buffer(read_MINUS_buf);
+                                                                                                                                    WGPUBuffer read_MINUS_raw = _2018;
+                                                                                                                                    WGPUBuffer _2022 = WGPUVertexBufferWrapper_get_MINUS_buffer(write_MINUS_buf);
+                                                                                                                                    WGPUBuffer write_MINUS_raw = _2022;
+                                                                                                                                    WGPUBuffer _2026 = wgpu_uniform_buffer_get_buffer(copy_MINUS_ub);
+                                                                                                                                    WGPUBuffer ub_MINUS_raw = _2026;
+                                                                                                                                    WGPUBuffer _2030 = WGPUVertexBufferWrapper_get_MINUS_buffer(liquid_MINUS_gpu_MINUS_buf);
+                                                                                                                                    WGPUBuffer liquid_MINUS_raw_MINUS_copy = _2030;
+                                                                                                                                    WGPUBuffer _2034 = WGPUVertexBufferWrapper_get_MINUS_buffer(gas_MINUS_gpu_MINUS_buf);
+                                                                                                                                    WGPUBuffer gas_MINUS_raw_MINUS_copy = _2034;
+                                                                                                                                    Array _2044 = { .len = 8, .capacity = 8, .data = CARP_MALLOC(sizeof(WGPUBuffer) * 8) };
+                                                                                                                                    ((WGPUBuffer*)_2044.data)[0] = staging_MINUS_raw;
+                                                                                                                                    ((WGPUBuffer*)_2044.data)[1] = read_MINUS_raw;
+                                                                                                                                    ((WGPUBuffer*)_2044.data)[2] = write_MINUS_raw;
+                                                                                                                                    ((WGPUBuffer*)_2044.data)[3] = ub_MINUS_raw;
+                                                                                                                                    ((WGPUBuffer*)_2044.data)[4] = stress_MINUS_raw;
+                                                                                                                                    ((WGPUBuffer*)_2044.data)[5] = stress_MINUS_write_MINUS_raw;
+                                                                                                                                    ((WGPUBuffer*)_2044.data)[6] = liquid_MINUS_raw_MINUS_copy;
+                                                                                                                                    ((WGPUBuffer*)_2044.data)[7] = gas_MINUS_raw_MINUS_copy;
+                                                                                                                                    Array__WGPUBuffer copy_MINUS_bufs = _2044;
+                                                                                                                                    Array__WGPUBuffer* _2052 = &copy_MINUS_bufs; // ref
+                                                                                                                                    Result__WGPUBindGroup_String _2053 = WGPU_create_MINUS_bind_MINUS_group(ctx, copy_MINUS_pipe, _2052);
+                                                                                                                                    Result__Renderer_String _3282;
+                                                                                                                                    if(_2053._tag == Result__WGPUBindGroup_String_Error_tag) {
+                                                                                                                                        Result__WGPUBindGroup_String _2053_temp = _2053;
+                                                                                                                                        String e = _2053_temp.u.Error.member0;
                                                                                                                                         // Case expr:
                                                                                                                                         Engine_free_MINUS_pipeline(pipe);
                                                                                                                                         Engine_free_MINUS_uniform_MINUS_buffer(ub);
@@ -26602,6 +26987,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                                                                                         wgpu_render_texture_free(liquid_MINUS_tex);
                                                                                                                                         wgpu_render_texture_free(gas_MINUS_tex);
                                                                                                                                         wgpu_render_texture_free(light_MINUS_tex);
+                                                                                                                                        wgpu_render_texture_free(stress_MINUS_tex);
                                                                                                                                         Engine_free_MINUS_bind_MINUS_group(bg);
                                                                                                                                         wgpuComputePipelineRelease(pack_MINUS_pipe);
                                                                                                                                         wgpu_vertex_buffer_free(read_MINUS_buf);
@@ -26611,49 +26997,99 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                                                                                         wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
                                                                                                                                         wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
                                                                                                                                         wgpu_vertex_buffer_free(gas_MINUS_half_MINUS_buf);
+                                                                                                                                        wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_read);
+                                                                                                                                        wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_write);
+                                                                                                                                        wgpu_vertex_buffer_free(stress_MINUS_half_MINUS_buf);
                                                                                                                                         wgpuBindGroupRelease(pack_MINUS_bg);
                                                                                                                                         wgpuBindGroupRelease(liquid_MINUS_pack_MINUS_bg);
                                                                                                                                         wgpuBindGroupRelease(gas_MINUS_pack_MINUS_bg);
+                                                                                                                                        wgpuBindGroupRelease(stress_MINUS_pack_MINUS_bg);
                                                                                                                                         wgpuComputePipelineRelease(copy_MINUS_pipe);
                                                                                                                                         wgpu_vertex_buffer_free(staging_MINUS_buf);
                                                                                                                                         Engine_free_MINUS_uniform_MINUS_buffer(copy_MINUS_ub);
-                                                                                                                                        wgpuBindGroupRelease(copy_MINUS_bg);
-                                                                                                                                        wgpuComputePipelineRelease(liquid_MINUS_sim_MINUS_pipe);
-                                                                                                                                        wgpuComputePipelineRelease(gas_MINUS_sim_MINUS_pipe);
-                                                                                                                                        wgpuBindGroupRelease(liquid_MINUS_sim_MINUS_bg);
-                                                                                                                                        static String _2064 = "Gas sim bind group failed: ";
-                                                                                                                                        String *_2064_ref = &_2064;
-                                                                                                                                        String _1000247 = String_str(_2064_ref);
-                                                                                                                                        String* _1000246 = &_1000247; // ref
-                                                                                                                                        String _1000249 = StringCopy_str(e);
-                                                                                                                                        String* _1000248 = &_1000249; // ref
-                                                                                                                                        String _1000245 = String_append(_1000246, _1000248);
-                                                                                                                                        String* _1000244 = &_1000245; // ref
-                                                                                                                                        String _1000243 = String_copy(_1000244);
-                                                                                                                                        Result__Renderer_String _2075 = Result_Error__String_Renderer(_1000243);
-                                                                                                                                        Result__Renderer_String _2076 = _2075;
-                                                                                                                                        _2375 = _2076;
-                                                                                                                                        String_delete(_1000245);
-                                                                                                                                        String_delete(_1000247);
-                                                                                                                                        String_delete(_1000249);
+                                                                                                                                        static String _2145 = "Copy bind group failed: ";
+                                                                                                                                        String *_2145_ref = &_2145;
+                                                                                                                                        String _1000255 = String_str(_2145_ref);
+                                                                                                                                        String* _1000254 = &_1000255; // ref
+                                                                                                                                        String _1000257 = StringCopy_str(e);
+                                                                                                                                        String* _1000256 = &_1000257; // ref
+                                                                                                                                        String _1000253 = String_append(_1000254, _1000256);
+                                                                                                                                        String* _1000252 = &_1000253; // ref
+                                                                                                                                        String _1000251 = String_copy(_1000252);
+                                                                                                                                        Result__Renderer_String _2156 = Result_Error__String_Renderer(_1000251);
+                                                                                                                                        Result__Renderer_String _2157 = _2156;
+                                                                                                                                        _3282 = _2157;
+                                                                                                                                        String_delete(_1000253);
+                                                                                                                                        String_delete(_1000255);
+                                                                                                                                        String_delete(_1000257);
                                                                                                                                     }
-                                                                                                                                    else if(_1975._tag == Result__WGPUBindGroup_String_Success_tag) {
-                                                                                                                                        Result__WGPUBindGroup_String _1975_temp = _1975;
-                                                                                                                                        WGPUBindGroup gas_MINUS_sim_MINUS_bg = _1975_temp.u.Success.member0;
+                                                                                                                                    else if(_2053._tag == Result__WGPUBindGroup_String_Success_tag) {
+                                                                                                                                        Result__WGPUBindGroup_String _2053_temp = _2053;
+                                                                                                                                        WGPUBindGroup copy_MINUS_bg = _2053_temp.u.Success.member0;
                                                                                                                                         // Case expr:
-                                                                                                                                        Result__Renderer_String _2374;
-                                                                                                                                        /* let */ {
-                                                                                                                                            int* _2085 = Engine_width(eng);
-                                                                                                                                            int _2086 = Int_copy(_2085);
-                                                                                                                                            int w = _2086;
-                                                                                                                                            int* _2091 = Engine_height(eng);
-                                                                                                                                            int _2092 = Int_copy(_2091);
-                                                                                                                                            int h = _2092;
-                                                                                                                                            Result__WGPUDepthTexture_MUL__String _2099 = WGPURender_create_MINUS_depth_MINUS_texture(ctx, w, h);
-                                                                                                                                            Result__Renderer_String _2373;
-                                                                                                                                            if(_2099._tag == Result__WGPUDepthTexture_MUL__String_Error_tag) {
-                                                                                                                                                Result__WGPUDepthTexture_MUL__String _2099_temp = _2099;
-                                                                                                                                                String e = _2099_temp.u.Error.member0;
+                                                                                                                                        static String _2165 = "main";
+                                                                                                                                        String *_2165_ref = &_2165;
+                                                                                                                                        Result__WGPUComputePipeline_String _2166 = WGPU_create_MINUS_pipeline(ctx, liquid_MINUS_sim_MINUS_wgsl, _2165_ref);
+                                                                                                                                        Result__Renderer_String _3281;
+                                                                                                                                        if(_2166._tag == Result__WGPUComputePipeline_String_Error_tag) {
+                                                                                                                                            Result__WGPUComputePipeline_String _2166_temp = _2166;
+                                                                                                                                            String e = _2166_temp.u.Error.member0;
+                                                                                                                                            // Case expr:
+                                                                                                                                            Engine_free_MINUS_pipeline(pipe);
+                                                                                                                                            Engine_free_MINUS_uniform_MINUS_buffer(ub);
+                                                                                                                                            wgpuSamplerRelease(voxel_MINUS_sampler);
+                                                                                                                                            wgpu_render_texture_free(voxel_MINUS_tex);
+                                                                                                                                            wgpu_render_texture_free(liquid_MINUS_tex);
+                                                                                                                                            wgpu_render_texture_free(gas_MINUS_tex);
+                                                                                                                                            wgpu_render_texture_free(light_MINUS_tex);
+                                                                                                                                            wgpu_render_texture_free(stress_MINUS_tex);
+                                                                                                                                            Engine_free_MINUS_bind_MINUS_group(bg);
+                                                                                                                                            wgpuComputePipelineRelease(pack_MINUS_pipe);
+                                                                                                                                            wgpu_vertex_buffer_free(read_MINUS_buf);
+                                                                                                                                            wgpu_vertex_buffer_free(write_MINUS_buf);
+                                                                                                                                            wgpu_vertex_buffer_free(half_MINUS_buf);
+                                                                                                                                            wgpu_vertex_buffer_free(liquid_MINUS_gpu_MINUS_buf);
+                                                                                                                                            wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
+                                                                                                                                            wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
+                                                                                                                                            wgpu_vertex_buffer_free(gas_MINUS_half_MINUS_buf);
+                                                                                                                                            wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_read);
+                                                                                                                                            wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_write);
+                                                                                                                                            wgpu_vertex_buffer_free(stress_MINUS_half_MINUS_buf);
+                                                                                                                                            wgpuBindGroupRelease(pack_MINUS_bg);
+                                                                                                                                            wgpuBindGroupRelease(liquid_MINUS_pack_MINUS_bg);
+                                                                                                                                            wgpuBindGroupRelease(gas_MINUS_pack_MINUS_bg);
+                                                                                                                                            wgpuBindGroupRelease(stress_MINUS_pack_MINUS_bg);
+                                                                                                                                            wgpuComputePipelineRelease(copy_MINUS_pipe);
+                                                                                                                                            wgpu_vertex_buffer_free(staging_MINUS_buf);
+                                                                                                                                            Engine_free_MINUS_uniform_MINUS_buffer(copy_MINUS_ub);
+                                                                                                                                            wgpuBindGroupRelease(copy_MINUS_bg);
+                                                                                                                                            static String _2261 = "Liquid sim pipeline failed: ";
+                                                                                                                                            String *_2261_ref = &_2261;
+                                                                                                                                            String _1000264 = String_str(_2261_ref);
+                                                                                                                                            String* _1000263 = &_1000264; // ref
+                                                                                                                                            String _1000266 = StringCopy_str(e);
+                                                                                                                                            String* _1000265 = &_1000266; // ref
+                                                                                                                                            String _1000262 = String_append(_1000263, _1000265);
+                                                                                                                                            String* _1000261 = &_1000262; // ref
+                                                                                                                                            String _1000260 = String_copy(_1000261);
+                                                                                                                                            Result__Renderer_String _2272 = Result_Error__String_Renderer(_1000260);
+                                                                                                                                            Result__Renderer_String _2273 = _2272;
+                                                                                                                                            _3281 = _2273;
+                                                                                                                                            String_delete(_1000262);
+                                                                                                                                            String_delete(_1000264);
+                                                                                                                                            String_delete(_1000266);
+                                                                                                                                        }
+                                                                                                                                        else if(_2166._tag == Result__WGPUComputePipeline_String_Success_tag) {
+                                                                                                                                            Result__WGPUComputePipeline_String _2166_temp = _2166;
+                                                                                                                                            WGPUComputePipeline liquid_MINUS_sim_MINUS_pipe = _2166_temp.u.Success.member0;
+                                                                                                                                            // Case expr:
+                                                                                                                                            static String _2281 = "main";
+                                                                                                                                            String *_2281_ref = &_2281;
+                                                                                                                                            Result__WGPUComputePipeline_String _2282 = WGPU_create_MINUS_pipeline(ctx, gas_MINUS_sim_MINUS_wgsl, _2281_ref);
+                                                                                                                                            Result__Renderer_String _3280;
+                                                                                                                                            if(_2282._tag == Result__WGPUComputePipeline_String_Error_tag) {
+                                                                                                                                                Result__WGPUComputePipeline_String _2282_temp = _2282;
+                                                                                                                                                String e = _2282_temp.u.Error.member0;
                                                                                                                                                 // Case expr:
                                                                                                                                                 Engine_free_MINUS_pipeline(pipe);
                                                                                                                                                 Engine_free_MINUS_uniform_MINUS_buffer(ub);
@@ -26662,6 +27098,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                                                                                                 wgpu_render_texture_free(liquid_MINUS_tex);
                                                                                                                                                 wgpu_render_texture_free(gas_MINUS_tex);
                                                                                                                                                 wgpu_render_texture_free(light_MINUS_tex);
+                                                                                                                                                wgpu_render_texture_free(stress_MINUS_tex);
                                                                                                                                                 Engine_free_MINUS_bind_MINUS_group(bg);
                                                                                                                                                 wgpuComputePipelineRelease(pack_MINUS_pipe);
                                                                                                                                                 wgpu_vertex_buffer_free(read_MINUS_buf);
@@ -26671,49 +27108,102 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                                                                                                 wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
                                                                                                                                                 wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
                                                                                                                                                 wgpu_vertex_buffer_free(gas_MINUS_half_MINUS_buf);
+                                                                                                                                                wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_read);
+                                                                                                                                                wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_write);
+                                                                                                                                                wgpu_vertex_buffer_free(stress_MINUS_half_MINUS_buf);
                                                                                                                                                 wgpuBindGroupRelease(pack_MINUS_bg);
                                                                                                                                                 wgpuBindGroupRelease(liquid_MINUS_pack_MINUS_bg);
                                                                                                                                                 wgpuBindGroupRelease(gas_MINUS_pack_MINUS_bg);
+                                                                                                                                                wgpuBindGroupRelease(stress_MINUS_pack_MINUS_bg);
                                                                                                                                                 wgpuComputePipelineRelease(copy_MINUS_pipe);
                                                                                                                                                 wgpu_vertex_buffer_free(staging_MINUS_buf);
                                                                                                                                                 Engine_free_MINUS_uniform_MINUS_buffer(copy_MINUS_ub);
                                                                                                                                                 wgpuBindGroupRelease(copy_MINUS_bg);
                                                                                                                                                 wgpuComputePipelineRelease(liquid_MINUS_sim_MINUS_pipe);
-                                                                                                                                                wgpuComputePipelineRelease(gas_MINUS_sim_MINUS_pipe);
-                                                                                                                                                wgpuBindGroupRelease(liquid_MINUS_sim_MINUS_bg);
-                                                                                                                                                wgpuBindGroupRelease(gas_MINUS_sim_MINUS_bg);
-                                                                                                                                                static String _2191 = "Depth texture failed: ";
-                                                                                                                                                String *_2191_ref = &_2191;
-                                                                                                                                                String _1000257 = String_str(_2191_ref);
-                                                                                                                                                String* _1000256 = &_1000257; // ref
-                                                                                                                                                String _1000259 = StringCopy_str(e);
-                                                                                                                                                String* _1000258 = &_1000259; // ref
-                                                                                                                                                String _1000255 = String_append(_1000256, _1000258);
-                                                                                                                                                String* _1000254 = &_1000255; // ref
-                                                                                                                                                String _1000253 = String_copy(_1000254);
-                                                                                                                                                Result__Renderer_String _2202 = Result_Error__String_Renderer(_1000253);
-                                                                                                                                                Result__Renderer_String _2203 = _2202;
-                                                                                                                                                _2373 = _2203;
-                                                                                                                                                String_delete(_1000255);
-                                                                                                                                                String_delete(_1000257);
-                                                                                                                                                String_delete(_1000259);
+                                                                                                                                                static String _2380 = "Gas sim pipeline failed: ";
+                                                                                                                                                String *_2380_ref = &_2380;
+                                                                                                                                                String _1000273 = String_str(_2380_ref);
+                                                                                                                                                String* _1000272 = &_1000273; // ref
+                                                                                                                                                String _1000275 = StringCopy_str(e);
+                                                                                                                                                String* _1000274 = &_1000275; // ref
+                                                                                                                                                String _1000271 = String_append(_1000272, _1000274);
+                                                                                                                                                String* _1000270 = &_1000271; // ref
+                                                                                                                                                String _1000269 = String_copy(_1000270);
+                                                                                                                                                Result__Renderer_String _2391 = Result_Error__String_Renderer(_1000269);
+                                                                                                                                                Result__Renderer_String _2392 = _2391;
+                                                                                                                                                _3280 = _2392;
+                                                                                                                                                String_delete(_1000271);
+                                                                                                                                                String_delete(_1000273);
+                                                                                                                                                String_delete(_1000275);
                                                                                                                                             }
-                                                                                                                                            else if(_2099._tag == Result__WGPUDepthTexture_MUL__String_Success_tag) {
-                                                                                                                                                Result__WGPUDepthTexture_MUL__String _2099_temp = _2099;
-                                                                                                                                                WGPUDepthTexture* depth_MINUS_tex = _2099_temp.u.Success.member0;
+                                                                                                                                            else if(_2282._tag == Result__WGPUComputePipeline_String_Success_tag) {
+                                                                                                                                                Result__WGPUComputePipeline_String _2282_temp = _2282;
+                                                                                                                                                WGPUComputePipeline gas_MINUS_sim_MINUS_pipe = _2282_temp.u.Success.member0;
                                                                                                                                                 // Case expr:
-                                                                                                                                                Result__Renderer_String _2372;
-                                                                                                                                                /* let */ {
-                                                                                                                                                    WGPURenderSurface** _2213 = Engine_surf(eng);
-                                                                                                                                                    WGPURenderSurface* _2214 = Pointer_copy__WGPURenderSurface(_2213);
-                                                                                                                                                    String _2215 = WGPURender_surface_MINUS_format(_2214);
-                                                                                                                                                    String format = _2215;
-                                                                                                                                                    String* _2222 = &format; // ref
-                                                                                                                                                    Result__LinePassRenderer_String _2224 = LinePass_create(ctx, _2222, 1000);
-                                                                                                                                                    Result__Renderer_String _2371;
-                                                                                                                                                    if(_2224._tag == Result__LinePassRenderer_String_Error_tag) {
-                                                                                                                                                        Result__LinePassRenderer_String _2224_temp = _2224;
-                                                                                                                                                        String e = _2224_temp.u.Error.member0;
+                                                                                                                                                static String _2400 = "main";
+                                                                                                                                                String *_2400_ref = &_2400;
+                                                                                                                                                Result__WGPUComputePipeline_String _2401 = WGPU_create_MINUS_pipeline(ctx, solid_MINUS_sim_MINUS_wgsl, _2400_ref);
+                                                                                                                                                Result__Renderer_String _3279;
+                                                                                                                                                if(_2401._tag == Result__WGPUComputePipeline_String_Error_tag) {
+                                                                                                                                                    Result__WGPUComputePipeline_String _2401_temp = _2401;
+                                                                                                                                                    String e = _2401_temp.u.Error.member0;
+                                                                                                                                                    // Case expr:
+                                                                                                                                                    Engine_free_MINUS_pipeline(pipe);
+                                                                                                                                                    Engine_free_MINUS_uniform_MINUS_buffer(ub);
+                                                                                                                                                    wgpuSamplerRelease(voxel_MINUS_sampler);
+                                                                                                                                                    wgpu_render_texture_free(voxel_MINUS_tex);
+                                                                                                                                                    wgpu_render_texture_free(liquid_MINUS_tex);
+                                                                                                                                                    wgpu_render_texture_free(gas_MINUS_tex);
+                                                                                                                                                    wgpu_render_texture_free(light_MINUS_tex);
+                                                                                                                                                    wgpu_render_texture_free(stress_MINUS_tex);
+                                                                                                                                                    Engine_free_MINUS_bind_MINUS_group(bg);
+                                                                                                                                                    wgpuComputePipelineRelease(pack_MINUS_pipe);
+                                                                                                                                                    wgpu_vertex_buffer_free(read_MINUS_buf);
+                                                                                                                                                    wgpu_vertex_buffer_free(write_MINUS_buf);
+                                                                                                                                                    wgpu_vertex_buffer_free(half_MINUS_buf);
+                                                                                                                                                    wgpu_vertex_buffer_free(liquid_MINUS_gpu_MINUS_buf);
+                                                                                                                                                    wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
+                                                                                                                                                    wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
+                                                                                                                                                    wgpu_vertex_buffer_free(gas_MINUS_half_MINUS_buf);
+                                                                                                                                                    wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_read);
+                                                                                                                                                    wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_write);
+                                                                                                                                                    wgpu_vertex_buffer_free(stress_MINUS_half_MINUS_buf);
+                                                                                                                                                    wgpuBindGroupRelease(pack_MINUS_bg);
+                                                                                                                                                    wgpuBindGroupRelease(liquid_MINUS_pack_MINUS_bg);
+                                                                                                                                                    wgpuBindGroupRelease(gas_MINUS_pack_MINUS_bg);
+                                                                                                                                                    wgpuBindGroupRelease(stress_MINUS_pack_MINUS_bg);
+                                                                                                                                                    wgpuComputePipelineRelease(copy_MINUS_pipe);
+                                                                                                                                                    wgpu_vertex_buffer_free(staging_MINUS_buf);
+                                                                                                                                                    Engine_free_MINUS_uniform_MINUS_buffer(copy_MINUS_ub);
+                                                                                                                                                    wgpuBindGroupRelease(copy_MINUS_bg);
+                                                                                                                                                    wgpuComputePipelineRelease(liquid_MINUS_sim_MINUS_pipe);
+                                                                                                                                                    wgpuComputePipelineRelease(gas_MINUS_sim_MINUS_pipe);
+                                                                                                                                                    static String _2502 = "Solid sim pipeline failed: ";
+                                                                                                                                                    String *_2502_ref = &_2502;
+                                                                                                                                                    String _1000282 = String_str(_2502_ref);
+                                                                                                                                                    String* _1000281 = &_1000282; // ref
+                                                                                                                                                    String _1000284 = StringCopy_str(e);
+                                                                                                                                                    String* _1000283 = &_1000284; // ref
+                                                                                                                                                    String _1000280 = String_append(_1000281, _1000283);
+                                                                                                                                                    String* _1000279 = &_1000280; // ref
+                                                                                                                                                    String _1000278 = String_copy(_1000279);
+                                                                                                                                                    Result__Renderer_String _2513 = Result_Error__String_Renderer(_1000278);
+                                                                                                                                                    Result__Renderer_String _2514 = _2513;
+                                                                                                                                                    _3279 = _2514;
+                                                                                                                                                    String_delete(_1000280);
+                                                                                                                                                    String_delete(_1000282);
+                                                                                                                                                    String_delete(_1000284);
+                                                                                                                                                }
+                                                                                                                                                else if(_2401._tag == Result__WGPUComputePipeline_String_Success_tag) {
+                                                                                                                                                    Result__WGPUComputePipeline_String _2401_temp = _2401;
+                                                                                                                                                    WGPUComputePipeline solid_MINUS_sim_MINUS_pipe = _2401_temp.u.Success.member0;
+                                                                                                                                                    // Case expr:
+                                                                                                                                                    WGPUBuffer _2526 = wgpu_uniform_buffer_get_buffer(ub);
+                                                                                                                                                    Result__WGPUBindGroup_String _2533 = Engine_create_MINUS_simulation_MINUS_bind_MINUS_group(ctx, liquid_MINUS_sim_MINUS_pipe, read_MINUS_raw, liquid_MINUS_raw, _2526, write_MINUS_raw, read_MINUS_raw, voxel_MINUS_tex, liquid_MINUS_tex, gas_MINUS_tex, stress_MINUS_tex);
+                                                                                                                                                    Result__Renderer_String _3278;
+                                                                                                                                                    if(_2533._tag == Result__WGPUBindGroup_String_Error_tag) {
+                                                                                                                                                        Result__WGPUBindGroup_String _2533_temp = _2533;
+                                                                                                                                                        String e = _2533_temp.u.Error.member0;
                                                                                                                                                         // Case expr:
                                                                                                                                                         Engine_free_MINUS_pipeline(pipe);
                                                                                                                                                         Engine_free_MINUS_uniform_MINUS_buffer(ub);
@@ -26722,6 +27212,7 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                                                                                                         wgpu_render_texture_free(liquid_MINUS_tex);
                                                                                                                                                         wgpu_render_texture_free(gas_MINUS_tex);
                                                                                                                                                         wgpu_render_texture_free(light_MINUS_tex);
+                                                                                                                                                        wgpu_render_texture_free(stress_MINUS_tex);
                                                                                                                                                         Engine_free_MINUS_bind_MINUS_group(bg);
                                                                                                                                                         wgpuComputePipelineRelease(pack_MINUS_pipe);
                                                                                                                                                         wgpu_vertex_buffer_free(read_MINUS_buf);
@@ -26731,153 +27222,428 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                                                                                                         wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
                                                                                                                                                         wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
                                                                                                                                                         wgpu_vertex_buffer_free(gas_MINUS_half_MINUS_buf);
+                                                                                                                                                        wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_read);
+                                                                                                                                                        wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_write);
+                                                                                                                                                        wgpu_vertex_buffer_free(stress_MINUS_half_MINUS_buf);
                                                                                                                                                         wgpuBindGroupRelease(pack_MINUS_bg);
                                                                                                                                                         wgpuBindGroupRelease(liquid_MINUS_pack_MINUS_bg);
                                                                                                                                                         wgpuBindGroupRelease(gas_MINUS_pack_MINUS_bg);
+                                                                                                                                                        wgpuBindGroupRelease(stress_MINUS_pack_MINUS_bg);
                                                                                                                                                         wgpuComputePipelineRelease(copy_MINUS_pipe);
                                                                                                                                                         wgpu_vertex_buffer_free(staging_MINUS_buf);
                                                                                                                                                         Engine_free_MINUS_uniform_MINUS_buffer(copy_MINUS_ub);
                                                                                                                                                         wgpuBindGroupRelease(copy_MINUS_bg);
                                                                                                                                                         wgpuComputePipelineRelease(liquid_MINUS_sim_MINUS_pipe);
                                                                                                                                                         wgpuComputePipelineRelease(gas_MINUS_sim_MINUS_pipe);
-                                                                                                                                                        wgpuBindGroupRelease(liquid_MINUS_sim_MINUS_bg);
-                                                                                                                                                        wgpuBindGroupRelease(gas_MINUS_sim_MINUS_bg);
-                                                                                                                                                        wgpu_depth_texture_free(depth_MINUS_tex);
-                                                                                                                                                        static String _2319 = "LinePass creation failed: ";
-                                                                                                                                                        String *_2319_ref = &_2319;
-                                                                                                                                                        String _1000267 = String_str(_2319_ref);
-                                                                                                                                                        String* _1000266 = &_1000267; // ref
-                                                                                                                                                        String _1000269 = StringCopy_str(e);
-                                                                                                                                                        String* _1000268 = &_1000269; // ref
-                                                                                                                                                        String _1000265 = String_append(_1000266, _1000268);
-                                                                                                                                                        String* _1000264 = &_1000265; // ref
-                                                                                                                                                        String _1000263 = String_copy(_1000264);
-                                                                                                                                                        Result__Renderer_String _2330 = Result_Error__String_Renderer(_1000263);
-                                                                                                                                                        Result__Renderer_String _2331 = _2330;
-                                                                                                                                                        _2371 = _2331;
-                                                                                                                                                        String_delete(_1000265);
-                                                                                                                                                        String_delete(_1000267);
-                                                                                                                                                        String_delete(_1000269);
+                                                                                                                                                        wgpuComputePipelineRelease(solid_MINUS_sim_MINUS_pipe);
+                                                                                                                                                        static String _2637 = "Liquid sim bind group failed: ";
+                                                                                                                                                        String *_2637_ref = &_2637;
+                                                                                                                                                        String _1000291 = String_str(_2637_ref);
+                                                                                                                                                        String* _1000290 = &_1000291; // ref
+                                                                                                                                                        String _1000293 = StringCopy_str(e);
+                                                                                                                                                        String* _1000292 = &_1000293; // ref
+                                                                                                                                                        String _1000289 = String_append(_1000290, _1000292);
+                                                                                                                                                        String* _1000288 = &_1000289; // ref
+                                                                                                                                                        String _1000287 = String_copy(_1000288);
+                                                                                                                                                        Result__Renderer_String _2648 = Result_Error__String_Renderer(_1000287);
+                                                                                                                                                        Result__Renderer_String _2649 = _2648;
+                                                                                                                                                        _3278 = _2649;
+                                                                                                                                                        String_delete(_1000289);
+                                                                                                                                                        String_delete(_1000291);
+                                                                                                                                                        String_delete(_1000293);
                                                                                                                                                     }
-                                                                                                                                                    else if(_2224._tag == Result__LinePassRenderer_String_Success_tag) {
-                                                                                                                                                        Result__LinePassRenderer_String _2224_temp = _2224;
-                                                                                                                                                        LinePassRenderer lp = _2224_temp.u.Success.member0;
+                                                                                                                                                    else if(_2533._tag == Result__WGPUBindGroup_String_Success_tag) {
+                                                                                                                                                        Result__WGPUBindGroup_String _2533_temp = _2533;
+                                                                                                                                                        WGPUBindGroup liquid_MINUS_sim_MINUS_bg = _2533_temp.u.Success.member0;
                                                                                                                                                         // Case expr:
-                                                                                                                                                        Array _2346 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(Line) * 0) };
-                                                                                                                                                        Renderer _2369 = Renderer_init(pipe, bg, ub, voxel_MINUS_tex, liquid_MINUS_tex, gas_MINUS_tex, light_MINUS_tex, voxel_MINUS_sampler, lp, _2346, depth_MINUS_tex, w, h, read_MINUS_buf, write_MINUS_buf, half_MINUS_buf, pack_MINUS_pipe, pack_MINUS_bg, staging_MINUS_buf, copy_MINUS_pipe, copy_MINUS_bg, copy_MINUS_ub, liquid_MINUS_gpu_MINUS_buf, liquid_MINUS_half_MINUS_buf, gas_MINUS_gpu_MINUS_buf, gas_MINUS_half_MINUS_buf, liquid_MINUS_pack_MINUS_bg, gas_MINUS_pack_MINUS_bg, liquid_MINUS_sim_MINUS_pipe, liquid_MINUS_sim_MINUS_bg, gas_MINUS_sim_MINUS_pipe, gas_MINUS_sim_MINUS_bg);
-                                                                                                                                                        Result__Renderer_String _2370 = Result_Success__Renderer_String(_2369);
-                                                                                                                                                        _2371 = _2370;
+                                                                                                                                                        WGPUBuffer _2661 = wgpu_uniform_buffer_get_buffer(ub);
+                                                                                                                                                        Result__WGPUBindGroup_String _2668 = Engine_create_MINUS_simulation_MINUS_bind_MINUS_group(ctx, gas_MINUS_sim_MINUS_pipe, read_MINUS_raw, gas_MINUS_raw, _2661, read_MINUS_raw, read_MINUS_raw, voxel_MINUS_tex, liquid_MINUS_tex, gas_MINUS_tex, stress_MINUS_tex);
+                                                                                                                                                        Result__Renderer_String _3277;
+                                                                                                                                                        if(_2668._tag == Result__WGPUBindGroup_String_Error_tag) {
+                                                                                                                                                            Result__WGPUBindGroup_String _2668_temp = _2668;
+                                                                                                                                                            String e = _2668_temp.u.Error.member0;
+                                                                                                                                                            // Case expr:
+                                                                                                                                                            Engine_free_MINUS_pipeline(pipe);
+                                                                                                                                                            Engine_free_MINUS_uniform_MINUS_buffer(ub);
+                                                                                                                                                            wgpuSamplerRelease(voxel_MINUS_sampler);
+                                                                                                                                                            wgpu_render_texture_free(voxel_MINUS_tex);
+                                                                                                                                                            wgpu_render_texture_free(liquid_MINUS_tex);
+                                                                                                                                                            wgpu_render_texture_free(gas_MINUS_tex);
+                                                                                                                                                            wgpu_render_texture_free(light_MINUS_tex);
+                                                                                                                                                            wgpu_render_texture_free(stress_MINUS_tex);
+                                                                                                                                                            Engine_free_MINUS_bind_MINUS_group(bg);
+                                                                                                                                                            wgpuComputePipelineRelease(pack_MINUS_pipe);
+                                                                                                                                                            wgpu_vertex_buffer_free(read_MINUS_buf);
+                                                                                                                                                            wgpu_vertex_buffer_free(write_MINUS_buf);
+                                                                                                                                                            wgpu_vertex_buffer_free(half_MINUS_buf);
+                                                                                                                                                            wgpu_vertex_buffer_free(liquid_MINUS_gpu_MINUS_buf);
+                                                                                                                                                            wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
+                                                                                                                                                            wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
+                                                                                                                                                            wgpu_vertex_buffer_free(gas_MINUS_half_MINUS_buf);
+                                                                                                                                                            wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_read);
+                                                                                                                                                            wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_write);
+                                                                                                                                                            wgpu_vertex_buffer_free(stress_MINUS_half_MINUS_buf);
+                                                                                                                                                            wgpuBindGroupRelease(pack_MINUS_bg);
+                                                                                                                                                            wgpuBindGroupRelease(liquid_MINUS_pack_MINUS_bg);
+                                                                                                                                                            wgpuBindGroupRelease(gas_MINUS_pack_MINUS_bg);
+                                                                                                                                                            wgpuBindGroupRelease(stress_MINUS_pack_MINUS_bg);
+                                                                                                                                                            wgpuComputePipelineRelease(copy_MINUS_pipe);
+                                                                                                                                                            wgpu_vertex_buffer_free(staging_MINUS_buf);
+                                                                                                                                                            Engine_free_MINUS_uniform_MINUS_buffer(copy_MINUS_ub);
+                                                                                                                                                            wgpuBindGroupRelease(copy_MINUS_bg);
+                                                                                                                                                            wgpuComputePipelineRelease(liquid_MINUS_sim_MINUS_pipe);
+                                                                                                                                                            wgpuComputePipelineRelease(gas_MINUS_sim_MINUS_pipe);
+                                                                                                                                                            wgpuComputePipelineRelease(solid_MINUS_sim_MINUS_pipe);
+                                                                                                                                                            wgpuBindGroupRelease(liquid_MINUS_sim_MINUS_bg);
+                                                                                                                                                            static String _2775 = "Gas sim bind group failed: ";
+                                                                                                                                                            String *_2775_ref = &_2775;
+                                                                                                                                                            String _1000300 = String_str(_2775_ref);
+                                                                                                                                                            String* _1000299 = &_1000300; // ref
+                                                                                                                                                            String _1000302 = StringCopy_str(e);
+                                                                                                                                                            String* _1000301 = &_1000302; // ref
+                                                                                                                                                            String _1000298 = String_append(_1000299, _1000301);
+                                                                                                                                                            String* _1000297 = &_1000298; // ref
+                                                                                                                                                            String _1000296 = String_copy(_1000297);
+                                                                                                                                                            Result__Renderer_String _2786 = Result_Error__String_Renderer(_1000296);
+                                                                                                                                                            Result__Renderer_String _2787 = _2786;
+                                                                                                                                                            _3277 = _2787;
+                                                                                                                                                            String_delete(_1000298);
+                                                                                                                                                            String_delete(_1000300);
+                                                                                                                                                            String_delete(_1000302);
+                                                                                                                                                        }
+                                                                                                                                                        else if(_2668._tag == Result__WGPUBindGroup_String_Success_tag) {
+                                                                                                                                                            Result__WGPUBindGroup_String _2668_temp = _2668;
+                                                                                                                                                            WGPUBindGroup gas_MINUS_sim_MINUS_bg = _2668_temp.u.Success.member0;
+                                                                                                                                                            // Case expr:
+                                                                                                                                                            WGPUBuffer _2799 = wgpu_uniform_buffer_get_buffer(ub);
+                                                                                                                                                            Result__WGPUBindGroup_String _2806 = Engine_create_MINUS_simulation_MINUS_bind_MINUS_group(ctx, solid_MINUS_sim_MINUS_pipe, stress_MINUS_raw, stress_MINUS_write_MINUS_raw, _2799, write_MINUS_raw, liquid_MINUS_raw, voxel_MINUS_tex, liquid_MINUS_tex, gas_MINUS_tex, stress_MINUS_tex);
+                                                                                                                                                            Result__Renderer_String _3276;
+                                                                                                                                                            if(_2806._tag == Result__WGPUBindGroup_String_Error_tag) {
+                                                                                                                                                                Result__WGPUBindGroup_String _2806_temp = _2806;
+                                                                                                                                                                String e = _2806_temp.u.Error.member0;
+                                                                                                                                                                // Case expr:
+                                                                                                                                                                Engine_free_MINUS_pipeline(pipe);
+                                                                                                                                                                Engine_free_MINUS_uniform_MINUS_buffer(ub);
+                                                                                                                                                                wgpuSamplerRelease(voxel_MINUS_sampler);
+                                                                                                                                                                wgpu_render_texture_free(voxel_MINUS_tex);
+                                                                                                                                                                wgpu_render_texture_free(liquid_MINUS_tex);
+                                                                                                                                                                wgpu_render_texture_free(gas_MINUS_tex);
+                                                                                                                                                                wgpu_render_texture_free(light_MINUS_tex);
+                                                                                                                                                                wgpu_render_texture_free(stress_MINUS_tex);
+                                                                                                                                                                Engine_free_MINUS_bind_MINUS_group(bg);
+                                                                                                                                                                wgpuComputePipelineRelease(pack_MINUS_pipe);
+                                                                                                                                                                wgpu_vertex_buffer_free(read_MINUS_buf);
+                                                                                                                                                                wgpu_vertex_buffer_free(write_MINUS_buf);
+                                                                                                                                                                wgpu_vertex_buffer_free(half_MINUS_buf);
+                                                                                                                                                                wgpu_vertex_buffer_free(liquid_MINUS_gpu_MINUS_buf);
+                                                                                                                                                                wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
+                                                                                                                                                                wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
+                                                                                                                                                                wgpu_vertex_buffer_free(gas_MINUS_half_MINUS_buf);
+                                                                                                                                                                wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_read);
+                                                                                                                                                                wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_write);
+                                                                                                                                                                wgpu_vertex_buffer_free(stress_MINUS_half_MINUS_buf);
+                                                                                                                                                                wgpuBindGroupRelease(pack_MINUS_bg);
+                                                                                                                                                                wgpuBindGroupRelease(liquid_MINUS_pack_MINUS_bg);
+                                                                                                                                                                wgpuBindGroupRelease(gas_MINUS_pack_MINUS_bg);
+                                                                                                                                                                wgpuBindGroupRelease(stress_MINUS_pack_MINUS_bg);
+                                                                                                                                                                wgpuComputePipelineRelease(copy_MINUS_pipe);
+                                                                                                                                                                wgpu_vertex_buffer_free(staging_MINUS_buf);
+                                                                                                                                                                Engine_free_MINUS_uniform_MINUS_buffer(copy_MINUS_ub);
+                                                                                                                                                                wgpuBindGroupRelease(copy_MINUS_bg);
+                                                                                                                                                                wgpuComputePipelineRelease(liquid_MINUS_sim_MINUS_pipe);
+                                                                                                                                                                wgpuComputePipelineRelease(gas_MINUS_sim_MINUS_pipe);
+                                                                                                                                                                wgpuComputePipelineRelease(solid_MINUS_sim_MINUS_pipe);
+                                                                                                                                                                wgpuBindGroupRelease(liquid_MINUS_sim_MINUS_bg);
+                                                                                                                                                                wgpuBindGroupRelease(gas_MINUS_sim_MINUS_bg);
+                                                                                                                                                                static String _2916 = "Solid sim bind group failed: ";
+                                                                                                                                                                String *_2916_ref = &_2916;
+                                                                                                                                                                String _1000309 = String_str(_2916_ref);
+                                                                                                                                                                String* _1000308 = &_1000309; // ref
+                                                                                                                                                                String _1000311 = StringCopy_str(e);
+                                                                                                                                                                String* _1000310 = &_1000311; // ref
+                                                                                                                                                                String _1000307 = String_append(_1000308, _1000310);
+                                                                                                                                                                String* _1000306 = &_1000307; // ref
+                                                                                                                                                                String _1000305 = String_copy(_1000306);
+                                                                                                                                                                Result__Renderer_String _2927 = Result_Error__String_Renderer(_1000305);
+                                                                                                                                                                Result__Renderer_String _2928 = _2927;
+                                                                                                                                                                _3276 = _2928;
+                                                                                                                                                                String_delete(_1000307);
+                                                                                                                                                                String_delete(_1000309);
+                                                                                                                                                                String_delete(_1000311);
+                                                                                                                                                            }
+                                                                                                                                                            else if(_2806._tag == Result__WGPUBindGroup_String_Success_tag) {
+                                                                                                                                                                Result__WGPUBindGroup_String _2806_temp = _2806;
+                                                                                                                                                                WGPUBindGroup solid_MINUS_sim_MINUS_bg = _2806_temp.u.Success.member0;
+                                                                                                                                                                // Case expr:
+                                                                                                                                                                Result__Renderer_String _3275;
+                                                                                                                                                                /* let */ {
+                                                                                                                                                                    int* _2937 = Engine_width(eng);
+                                                                                                                                                                    int _2938 = Int_copy(_2937);
+                                                                                                                                                                    int w = _2938;
+                                                                                                                                                                    int* _2943 = Engine_height(eng);
+                                                                                                                                                                    int _2944 = Int_copy(_2943);
+                                                                                                                                                                    int h = _2944;
+                                                                                                                                                                    Result__WGPUDepthTexture_MUL__String _2951 = WGPURender_create_MINUS_depth_MINUS_texture(ctx, w, h);
+                                                                                                                                                                    Result__Renderer_String _3274;
+                                                                                                                                                                    if(_2951._tag == Result__WGPUDepthTexture_MUL__String_Error_tag) {
+                                                                                                                                                                        Result__WGPUDepthTexture_MUL__String _2951_temp = _2951;
+                                                                                                                                                                        String e = _2951_temp.u.Error.member0;
+                                                                                                                                                                        // Case expr:
+                                                                                                                                                                        Engine_free_MINUS_pipeline(pipe);
+                                                                                                                                                                        Engine_free_MINUS_uniform_MINUS_buffer(ub);
+                                                                                                                                                                        wgpuSamplerRelease(voxel_MINUS_sampler);
+                                                                                                                                                                        wgpu_render_texture_free(voxel_MINUS_tex);
+                                                                                                                                                                        wgpu_render_texture_free(liquid_MINUS_tex);
+                                                                                                                                                                        wgpu_render_texture_free(gas_MINUS_tex);
+                                                                                                                                                                        wgpu_render_texture_free(light_MINUS_tex);
+                                                                                                                                                                        wgpu_render_texture_free(stress_MINUS_tex);
+                                                                                                                                                                        Engine_free_MINUS_bind_MINUS_group(bg);
+                                                                                                                                                                        wgpuComputePipelineRelease(pack_MINUS_pipe);
+                                                                                                                                                                        wgpu_vertex_buffer_free(read_MINUS_buf);
+                                                                                                                                                                        wgpu_vertex_buffer_free(write_MINUS_buf);
+                                                                                                                                                                        wgpu_vertex_buffer_free(half_MINUS_buf);
+                                                                                                                                                                        wgpu_vertex_buffer_free(liquid_MINUS_gpu_MINUS_buf);
+                                                                                                                                                                        wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
+                                                                                                                                                                        wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
+                                                                                                                                                                        wgpu_vertex_buffer_free(gas_MINUS_half_MINUS_buf);
+                                                                                                                                                                        wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_read);
+                                                                                                                                                                        wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_write);
+                                                                                                                                                                        wgpu_vertex_buffer_free(stress_MINUS_half_MINUS_buf);
+                                                                                                                                                                        wgpuBindGroupRelease(pack_MINUS_bg);
+                                                                                                                                                                        wgpuBindGroupRelease(liquid_MINUS_pack_MINUS_bg);
+                                                                                                                                                                        wgpuBindGroupRelease(gas_MINUS_pack_MINUS_bg);
+                                                                                                                                                                        wgpuBindGroupRelease(stress_MINUS_pack_MINUS_bg);
+                                                                                                                                                                        wgpuComputePipelineRelease(copy_MINUS_pipe);
+                                                                                                                                                                        wgpu_vertex_buffer_free(staging_MINUS_buf);
+                                                                                                                                                                        Engine_free_MINUS_uniform_MINUS_buffer(copy_MINUS_ub);
+                                                                                                                                                                        wgpuBindGroupRelease(copy_MINUS_bg);
+                                                                                                                                                                        wgpuComputePipelineRelease(liquid_MINUS_sim_MINUS_pipe);
+                                                                                                                                                                        wgpuComputePipelineRelease(gas_MINUS_sim_MINUS_pipe);
+                                                                                                                                                                        wgpuComputePipelineRelease(solid_MINUS_sim_MINUS_pipe);
+                                                                                                                                                                        wgpuBindGroupRelease(liquid_MINUS_sim_MINUS_bg);
+                                                                                                                                                                        wgpuBindGroupRelease(gas_MINUS_sim_MINUS_bg);
+                                                                                                                                                                        wgpuBindGroupRelease(solid_MINUS_sim_MINUS_bg);
+                                                                                                                                                                        static String _3064 = "Depth texture failed: ";
+                                                                                                                                                                        String *_3064_ref = &_3064;
+                                                                                                                                                                        String _1000319 = String_str(_3064_ref);
+                                                                                                                                                                        String* _1000318 = &_1000319; // ref
+                                                                                                                                                                        String _1000321 = StringCopy_str(e);
+                                                                                                                                                                        String* _1000320 = &_1000321; // ref
+                                                                                                                                                                        String _1000317 = String_append(_1000318, _1000320);
+                                                                                                                                                                        String* _1000316 = &_1000317; // ref
+                                                                                                                                                                        String _1000315 = String_copy(_1000316);
+                                                                                                                                                                        Result__Renderer_String _3075 = Result_Error__String_Renderer(_1000315);
+                                                                                                                                                                        Result__Renderer_String _3076 = _3075;
+                                                                                                                                                                        _3274 = _3076;
+                                                                                                                                                                        String_delete(_1000317);
+                                                                                                                                                                        String_delete(_1000319);
+                                                                                                                                                                        String_delete(_1000321);
+                                                                                                                                                                    }
+                                                                                                                                                                    else if(_2951._tag == Result__WGPUDepthTexture_MUL__String_Success_tag) {
+                                                                                                                                                                        Result__WGPUDepthTexture_MUL__String _2951_temp = _2951;
+                                                                                                                                                                        WGPUDepthTexture* depth_MINUS_tex = _2951_temp.u.Success.member0;
+                                                                                                                                                                        // Case expr:
+                                                                                                                                                                        Result__Renderer_String _3273;
+                                                                                                                                                                        /* let */ {
+                                                                                                                                                                            WGPURenderSurface** _3086 = Engine_surf(eng);
+                                                                                                                                                                            WGPURenderSurface* _3087 = Pointer_copy__WGPURenderSurface(_3086);
+                                                                                                                                                                            String _3088 = WGPURender_surface_MINUS_format(_3087);
+                                                                                                                                                                            String format = _3088;
+                                                                                                                                                                            String* _3095 = &format; // ref
+                                                                                                                                                                            Result__LinePassRenderer_String _3097 = LinePass_create(ctx, _3095, 1000);
+                                                                                                                                                                            Result__Renderer_String _3272;
+                                                                                                                                                                            if(_3097._tag == Result__LinePassRenderer_String_Error_tag) {
+                                                                                                                                                                                Result__LinePassRenderer_String _3097_temp = _3097;
+                                                                                                                                                                                String e = _3097_temp.u.Error.member0;
+                                                                                                                                                                                // Case expr:
+                                                                                                                                                                                Engine_free_MINUS_pipeline(pipe);
+                                                                                                                                                                                Engine_free_MINUS_uniform_MINUS_buffer(ub);
+                                                                                                                                                                                wgpuSamplerRelease(voxel_MINUS_sampler);
+                                                                                                                                                                                wgpu_render_texture_free(voxel_MINUS_tex);
+                                                                                                                                                                                wgpu_render_texture_free(liquid_MINUS_tex);
+                                                                                                                                                                                wgpu_render_texture_free(gas_MINUS_tex);
+                                                                                                                                                                                wgpu_render_texture_free(light_MINUS_tex);
+                                                                                                                                                                                wgpu_render_texture_free(stress_MINUS_tex);
+                                                                                                                                                                                Engine_free_MINUS_bind_MINUS_group(bg);
+                                                                                                                                                                                wgpuComputePipelineRelease(pack_MINUS_pipe);
+                                                                                                                                                                                wgpu_vertex_buffer_free(read_MINUS_buf);
+                                                                                                                                                                                wgpu_vertex_buffer_free(write_MINUS_buf);
+                                                                                                                                                                                wgpu_vertex_buffer_free(half_MINUS_buf);
+                                                                                                                                                                                wgpu_vertex_buffer_free(liquid_MINUS_gpu_MINUS_buf);
+                                                                                                                                                                                wgpu_vertex_buffer_free(liquid_MINUS_half_MINUS_buf);
+                                                                                                                                                                                wgpu_vertex_buffer_free(gas_MINUS_gpu_MINUS_buf);
+                                                                                                                                                                                wgpu_vertex_buffer_free(gas_MINUS_half_MINUS_buf);
+                                                                                                                                                                                wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_read);
+                                                                                                                                                                                wgpu_vertex_buffer_free(stress_MINUS_gpu_MINUS_buf_MINUS_write);
+                                                                                                                                                                                wgpu_vertex_buffer_free(stress_MINUS_half_MINUS_buf);
+                                                                                                                                                                                wgpuBindGroupRelease(pack_MINUS_bg);
+                                                                                                                                                                                wgpuBindGroupRelease(liquid_MINUS_pack_MINUS_bg);
+                                                                                                                                                                                wgpuBindGroupRelease(gas_MINUS_pack_MINUS_bg);
+                                                                                                                                                                                wgpuBindGroupRelease(stress_MINUS_pack_MINUS_bg);
+                                                                                                                                                                                wgpuComputePipelineRelease(copy_MINUS_pipe);
+                                                                                                                                                                                wgpu_vertex_buffer_free(staging_MINUS_buf);
+                                                                                                                                                                                Engine_free_MINUS_uniform_MINUS_buffer(copy_MINUS_ub);
+                                                                                                                                                                                wgpuBindGroupRelease(copy_MINUS_bg);
+                                                                                                                                                                                wgpuComputePipelineRelease(liquid_MINUS_sim_MINUS_pipe);
+                                                                                                                                                                                wgpuComputePipelineRelease(gas_MINUS_sim_MINUS_pipe);
+                                                                                                                                                                                wgpuComputePipelineRelease(solid_MINUS_sim_MINUS_pipe);
+                                                                                                                                                                                wgpuBindGroupRelease(liquid_MINUS_sim_MINUS_bg);
+                                                                                                                                                                                wgpuBindGroupRelease(gas_MINUS_sim_MINUS_bg);
+                                                                                                                                                                                wgpuBindGroupRelease(solid_MINUS_sim_MINUS_bg);
+                                                                                                                                                                                wgpu_depth_texture_free(depth_MINUS_tex);
+                                                                                                                                                                                static String _3213 = "LinePass creation failed: ";
+                                                                                                                                                                                String *_3213_ref = &_3213;
+                                                                                                                                                                                String _1000329 = String_str(_3213_ref);
+                                                                                                                                                                                String* _1000328 = &_1000329; // ref
+                                                                                                                                                                                String _1000331 = StringCopy_str(e);
+                                                                                                                                                                                String* _1000330 = &_1000331; // ref
+                                                                                                                                                                                String _1000327 = String_append(_1000328, _1000330);
+                                                                                                                                                                                String* _1000326 = &_1000327; // ref
+                                                                                                                                                                                String _1000325 = String_copy(_1000326);
+                                                                                                                                                                                Result__Renderer_String _3224 = Result_Error__String_Renderer(_1000325);
+                                                                                                                                                                                Result__Renderer_String _3225 = _3224;
+                                                                                                                                                                                _3272 = _3225;
+                                                                                                                                                                                String_delete(_1000327);
+                                                                                                                                                                                String_delete(_1000329);
+                                                                                                                                                                                String_delete(_1000331);
+                                                                                                                                                                            }
+                                                                                                                                                                            else if(_3097._tag == Result__LinePassRenderer_String_Success_tag) {
+                                                                                                                                                                                Result__LinePassRenderer_String _3097_temp = _3097;
+                                                                                                                                                                                LinePassRenderer lp = _3097_temp.u.Success.member0;
+                                                                                                                                                                                // Case expr:
+                                                                                                                                                                                Array _3241 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(Line) * 0) };
+                                                                                                                                                                                Renderer _3270 = Renderer_init(pipe, bg, ub, voxel_MINUS_tex, liquid_MINUS_tex, gas_MINUS_tex, light_MINUS_tex, stress_MINUS_tex, voxel_MINUS_sampler, lp, _3241, depth_MINUS_tex, w, h, read_MINUS_buf, write_MINUS_buf, half_MINUS_buf, pack_MINUS_pipe, pack_MINUS_bg, staging_MINUS_buf, copy_MINUS_pipe, copy_MINUS_bg, copy_MINUS_ub, liquid_MINUS_gpu_MINUS_buf, liquid_MINUS_half_MINUS_buf, gas_MINUS_gpu_MINUS_buf, gas_MINUS_half_MINUS_buf, liquid_MINUS_pack_MINUS_bg, gas_MINUS_pack_MINUS_bg, liquid_MINUS_sim_MINUS_pipe, liquid_MINUS_sim_MINUS_bg, gas_MINUS_sim_MINUS_pipe, gas_MINUS_sim_MINUS_bg, stress_MINUS_gpu_MINUS_buf_MINUS_read, stress_MINUS_gpu_MINUS_buf_MINUS_write, stress_MINUS_half_MINUS_buf, stress_MINUS_pack_MINUS_bg, solid_MINUS_sim_MINUS_pipe, solid_MINUS_sim_MINUS_bg);
+                                                                                                                                                                                Result__Renderer_String _3271 = Result_Success__Renderer_String(_3270);
+                                                                                                                                                                                _3272 = _3271;
+                                                                                                                                                                            }
+                                                                                                                                                                            else UNHANDLED("renderer.carp", 231);
+                                                                                                                                                                            _3273 = _3272;
+                                                                                                                                                                            String_delete(format);
+                                                                                                                                                                        }
+                                                                                                                                                                        _3274 = _3273;
+                                                                                                                                                                    }
+                                                                                                                                                                    else UNHANDLED("renderer.carp", 227);
+                                                                                                                                                                    _3275 = _3274;
+                                                                                                                                                                }
+                                                                                                                                                                _3276 = _3275;
+                                                                                                                                                            }
+                                                                                                                                                            else UNHANDLED("renderer.carp", 222);
+                                                                                                                                                            _3277 = _3276;
+                                                                                                                                                        }
+                                                                                                                                                        else UNHANDLED("renderer.carp", 219);
+                                                                                                                                                        _3278 = _3277;
                                                                                                                                                     }
-                                                                                                                                                    else UNHANDLED("renderer.carp", 188);
-                                                                                                                                                    _2372 = _2371;
-                                                                                                                                                    String_delete(format);
+                                                                                                                                                    else UNHANDLED("renderer.carp", 216);
+                                                                                                                                                    _3279 = _3278;
                                                                                                                                                 }
-                                                                                                                                                _2373 = _2372;
+                                                                                                                                                else UNHANDLED("renderer.carp", 213);
+                                                                                                                                                _3280 = _3279;
                                                                                                                                             }
-                                                                                                                                            else UNHANDLED("renderer.carp", 184);
-                                                                                                                                            _2374 = _2373;
+                                                                                                                                            else UNHANDLED("renderer.carp", 210);
+                                                                                                                                            _3281 = _3280;
                                                                                                                                         }
-                                                                                                                                        _2375 = _2374;
+                                                                                                                                        else UNHANDLED("renderer.carp", 207);
+                                                                                                                                        _3282 = _3281;
                                                                                                                                     }
-                                                                                                                                    else UNHANDLED("renderer.carp", 179);
-                                                                                                                                    _2376 = _2375;
+                                                                                                                                    else UNHANDLED("renderer.carp", 204);
+                                                                                                                                    _3283 = _3282;
+                                                                                                                                    Array_delete__WGPUBuffer(copy_MINUS_bufs);
                                                                                                                                 }
-                                                                                                                                else UNHANDLED("renderer.carp", 176);
-                                                                                                                                _2377 = _2376;
+                                                                                                                                _3284 = _3283;
                                                                                                                             }
-                                                                                                                            _2378 = _2377;
+                                                                                                                            else UNHANDLED("renderer.carp", 194);
+                                                                                                                            _3285 = _3284;
                                                                                                                         }
-                                                                                                                        else UNHANDLED("renderer.carp", 169);
-                                                                                                                        _2379 = _2378;
+                                                                                                                        else UNHANDLED("renderer.carp", 191);
+                                                                                                                        _3286 = _3285;
+                                                                                                                        Array_delete__float(staging_MINUS_initial);
                                                                                                                     }
-                                                                                                                    else UNHANDLED("renderer.carp", 166);
-                                                                                                                    _2380 = _2379;
+                                                                                                                    _3287 = _3286;
                                                                                                                 }
-                                                                                                                else UNHANDLED("renderer.carp", 163);
-                                                                                                                _2381 = _2380;
-                                                                                                                Array_delete__WGPUBuffer(copy_MINUS_bufs);
+                                                                                                                else UNHANDLED("renderer.carp", 186);
+                                                                                                                _3288 = _3287;
                                                                                                             }
-                                                                                                            _2382 = _2381;
+                                                                                                            else UNHANDLED("renderer.carp", 183);
+                                                                                                            _3289 = _3288;
                                                                                                         }
-                                                                                                        else UNHANDLED("renderer.carp", 155);
-                                                                                                        _2383 = _2382;
+                                                                                                        else UNHANDLED("renderer.carp", 180);
+                                                                                                        _3290 = _3289;
                                                                                                     }
-                                                                                                    else UNHANDLED("renderer.carp", 152);
-                                                                                                    _2384 = _2383;
-                                                                                                    Array_delete__float(staging_MINUS_initial);
+                                                                                                    else UNHANDLED("renderer.carp", 177);
+                                                                                                    _3291 = _3290;
                                                                                                 }
-                                                                                                _2385 = _2384;
+                                                                                                else UNHANDLED("renderer.carp", 174);
+                                                                                                _3292 = _3291;
+                                                                                                Array_delete__WGPUBuffer(bufs);
+                                                                                                Array_delete__WGPUBuffer(gas_MINUS_bufs);
+                                                                                                Array_delete__WGPUBuffer(liquid_MINUS_bufs);
+                                                                                                Array_delete__WGPUBuffer(stress_MINUS_bufs);
                                                                                             }
-                                                                                            else UNHANDLED("renderer.carp", 147);
-                                                                                            _2386 = _2385;
+                                                                                            _3293 = _3292;
                                                                                         }
-                                                                                        else UNHANDLED("renderer.carp", 144);
-                                                                                        _2387 = _2386;
+                                                                                        else UNHANDLED("renderer.carp", 158);
+                                                                                        _3294 = _3293;
                                                                                     }
-                                                                                    else UNHANDLED("renderer.carp", 141);
-                                                                                    _2388 = _2387;
+                                                                                    else UNHANDLED("renderer.carp", 155);
+                                                                                    _3295 = _3294;
                                                                                 }
-                                                                                else UNHANDLED("renderer.carp", 138);
-                                                                                _2389 = _2388;
-                                                                                Array_delete__WGPUBuffer(bufs);
-                                                                                Array_delete__WGPUBuffer(gas_MINUS_bufs);
-                                                                                Array_delete__WGPUBuffer(liquid_MINUS_bufs);
+                                                                                else UNHANDLED("renderer.carp", 152);
+                                                                                _3296 = _3295;
                                                                             }
-                                                                            _2390 = _2389;
+                                                                            else UNHANDLED("renderer.carp", 149);
+                                                                            _3297 = _3296;
                                                                         }
-                                                                        else UNHANDLED("renderer.carp", 126);
-                                                                        _2391 = _2390;
+                                                                        else UNHANDLED("renderer.carp", 146);
+                                                                        _3298 = _3297;
                                                                     }
-                                                                    else UNHANDLED("renderer.carp", 123);
-                                                                    _2392 = _2391;
+                                                                    else UNHANDLED("renderer.carp", 143);
+                                                                    _3299 = _3298;
                                                                 }
-                                                                else UNHANDLED("renderer.carp", 120);
-                                                                _2393 = _2392;
+                                                                else UNHANDLED("renderer.carp", 140);
+                                                                _3300 = _3299;
                                                             }
-                                                            else UNHANDLED("renderer.carp", 117);
-                                                            _2394 = _2393;
+                                                            else UNHANDLED("renderer.carp", 137);
+                                                            _3301 = _3300;
                                                         }
-                                                        else UNHANDLED("renderer.carp", 114);
-                                                        _2395 = _2394;
+                                                        else UNHANDLED("renderer.carp", 134);
+                                                        _3302 = _3301;
                                                     }
-                                                    else UNHANDLED("renderer.carp", 111);
-                                                    _2396 = _2395;
+                                                    else UNHANDLED("renderer.carp", 131);
+                                                    _3303 = _3302;
                                                 }
-                                                else UNHANDLED("renderer.carp", 108);
-                                                _2397 = _2396;
-                                                Array_delete__float(initial_MINUS_data_MINUS_half);
-                                                Array_delete__float(initial_MINUS_data_MINUS_read);
+                                                _3304 = _3303;
                                             }
-                                            _2398 = _2397;
+                                            else UNHANDLED("renderer.carp", 117);
+                                            _3305 = _3304;
                                         }
-                                        else UNHANDLED("renderer.carp", 95);
-                                        _2399 = _2398;
+                                        else UNHANDLED("renderer.carp", 106);
+                                        _3306 = _3305;
                                     }
-                                    else UNHANDLED("renderer.carp", 86);
-                                    _2400 = _2399;
+                                    else UNHANDLED("renderer.carp", 96);
+                                    _3307 = _3306;
                                 }
-                                else UNHANDLED("renderer.carp", 78);
-                                _2401 = _2400;
+                                else UNHANDLED("renderer.carp", 87);
+                                _3308 = _3307;
                             }
-                            else UNHANDLED("renderer.carp", 71);
-                            _2402 = _2401;
+                            else UNHANDLED("renderer.carp", 79);
+                            _3309 = _3308;
                         }
-                        else UNHANDLED("renderer.carp", 65);
-                        _2403 = _2402;
+                        else UNHANDLED("renderer.carp", 72);
+                        _3310 = _3309;
                     }
-                    else UNHANDLED("renderer.carp", 59);
-                    _2404 = _2403;
+                    else UNHANDLED("renderer.carp", 66);
+                    _3311 = _3310;
                 }
-                else UNHANDLED("renderer.carp", 54);
-                _2405 = _2404;
+                else UNHANDLED("renderer.carp", 61);
+                _3312 = _3311;
             }
-            else UNHANDLED("renderer.carp", 50);
-            _2406 = _2405;
+            else UNHANDLED("renderer.carp", 57);
+            _3313 = _3312;
         }
-        else UNHANDLED("renderer.carp", 47);
-        _2407 = _2406;
+        else UNHANDLED("renderer.carp", 54);
+        _3314 = _3313;
     }
-    return _2407;
+    return _3314;
 }
 
 void Renderer_delete(Renderer p) {
@@ -26888,6 +27654,7 @@ void Renderer_delete(Renderer p) {
     /* Ignore non-managed member 'liquid_MINUS_texture' : (Ptr WGPURenderTexture) */
     /* Ignore non-managed member 'gas_MINUS_texture' : (Ptr WGPURenderTexture) */
     /* Ignore non-managed member 'light_MINUS_texture' : (Ptr WGPURenderTexture) */
+    /* Ignore non-managed member 'stress_MINUS_texture' : (Ptr WGPURenderTexture) */
     /* Ignore non-managed member 'voxel_MINUS_sampler' : WGPUSampler */
     LinePassRenderer_delete(p.line_MINUS_pass);
     Array_delete__Line(p.lines);
@@ -26913,6 +27680,12 @@ void Renderer_delete(Renderer p) {
     /* Ignore non-managed member 'liquid_MINUS_sim_MINUS_bind_MINUS_group' : WGPUBindGroup */
     /* Ignore non-managed member 'gas_MINUS_sim_MINUS_pipeline' : WGPUComputePipeline */
     /* Ignore non-managed member 'gas_MINUS_sim_MINUS_bind_MINUS_group' : WGPUBindGroup */
+    /* Ignore non-managed member 'stress_MINUS_gpu_MINUS_buffer_MINUS_read' : (Ptr WGPUVertexBufferWrapper) */
+    /* Ignore non-managed member 'stress_MINUS_gpu_MINUS_buffer_MINUS_write' : (Ptr WGPUVertexBufferWrapper) */
+    /* Ignore non-managed member 'stress_MINUS_half_MINUS_buffer' : (Ptr WGPUVertexBufferWrapper) */
+    /* Ignore non-managed member 'stress_MINUS_pack_MINUS_bind_MINUS_group' : WGPUBindGroup */
+    /* Ignore non-managed member 'solid_MINUS_sim_MINUS_pipeline' : WGPUComputePipeline */
+    /* Ignore non-managed member 'solid_MINUS_sim_MINUS_bind_MINUS_group' : WGPUBindGroup */
 }
 
 WGPUDepthTexture** Renderer_depth_MINUS_texture(Renderer* p) { return (&(p->depth_MINUS_texture)); }
@@ -26961,7 +27734,7 @@ void Renderer_draw(Engine* eng, Renderer* ren, Camera* cam) {
             CameraMat4_delete(vp);
         }
     }
-    else UNHANDLED("renderer.carp", 298);
+    else UNHANDLED("renderer.carp", 361);
 }
 
 void Renderer_draw_MINUS_line_BANG_(Renderer* ren, Vector3__double* start, Vector3__double* end, Vector3__double* color) {
@@ -27047,7 +27820,7 @@ void Renderer_handle_MINUS_resize_BANG_(Engine* eng, Renderer* ren) {
                     Renderer_set_MINUS_width_BANG_(ren, curr_MINUS_w);
                     Renderer_set_MINUS_height_BANG_(ren, curr_MINUS_h);
                 }
-                else UNHANDLED("renderer.carp", 246);
+                else UNHANDLED("renderer.carp", 291);
             }
         } else {
             /* () */
@@ -27057,7 +27830,7 @@ void Renderer_handle_MINUS_resize_BANG_(Engine* eng, Renderer* ren) {
 
 int* Renderer_height(Renderer* p) { return (&(p->height)); }
 
-Renderer Renderer_init(WGPURenderPipelineWrapper* pipeline, WGPUBindGroup bind_MINUS_group, WGPUUniformBufferWrapper* uniform_MINUS_buffer, WGPURenderTexture* voxel_MINUS_texture, WGPURenderTexture* liquid_MINUS_texture, WGPURenderTexture* gas_MINUS_texture, WGPURenderTexture* light_MINUS_texture, WGPUSampler voxel_MINUS_sampler, LinePassRenderer line_MINUS_pass, Array__Line lines, WGPUDepthTexture* depth_MINUS_texture, int width, int height, WGPUVertexBufferWrapper* voxel_MINUS_gpu_MINUS_buffer_MINUS_read, WGPUVertexBufferWrapper* voxel_MINUS_gpu_MINUS_buffer_MINUS_write, WGPUVertexBufferWrapper* voxel_MINUS_half_MINUS_buffer, WGPUComputePipeline pack_MINUS_pipeline, WGPUBindGroup pack_MINUS_bind_MINUS_group, WGPUVertexBufferWrapper* voxel_MINUS_staging_MINUS_buffer, WGPUComputePipeline copy_MINUS_pipeline, WGPUBindGroup copy_MINUS_bind_MINUS_group, WGPUUniformBufferWrapper* copy_MINUS_uniform_MINUS_buffer, WGPUVertexBufferWrapper* liquid_MINUS_gpu_MINUS_buffer, WGPUVertexBufferWrapper* liquid_MINUS_half_MINUS_buffer, WGPUVertexBufferWrapper* gas_MINUS_gpu_MINUS_buffer, WGPUVertexBufferWrapper* gas_MINUS_half_MINUS_buffer, WGPUBindGroup liquid_MINUS_pack_MINUS_bind_MINUS_group, WGPUBindGroup gas_MINUS_pack_MINUS_bind_MINUS_group, WGPUComputePipeline liquid_MINUS_sim_MINUS_pipeline, WGPUBindGroup liquid_MINUS_sim_MINUS_bind_MINUS_group, WGPUComputePipeline gas_MINUS_sim_MINUS_pipeline, WGPUBindGroup gas_MINUS_sim_MINUS_bind_MINUS_group) {
+Renderer Renderer_init(WGPURenderPipelineWrapper* pipeline, WGPUBindGroup bind_MINUS_group, WGPUUniformBufferWrapper* uniform_MINUS_buffer, WGPURenderTexture* voxel_MINUS_texture, WGPURenderTexture* liquid_MINUS_texture, WGPURenderTexture* gas_MINUS_texture, WGPURenderTexture* light_MINUS_texture, WGPURenderTexture* stress_MINUS_texture, WGPUSampler voxel_MINUS_sampler, LinePassRenderer line_MINUS_pass, Array__Line lines, WGPUDepthTexture* depth_MINUS_texture, int width, int height, WGPUVertexBufferWrapper* voxel_MINUS_gpu_MINUS_buffer_MINUS_read, WGPUVertexBufferWrapper* voxel_MINUS_gpu_MINUS_buffer_MINUS_write, WGPUVertexBufferWrapper* voxel_MINUS_half_MINUS_buffer, WGPUComputePipeline pack_MINUS_pipeline, WGPUBindGroup pack_MINUS_bind_MINUS_group, WGPUVertexBufferWrapper* voxel_MINUS_staging_MINUS_buffer, WGPUComputePipeline copy_MINUS_pipeline, WGPUBindGroup copy_MINUS_bind_MINUS_group, WGPUUniformBufferWrapper* copy_MINUS_uniform_MINUS_buffer, WGPUVertexBufferWrapper* liquid_MINUS_gpu_MINUS_buffer, WGPUVertexBufferWrapper* liquid_MINUS_half_MINUS_buffer, WGPUVertexBufferWrapper* gas_MINUS_gpu_MINUS_buffer, WGPUVertexBufferWrapper* gas_MINUS_half_MINUS_buffer, WGPUBindGroup liquid_MINUS_pack_MINUS_bind_MINUS_group, WGPUBindGroup gas_MINUS_pack_MINUS_bind_MINUS_group, WGPUComputePipeline liquid_MINUS_sim_MINUS_pipeline, WGPUBindGroup liquid_MINUS_sim_MINUS_bind_MINUS_group, WGPUComputePipeline gas_MINUS_sim_MINUS_pipeline, WGPUBindGroup gas_MINUS_sim_MINUS_bind_MINUS_group, WGPUVertexBufferWrapper* stress_MINUS_gpu_MINUS_buffer_MINUS_read, WGPUVertexBufferWrapper* stress_MINUS_gpu_MINUS_buffer_MINUS_write, WGPUVertexBufferWrapper* stress_MINUS_half_MINUS_buffer, WGPUBindGroup stress_MINUS_pack_MINUS_bind_MINUS_group, WGPUComputePipeline solid_MINUS_sim_MINUS_pipeline, WGPUBindGroup solid_MINUS_sim_MINUS_bind_MINUS_group) {
     Renderer instance;
     instance.pipeline = pipeline;
     instance.bind_MINUS_group = bind_MINUS_group;
@@ -27066,6 +27839,7 @@ Renderer Renderer_init(WGPURenderPipelineWrapper* pipeline, WGPUBindGroup bind_M
     instance.liquid_MINUS_texture = liquid_MINUS_texture;
     instance.gas_MINUS_texture = gas_MINUS_texture;
     instance.light_MINUS_texture = light_MINUS_texture;
+    instance.stress_MINUS_texture = stress_MINUS_texture;
     instance.voxel_MINUS_sampler = voxel_MINUS_sampler;
     instance.line_MINUS_pass = line_MINUS_pass;
     instance.lines = lines;
@@ -27091,6 +27865,12 @@ Renderer Renderer_init(WGPURenderPipelineWrapper* pipeline, WGPUBindGroup bind_M
     instance.liquid_MINUS_sim_MINUS_bind_MINUS_group = liquid_MINUS_sim_MINUS_bind_MINUS_group;
     instance.gas_MINUS_sim_MINUS_pipeline = gas_MINUS_sim_MINUS_pipeline;
     instance.gas_MINUS_sim_MINUS_bind_MINUS_group = gas_MINUS_sim_MINUS_bind_MINUS_group;
+    instance.stress_MINUS_gpu_MINUS_buffer_MINUS_read = stress_MINUS_gpu_MINUS_buffer_MINUS_read;
+    instance.stress_MINUS_gpu_MINUS_buffer_MINUS_write = stress_MINUS_gpu_MINUS_buffer_MINUS_write;
+    instance.stress_MINUS_half_MINUS_buffer = stress_MINUS_half_MINUS_buffer;
+    instance.stress_MINUS_pack_MINUS_bind_MINUS_group = stress_MINUS_pack_MINUS_bind_MINUS_group;
+    instance.solid_MINUS_sim_MINUS_pipeline = solid_MINUS_sim_MINUS_pipeline;
+    instance.solid_MINUS_sim_MINUS_bind_MINUS_group = solid_MINUS_sim_MINUS_bind_MINUS_group;
     return instance;
 }
 
@@ -27136,24 +27916,35 @@ void Renderer_pack_MINUS_buffers_MINUS_to_MINUS_textures_BANG_(Engine* eng, Rend
         WGPUBindGroup* _56 = Renderer_gas_MINUS_pack_MINUS_bind_MINUS_group(ren);
         WGPUBindGroup _57 = WGPUBindGroup_copy(_56);
         gpu_batch_dispatch(batch_MINUS_encoder, _52, _57, 64000);
-        WGPUVertexBufferWrapper** _66 = Renderer_voxel_MINUS_half_MINUS_buffer(ren);
-        WGPUVertexBufferWrapper* _67 = Pointer_copy__WGPUVertexBufferWrapper(_66);
-        WGPUBuffer _68 = WGPUVertexBufferWrapper_get_MINUS_buffer(_67);
-        WGPURenderTexture** _73 = Renderer_voxel_MINUS_texture(ren);
-        WGPURenderTexture* _74 = Pointer_copy__WGPURenderTexture(_73);
-        gpu_batch_copy_buffer_to_3d_texture(batch_MINUS_encoder, _68, 0l, _74, 0, 0, 0, 160, 160, 160);
-        WGPUVertexBufferWrapper** _88 = Renderer_liquid_MINUS_half_MINUS_buffer(ren);
-        WGPUVertexBufferWrapper* _89 = Pointer_copy__WGPUVertexBufferWrapper(_88);
-        WGPUBuffer _90 = WGPUVertexBufferWrapper_get_MINUS_buffer(_89);
-        WGPURenderTexture** _95 = Renderer_liquid_MINUS_texture(ren);
-        WGPURenderTexture* _96 = Pointer_copy__WGPURenderTexture(_95);
-        gpu_batch_copy_buffer_to_3d_texture(batch_MINUS_encoder, _90, 0l, _96, 0, 0, 0, 160, 160, 160);
-        WGPUVertexBufferWrapper** _110 = Renderer_gas_MINUS_half_MINUS_buffer(ren);
-        WGPUVertexBufferWrapper* _111 = Pointer_copy__WGPUVertexBufferWrapper(_110);
-        WGPUBuffer _112 = WGPUVertexBufferWrapper_get_MINUS_buffer(_111);
-        WGPURenderTexture** _117 = Renderer_gas_MINUS_texture(ren);
-        WGPURenderTexture* _118 = Pointer_copy__WGPURenderTexture(_117);
-        gpu_batch_copy_buffer_to_3d_texture(batch_MINUS_encoder, _112, 0l, _118, 0, 0, 0, 160, 160, 160);
+        WGPUComputePipeline* _65 = Renderer_pack_MINUS_pipeline(ren);
+        WGPUComputePipeline _66 = WGPUComputePipeline_copy(_65);
+        WGPUBindGroup* _70 = Renderer_stress_MINUS_pack_MINUS_bind_MINUS_group(ren);
+        WGPUBindGroup _71 = WGPUBindGroup_copy(_70);
+        gpu_batch_dispatch(batch_MINUS_encoder, _66, _71, 64000);
+        WGPUVertexBufferWrapper** _80 = Renderer_voxel_MINUS_half_MINUS_buffer(ren);
+        WGPUVertexBufferWrapper* _81 = Pointer_copy__WGPUVertexBufferWrapper(_80);
+        WGPUBuffer _82 = WGPUVertexBufferWrapper_get_MINUS_buffer(_81);
+        WGPURenderTexture** _87 = Renderer_voxel_MINUS_texture(ren);
+        WGPURenderTexture* _88 = Pointer_copy__WGPURenderTexture(_87);
+        gpu_batch_copy_buffer_to_3d_texture(batch_MINUS_encoder, _82, 0l, _88, 0, 0, 0, 160, 160, 160);
+        WGPUVertexBufferWrapper** _102 = Renderer_liquid_MINUS_half_MINUS_buffer(ren);
+        WGPUVertexBufferWrapper* _103 = Pointer_copy__WGPUVertexBufferWrapper(_102);
+        WGPUBuffer _104 = WGPUVertexBufferWrapper_get_MINUS_buffer(_103);
+        WGPURenderTexture** _109 = Renderer_liquid_MINUS_texture(ren);
+        WGPURenderTexture* _110 = Pointer_copy__WGPURenderTexture(_109);
+        gpu_batch_copy_buffer_to_3d_texture(batch_MINUS_encoder, _104, 0l, _110, 0, 0, 0, 160, 160, 160);
+        WGPUVertexBufferWrapper** _124 = Renderer_gas_MINUS_half_MINUS_buffer(ren);
+        WGPUVertexBufferWrapper* _125 = Pointer_copy__WGPUVertexBufferWrapper(_124);
+        WGPUBuffer _126 = WGPUVertexBufferWrapper_get_MINUS_buffer(_125);
+        WGPURenderTexture** _131 = Renderer_gas_MINUS_texture(ren);
+        WGPURenderTexture* _132 = Pointer_copy__WGPURenderTexture(_131);
+        gpu_batch_copy_buffer_to_3d_texture(batch_MINUS_encoder, _126, 0l, _132, 0, 0, 0, 160, 160, 160);
+        WGPUVertexBufferWrapper** _146 = Renderer_stress_MINUS_half_MINUS_buffer(ren);
+        WGPUVertexBufferWrapper* _147 = Pointer_copy__WGPUVertexBufferWrapper(_146);
+        WGPUBuffer _148 = WGPUVertexBufferWrapper_get_MINUS_buffer(_147);
+        WGPURenderTexture** _153 = Renderer_stress_MINUS_texture(ren);
+        WGPURenderTexture* _154 = Pointer_copy__WGPURenderTexture(_153);
+        gpu_batch_copy_buffer_to_3d_texture(batch_MINUS_encoder, _148, 0l, _154, 0, 0, 0, 160, 160, 160);
         gpu_batch_end(ctx, batch_MINUS_encoder);
     }
 }
@@ -27211,6 +28002,10 @@ String Renderer_prn(Renderer *p) {
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
   temp = Pointer_prn__WGPURenderTexture(p->light_MINUS_texture); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPURenderTexture(p->stress_MINUS_texture); 
   size += snprintf(NULL, 0, "%s ", temp);
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
@@ -27292,6 +28087,24 @@ String Renderer_prn(Renderer *p) {
 
   // Failed to find str function for gas_MINUS_sim_MINUS_bind_MINUS_group : WGPUBindGroup
 
+  temp = Pointer_prn__WGPUVertexBufferWrapper(p->stress_MINUS_gpu_MINUS_buffer_MINUS_read); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPUVertexBufferWrapper(p->stress_MINUS_gpu_MINUS_buffer_MINUS_write); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPUVertexBufferWrapper(p->stress_MINUS_half_MINUS_buffer); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  // Failed to find str function for stress_MINUS_pack_MINUS_bind_MINUS_group : WGPUBindGroup
+
+  // Failed to find str function for solid_MINUS_sim_MINUS_pipeline : WGPUComputePipeline
+
+  // Failed to find str function for solid_MINUS_sim_MINUS_bind_MINUS_group : WGPUBindGroup
+
 
   String buffer = CARP_MALLOC(size);
   String bufferPtr = buffer;
@@ -27325,6 +28138,11 @@ String Renderer_prn(Renderer *p) {
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
   temp = Pointer_prn__WGPURenderTexture(p->light_MINUS_texture);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPURenderTexture(p->stress_MINUS_texture);
   tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
   bufferPtr += tempsize;
   if(temp) { CARP_FREE(temp); temp = NULL; }
@@ -27421,6 +28239,27 @@ String Renderer_prn(Renderer *p) {
 
   // Failed to find str function for gas_MINUS_sim_MINUS_bind_MINUS_group : WGPUBindGroup
 
+  temp = Pointer_prn__WGPUVertexBufferWrapper(p->stress_MINUS_gpu_MINUS_buffer_MINUS_read);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPUVertexBufferWrapper(p->stress_MINUS_gpu_MINUS_buffer_MINUS_write);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPUVertexBufferWrapper(p->stress_MINUS_half_MINUS_buffer);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  // Failed to find str function for stress_MINUS_pack_MINUS_bind_MINUS_group : WGPUBindGroup
+
+  // Failed to find str function for solid_MINUS_sim_MINUS_pipeline : WGPUComputePipeline
+
+  // Failed to find str function for solid_MINUS_sim_MINUS_bind_MINUS_group : WGPUBindGroup
+
   bufferPtr--;
   snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
   return buffer;
@@ -27443,6 +28282,25 @@ void Renderer_run_MINUS_simulation_MINUS_passes_BANG_(Engine* eng, Renderer* ren
         WGPUBindGroup* _42 = Renderer_gas_MINUS_sim_MINUS_bind_MINUS_group(ren);
         WGPUBindGroup _43 = WGPUBindGroup_copy(_42);
         gpu_batch_dispatch(batch_MINUS_encoder, _38, _43, 64000);
+        WGPUComputePipeline* _51 = Renderer_solid_MINUS_sim_MINUS_pipeline(ren);
+        WGPUComputePipeline _52 = WGPUComputePipeline_copy(_51);
+        WGPUBindGroup* _56 = Renderer_solid_MINUS_sim_MINUS_bind_MINUS_group(ren);
+        WGPUBindGroup _57 = WGPUBindGroup_copy(_56);
+        gpu_batch_dispatch(batch_MINUS_encoder, _52, _57, 64000);
+        WGPUVertexBufferWrapper** _66 = Renderer_voxel_MINUS_gpu_MINUS_buffer_MINUS_write(ren);
+        WGPUVertexBufferWrapper* _67 = Pointer_copy__WGPUVertexBufferWrapper(_66);
+        WGPUBuffer _68 = WGPUVertexBufferWrapper_get_MINUS_buffer(_67);
+        WGPUVertexBufferWrapper** _73 = Renderer_voxel_MINUS_gpu_MINUS_buffer_MINUS_read(ren);
+        WGPUVertexBufferWrapper* _74 = Pointer_copy__WGPUVertexBufferWrapper(_73);
+        WGPUBuffer _75 = WGPUVertexBufferWrapper_get_MINUS_buffer(_74);
+        gpu_batch_copy_buffer_to_buffer(batch_MINUS_encoder, _68, _75, 65536000l);
+        WGPUVertexBufferWrapper** _84 = Renderer_stress_MINUS_gpu_MINUS_buffer_MINUS_write(ren);
+        WGPUVertexBufferWrapper* _85 = Pointer_copy__WGPUVertexBufferWrapper(_84);
+        WGPUBuffer _86 = WGPUVertexBufferWrapper_get_MINUS_buffer(_85);
+        WGPUVertexBufferWrapper** _91 = Renderer_stress_MINUS_gpu_MINUS_buffer_MINUS_read(ren);
+        WGPUVertexBufferWrapper* _92 = Pointer_copy__WGPUVertexBufferWrapper(_91);
+        WGPUBuffer _93 = WGPUVertexBufferWrapper_get_MINUS_buffer(_92);
+        gpu_batch_copy_buffer_to_buffer(batch_MINUS_encoder, _86, _93, 65536000l);
         gpu_batch_end(ctx, batch_MINUS_encoder);
     }
 }
@@ -27759,6 +28617,97 @@ void Renderer_set_MINUS_pipeline_BANG_(Renderer* pRef, WGPURenderPipelineWrapper
 }
 
 
+Renderer Renderer_set_MINUS_solid_MINUS_sim_MINUS_bind_MINUS_group(Renderer p, WGPUBindGroup newValue) {
+    /* Ignore non-managed member 'solid_MINUS_sim_MINUS_bind_MINUS_group' : WGPUBindGroup */
+    p.solid_MINUS_sim_MINUS_bind_MINUS_group = newValue;
+    return p;
+}
+
+
+void Renderer_set_MINUS_solid_MINUS_sim_MINUS_bind_MINUS_group_BANG_(Renderer* pRef, WGPUBindGroup newValue) {
+    /* Ignore non-managed member 'solid_MINUS_sim_MINUS_bind_MINUS_group' : WGPUBindGroup */
+    pRef->solid_MINUS_sim_MINUS_bind_MINUS_group = newValue;
+}
+
+
+Renderer Renderer_set_MINUS_solid_MINUS_sim_MINUS_pipeline(Renderer p, WGPUComputePipeline newValue) {
+    /* Ignore non-managed member 'solid_MINUS_sim_MINUS_pipeline' : WGPUComputePipeline */
+    p.solid_MINUS_sim_MINUS_pipeline = newValue;
+    return p;
+}
+
+
+void Renderer_set_MINUS_solid_MINUS_sim_MINUS_pipeline_BANG_(Renderer* pRef, WGPUComputePipeline newValue) {
+    /* Ignore non-managed member 'solid_MINUS_sim_MINUS_pipeline' : WGPUComputePipeline */
+    pRef->solid_MINUS_sim_MINUS_pipeline = newValue;
+}
+
+
+Renderer Renderer_set_MINUS_stress_MINUS_gpu_MINUS_buffer_MINUS_read(Renderer p, WGPUVertexBufferWrapper* newValue) {
+    /* Ignore non-managed member 'stress_MINUS_gpu_MINUS_buffer_MINUS_read' : (Ptr WGPUVertexBufferWrapper) */
+    p.stress_MINUS_gpu_MINUS_buffer_MINUS_read = newValue;
+    return p;
+}
+
+
+void Renderer_set_MINUS_stress_MINUS_gpu_MINUS_buffer_MINUS_read_BANG_(Renderer* pRef, WGPUVertexBufferWrapper* newValue) {
+    /* Ignore non-managed member 'stress_MINUS_gpu_MINUS_buffer_MINUS_read' : (Ptr WGPUVertexBufferWrapper) */
+    pRef->stress_MINUS_gpu_MINUS_buffer_MINUS_read = newValue;
+}
+
+
+Renderer Renderer_set_MINUS_stress_MINUS_gpu_MINUS_buffer_MINUS_write(Renderer p, WGPUVertexBufferWrapper* newValue) {
+    /* Ignore non-managed member 'stress_MINUS_gpu_MINUS_buffer_MINUS_write' : (Ptr WGPUVertexBufferWrapper) */
+    p.stress_MINUS_gpu_MINUS_buffer_MINUS_write = newValue;
+    return p;
+}
+
+
+void Renderer_set_MINUS_stress_MINUS_gpu_MINUS_buffer_MINUS_write_BANG_(Renderer* pRef, WGPUVertexBufferWrapper* newValue) {
+    /* Ignore non-managed member 'stress_MINUS_gpu_MINUS_buffer_MINUS_write' : (Ptr WGPUVertexBufferWrapper) */
+    pRef->stress_MINUS_gpu_MINUS_buffer_MINUS_write = newValue;
+}
+
+
+Renderer Renderer_set_MINUS_stress_MINUS_half_MINUS_buffer(Renderer p, WGPUVertexBufferWrapper* newValue) {
+    /* Ignore non-managed member 'stress_MINUS_half_MINUS_buffer' : (Ptr WGPUVertexBufferWrapper) */
+    p.stress_MINUS_half_MINUS_buffer = newValue;
+    return p;
+}
+
+
+void Renderer_set_MINUS_stress_MINUS_half_MINUS_buffer_BANG_(Renderer* pRef, WGPUVertexBufferWrapper* newValue) {
+    /* Ignore non-managed member 'stress_MINUS_half_MINUS_buffer' : (Ptr WGPUVertexBufferWrapper) */
+    pRef->stress_MINUS_half_MINUS_buffer = newValue;
+}
+
+
+Renderer Renderer_set_MINUS_stress_MINUS_pack_MINUS_bind_MINUS_group(Renderer p, WGPUBindGroup newValue) {
+    /* Ignore non-managed member 'stress_MINUS_pack_MINUS_bind_MINUS_group' : WGPUBindGroup */
+    p.stress_MINUS_pack_MINUS_bind_MINUS_group = newValue;
+    return p;
+}
+
+
+void Renderer_set_MINUS_stress_MINUS_pack_MINUS_bind_MINUS_group_BANG_(Renderer* pRef, WGPUBindGroup newValue) {
+    /* Ignore non-managed member 'stress_MINUS_pack_MINUS_bind_MINUS_group' : WGPUBindGroup */
+    pRef->stress_MINUS_pack_MINUS_bind_MINUS_group = newValue;
+}
+
+
+Renderer Renderer_set_MINUS_stress_MINUS_texture(Renderer p, WGPURenderTexture* newValue) {
+    /* Ignore non-managed member 'stress_MINUS_texture' : (Ptr WGPURenderTexture) */
+    p.stress_MINUS_texture = newValue;
+    return p;
+}
+
+
+void Renderer_set_MINUS_stress_MINUS_texture_BANG_(Renderer* pRef, WGPURenderTexture* newValue) {
+    /* Ignore non-managed member 'stress_MINUS_texture' : (Ptr WGPURenderTexture) */
+    pRef->stress_MINUS_texture = newValue;
+}
+
+
 Renderer Renderer_set_MINUS_uniform_MINUS_buffer(Renderer p, WGPUUniformBufferWrapper* newValue) {
     /* Ignore non-managed member 'uniform_MINUS_buffer' : (Ptr WGPUUniformBufferWrapper) */
     p.uniform_MINUS_buffer = newValue;
@@ -27863,6 +28812,10 @@ void Renderer_set_MINUS_width_BANG_(Renderer* pRef, int newValue) {
 }
 
 
+WGPUBindGroup* Renderer_solid_MINUS_sim_MINUS_bind_MINUS_group(Renderer* p) { return (&(p->solid_MINUS_sim_MINUS_bind_MINUS_group)); }
+
+WGPUComputePipeline* Renderer_solid_MINUS_sim_MINUS_pipeline(Renderer* p) { return (&(p->solid_MINUS_sim_MINUS_pipeline)); }
+
 String Renderer_str(Renderer *p) {
   // convert members to String here:
   String temp = NULL;
@@ -27892,6 +28845,10 @@ String Renderer_str(Renderer *p) {
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
   temp = Pointer_prn__WGPURenderTexture(p->light_MINUS_texture); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPURenderTexture(p->stress_MINUS_texture); 
   size += snprintf(NULL, 0, "%s ", temp);
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
@@ -27973,6 +28930,24 @@ String Renderer_str(Renderer *p) {
 
   // Failed to find str function for gas_MINUS_sim_MINUS_bind_MINUS_group : WGPUBindGroup
 
+  temp = Pointer_prn__WGPUVertexBufferWrapper(p->stress_MINUS_gpu_MINUS_buffer_MINUS_read); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPUVertexBufferWrapper(p->stress_MINUS_gpu_MINUS_buffer_MINUS_write); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPUVertexBufferWrapper(p->stress_MINUS_half_MINUS_buffer); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  // Failed to find str function for stress_MINUS_pack_MINUS_bind_MINUS_group : WGPUBindGroup
+
+  // Failed to find str function for solid_MINUS_sim_MINUS_pipeline : WGPUComputePipeline
+
+  // Failed to find str function for solid_MINUS_sim_MINUS_bind_MINUS_group : WGPUBindGroup
+
 
   String buffer = CARP_MALLOC(size);
   String bufferPtr = buffer;
@@ -28006,6 +28981,11 @@ String Renderer_str(Renderer *p) {
   if(temp) { CARP_FREE(temp); temp = NULL; }
 
   temp = Pointer_prn__WGPURenderTexture(p->light_MINUS_texture);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPURenderTexture(p->stress_MINUS_texture);
   tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
   bufferPtr += tempsize;
   if(temp) { CARP_FREE(temp); temp = NULL; }
@@ -28102,10 +29082,41 @@ String Renderer_str(Renderer *p) {
 
   // Failed to find str function for gas_MINUS_sim_MINUS_bind_MINUS_group : WGPUBindGroup
 
+  temp = Pointer_prn__WGPUVertexBufferWrapper(p->stress_MINUS_gpu_MINUS_buffer_MINUS_read);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPUVertexBufferWrapper(p->stress_MINUS_gpu_MINUS_buffer_MINUS_write);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Pointer_prn__WGPUVertexBufferWrapper(p->stress_MINUS_half_MINUS_buffer);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  // Failed to find str function for stress_MINUS_pack_MINUS_bind_MINUS_group : WGPUBindGroup
+
+  // Failed to find str function for solid_MINUS_sim_MINUS_pipeline : WGPUComputePipeline
+
+  // Failed to find str function for solid_MINUS_sim_MINUS_bind_MINUS_group : WGPUBindGroup
+
   bufferPtr--;
   snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
   return buffer;
 }
+
+WGPUVertexBufferWrapper** Renderer_stress_MINUS_gpu_MINUS_buffer_MINUS_read(Renderer* p) { return (&(p->stress_MINUS_gpu_MINUS_buffer_MINUS_read)); }
+
+WGPUVertexBufferWrapper** Renderer_stress_MINUS_gpu_MINUS_buffer_MINUS_write(Renderer* p) { return (&(p->stress_MINUS_gpu_MINUS_buffer_MINUS_write)); }
+
+WGPUVertexBufferWrapper** Renderer_stress_MINUS_half_MINUS_buffer(Renderer* p) { return (&(p->stress_MINUS_half_MINUS_buffer)); }
+
+WGPUBindGroup* Renderer_stress_MINUS_pack_MINUS_bind_MINUS_group(Renderer* p) { return (&(p->stress_MINUS_pack_MINUS_bind_MINUS_group)); }
+
+WGPURenderTexture** Renderer_stress_MINUS_texture(Renderer* p) { return (&(p->stress_MINUS_texture)); }
 
 WGPUUniformBufferWrapper** Renderer_uniform_MINUS_buffer(Renderer* p) { return (&(p->uniform_MINUS_buffer)); }
 
@@ -28300,6 +29311,48 @@ Renderer Renderer_update_MINUS_pack_MINUS_pipeline(Renderer p, Lambda *updater) 
 
 Renderer Renderer_update_MINUS_pipeline(Renderer p, Lambda *updater) {
     p.pipeline = (*updater).env ? ((Fn__LambdaEnv_WGPURenderPipelineWrapper_MUL__WGPURenderPipelineWrapper_MUL_)(*updater).callback)((*updater).env, p.pipeline) : ((Fn__WGPURenderPipelineWrapper_MUL__WGPURenderPipelineWrapper_MUL_)(*updater).callback)(p.pipeline);
+    return p;
+}
+
+
+Renderer Renderer_update_MINUS_solid_MINUS_sim_MINUS_bind_MINUS_group(Renderer p, Lambda *updater) {
+    p.solid_MINUS_sim_MINUS_bind_MINUS_group = (*updater).env ? ((Fn__LambdaEnv_WGPUBindGroup_WGPUBindGroup)(*updater).callback)((*updater).env, p.solid_MINUS_sim_MINUS_bind_MINUS_group) : ((Fn__WGPUBindGroup_WGPUBindGroup)(*updater).callback)(p.solid_MINUS_sim_MINUS_bind_MINUS_group);
+    return p;
+}
+
+
+Renderer Renderer_update_MINUS_solid_MINUS_sim_MINUS_pipeline(Renderer p, Lambda *updater) {
+    p.solid_MINUS_sim_MINUS_pipeline = (*updater).env ? ((Fn__LambdaEnv_WGPUComputePipeline_WGPUComputePipeline)(*updater).callback)((*updater).env, p.solid_MINUS_sim_MINUS_pipeline) : ((Fn__WGPUComputePipeline_WGPUComputePipeline)(*updater).callback)(p.solid_MINUS_sim_MINUS_pipeline);
+    return p;
+}
+
+
+Renderer Renderer_update_MINUS_stress_MINUS_gpu_MINUS_buffer_MINUS_read(Renderer p, Lambda *updater) {
+    p.stress_MINUS_gpu_MINUS_buffer_MINUS_read = (*updater).env ? ((Fn__LambdaEnv_WGPUVertexBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL_)(*updater).callback)((*updater).env, p.stress_MINUS_gpu_MINUS_buffer_MINUS_read) : ((Fn__WGPUVertexBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL_)(*updater).callback)(p.stress_MINUS_gpu_MINUS_buffer_MINUS_read);
+    return p;
+}
+
+
+Renderer Renderer_update_MINUS_stress_MINUS_gpu_MINUS_buffer_MINUS_write(Renderer p, Lambda *updater) {
+    p.stress_MINUS_gpu_MINUS_buffer_MINUS_write = (*updater).env ? ((Fn__LambdaEnv_WGPUVertexBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL_)(*updater).callback)((*updater).env, p.stress_MINUS_gpu_MINUS_buffer_MINUS_write) : ((Fn__WGPUVertexBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL_)(*updater).callback)(p.stress_MINUS_gpu_MINUS_buffer_MINUS_write);
+    return p;
+}
+
+
+Renderer Renderer_update_MINUS_stress_MINUS_half_MINUS_buffer(Renderer p, Lambda *updater) {
+    p.stress_MINUS_half_MINUS_buffer = (*updater).env ? ((Fn__LambdaEnv_WGPUVertexBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL_)(*updater).callback)((*updater).env, p.stress_MINUS_half_MINUS_buffer) : ((Fn__WGPUVertexBufferWrapper_MUL__WGPUVertexBufferWrapper_MUL_)(*updater).callback)(p.stress_MINUS_half_MINUS_buffer);
+    return p;
+}
+
+
+Renderer Renderer_update_MINUS_stress_MINUS_pack_MINUS_bind_MINUS_group(Renderer p, Lambda *updater) {
+    p.stress_MINUS_pack_MINUS_bind_MINUS_group = (*updater).env ? ((Fn__LambdaEnv_WGPUBindGroup_WGPUBindGroup)(*updater).callback)((*updater).env, p.stress_MINUS_pack_MINUS_bind_MINUS_group) : ((Fn__WGPUBindGroup_WGPUBindGroup)(*updater).callback)(p.stress_MINUS_pack_MINUS_bind_MINUS_group);
+    return p;
+}
+
+
+Renderer Renderer_update_MINUS_stress_MINUS_texture(Renderer p, Lambda *updater) {
+    p.stress_MINUS_texture = (*updater).env ? ((Fn__LambdaEnv_WGPURenderTexture_MUL__WGPURenderTexture_MUL_)(*updater).callback)((*updater).env, p.stress_MINUS_texture) : ((Fn__WGPURenderTexture_MUL__WGPURenderTexture_MUL_)(*updater).callback)(p.stress_MINUS_texture);
     return p;
 }
 
@@ -32026,6 +33079,31 @@ WGPUUniformBufferWrapper WGPUUniformBufferWrapper_copy(WGPUUniformBufferWrapper*
 String WGPUUniformBufferWrapper_prn(WGPUUniformBufferWrapper u) { (void)u; return strdup("WGPUUniformBufferWrapper"); }
 String WGPUUniformBufferWrapper_str(WGPUUniformBufferWrapper* u) { (void)u; return strdup("WGPUUniformBufferWrapper"); }
 WGPUVertexBufferWrapper WGPUVertexBufferWrapper_copy(WGPUVertexBufferWrapper* v) { return *v; }
+Result__WGPUVertexBufferWrapper_MUL__String WGPUVertexBufferWrapper_create_MINUS_empty_MINUS_storage_MINUS_vertex_MINUS_buffer(WGPUContext* ctx, int size) {
+    Result__WGPUVertexBufferWrapper_MUL__String _32;
+    /* let */ {
+        Long _12 = Long_from_MINUS_int(size);
+        Uint64 _13 = Uint64_from_MINUS_long(_12);
+        WGPUVertexBufferWrapper* _14 = WGPUVertexBufferWrapper_create_MINUS_empty_MINUS_storage_MINUS_vertex_MINUS_buffer_MINUS_(ctx, _13);
+        WGPUVertexBufferWrapper* vb = _14;
+        Result__WGPUVertexBufferWrapper_MUL__String _31;
+        bool _19 = wgpu_vertex_buffer_is_null(vb);
+        if (_19) {
+            String _23 = WGPURender_get_MINUS_error();
+            Result__WGPUVertexBufferWrapper_MUL__String _24 = Result_Error__String_WGPUVertexBufferWrapper_MUL_(_23);
+            Result__WGPUVertexBufferWrapper_MUL__String _25 = _24;
+            _31 = _25;
+        } else {
+            Result__WGPUVertexBufferWrapper_MUL__String _29 = Result_Success__WGPUVertexBufferWrapper_MUL__String(vb);
+            Result__WGPUVertexBufferWrapper_MUL__String _30 = _29;
+            _31 = _30;
+        }
+        _32 = _31;
+    }
+    return _32;
+}
+
+WGPUVertexBufferWrapper* WGPUVertexBufferWrapper_create_MINUS_empty_MINUS_storage_MINUS_vertex_MINUS_buffer_MINUS_(WGPUContext* ctx, uint64_t size) { return wgpu_create_storage_vertex_buffer(ctx, NULL, size); }
 WGPUBuffer WGPUVertexBufferWrapper_get_MINUS_buffer(WGPUVertexBufferWrapper* vb) { return vb->buffer; }
 String WGPUVertexBufferWrapper_prn(WGPUVertexBufferWrapper v) { (void)v; return strdup("WGPUVertexBufferWrapper"); }
 String WGPUVertexBufferWrapper_str(WGPUVertexBufferWrapper* v) { (void)v; return strdup("WGPUVertexBufferWrapper"); }
@@ -33114,15 +34192,11 @@ ZoneStats ZoneStats_update_MINUS_sum_MINUS_sq_MINUS_ms(ZoneStats p, Lambda *upda
 }
 
 
-WGPUBindGroup create_MINUS_voxel_MINUS_scaffold_MINUS_bind_MINUS_group(WGPUContext* ctx, WGPURenderPipelineWrapper* pipe, WGPURenderTexture* solid_tex, WGPURenderTexture* liquid_tex, WGPURenderTexture* gas_tex, WGPURenderTexture* light_tex, WGPUSampler sampler, WGPUUniformBufferWrapper* ub) {
-      if (!ctx || !pipe || !solid_tex || !liquid_tex || !gas_tex || !light_tex || !sampler || !ub) {
+WGPUBindGroup create_MINUS_voxel_MINUS_scaffold_MINUS_bind_MINUS_group(WGPUContext* ctx, WGPURenderPipelineWrapper* pipe, WGPURenderTexture* solid_tex, WGPURenderTexture* liquid_tex, WGPURenderTexture* gas_tex, WGPURenderTexture* light_tex, WGPURenderTexture* stress_tex, WGPUSampler sampler, WGPUUniformBufferWrapper* ub) {
+      if (!ctx || !pipe || !solid_tex || !liquid_tex || !gas_tex || !light_tex || !stress_tex || !sampler || !ub) {
           return NULL;
       }
-      WGPUBindGroupLayout layout = wgpuRenderPipelineGetBindGroupLayout(pipe->pipeline, 0);
-      if (!layout) {
-          return NULL;
-      }
-      WGPUBindGroupEntry entries[6] = {
+      WGPUBindGroupEntry entries[7] = {
           {
               .binding = 0,
               .buffer  = ub->buffer,
@@ -33148,11 +34222,19 @@ WGPUBindGroup create_MINUS_voxel_MINUS_scaffold_MINUS_bind_MINUS_group(WGPUConte
           {
               .binding     = 5,
               .textureView = light_tex->view,
+          },
+          {
+              .binding     = 6,
+              .textureView = stress_tex->view,
           }
       };
+      WGPUBindGroupLayout layout = wgpuRenderPipelineGetBindGroupLayout(pipe->pipeline, 0);
+      if (!layout) {
+          return NULL;
+      }
       WGPUBindGroupDescriptor desc = {
           .layout     = layout,
-          .entryCount = 6,
+          .entryCount = 7,
           .entries    = entries,
       };
       WGPUBindGroup bg = wgpuDeviceCreateBindGroup(ctx->device, &desc);

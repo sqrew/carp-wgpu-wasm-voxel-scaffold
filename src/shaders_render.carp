@@ -11,6 +11,7 @@
     sun_dir: vec4<f32>,
     hit_pos: vec4<f32>,
     edit_params: vec4<f32>,
+    view_mode: vec4<f32>,
 }
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -19,6 +20,7 @@
 @group(0) @binding(3) var liquid_texture: texture_3d<f32>;
 @group(0) @binding(4) var gas_texture: texture_3d<f32>;
 @group(0) @binding(5) var light_texture: texture_3d<f32>;
+@group(0) @binding(6) var stress_texture: texture_3d<f32>;
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
@@ -170,11 +172,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             let dist = val.g * 0.5;
             
             // Accumulate Fluids and Gases
+            let ip_cell = vec3<i32>(clamp(wrapped_p, vec3<f32>(0.0), vec3<f32>(159.0)));
+
             let liq_val = textureSampleLevel(liquid_texture, voxel_sampler, uvw, 0.0);
             if (liq_val.g > 0.05) {
                 var liq_color = vec3<f32>(0.1, 0.4, 0.8); // Default Water
                 var absorb = 2.0;
-                let id = round(liq_val.r);
+                let raw_liq = textureLoad(liquid_texture, ip_cell, 0);
+                let id = round(raw_liq.r);
                 if (id == 2.0) {
                     liq_color = vec3<f32>(1.0, 0.3, 0.0); // Lava
                     absorb = 5.0;
@@ -184,6 +189,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 } else if (id == 4.0) {
                     liq_color = vec3<f32>(0.35, 0.25, 0.1); // Oil (dark yellow/brown)
                     absorb = 4.5;
+                } else if (id == 5.0) {
+                    liq_color = vec3<f32>(0.42, 0.38, 0.35); // Rubble (grey-brown stone dust)
+                    absorb = 8.0; // highly opaque
                 }
                 let step_size = max(0.008, dist);
                 let alpha = 1.0 - exp(-liq_val.g * step_size * absorb);
@@ -195,7 +203,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             if (gas_val.g > 0.05) {
                 var gas_color = vec3<f32>(0.7, 0.7, 0.75); // Steam
                 var absorb = 0.8;
-                let id = round(gas_val.r);
+                let raw_gas = textureLoad(gas_texture, ip_cell, 0);
+                let id = round(raw_gas.r);
                 if (id == 2.0) {
                     gas_color = vec3<f32>(0.4, 0.9, 0.1); // Toxic Gas
                     absorb = 1.2;
@@ -244,6 +253,23 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                     base_color = vec3<f32>(0.1, 0.1, 0.1);    // Coal
                 } else if (id == 5.0) {
                     base_color = vec3<f32>(0.95, 0.75, 0.15);  // Gold
+                }
+                
+                // Visualizing structural stress/fatigue by tinting red OR using full blue-to-red mapping
+                let stress_val = textureLoad(stress_texture, ip, 0);
+                let fatigue = stress_val.w;
+                let total_s = stress_val.y + stress_val.z;
+                
+                if (u.view_mode.x > 0.5) {
+                    // Full blue-to-red stress mapping
+                    let norm_stress = clamp(total_s / 12.0, 0.0, 1.0);
+                    let color_val = max(norm_stress, fatigue);
+                    base_color = mix(vec3<f32>(0.1, 0.25, 0.8), vec3<f32>(0.9, 0.1, 0.1), color_val);
+                } else {
+                    // Regular view: no stress mapping, but minor red tint on highly damaged blocks
+                    if (fatigue > 0.05) {
+                        base_color = mix(base_color, vec3<f32>(0.9, 0.1, 0.1), fatigue * 0.5);
+                    }
                 }
                 
                 let light_dir = normalize(u.sun_dir.xyz);
