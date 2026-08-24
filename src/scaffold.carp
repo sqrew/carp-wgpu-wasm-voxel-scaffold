@@ -17,6 +17,54 @@
 #endif
   }")
 
+(deftemplate js-globals-setup (Fn [] ())
+  "#ifndef JS_GLOBALS_DEFINED
+   #define JS_GLOBALS_DEFINED
+   float js_brush_radius = 3.0f;
+   float js_solid_mat = 2.0f;
+   float js_liq_mat = 1.0f;
+   float js_gas_mat = 1.0f;
+   float js_flying = 1.0f;
+   float js_flashlight = 1.0f;
+
+   #ifdef __EMSCRIPTEN__
+   #include <emscripten.h>
+   EMSCRIPTEN_KEEPALIVE void set_brush_radius(float r) { js_brush_radius = r; }
+   EMSCRIPTEN_KEEPALIVE void set_solid_mat(float m) { js_solid_mat = m; }
+   EMSCRIPTEN_KEEPALIVE void set_liq_mat(float m) { js_liq_mat = m; }
+   EMSCRIPTEN_KEEPALIVE void set_gas_mat(float m) { js_gas_mat = m; }
+   EMSCRIPTEN_KEEPALIVE void set_flying(float f) { js_flying = f; }
+   EMSCRIPTEN_KEEPALIVE void set_flashlight(float f) { js_flashlight = f; }
+   #endif
+   #endif
+
+   void $NAME(void)"
+  "$DECL {}")
+
+(deftemplate js-sync-all (Fn [Float Float Float Float Float Float] ())
+  "void $NAME(float r, float s, float l, float g, float fly, float light)"
+  "$DECL {
+#ifdef __EMSCRIPTEN__
+      char buf[512];
+      sprintf(buf, \"window.player_brush_radius = %f; window.player_solid_mat = %f; window.player_liq_mat = %f; window.player_gas_mat = %f; window.player_flying = %f > 0.5; window.player_flashlight = %f > 0.5; if (window.sync_ui) window.sync_ui();\", r, s, l, g, fly, light);
+      emscripten_run_script(buf);
+#endif
+  }")
+
+(deftemplate get-js-brush-radius (Fn [] Float) "float $NAME(void)" "$DECL { return js_brush_radius; }")
+(deftemplate get-js-solid-mat (Fn [] Float) "float $NAME(void)" "$DECL { return js_solid_mat; }")
+(deftemplate get-js-liq-mat (Fn [] Float) "float $NAME(void)" "$DECL { return js_liq_mat; }")
+(deftemplate get-js-gas-mat (Fn [] Float) "float $NAME(void)" "$DECL { return js_gas_mat; }")
+(deftemplate get-js-flying (Fn [] Float) "float $NAME(void)" "$DECL { return js_flying; }")
+(deftemplate get-js-flashlight (Fn [] Float) "float $NAME(void)" "$DECL { return js_flashlight; }")
+
+(deftemplate set-js-brush-radius (Fn [Float] ()) "void $NAME(float r)" "$DECL { js_brush_radius = r; }")
+(deftemplate set-js-solid-mat (Fn [Float] ()) "void $NAME(float m)" "$DECL { js_solid_mat = m; }")
+(deftemplate set-js-liq-mat (Fn [Float] ()) "void $NAME(float m)" "$DECL { js_liq_mat = m; }")
+(deftemplate set-js-gas-mat (Fn [Float] ()) "void $NAME(float m)" "$DECL { js_gas_mat = m; }")
+(deftemplate set-js-flying (Fn [Float] ()) "void $NAME(float f)" "$DECL { js_flying = f; }")
+(deftemplate set-js-flashlight (Fn [Float] ()) "void $NAME(float f)" "$DECL { js_flashlight = f; }")
+
 (register-type GLFWwindow)
 
 (deftemplate create-voxel-scaffold-bind-group (Fn [(Ptr WGPUContext) (Ptr WGPURenderPipelineWrapper) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) WGPUSampler (Ptr WGPUUniformBufferWrapper)] WGPUBindGroup)

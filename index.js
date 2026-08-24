@@ -506,7 +506,7 @@ function updateMemoryViews() {
   HEAPF32 = new Float32Array(b);
   HEAPF64 = new Float64Array(b);
   HEAP64 = new BigInt64Array(b);
-  
+  HEAPU64 = new BigUint64Array(b);
 }
 
 // include: memoryprofiler.js
@@ -4008,6 +4008,28 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
       return false;
     };
 
+  
+  
+  
+  
+  /** @type {!Uint16Array} */
+  var HEAPU16;
+  
+  
+  
+  /** @type {!Float32Array} */
+  var HEAPF32;
+  
+  /** @type {!Float64Array} */
+  var HEAPF64;
+  
+  
+  /** not-@type {!BigUint64Array} */
+  var HEAPU64;
+  var _emscripten_run_script = (ptr) => {
+      eval(UTF8ToString(ptr));
+    };
+
   var _emscripten_sleep = function(ms) {
     let innerFunc =  () => new Promise((resolve) => setTimeout(resolve, ms));
     return Asyncify.handleAsync(innerFunc);
@@ -4093,11 +4115,7 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
   
   
   
-  /** @type {!Float32Array} */
-  var HEAPF32;
   
-  /** @type {!Float64Array} */
-  var HEAPF64;
   var WebGPU = {
   Internals:{
   jsObjects:[],
@@ -7978,8 +7996,6 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
   
   
   
-  /** @type {!Uint16Array} */
-  var HEAPU16;
   
   
   
@@ -8596,8 +8612,6 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
       }),
   };
 
-  var requestFullscreen = Browser.requestFullscreen;
-
   FS.createPreloadedFile = FS_createPreloadedFile;
   FS.preloadFile = FS_preloadFile;
   FS.staticInit();;
@@ -8655,7 +8669,6 @@ if (Module['printErr']) err = Module['printErr'];
 }
 
 // Begin runtime exports
-  Module['requestFullscreen'] = requestFullscreen;
   var missingLibrarySymbols = [
   'writeI53ToI64Clamped',
   'writeI53ToI64Signaling',
@@ -8899,6 +8912,7 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'uncaughtExceptionCount',
   'exceptionCaught',
   'Browser',
+  'requestFullscreen',
   'setCanvasSize',
   'getUserMedia',
   'createContext',
@@ -9106,6 +9120,12 @@ function checkIncomingModuleAPI() {
 // Imports from the Wasm binary.
 var _malloc = makeInvalidEarlyAccess('_malloc');
 var _free = makeInvalidEarlyAccess('_free');
+var _set_brush_radius = Module['_set_brush_radius'] = makeInvalidEarlyAccess('_set_brush_radius');
+var _set_solid_mat = Module['_set_solid_mat'] = makeInvalidEarlyAccess('_set_solid_mat');
+var _set_liq_mat = Module['_set_liq_mat'] = makeInvalidEarlyAccess('_set_liq_mat');
+var _set_gas_mat = Module['_set_gas_mat'] = makeInvalidEarlyAccess('_set_gas_mat');
+var _set_flying = Module['_set_flying'] = makeInvalidEarlyAccess('_set_flying');
+var _set_flashlight = Module['_set_flashlight'] = makeInvalidEarlyAccess('_set_flashlight');
 var _fflush = makeInvalidEarlyAccess('_fflush');
 var _strerror = makeInvalidEarlyAccess('_strerror');
 var _main = Module['_main'] = makeInvalidEarlyAccess('_main');
@@ -9173,6 +9193,12 @@ var wasmMemory = makeInvalidEarlyAccess('wasmMemory');
 function assignWasmExports(wasmExports) {
   assert(typeof wasmExports['malloc'] != 'undefined', 'missing Wasm export: malloc');
   assert(typeof wasmExports['free'] != 'undefined', 'missing Wasm export: free');
+  assert(typeof wasmExports['set_brush_radius'] != 'undefined', 'missing Wasm export: set_brush_radius');
+  assert(typeof wasmExports['set_solid_mat'] != 'undefined', 'missing Wasm export: set_solid_mat');
+  assert(typeof wasmExports['set_liq_mat'] != 'undefined', 'missing Wasm export: set_liq_mat');
+  assert(typeof wasmExports['set_gas_mat'] != 'undefined', 'missing Wasm export: set_gas_mat');
+  assert(typeof wasmExports['set_flying'] != 'undefined', 'missing Wasm export: set_flying');
+  assert(typeof wasmExports['set_flashlight'] != 'undefined', 'missing Wasm export: set_flashlight');
   assert(typeof wasmExports['fflush'] != 'undefined', 'missing Wasm export: fflush');
   assert(typeof wasmExports['strerror'] != 'undefined', 'missing Wasm export: strerror');
   assert(typeof wasmExports['__main_argc_argv'] != 'undefined', 'missing Wasm export: __main_argc_argv');
@@ -9237,6 +9263,12 @@ function assignWasmExports(wasmExports) {
   assert(typeof wasmExports['__indirect_function_table'] != 'undefined', 'missing Wasm export: __indirect_function_table');
   _malloc = createExportWrapper('malloc', wasmExports['malloc'], 1);
   _free = createExportWrapper('free', wasmExports['free'], 1);
+  _set_brush_radius = Module['_set_brush_radius'] = createExportWrapper('set_brush_radius', wasmExports['set_brush_radius'], 1);
+  _set_solid_mat = Module['_set_solid_mat'] = createExportWrapper('set_solid_mat', wasmExports['set_solid_mat'], 1);
+  _set_liq_mat = Module['_set_liq_mat'] = createExportWrapper('set_liq_mat', wasmExports['set_liq_mat'], 1);
+  _set_gas_mat = Module['_set_gas_mat'] = createExportWrapper('set_gas_mat', wasmExports['set_gas_mat'], 1);
+  _set_flying = Module['_set_flying'] = createExportWrapper('set_flying', wasmExports['set_flying'], 1);
+  _set_flashlight = Module['_set_flashlight'] = createExportWrapper('set_flashlight', wasmExports['set_flashlight'], 1);
   _fflush = createExportWrapper('fflush', wasmExports['fflush'], 1);
   _strerror = createExportWrapper('strerror', wasmExports['strerror'], 1);
   _main = Module['_main'] = createExportWrapper('__main_argc_argv', wasmExports['__main_argc_argv'], 2);
@@ -9318,6 +9350,8 @@ var wasmImports = {
   emscripten_has_asyncify: _emscripten_has_asyncify,
   /** @export */
   emscripten_resize_heap: _emscripten_resize_heap,
+  /** @export */
+  emscripten_run_script: _emscripten_run_script,
   /** @export */
   emscripten_sleep: _emscripten_sleep,
   /** @export */

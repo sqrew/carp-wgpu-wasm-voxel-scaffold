@@ -30,10 +30,19 @@
 (defmodule Player
   (defn create [start-pos]
     (let [cam (Camera.new start-pos -90.0 0.0 1.7777777777777777)]
-      (Player.init 0.0 cam false true 2.0f 1.0f 1.0f 3.0 false false false false false false true false)))
+      (do
+        (js-globals-setup)
+        (Player.init 0.0 cam false true 2.0f 1.0f 1.0f 3.0 false false false false false false true false))))
 
   (defn handle-input! [player win dt first-mouse-ptr last-x-ptr last-y-ptr]
-    (let [c-pressed (= (GLFW.get-key win GLFW.Keycode.C) GLFW.PRESS)
+    (let [prev-rad @(Player.edit-radius player)
+          prev-mat @(Player.current-mat player)
+          prev-liq @(Player.current-liq player)
+          prev-gas @(Player.current-gas player)
+          prev-fly @(Player.flying player)
+          prev-light @(Player.flashlight-on player)
+
+          c-pressed (= (GLFW.get-key win GLFW.Keycode.C) GLFW.PRESS)
           lbr-pressed (= (GLFW.get-key win GLFW.Keycode.LEFT_BRACKET) GLFW.PRESS)
           rbr-pressed (= (GLFW.get-key win GLFW.Keycode.RIGHT_BRACKET) GLFW.PRESS)
           v-pressed (= (GLFW.get-key win GLFW.Keycode.V) GLFW.PRESS)
@@ -42,45 +51,45 @@
           l-pressed (= (GLFW.get-key win GLFW.Keycode.L) GLFW.PRESS)
           cam (Player.camera player)]
       (do
-        ;; 1. Toggle flying mode
+        ;; 1. Read latest UI changes from HTML/JS via C globals
+        (Pointer.set (ref-to-ptr (Player.edit-radius player)) (Double.from-float (get-js-brush-radius)))
+        (Pointer.set (ref-to-ptr (Player.current-mat player)) (get-js-solid-mat))
+        (Pointer.set (ref-to-ptr (Player.current-liq player)) (get-js-liq-mat))
+        (Pointer.set (ref-to-ptr (Player.current-gas player)) (get-js-gas-mat))
+        (Pointer.set (ref-to-ptr (Player.flying player)) (if (> (get-js-flying) 0.5f) true false))
+        (Pointer.set (ref-to-ptr (Player.flashlight-on player)) (if (> (get-js-flashlight) 0.5f) true false))
+
+        ;; 2. Toggle flying mode (C key)
         (when (and c-pressed (not @(Player.c-last player)))
           (let [p-flying (ref-to-ptr (Player.flying player))
                 next-flying (not @(Player.flying player))]
-            (do
-              (Pointer.set p-flying next-flying)
-              (IO.println &(str* "Flying mode: " next-flying)))))
+            (Pointer.set p-flying next-flying)))
         (Pointer.set (ref-to-ptr (Player.c-last player)) c-pressed)
 
         ;; Toggle flashlight (L key)
         (when (and l-pressed (not @(Player.l-last player)))
           (let [p-light (ref-to-ptr (Player.flashlight-on player))
                 next-light (not @(Player.flashlight-on player))]
-            (do
-              (Pointer.set p-light next-light)
-              (IO.println &(str* "Flashlight: " next-light)))))
+            (Pointer.set p-light next-light)))
         (Pointer.set (ref-to-ptr (Player.l-last player)) l-pressed)
 
-        ;; 2. Decrease brush radius
+        ;; 3. Decrease brush radius ([ key)
         (when (and lbr-pressed (not @(Player.lbracket-last player)))
           (let [p-rad (ref-to-ptr (Player.edit-radius player))
                 curr-rad @(Player.edit-radius player)
                 next-rad (Double.max 0.5 (- curr-rad 0.5))]
-            (do
-              (Pointer.set p-rad next-rad)
-              (IO.println &(str* "Brush Radius: " next-rad)))))
+            (Pointer.set p-rad next-rad)))
         (Pointer.set (ref-to-ptr (Player.lbracket-last player)) lbr-pressed)
 
-        ;; 3. Increase brush radius
+        ;; 4. Increase brush radius (] key)
         (when (and rbr-pressed (not @(Player.rbracket-last player)))
           (let [p-rad (ref-to-ptr (Player.edit-radius player))
                 curr-rad @(Player.edit-radius player)
                 next-rad (Double.min 15.0 (+ curr-rad 0.5))]
-            (do
-              (Pointer.set p-rad next-rad)
-              (IO.println &(str* "Brush Radius: " next-rad)))))
+            (Pointer.set p-rad next-rad)))
         (Pointer.set (ref-to-ptr (Player.rbracket-last player)) rbr-pressed)
 
-        ;; 4. Quick presets for radius
+        ;; Quick presets for radius
         (when (= (GLFW.get-key win GLFW.Keycode.NUM_1) GLFW.PRESS)
           (Pointer.set (ref-to-ptr (Player.edit-radius player)) 1.5))
         (when (= (GLFW.get-key win GLFW.Keycode.NUM_2) GLFW.PRESS)
@@ -95,9 +104,7 @@
                              (if (= curr-solid 2.0f) 3.0f
                                (if (= curr-solid 3.0f) 4.0f
                                  (if (= curr-solid 4.0f) 5.0f 1.0f))))]
-            (do
-              (Pointer.set (ref-to-ptr (Player.current-mat player)) next-solid)
-              (IO.println &(str* "Selected Solid Type: " next-solid)))))
+            (Pointer.set (ref-to-ptr (Player.current-mat player)) next-solid)))
         (Pointer.set (ref-to-ptr (Player.v-last player)) v-pressed)
 
         ;; 6. Cycle liquid type (N key)
@@ -106,9 +113,7 @@
                 next-liq (if (= curr-liq 1.0f) 2.0f
                            (if (= curr-liq 2.0f) 3.0f
                              (if (= curr-liq 3.0f) 4.0f 1.0f)))]
-            (do
-              (Pointer.set (ref-to-ptr (Player.current-liq player)) next-liq)
-              (IO.println &(str* "Selected Liquid Type: " next-liq)))))
+            (Pointer.set (ref-to-ptr (Player.current-liq player)) next-liq)))
         (Pointer.set (ref-to-ptr (Player.n-last player)) n-pressed)
 
         ;; 7. Cycle gas type (B key)
@@ -117,12 +122,38 @@
                 next-gas (if (= curr-gas 1.0f) 2.0f
                            (if (= curr-gas 2.0f) 3.0f
                              (if (= curr-gas 3.0f) 4.0f 1.0f)))]
-            (do
-              (Pointer.set (ref-to-ptr (Player.current-gas player)) next-gas)
-              (IO.println &(str* "Selected Gas Type: " next-gas)))))
+            (Pointer.set (ref-to-ptr (Player.current-gas player)) next-gas)))
         (Pointer.set (ref-to-ptr (Player.b-last player)) b-pressed)
 
-        ;; 8. Handle camera movement & look inputs
+        ;; 8. If anything changed via keyboard, update C globals & sync to HTML UI
+        (let [curr-rad @(Player.edit-radius player)
+              curr-mat @(Player.current-mat player)
+              curr-liq @(Player.current-liq player)
+              curr-gas @(Player.current-gas player)
+              curr-fly @(Player.flying player)
+              curr-light @(Player.flashlight-on player)]
+          (when (or (or (or (or (or (/= prev-rad curr-rad)
+                                 (/= prev-mat curr-mat))
+                             (/= prev-liq curr-liq))
+                          (/= prev-gas curr-gas))
+                       (/= prev-fly curr-fly))
+                    (/= prev-light curr-light))
+            (do
+              (set-js-brush-radius (Double.to-float curr-rad))
+              (set-js-solid-mat curr-mat)
+              (set-js-liq-mat curr-liq)
+              (set-js-gas-mat curr-gas)
+              (set-js-flying (if curr-fly 1.0f 0.0f))
+              (set-js-flashlight (if curr-light 1.0f 0.0f))
+              (js-sync-all
+                (Double.to-float curr-rad)
+                curr-mat
+                curr-liq
+                curr-gas
+                (if curr-fly 1.0f 0.0f)
+                (if curr-light 1.0f 0.0f)))))
+
+        ;; 9. Handle camera movement & look inputs
         (Camera.update-input win cam dt @(Player.flying player))
         (Camera.update-look win cam first-mouse-ptr last-x-ptr last-y-ptr))))
 

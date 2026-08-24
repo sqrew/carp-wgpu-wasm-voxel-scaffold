@@ -120,8 +120,101 @@ canvas.emscripten { border: 0px none; background-color: black; }
       <progress value="0" max="100" id="progress" hidden=1></progress>
     </div>
 
-    <div class="emscripten_border">
-      <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
+    <style>
+    .mat-btn {
+      background: #2b2b35;
+      color: #aaa;
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 6px 4px;
+      font-size: 11px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.1s ease;
+      text-align: center;
+    }
+    .mat-btn:hover {
+      background: #3e3e4f;
+      color: #fff;
+      border-color: rgba(255,255,255,0.25);
+    }
+    .mat-btn.active {
+      background: #0288d1;
+      border-color: #4fc3f7;
+      color: #fff;
+      font-weight: bold;
+      box-shadow: 0 0 8px rgba(79, 195, 247, 0.4);
+    }
+    </style>
+
+    <div style="position: relative; width: 1280px; height: 720px; margin: 15px auto;">
+      <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1" style="width: 100%; height: 100%; display: block; border: 1px solid #333;"></canvas>
+      
+      <!-- Floating HUD Panel -->
+      <div id="hud-panel" style="position: absolute; top: 15px; right: 15px; width: 280px; background: rgba(18, 18, 24, 0.9); color: #eee; font-family: system-ui, -apple-system, sans-serif; padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 4px 20px rgba(0,0,0,0.6); pointer-events: auto; z-index: 100; text-align: left;">
+        <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 6px; color: #4fc3f7; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Control Panel</h3>
+        
+        <!-- Brush Radius -->
+        <div style="margin-bottom: 15px;">
+          <label style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px;">
+            <span>Brush Size:</span>
+            <span id="brush-val" style="color: #4fc3f7; font-weight: bold;">3.0</span>
+          </label>
+          <input type="range" id="brush-slider" min="0.5" max="15.0" step="0.5" value="3.0" style="width: 100%; cursor: pointer;" oninput="updateBrushRadius(this.value)">
+        </div>
+
+        <!-- Solid Material Selector -->
+        <div style="margin-bottom: 12px;">
+          <div style="font-size: 12px; margin-bottom: 5px; color: #aaa;">Solid Block:</div>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
+            <button class="mat-btn solid-btn" data-id="1.0" onclick="selectSolid(1.0)">Stone</button>
+            <button class="mat-btn solid-btn" data-id="2.0" onclick="selectSolid(2.0)">Grass</button>
+            <button class="mat-btn solid-btn" data-id="3.0" onclick="selectSolid(3.0)">Wood</button>
+            <button class="mat-btn solid-btn" data-id="4.0" onclick="selectSolid(4.0)">Coal</button>
+            <button class="mat-btn solid-btn" data-id="5.0" onclick="selectSolid(5.0)">Gold</button>
+          </div>
+        </div>
+
+        <!-- Liquid Material Selector -->
+        <div style="margin-bottom: 12px;">
+          <div style="font-size: 12px; margin-bottom: 5px; color: #aaa;">Liquid:</div>
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;">
+            <button class="mat-btn liq-btn" data-id="1.0" onclick="selectLiquid(1.0)">Water</button>
+            <button class="mat-btn liq-btn" data-id="2.0" onclick="selectLiquid(2.0)">Lava</button>
+            <button class="mat-btn liq-btn" data-id="3.0" onclick="selectLiquid(3.0)">Acid</button>
+            <button class="mat-btn liq-btn" data-id="4.0" onclick="selectLiquid(4.0)">Oil</button>
+          </div>
+        </div>
+
+        <!-- Gas Material Selector -->
+        <div style="margin-bottom: 15px;">
+          <div style="font-size: 12px; margin-bottom: 5px; color: #aaa;">Gas:</div>
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;">
+            <button class="mat-btn gas-btn" data-id="1.0" onclick="selectGas(1.0)">Steam</button>
+            <button class="mat-btn gas-btn" data-id="2.0" onclick="selectGas(2.0)">Toxic</button>
+            <button class="mat-btn gas-btn" data-id="3.0" onclick="selectGas(3.0)">Fire</button>
+            <button class="mat-btn gas-btn" data-id="4.0" onclick="selectGas(4.0)">Smoke</button>
+          </div>
+        </div>
+
+        <!-- Toggles -->
+        <div style="display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; font-size: 12px;">
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <input type="checkbox" id="fly-chk" onchange="window.player_flying = this.checked"> Flying Mode
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <input type="checkbox" id="light-chk" onchange="window.player_flashlight = this.checked"> Flashlight
+          </label>
+        </div>
+        
+        <!-- Controls Helper Cheat Sheet -->
+        <div style="font-size: 10px; color: #777; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 12px; padding-top: 8px; line-height: 1.4;">
+          <strong>Controls:</strong><br>
+          • <strong>WASD</strong> / <strong>Space</strong> / <strong>Shift</strong> to fly<br>
+          • <strong>Left Click</strong> to Paint / <strong>Right Click</strong> to Carve<br>
+          • <strong>[ ]</strong> to resize brush | <strong>L</strong> to toggle light<br>
+          • <strong>V / B / N / C</strong> keys to cycle selections
+        </div>
+      </div>
     </div>
     <textarea id="output" rows="8"></textarea>
 
@@ -196,6 +289,66 @@ canvas.emscripten { border: 0px none; background-color: black; }
           if (text) console.error('[post-exception status] ' + text);
         };
       };
+
+      // Global Player Settings variables (read/written by WebAssembly memory heap views)
+      window.player_brush_radius = 3.0;
+      window.player_solid_mat = 2.0;
+      window.player_liq_mat = 1.0;
+      window.player_gas_mat = 1.0;
+      window.player_flying = true;
+      window.player_flashlight = true;
+
+      function updateBrushRadius(val) {
+        window.player_brush_radius = parseFloat(val);
+        document.getElementById('brush-val').innerText = window.player_brush_radius.toFixed(1);
+      }
+
+      function selectSolid(id) {
+        window.player_solid_mat = parseFloat(id);
+        updateActiveButtons('solid-btn', id);
+      }
+
+      function selectLiquid(id) {
+        window.player_liq_mat = parseFloat(id);
+        updateActiveButtons('liq-btn', id);
+      }
+
+      function selectGas(id) {
+        window.player_gas_mat = parseFloat(id);
+        updateActiveButtons('gas-btn', id);
+      }
+
+      function updateActiveButtons(className, activeId) {
+        var buttons = document.getElementsByClassName(className);
+        for (var i = 0; i < buttons.length; i++) {
+          if (Math.abs(parseFloat(buttons[i].getAttribute('data-id')) - parseFloat(activeId)) < 0.1) {
+            buttons[i].classList.add('active');
+          } else {
+            buttons[i].classList.remove('active');
+          }
+        }
+      }
+
+      // Sync function called from WebAssembly
+      window.sync_ui = function() {
+        // 1. Update brush radius slider and label
+        document.getElementById('brush-slider').value = window.player_brush_radius;
+        document.getElementById('brush-val').innerText = window.player_brush_radius.toFixed(1);
+
+        // 2. Update material button actives
+        updateActiveButtons('solid-btn', window.player_solid_mat);
+        updateActiveButtons('liq-btn', window.player_liq_mat);
+        updateActiveButtons('gas-btn', window.player_gas_mat);
+
+        // 3. Update checkboxes
+        document.getElementById('fly-chk').checked = window.player_flying;
+        document.getElementById('light-chk').checked = window.player_flashlight;
+      };
+
+      // Set focus to canvas on click so pointer lock behaves correctly
+      canvasElement.addEventListener('click', () => {
+        canvasElement.focus();
+      });
     </script>
     <script async type="text/javascript" src="index.js"></script>
   </body>

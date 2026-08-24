@@ -540,6 +540,9 @@ typedef String(*Fn___String)();
 typedef double(*Fn___double)();
 
 // Depth 4
+typedef float(*Fn___float)();
+
+// Depth 4
 typedef int(*Fn___int)();
 
 // Depth 4
@@ -624,7 +627,13 @@ typedef bool(*Fn__float_float_bool)(float, float);
 typedef float(*Fn__float_float_float)(float, float);
 
 // Depth 4
+typedef void(*Fn__float_float_float_float_float_float_void)(float, float, float, float, float, float);
+
+// Depth 4
 typedef int(*Fn__float_int)(float);
+
+// Depth 4
+typedef void(*Fn__float_void)(float);
 
 // Depth 4
 typedef Char(*Fn__int_Char)(int);
@@ -3780,6 +3789,12 @@ typedef Array__PatternMatchResult(*Fn__Pattern_MUL__String_MUL__Array__PatternMa
 //Declarations:
 
 // Depth 500
+bool _DIV__EQ___bool(bool a, bool b);
+
+// Depth 500
+bool _DIV__EQ___double(double a, double b);
+
+// Depth 500
 bool _DIV__EQ___float(float a, float b);
 
 // Depth 500
@@ -3903,10 +3918,54 @@ void emscripten_MINUS_sleep(int ms);
 String* gas_MINUS_sim_MINUS_wgsl;
 
 // Depth 500
+float get_MINUS_js_MINUS_brush_MINUS_radius(void);
+
+// Depth 500
+float get_MINUS_js_MINUS_flashlight(void);
+
+// Depth 500
+float get_MINUS_js_MINUS_flying(void);
+
+// Depth 500
+float get_MINUS_js_MINUS_gas_MINUS_mat(void);
+
+// Depth 500
+float get_MINUS_js_MINUS_liq_MINUS_mat(void);
+
+// Depth 500
+float get_MINUS_js_MINUS_solid_MINUS_mat(void);
+
+// Depth 500
 void* glfw_MINUS_window_MINUS__GT_voidptr(GLFWwindow* w);
 
 // Depth 500
 int id__int(int x);
+
+// Depth 500
+#ifndef JS_GLOBALS_DEFINED
+   #define JS_GLOBALS_DEFINED
+   float js_brush_radius = 3.0f;
+   float js_solid_mat = 2.0f;
+   float js_liq_mat = 1.0f;
+   float js_gas_mat = 1.0f;
+   float js_flying = 1.0f;
+   float js_flashlight = 1.0f;
+
+   #ifdef __EMSCRIPTEN__
+   #include <emscripten.h>
+   EMSCRIPTEN_KEEPALIVE void set_brush_radius(float r) { js_brush_radius = r; }
+   EMSCRIPTEN_KEEPALIVE void set_solid_mat(float m) { js_solid_mat = m; }
+   EMSCRIPTEN_KEEPALIVE void set_liq_mat(float m) { js_liq_mat = m; }
+   EMSCRIPTEN_KEEPALIVE void set_gas_mat(float m) { js_gas_mat = m; }
+   EMSCRIPTEN_KEEPALIVE void set_flying(float f) { js_flying = f; }
+   EMSCRIPTEN_KEEPALIVE void set_flashlight(float f) { js_flashlight = f; }
+   #endif
+   #endif
+
+   void js_MINUS_globals_MINUS_setup(void);
+
+// Depth 500
+void js_MINUS_sync_MINUS_all(float r, float s, float l, float g, float fly, float light);
 
 // Depth 500
 String* liquid_MINUS_sim_MINUS_wgsl;
@@ -3967,6 +4026,24 @@ void* ref_MINUS_to_MINUS_ptr__float(void* r);
 
 // Depth 500
 void* ref_MINUS_to_MINUS_ptr__int(void* r);
+
+// Depth 500
+void set_MINUS_js_MINUS_brush_MINUS_radius(float r);
+
+// Depth 500
+void set_MINUS_js_MINUS_flashlight(float f);
+
+// Depth 500
+void set_MINUS_js_MINUS_flying(float f);
+
+// Depth 500
+void set_MINUS_js_MINUS_gas_MINUS_mat(float m);
+
+// Depth 500
+void set_MINUS_js_MINUS_liq_MINUS_mat(float m);
+
+// Depth 500
+void set_MINUS_js_MINUS_solid_MINUS_mat(float m);
 
 // Depth 500
 String* voxel_MINUS_wgsl;
@@ -9215,6 +9292,18 @@ void carp_init_globals(int argc, char** argv) {
 }
 
 //Definitions:
+bool _DIV__EQ___bool(bool a, bool b) {
+    bool _9 = Bool__EQ_(a, b);
+    bool _10 = not(_9);
+    return _10;
+}
+
+bool _DIV__EQ___double(double a, double b) {
+    bool _9 = Double__EQ_(a, b);
+    bool _10 = not(_9);
+    return _10;
+}
+
 bool _DIV__EQ___float(float a, float b) {
     bool _9 = Float__EQ_(a, b);
     bool _10 = not(_9);
@@ -16837,7 +16926,7 @@ Maybe__WGPUFrameState_MUL_ Engine_begin_MINUS_frame(Engine* eng) {
             Maybe__WGPUFrameState_MUL_ _33 = Maybe_Just__WGPUFrameState_MUL_(frame);
             _34 = _33;
         }
-        else UNHANDLED("scaffold.carp", 133);
+        else UNHANDLED("scaffold.carp", 181);
         _35 = _34;
     }
     return _35;
@@ -16965,7 +17054,7 @@ Result__Engine_String Engine_create(String* title, int init_MINUS_w, int init_MI
                             Result__Engine_String _140 = Result_Success__Engine_String(_139);
                             _141 = _140;
                         }
-                        else UNHANDLED("scaffold.carp", 97);
+                        else UNHANDLED("scaffold.carp", 145);
                         Result__Engine_String _142 = _141;
                         _143 = _142;
                     }
@@ -16978,7 +17067,7 @@ Result__Engine_String Engine_create(String* title, int init_MINUS_w, int init_MI
         }
         _148 = _147;
     }
-    else UNHANDLED("scaffold.carp", 81);
+    else UNHANDLED("scaffold.carp", 129);
     return _148;
 }
 
@@ -23830,14 +23919,16 @@ Player Player_copy(Player* pRef) {
 }
 
 Player Player_create(Vector3__double start_MINUS_pos) {
-    Player _31;
+    Player _35;
     /* let */ {
         Camera _11 = Camera_new(start_MINUS_pos, -90.0, 0.0, 1.7777777777777777);
         Camera cam = _11;
-        Player _30 = Player_init(0.0, cam, false, true, 2.0f, 1.0f, 1.0f, 3.0, false, false, false, false, false, false, true, false);
-        _31 = _30;
+        js_MINUS_globals_MINUS_setup();
+        Player _33 = Player_init(0.0, cam, false, true, 2.0f, 1.0f, 1.0f, 3.0, false, false, false, false, false, false, true, false);
+        Player _34 = _33;
+        _35 = _34;
     }
-    return _31;
+    return _35;
 }
 
 float* Player_current_MINUS_gas(Player* p) { return (&(p->current_MINUS_gas)); }
@@ -23873,451 +23964,518 @@ bool* Player_flying(Player* p) { return (&(p->flying)); }
 
 void Player_handle_MINUS_input_BANG_(Player* player, GLFWwindow* win, double dt, bool* first_MINUS_mouse_MINUS_ptr, double* last_MINUS_x_MINUS_ptr, double* last_MINUS_y_MINUS_ptr) {
     /* let */ {
-        int _15 = glfwGetKey(win, GLFW_KEY_C);
-        bool _17 = Int__EQ_(_15, GLFW_PRESS);
-        bool c_MINUS_pressed = _17;
-        int _23 = glfwGetKey(win, GLFW_KEY_LEFT_BRACKET);
-        bool _25 = Int__EQ_(_23, GLFW_PRESS);
-        bool lbr_MINUS_pressed = _25;
-        int _31 = glfwGetKey(win, GLFW_KEY_RIGHT_BRACKET);
-        bool _33 = Int__EQ_(_31, GLFW_PRESS);
-        bool rbr_MINUS_pressed = _33;
-        int _39 = glfwGetKey(win, GLFW_KEY_V);
-        bool _41 = Int__EQ_(_39, GLFW_PRESS);
-        bool v_MINUS_pressed = _41;
-        int _47 = glfwGetKey(win, GLFW_KEY_B);
-        bool _49 = Int__EQ_(_47, GLFW_PRESS);
-        bool b_MINUS_pressed = _49;
-        int _55 = glfwGetKey(win, GLFW_KEY_N);
-        bool _57 = Int__EQ_(_55, GLFW_PRESS);
-        bool n_MINUS_pressed = _57;
-        int _63 = glfwGetKey(win, GLFW_KEY_L);
-        bool _65 = Int__EQ_(_63, GLFW_PRESS);
-        bool l_MINUS_pressed = _65;
-        Camera* _69 = Player_camera(player);
-        Camera* cam = _69;
-        bool _87;
+        double* _14 = Player_edit_MINUS_radius(player);
+        double _15 = Double_copy(_14);
+        double prev_MINUS_rad = _15;
+        float* _20 = Player_current_MINUS_mat(player);
+        float _21 = Float_copy(_20);
+        float prev_MINUS_mat = _21;
+        float* _26 = Player_current_MINUS_liq(player);
+        float _27 = Float_copy(_26);
+        float prev_MINUS_liq = _27;
+        float* _32 = Player_current_MINUS_gas(player);
+        float _33 = Float_copy(_32);
+        float prev_MINUS_gas = _33;
+        bool* _38 = Player_flying(player);
+        bool _39 = Bool_copy(_38);
+        bool prev_MINUS_fly = _39;
+        bool* _44 = Player_flashlight_MINUS_on(player);
+        bool _45 = Bool_copy(_44);
+        bool prev_MINUS_light = _45;
+        int _51 = glfwGetKey(win, GLFW_KEY_C);
+        bool _53 = Int__EQ_(_51, GLFW_PRESS);
+        bool c_MINUS_pressed = _53;
+        int _59 = glfwGetKey(win, GLFW_KEY_LEFT_BRACKET);
+        bool _61 = Int__EQ_(_59, GLFW_PRESS);
+        bool lbr_MINUS_pressed = _61;
+        int _67 = glfwGetKey(win, GLFW_KEY_RIGHT_BRACKET);
+        bool _69 = Int__EQ_(_67, GLFW_PRESS);
+        bool rbr_MINUS_pressed = _69;
+        int _75 = glfwGetKey(win, GLFW_KEY_V);
+        bool _77 = Int__EQ_(_75, GLFW_PRESS);
+        bool v_MINUS_pressed = _77;
+        int _83 = glfwGetKey(win, GLFW_KEY_B);
+        bool _85 = Int__EQ_(_83, GLFW_PRESS);
+        bool b_MINUS_pressed = _85;
+        int _91 = glfwGetKey(win, GLFW_KEY_N);
+        bool _93 = Int__EQ_(_91, GLFW_PRESS);
+        bool n_MINUS_pressed = _93;
+        int _99 = glfwGetKey(win, GLFW_KEY_L);
+        bool _101 = Int__EQ_(_99, GLFW_PRESS);
+        bool l_MINUS_pressed = _101;
+        Camera* _105 = Player_camera(player);
+        Camera* cam = _105;
+        double* _112 = Player_edit_MINUS_radius(player);
+        double* _113 = ref_MINUS_to_MINUS_ptr__double(_112);
+        float _116 = get_MINUS_js_MINUS_brush_MINUS_radius();
+        double _117 = Double_from_MINUS_float(_116);
+        Pointer_set__double(_113, _117);
+        float* _123 = Player_current_MINUS_mat(player);
+        float* _124 = ref_MINUS_to_MINUS_ptr__float(_123);
+        float _126 = get_MINUS_js_MINUS_solid_MINUS_mat();
+        Pointer_set__float(_124, _126);
+        float* _132 = Player_current_MINUS_liq(player);
+        float* _133 = ref_MINUS_to_MINUS_ptr__float(_132);
+        float _135 = get_MINUS_js_MINUS_liq_MINUS_mat();
+        Pointer_set__float(_133, _135);
+        float* _141 = Player_current_MINUS_gas(player);
+        float* _142 = ref_MINUS_to_MINUS_ptr__float(_141);
+        float _144 = get_MINUS_js_MINUS_gas_MINUS_mat();
+        Pointer_set__float(_142, _144);
+        bool* _150 = Player_flying(player);
+        bool* _151 = ref_MINUS_to_MINUS_ptr__bool(_150);
+        bool _164;
+        float _155 = get_MINUS_js_MINUS_flying();
+        bool _157 = Float__GT_(_155, 0.5f);
+        if (_157) {
+            bool _160 = true;
+            _164 = _160;
+        } else {
+            bool _163 = false;
+            _164 = _163;
+        }
+        Pointer_set__bool(_151, _164);
+        bool* _170 = Player_flashlight_MINUS_on(player);
+        bool* _171 = ref_MINUS_to_MINUS_ptr__bool(_170);
+        bool _184;
+        float _175 = get_MINUS_js_MINUS_flashlight();
+        bool _177 = Float__GT_(_175, 0.5f);
+        if (_177) {
+            bool _180 = true;
+            _184 = _180;
+        } else {
+            bool _183 = false;
+            _184 = _183;
+        }
+        Pointer_set__bool(_171, _184);
+        bool _201;
         if (c_MINUS_pressed) {
-            bool* _80 = Player_c_MINUS_last(player);
-            bool _81 = Bool_copy(_80);
-            bool _82 = not(_81);
-            bool _83 = _82;
-            _87 = _83;
+            bool* _194 = Player_c_MINUS_last(player);
+            bool _195 = Bool_copy(_194);
+            bool _196 = not(_195);
+            bool _197 = _196;
+            _201 = _197;
         } else {
-            bool _86 = false;
-            _87 = _86;
+            bool _200 = false;
+            _201 = _200;
         }
-        if (_87) {
+        if (_201) {
             /* let */ {
-                bool* _94 = Player_flying(player);
-                bool* _95 = ref_MINUS_to_MINUS_ptr__bool(_94);
-                bool* p_MINUS_flying = _95;
-                bool* _101 = Player_flying(player);
-                bool _102 = Bool_copy(_101);
-                bool _103 = not(_102);
-                bool next_MINUS_flying = _103;
+                bool* _208 = Player_flying(player);
+                bool* _209 = ref_MINUS_to_MINUS_ptr__bool(_208);
+                bool* p_MINUS_flying = _209;
+                bool* _215 = Player_flying(player);
+                bool _216 = Bool_copy(_215);
+                bool _217 = not(_216);
+                bool next_MINUS_flying = _217;
                 Pointer_set__bool(p_MINUS_flying, next_MINUS_flying);
-                static String _117 = "Flying mode: ";
-                String *_117_ref = &_117;
-                String _1000015 = String_str(_117_ref);
-                String* _1000014 = &_1000015; // ref
-                String _1000017 = Bool_str(next_MINUS_flying);
-                String* _1000016 = &_1000017; // ref
-                String _1000013 = String_append(_1000014, _1000016);
-                String* _1000012 = &_1000013; // ref
-                String _1000011 = String_copy(_1000012);
-                String* _128 = &_1000011; // ref
-                IO_println(_128);
-                String_delete(_1000011);
-                String_delete(_1000013);
-                String_delete(_1000015);
-                String_delete(_1000017);
             }
         } else {
             /* () */
         }
-        bool* _141 = Player_c_MINUS_last(player);
-        bool* _142 = ref_MINUS_to_MINUS_ptr__bool(_141);
-        Pointer_set__bool(_142, c_MINUS_pressed);
-        bool _160;
+        bool* _233 = Player_c_MINUS_last(player);
+        bool* _234 = ref_MINUS_to_MINUS_ptr__bool(_233);
+        Pointer_set__bool(_234, c_MINUS_pressed);
+        bool _252;
         if (l_MINUS_pressed) {
-            bool* _153 = Player_l_MINUS_last(player);
-            bool _154 = Bool_copy(_153);
-            bool _155 = not(_154);
-            bool _156 = _155;
-            _160 = _156;
+            bool* _245 = Player_l_MINUS_last(player);
+            bool _246 = Bool_copy(_245);
+            bool _247 = not(_246);
+            bool _248 = _247;
+            _252 = _248;
         } else {
-            bool _159 = false;
-            _160 = _159;
+            bool _251 = false;
+            _252 = _251;
         }
-        if (_160) {
+        if (_252) {
             /* let */ {
-                bool* _167 = Player_flashlight_MINUS_on(player);
-                bool* _168 = ref_MINUS_to_MINUS_ptr__bool(_167);
-                bool* p_MINUS_light = _168;
-                bool* _174 = Player_flashlight_MINUS_on(player);
-                bool _175 = Bool_copy(_174);
-                bool _176 = not(_175);
-                bool next_MINUS_light = _176;
+                bool* _259 = Player_flashlight_MINUS_on(player);
+                bool* _260 = ref_MINUS_to_MINUS_ptr__bool(_259);
+                bool* p_MINUS_light = _260;
+                bool* _266 = Player_flashlight_MINUS_on(player);
+                bool _267 = Bool_copy(_266);
+                bool _268 = not(_267);
+                bool next_MINUS_light = _268;
                 Pointer_set__bool(p_MINUS_light, next_MINUS_light);
-                static String _190 = "Flashlight: ";
-                String *_190_ref = &_190;
-                String _1000030 = String_str(_190_ref);
-                String* _1000029 = &_1000030; // ref
-                String _1000032 = Bool_str(next_MINUS_light);
-                String* _1000031 = &_1000032; // ref
-                String _1000028 = String_append(_1000029, _1000031);
-                String* _1000027 = &_1000028; // ref
-                String _1000026 = String_copy(_1000027);
-                String* _201 = &_1000026; // ref
-                IO_println(_201);
-                String_delete(_1000026);
-                String_delete(_1000028);
-                String_delete(_1000030);
-                String_delete(_1000032);
             }
         } else {
             /* () */
         }
-        bool* _214 = Player_l_MINUS_last(player);
-        bool* _215 = ref_MINUS_to_MINUS_ptr__bool(_214);
-        Pointer_set__bool(_215, l_MINUS_pressed);
-        bool _233;
+        bool* _284 = Player_l_MINUS_last(player);
+        bool* _285 = ref_MINUS_to_MINUS_ptr__bool(_284);
+        Pointer_set__bool(_285, l_MINUS_pressed);
+        bool _303;
         if (lbr_MINUS_pressed) {
-            bool* _226 = Player_lbracket_MINUS_last(player);
-            bool _227 = Bool_copy(_226);
-            bool _228 = not(_227);
-            bool _229 = _228;
-            _233 = _229;
+            bool* _296 = Player_lbracket_MINUS_last(player);
+            bool _297 = Bool_copy(_296);
+            bool _298 = not(_297);
+            bool _299 = _298;
+            _303 = _299;
         } else {
-            bool _232 = false;
-            _233 = _232;
+            bool _302 = false;
+            _303 = _302;
         }
-        if (_233) {
+        if (_303) {
             /* let */ {
-                double* _240 = Player_edit_MINUS_radius(player);
-                double* _241 = ref_MINUS_to_MINUS_ptr__double(_240);
-                double* p_MINUS_rad = _241;
-                double* _246 = Player_edit_MINUS_radius(player);
-                double _247 = Double_copy(_246);
-                double curr_MINUS_rad = _247;
-                double _254 = Double__MINUS_(curr_MINUS_rad, 0.5);
-                double _255 = max__double(0.5, _254);
-                double next_MINUS_rad = _255;
+                double* _310 = Player_edit_MINUS_radius(player);
+                double* _311 = ref_MINUS_to_MINUS_ptr__double(_310);
+                double* p_MINUS_rad = _311;
+                double* _316 = Player_edit_MINUS_radius(player);
+                double _317 = Double_copy(_316);
+                double curr_MINUS_rad = _317;
+                double _324 = Double__MINUS_(curr_MINUS_rad, 0.5);
+                double _325 = max__double(0.5, _324);
+                double next_MINUS_rad = _325;
                 Pointer_set__double(p_MINUS_rad, next_MINUS_rad);
-                static String _269 = "Brush Radius: ";
-                String *_269_ref = &_269;
-                String _1000045 = String_str(_269_ref);
-                String* _1000044 = &_1000045; // ref
-                String _1000047 = Double_str(next_MINUS_rad);
-                String* _1000046 = &_1000047; // ref
-                String _1000043 = String_append(_1000044, _1000046);
-                String* _1000042 = &_1000043; // ref
-                String _1000041 = String_copy(_1000042);
-                String* _280 = &_1000041; // ref
-                IO_println(_280);
-                String_delete(_1000041);
-                String_delete(_1000043);
-                String_delete(_1000045);
-                String_delete(_1000047);
             }
         } else {
             /* () */
         }
-        bool* _293 = Player_lbracket_MINUS_last(player);
-        bool* _294 = ref_MINUS_to_MINUS_ptr__bool(_293);
-        Pointer_set__bool(_294, lbr_MINUS_pressed);
-        bool _312;
+        bool* _341 = Player_lbracket_MINUS_last(player);
+        bool* _342 = ref_MINUS_to_MINUS_ptr__bool(_341);
+        Pointer_set__bool(_342, lbr_MINUS_pressed);
+        bool _360;
         if (rbr_MINUS_pressed) {
-            bool* _305 = Player_rbracket_MINUS_last(player);
-            bool _306 = Bool_copy(_305);
-            bool _307 = not(_306);
-            bool _308 = _307;
-            _312 = _308;
+            bool* _353 = Player_rbracket_MINUS_last(player);
+            bool _354 = Bool_copy(_353);
+            bool _355 = not(_354);
+            bool _356 = _355;
+            _360 = _356;
         } else {
-            bool _311 = false;
-            _312 = _311;
+            bool _359 = false;
+            _360 = _359;
         }
-        if (_312) {
+        if (_360) {
             /* let */ {
-                double* _319 = Player_edit_MINUS_radius(player);
-                double* _320 = ref_MINUS_to_MINUS_ptr__double(_319);
-                double* p_MINUS_rad = _320;
-                double* _325 = Player_edit_MINUS_radius(player);
-                double _326 = Double_copy(_325);
-                double curr_MINUS_rad = _326;
-                double _333 = Double__PLUS_(curr_MINUS_rad, 0.5);
-                double _334 = min__double(15.0, _333);
-                double next_MINUS_rad = _334;
+                double* _367 = Player_edit_MINUS_radius(player);
+                double* _368 = ref_MINUS_to_MINUS_ptr__double(_367);
+                double* p_MINUS_rad = _368;
+                double* _373 = Player_edit_MINUS_radius(player);
+                double _374 = Double_copy(_373);
+                double curr_MINUS_rad = _374;
+                double _381 = Double__PLUS_(curr_MINUS_rad, 0.5);
+                double _382 = min__double(15.0, _381);
+                double next_MINUS_rad = _382;
                 Pointer_set__double(p_MINUS_rad, next_MINUS_rad);
-                static String _348 = "Brush Radius: ";
-                String *_348_ref = &_348;
-                String _1000060 = String_str(_348_ref);
-                String* _1000059 = &_1000060; // ref
-                String _1000062 = Double_str(next_MINUS_rad);
-                String* _1000061 = &_1000062; // ref
-                String _1000058 = String_append(_1000059, _1000061);
-                String* _1000057 = &_1000058; // ref
-                String _1000056 = String_copy(_1000057);
-                String* _359 = &_1000056; // ref
-                IO_println(_359);
-                String_delete(_1000056);
-                String_delete(_1000058);
-                String_delete(_1000060);
-                String_delete(_1000062);
             }
         } else {
             /* () */
         }
-        bool* _372 = Player_rbracket_MINUS_last(player);
-        bool* _373 = ref_MINUS_to_MINUS_ptr__bool(_372);
-        Pointer_set__bool(_373, rbr_MINUS_pressed);
-        int _381 = glfwGetKey(win, GLFW_KEY_1);
-        bool _383 = Int__EQ_(_381, GLFW_PRESS);
-        if (_383) {
-            double* _389 = Player_edit_MINUS_radius(player);
-            double* _390 = ref_MINUS_to_MINUS_ptr__double(_389);
-            Pointer_set__double(_390, 1.5);
+        bool* _398 = Player_rbracket_MINUS_last(player);
+        bool* _399 = ref_MINUS_to_MINUS_ptr__bool(_398);
+        Pointer_set__bool(_399, rbr_MINUS_pressed);
+        int _407 = glfwGetKey(win, GLFW_KEY_1);
+        bool _409 = Int__EQ_(_407, GLFW_PRESS);
+        if (_409) {
+            double* _415 = Player_edit_MINUS_radius(player);
+            double* _416 = ref_MINUS_to_MINUS_ptr__double(_415);
+            Pointer_set__double(_416, 1.5);
         } else {
             /* () */
         }
-        int _403 = glfwGetKey(win, GLFW_KEY_2);
-        bool _405 = Int__EQ_(_403, GLFW_PRESS);
-        if (_405) {
-            double* _411 = Player_edit_MINUS_radius(player);
-            double* _412 = ref_MINUS_to_MINUS_ptr__double(_411);
-            Pointer_set__double(_412, 3.0);
+        int _429 = glfwGetKey(win, GLFW_KEY_2);
+        bool _431 = Int__EQ_(_429, GLFW_PRESS);
+        if (_431) {
+            double* _437 = Player_edit_MINUS_radius(player);
+            double* _438 = ref_MINUS_to_MINUS_ptr__double(_437);
+            Pointer_set__double(_438, 3.0);
         } else {
             /* () */
         }
-        int _425 = glfwGetKey(win, GLFW_KEY_3);
-        bool _427 = Int__EQ_(_425, GLFW_PRESS);
-        if (_427) {
-            double* _433 = Player_edit_MINUS_radius(player);
-            double* _434 = ref_MINUS_to_MINUS_ptr__double(_433);
-            Pointer_set__double(_434, 6.0);
+        int _451 = glfwGetKey(win, GLFW_KEY_3);
+        bool _453 = Int__EQ_(_451, GLFW_PRESS);
+        if (_453) {
+            double* _459 = Player_edit_MINUS_radius(player);
+            double* _460 = ref_MINUS_to_MINUS_ptr__double(_459);
+            Pointer_set__double(_460, 6.0);
         } else {
             /* () */
         }
-        bool _457;
+        bool _483;
         if (v_MINUS_pressed) {
-            bool* _450 = Player_v_MINUS_last(player);
-            bool _451 = Bool_copy(_450);
-            bool _452 = not(_451);
-            bool _453 = _452;
-            _457 = _453;
+            bool* _476 = Player_v_MINUS_last(player);
+            bool _477 = Bool_copy(_476);
+            bool _478 = not(_477);
+            bool _479 = _478;
+            _483 = _479;
         } else {
-            bool _456 = false;
-            _457 = _456;
+            bool _482 = false;
+            _483 = _482;
         }
-        if (_457) {
+        if (_483) {
             /* let */ {
-                float* _464 = Player_current_MINUS_mat(player);
-                float _465 = Float_copy(_464);
-                float curr_MINUS_solid = _465;
-                float _511;
-                bool _471 = Float__EQ_(curr_MINUS_solid, 1.0f);
-                if (_471) {
-                    float _474 = 2.0f;
-                    _511 = _474;
+                float* _490 = Player_current_MINUS_mat(player);
+                float _491 = Float_copy(_490);
+                float curr_MINUS_solid = _491;
+                float _537;
+                bool _497 = Float__EQ_(curr_MINUS_solid, 1.0f);
+                if (_497) {
+                    float _500 = 2.0f;
+                    _537 = _500;
                 } else {
-                    float _509;
-                    bool _480 = Float__EQ_(curr_MINUS_solid, 2.0f);
-                    if (_480) {
-                        float _483 = 3.0f;
-                        _509 = _483;
+                    float _535;
+                    bool _506 = Float__EQ_(curr_MINUS_solid, 2.0f);
+                    if (_506) {
+                        float _509 = 3.0f;
+                        _535 = _509;
                     } else {
-                        float _507;
-                        bool _489 = Float__EQ_(curr_MINUS_solid, 3.0f);
-                        if (_489) {
-                            float _492 = 4.0f;
-                            _507 = _492;
+                        float _533;
+                        bool _515 = Float__EQ_(curr_MINUS_solid, 3.0f);
+                        if (_515) {
+                            float _518 = 4.0f;
+                            _533 = _518;
                         } else {
-                            float _505;
-                            bool _498 = Float__EQ_(curr_MINUS_solid, 4.0f);
-                            if (_498) {
-                                float _501 = 5.0f;
-                                _505 = _501;
+                            float _531;
+                            bool _524 = Float__EQ_(curr_MINUS_solid, 4.0f);
+                            if (_524) {
+                                float _527 = 5.0f;
+                                _531 = _527;
                             } else {
-                                float _504 = 1.0f;
-                                _505 = _504;
+                                float _530 = 1.0f;
+                                _531 = _530;
                             }
-                            float _506 = _505;
-                            _507 = _506;
+                            float _532 = _531;
+                            _533 = _532;
                         }
-                        float _508 = _507;
-                        _509 = _508;
+                        float _534 = _533;
+                        _535 = _534;
                     }
-                    float _510 = _509;
-                    _511 = _510;
+                    float _536 = _535;
+                    _537 = _536;
                 }
-                float next_MINUS_solid = _511;
-                float* _518 = Player_current_MINUS_mat(player);
-                float* _519 = ref_MINUS_to_MINUS_ptr__float(_518);
-                Pointer_set__float(_519, next_MINUS_solid);
-                static String _529 = "Selected Solid Type: ";
-                String *_529_ref = &_529;
-                String _1000096 = String_str(_529_ref);
-                String* _1000095 = &_1000096; // ref
-                String _1000098 = Float_str(next_MINUS_solid);
-                String* _1000097 = &_1000098; // ref
-                String _1000094 = String_append(_1000095, _1000097);
-                String* _1000093 = &_1000094; // ref
-                String _1000092 = String_copy(_1000093);
-                String* _540 = &_1000092; // ref
-                IO_println(_540);
-                String_delete(_1000092);
-                String_delete(_1000094);
-                String_delete(_1000096);
-                String_delete(_1000098);
+                float next_MINUS_solid = _537;
+                float* _543 = Player_current_MINUS_mat(player);
+                float* _544 = ref_MINUS_to_MINUS_ptr__float(_543);
+                Pointer_set__float(_544, next_MINUS_solid);
             }
         } else {
             /* () */
         }
-        bool* _553 = Player_v_MINUS_last(player);
-        bool* _554 = ref_MINUS_to_MINUS_ptr__bool(_553);
-        Pointer_set__bool(_554, v_MINUS_pressed);
-        bool _572;
+        bool* _557 = Player_v_MINUS_last(player);
+        bool* _558 = ref_MINUS_to_MINUS_ptr__bool(_557);
+        Pointer_set__bool(_558, v_MINUS_pressed);
+        bool _576;
         if (n_MINUS_pressed) {
-            bool* _565 = Player_n_MINUS_last(player);
-            bool _566 = Bool_copy(_565);
-            bool _567 = not(_566);
-            bool _568 = _567;
-            _572 = _568;
+            bool* _569 = Player_n_MINUS_last(player);
+            bool _570 = Bool_copy(_569);
+            bool _571 = not(_570);
+            bool _572 = _571;
+            _576 = _572;
         } else {
-            bool _571 = false;
-            _572 = _571;
+            bool _575 = false;
+            _576 = _575;
         }
-        if (_572) {
+        if (_576) {
             /* let */ {
-                float* _579 = Player_current_MINUS_liq(player);
-                float _580 = Float_copy(_579);
-                float curr_MINUS_liq = _580;
-                float _615;
-                bool _586 = Float__EQ_(curr_MINUS_liq, 1.0f);
-                if (_586) {
-                    float _589 = 2.0f;
-                    _615 = _589;
+                float* _583 = Player_current_MINUS_liq(player);
+                float _584 = Float_copy(_583);
+                float curr_MINUS_liq = _584;
+                float _619;
+                bool _590 = Float__EQ_(curr_MINUS_liq, 1.0f);
+                if (_590) {
+                    float _593 = 2.0f;
+                    _619 = _593;
                 } else {
-                    float _613;
-                    bool _595 = Float__EQ_(curr_MINUS_liq, 2.0f);
-                    if (_595) {
-                        float _598 = 3.0f;
-                        _613 = _598;
+                    float _617;
+                    bool _599 = Float__EQ_(curr_MINUS_liq, 2.0f);
+                    if (_599) {
+                        float _602 = 3.0f;
+                        _617 = _602;
                     } else {
-                        float _611;
-                        bool _604 = Float__EQ_(curr_MINUS_liq, 3.0f);
-                        if (_604) {
-                            float _607 = 4.0f;
-                            _611 = _607;
+                        float _615;
+                        bool _608 = Float__EQ_(curr_MINUS_liq, 3.0f);
+                        if (_608) {
+                            float _611 = 4.0f;
+                            _615 = _611;
                         } else {
-                            float _610 = 1.0f;
-                            _611 = _610;
+                            float _614 = 1.0f;
+                            _615 = _614;
                         }
-                        float _612 = _611;
-                        _613 = _612;
+                        float _616 = _615;
+                        _617 = _616;
                     }
-                    float _614 = _613;
-                    _615 = _614;
+                    float _618 = _617;
+                    _619 = _618;
                 }
-                float next_MINUS_liq = _615;
-                float* _622 = Player_current_MINUS_liq(player);
-                float* _623 = ref_MINUS_to_MINUS_ptr__float(_622);
-                Pointer_set__float(_623, next_MINUS_liq);
-                static String _633 = "Selected Liquid Type: ";
-                String *_633_ref = &_633;
-                String _1000120 = String_str(_633_ref);
-                String* _1000119 = &_1000120; // ref
-                String _1000122 = Float_str(next_MINUS_liq);
-                String* _1000121 = &_1000122; // ref
-                String _1000118 = String_append(_1000119, _1000121);
-                String* _1000117 = &_1000118; // ref
-                String _1000116 = String_copy(_1000117);
-                String* _644 = &_1000116; // ref
-                IO_println(_644);
-                String_delete(_1000116);
-                String_delete(_1000118);
-                String_delete(_1000120);
-                String_delete(_1000122);
+                float next_MINUS_liq = _619;
+                float* _625 = Player_current_MINUS_liq(player);
+                float* _626 = ref_MINUS_to_MINUS_ptr__float(_625);
+                Pointer_set__float(_626, next_MINUS_liq);
             }
         } else {
             /* () */
         }
-        bool* _657 = Player_n_MINUS_last(player);
-        bool* _658 = ref_MINUS_to_MINUS_ptr__bool(_657);
-        Pointer_set__bool(_658, n_MINUS_pressed);
-        bool _676;
+        bool* _639 = Player_n_MINUS_last(player);
+        bool* _640 = ref_MINUS_to_MINUS_ptr__bool(_639);
+        Pointer_set__bool(_640, n_MINUS_pressed);
+        bool _658;
         if (b_MINUS_pressed) {
-            bool* _669 = Player_b_MINUS_last(player);
-            bool _670 = Bool_copy(_669);
-            bool _671 = not(_670);
-            bool _672 = _671;
-            _676 = _672;
+            bool* _651 = Player_b_MINUS_last(player);
+            bool _652 = Bool_copy(_651);
+            bool _653 = not(_652);
+            bool _654 = _653;
+            _658 = _654;
         } else {
-            bool _675 = false;
-            _676 = _675;
+            bool _657 = false;
+            _658 = _657;
         }
-        if (_676) {
+        if (_658) {
             /* let */ {
-                float* _683 = Player_current_MINUS_gas(player);
-                float _684 = Float_copy(_683);
-                float curr_MINUS_gas = _684;
-                float _719;
-                bool _690 = Float__EQ_(curr_MINUS_gas, 1.0f);
-                if (_690) {
-                    float _693 = 2.0f;
-                    _719 = _693;
+                float* _665 = Player_current_MINUS_gas(player);
+                float _666 = Float_copy(_665);
+                float curr_MINUS_gas = _666;
+                float _701;
+                bool _672 = Float__EQ_(curr_MINUS_gas, 1.0f);
+                if (_672) {
+                    float _675 = 2.0f;
+                    _701 = _675;
                 } else {
-                    float _717;
-                    bool _699 = Float__EQ_(curr_MINUS_gas, 2.0f);
-                    if (_699) {
-                        float _702 = 3.0f;
-                        _717 = _702;
+                    float _699;
+                    bool _681 = Float__EQ_(curr_MINUS_gas, 2.0f);
+                    if (_681) {
+                        float _684 = 3.0f;
+                        _699 = _684;
                     } else {
-                        float _715;
-                        bool _708 = Float__EQ_(curr_MINUS_gas, 3.0f);
-                        if (_708) {
-                            float _711 = 4.0f;
-                            _715 = _711;
+                        float _697;
+                        bool _690 = Float__EQ_(curr_MINUS_gas, 3.0f);
+                        if (_690) {
+                            float _693 = 4.0f;
+                            _697 = _693;
                         } else {
-                            float _714 = 1.0f;
-                            _715 = _714;
+                            float _696 = 1.0f;
+                            _697 = _696;
                         }
-                        float _716 = _715;
-                        _717 = _716;
+                        float _698 = _697;
+                        _699 = _698;
                     }
-                    float _718 = _717;
-                    _719 = _718;
+                    float _700 = _699;
+                    _701 = _700;
                 }
-                float next_MINUS_gas = _719;
-                float* _726 = Player_current_MINUS_gas(player);
-                float* _727 = ref_MINUS_to_MINUS_ptr__float(_726);
-                Pointer_set__float(_727, next_MINUS_gas);
-                static String _737 = "Selected Gas Type: ";
-                String *_737_ref = &_737;
-                String _1000144 = String_str(_737_ref);
-                String* _1000143 = &_1000144; // ref
-                String _1000146 = Float_str(next_MINUS_gas);
-                String* _1000145 = &_1000146; // ref
-                String _1000142 = String_append(_1000143, _1000145);
-                String* _1000141 = &_1000142; // ref
-                String _1000140 = String_copy(_1000141);
-                String* _748 = &_1000140; // ref
-                IO_println(_748);
-                String_delete(_1000140);
-                String_delete(_1000142);
-                String_delete(_1000144);
-                String_delete(_1000146);
+                float next_MINUS_gas = _701;
+                float* _707 = Player_current_MINUS_gas(player);
+                float* _708 = ref_MINUS_to_MINUS_ptr__float(_707);
+                Pointer_set__float(_708, next_MINUS_gas);
             }
         } else {
             /* () */
         }
-        bool* _761 = Player_b_MINUS_last(player);
-        bool* _762 = ref_MINUS_to_MINUS_ptr__bool(_761);
-        Pointer_set__bool(_762, b_MINUS_pressed);
-        bool* _772 = Player_flying(player);
-        bool _773 = Bool_copy(_772);
-        Camera_update_MINUS_input(win, cam, dt, _773);
+        bool* _721 = Player_b_MINUS_last(player);
+        bool* _722 = ref_MINUS_to_MINUS_ptr__bool(_721);
+        Pointer_set__bool(_722, b_MINUS_pressed);
+        /* let */ {
+            double* _730 = Player_edit_MINUS_radius(player);
+            double _731 = Double_copy(_730);
+            double curr_MINUS_rad = _731;
+            float* _736 = Player_current_MINUS_mat(player);
+            float _737 = Float_copy(_736);
+            float curr_MINUS_mat = _737;
+            float* _742 = Player_current_MINUS_liq(player);
+            float _743 = Float_copy(_742);
+            float curr_MINUS_liq = _743;
+            float* _748 = Player_current_MINUS_gas(player);
+            float _749 = Float_copy(_748);
+            float curr_MINUS_gas = _749;
+            bool* _754 = Player_flying(player);
+            bool _755 = Bool_copy(_754);
+            bool curr_MINUS_fly = _755;
+            bool* _760 = Player_flashlight_MINUS_on(player);
+            bool _761 = Bool_copy(_760);
+            bool curr_MINUS_light = _761;
+            bool _822;
+            bool _812;
+            bool _802;
+            bool _792;
+            bool _782;
+            bool _772 = _DIV__EQ___double(prev_MINUS_rad, curr_MINUS_rad);
+            if (_772) {
+                bool _775 = true;
+                _782 = _775;
+            } else {
+                bool _780 = _DIV__EQ___float(prev_MINUS_mat, curr_MINUS_mat);
+                bool _781 = _780;
+                _782 = _781;
+            }
+            if (_782) {
+                bool _785 = true;
+                _792 = _785;
+            } else {
+                bool _790 = _DIV__EQ___float(prev_MINUS_liq, curr_MINUS_liq);
+                bool _791 = _790;
+                _792 = _791;
+            }
+            if (_792) {
+                bool _795 = true;
+                _802 = _795;
+            } else {
+                bool _800 = _DIV__EQ___float(prev_MINUS_gas, curr_MINUS_gas);
+                bool _801 = _800;
+                _802 = _801;
+            }
+            if (_802) {
+                bool _805 = true;
+                _812 = _805;
+            } else {
+                bool _810 = _DIV__EQ___bool(prev_MINUS_fly, curr_MINUS_fly);
+                bool _811 = _810;
+                _812 = _811;
+            }
+            if (_812) {
+                bool _815 = true;
+                _822 = _815;
+            } else {
+                bool _820 = _DIV__EQ___bool(prev_MINUS_light, curr_MINUS_light);
+                bool _821 = _820;
+                _822 = _821;
+            }
+            if (_822) {
+                float _827 = Double_to_MINUS_float(curr_MINUS_rad);
+                set_MINUS_js_MINUS_brush_MINUS_radius(_827);
+                set_MINUS_js_MINUS_solid_MINUS_mat(curr_MINUS_mat);
+                set_MINUS_js_MINUS_liq_MINUS_mat(curr_MINUS_liq);
+                set_MINUS_js_MINUS_gas_MINUS_mat(curr_MINUS_gas);
+                float _847;
+                if (curr_MINUS_fly) {
+                    float _843 = 1.0f;
+                    _847 = _843;
+                } else {
+                    float _846 = 0.0f;
+                    _847 = _846;
+                }
+                set_MINUS_js_MINUS_flying(_847);
+                float _858;
+                if (curr_MINUS_light) {
+                    float _854 = 1.0f;
+                    _858 = _854;
+                } else {
+                    float _857 = 0.0f;
+                    _858 = _857;
+                }
+                set_MINUS_js_MINUS_flashlight(_858);
+                float _863 = Double_to_MINUS_float(curr_MINUS_rad);
+                float _875;
+                if (curr_MINUS_fly) {
+                    float _871 = 1.0f;
+                    _875 = _871;
+                } else {
+                    float _874 = 0.0f;
+                    _875 = _874;
+                }
+                float _884;
+                if (curr_MINUS_light) {
+                    float _880 = 1.0f;
+                    _884 = _880;
+                } else {
+                    float _883 = 0.0f;
+                    _884 = _883;
+                }
+                js_MINUS_sync_MINUS_all(_863, curr_MINUS_mat, curr_MINUS_liq, curr_MINUS_gas, _875, _884);
+            } else {
+                /* () */
+            }
+        }
+        bool* _899 = Player_flying(player);
+        bool _900 = Bool_copy(_899);
+        Camera_update_MINUS_input(win, cam, dt, _900);
         Camera_update_MINUS_look(win, cam, first_MINUS_mouse_MINUS_ptr, last_MINUS_x_MINUS_ptr, last_MINUS_y_MINUS_ptr);
     }
 }
@@ -33006,11 +33164,45 @@ void emscripten_MINUS_sleep(int ms) {
     emscripten_sleep(ms);
 #endif
   }
+float get_MINUS_js_MINUS_brush_MINUS_radius(void) { return js_brush_radius; }
+float get_MINUS_js_MINUS_flashlight(void) { return js_flashlight; }
+float get_MINUS_js_MINUS_flying(void) { return js_flying; }
+float get_MINUS_js_MINUS_gas_MINUS_mat(void) { return js_gas_mat; }
+float get_MINUS_js_MINUS_liq_MINUS_mat(void) { return js_liq_mat; }
+float get_MINUS_js_MINUS_solid_MINUS_mat(void) { return js_solid_mat; }
 void* glfw_MINUS_window_MINUS__GT_voidptr(GLFWwindow* w) { return (void*)w; }
 int id__int(int x) {
     return x;
 }
 
+#ifndef JS_GLOBALS_DEFINED
+   #define JS_GLOBALS_DEFINED
+   float js_brush_radius = 3.0f;
+   float js_solid_mat = 2.0f;
+   float js_liq_mat = 1.0f;
+   float js_gas_mat = 1.0f;
+   float js_flying = 1.0f;
+   float js_flashlight = 1.0f;
+
+   #ifdef __EMSCRIPTEN__
+   #include <emscripten.h>
+   EMSCRIPTEN_KEEPALIVE void set_brush_radius(float r) { js_brush_radius = r; }
+   EMSCRIPTEN_KEEPALIVE void set_solid_mat(float m) { js_solid_mat = m; }
+   EMSCRIPTEN_KEEPALIVE void set_liq_mat(float m) { js_liq_mat = m; }
+   EMSCRIPTEN_KEEPALIVE void set_gas_mat(float m) { js_gas_mat = m; }
+   EMSCRIPTEN_KEEPALIVE void set_flying(float f) { js_flying = f; }
+   EMSCRIPTEN_KEEPALIVE void set_flashlight(float f) { js_flashlight = f; }
+   #endif
+   #endif
+
+   void js_MINUS_globals_MINUS_setup(void) {}
+void js_MINUS_sync_MINUS_all(float r, float s, float l, float g, float fly, float light) {
+#ifdef __EMSCRIPTEN__
+      char buf[512];
+      sprintf(buf, "window.player_brush_radius = %f; window.player_solid_mat = %f; window.player_liq_mat = %f; window.player_gas_mat = %f; window.player_flying = %f > 0.5; window.player_flashlight = %f > 0.5; if (window.sync_ui) window.sync_ui();", r, s, l, g, fly, light);
+      emscripten_run_script(buf);
+#endif
+  }
 int main(int argc, char** argv) {
     carp_init_globals(argc, argv);
     int _128;
@@ -33210,3 +33402,9 @@ void* ref_MINUS_to_MINUS_ptr__bool(void* r) { return r; }
 void* ref_MINUS_to_MINUS_ptr__double(void* r) { return r; }
 void* ref_MINUS_to_MINUS_ptr__float(void* r) { return r; }
 void* ref_MINUS_to_MINUS_ptr__int(void* r) { return r; }
+void set_MINUS_js_MINUS_brush_MINUS_radius(float r) { js_brush_radius = r; }
+void set_MINUS_js_MINUS_flashlight(float f) { js_flashlight = f; }
+void set_MINUS_js_MINUS_flying(float f) { js_flying = f; }
+void set_MINUS_js_MINUS_gas_MINUS_mat(float m) { js_gas_mat = m; }
+void set_MINUS_js_MINUS_liq_MINUS_mat(float m) { js_liq_mat = m; }
+void set_MINUS_js_MINUS_solid_MINUS_mat(float m) { js_solid_mat = m; }
