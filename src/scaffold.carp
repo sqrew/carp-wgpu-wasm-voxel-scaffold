@@ -19,17 +19,17 @@
 
 (register-type GLFWwindow)
 
-(deftemplate create-voxel-scaffold-bind-group (Fn [(Ptr WGPUContext) (Ptr WGPURenderPipelineWrapper) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) WGPUSampler (Ptr WGPUUniformBufferWrapper)] WGPUBindGroup)
-  "WGPUBindGroup $NAME(WGPUContext* ctx, WGPURenderPipelineWrapper* pipe, WGPURenderTexture* solid_tex, WGPURenderTexture* liquid_tex, WGPURenderTexture* gas_tex, WGPUSampler sampler, WGPUUniformBufferWrapper* ub)"
+(deftemplate create-voxel-scaffold-bind-group (Fn [(Ptr WGPUContext) (Ptr WGPURenderPipelineWrapper) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) WGPUSampler (Ptr WGPUUniformBufferWrapper)] WGPUBindGroup)
+  "WGPUBindGroup $NAME(WGPUContext* ctx, WGPURenderPipelineWrapper* pipe, WGPURenderTexture* solid_tex, WGPURenderTexture* liquid_tex, WGPURenderTexture* gas_tex, WGPURenderTexture* light_tex, WGPUSampler sampler, WGPUUniformBufferWrapper* ub)"
   "$DECL {
-      if (!ctx || !pipe || !solid_tex || !liquid_tex || !gas_tex || !sampler || !ub) {
+      if (!ctx || !pipe || !solid_tex || !liquid_tex || !gas_tex || !light_tex || !sampler || !ub) {
           return NULL;
       }
       WGPUBindGroupLayout layout = wgpuRenderPipelineGetBindGroupLayout(pipe->pipeline, 0);
       if (!layout) {
           return NULL;
       }
-      WGPUBindGroupEntry entries[5] = {
+      WGPUBindGroupEntry entries[6] = {
           {
               .binding = 0,
               .buffer  = ub->buffer,
@@ -51,11 +51,15 @@
           {
               .binding     = 4,
               .textureView = gas_tex->view,
+          },
+          {
+              .binding     = 5,
+              .textureView = light_tex->view,
           }
       };
       WGPUBindGroupDescriptor desc = {
           .layout     = layout,
-          .entryCount = 5,
+          .entryCount = 6,
           .entries    = entries,
       };
       WGPUBindGroup bg = wgpuDeviceCreateBindGroup(ctx->device, &desc);
@@ -149,8 +153,8 @@
   (defn create-bind-group [eng pipeline uniform-buffer]
     (WGPURender.create-render-uniform-bind-group @(Engine.ctx eng) pipeline uniform-buffer))
 
-  (defn create-voxel-bind-group [eng pipeline solid-tex liquid-tex gas-tex sampler uniforms]
-    (let [bg (create-voxel-scaffold-bind-group @(Engine.ctx eng) pipeline solid-tex liquid-tex gas-tex sampler uniforms)]
+  (defn create-voxel-bind-group [eng pipeline solid-tex liquid-tex gas-tex light-tex sampler uniforms]
+    (let [bg (create-voxel-scaffold-bind-group @(Engine.ctx eng) pipeline solid-tex liquid-tex gas-tex light-tex sampler uniforms)]
       (if (WGPURender.bindgroup-null?- bg)
         (Result.Error @"Failed to create voxel scaffold bind group")
         (Result.Success bg))))
@@ -176,4 +180,8 @@
   (deftemplate get-buffer (Fn [(Ptr WGPUVertexBufferWrapper)] WGPUBuffer)
     "WGPUBuffer $NAME(WGPUVertexBufferWrapper* vb)"
     "$DECL { return vb->buffer; }")
+  (deftemplate update-offset (Fn [(Ptr WGPUContext) (Ptr WGPUVertexBufferWrapper) Uint64 (Ptr Float) Uint64] ())
+    "void $NAME(WGPUContext* ctx, WGPUVertexBufferWrapper* vb, uint64_t offset, float* data, uint64_t size)"
+    "$DECL { wgpuQueueWriteBuffer(ctx->queue, vb->buffer, offset, data, size); }")
 )
+

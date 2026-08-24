@@ -1,0 +1,109 @@
+(load "world.carp")
+(load "camera.carp")
+
+(defmodule Physics
+  (defn clamp [min-val max-val val]
+    (if (< val min-val) min-val (if (> val max-val) max-val val)))
+
+  (defn sample-sdf-at [world gx gy gz]
+    (let [qx (Double.to-int (Double.floor (/ (Double.from-int gx) 32.0)))
+          qy (Double.to-int (Double.floor (/ (Double.from-int gy) 32.0)))
+          qz (Double.to-int (Double.floor (/ (Double.from-int gz) 32.0)))]
+      (match (World.find-chunk world qx qy qz)
+        (Maybe.Nothing) 1000.0f
+        (Maybe.Just chunk)
+          (let [lx (Physics.clamp 0 31 (- gx (* qx 32)))
+                ly (Physics.clamp 0 31 (- gy (* qy 32)))
+                lz (Physics.clamp 0 31 (- gz (* qz 32)))
+                idx (+ (* lz 1024) (+ (* ly 32) lx))
+                offset (* idx 4)]
+            @(Array.unsafe-nth (Chunk.voxel-data &chunk) (+ offset 1))))))
+
+  (defn sample-sdf-trilinear [world p]
+    (let [px @(Vector3.x p)
+          py @(Vector3.y p)
+          pz @(Vector3.z p)
+          
+          tx (- px 0.5)
+          ty (- py 0.5)
+          tz (- pz 0.5)
+          
+          c0-x (Double.to-int (Double.floor tx))
+          c0-y (Double.to-int (Double.floor ty))
+          c0-z (Double.to-int (Double.floor tz))
+          
+          fx (- tx (Double.from-int c0-x))
+          fy (- ty (Double.from-int c0-y))
+          fz (- tz (Double.from-int c0-z))
+          
+          v0 (Double.from-float (Physics.sample-sdf-at world c0-x c0-y c0-z))
+          v1 (Double.from-float (Physics.sample-sdf-at world (inc c0-x) c0-y c0-z))
+          v2 (Double.from-float (Physics.sample-sdf-at world c0-x (inc c0-y) c0-z))
+          v3 (Double.from-float (Physics.sample-sdf-at world (inc c0-x) (inc c0-y) c0-z))
+          v4 (Double.from-float (Physics.sample-sdf-at world c0-x c0-y (inc c0-z)))
+          v5 (Double.from-float (Physics.sample-sdf-at world (inc c0-x) c0-y (inc c0-z)))
+          v6 (Double.from-float (Physics.sample-sdf-at world c0-x (inc c0-y) (inc c0-z)))
+          v7 (Double.from-float (Physics.sample-sdf-at world (inc c0-x) (inc c0-y) (inc c0-z)))
+          
+          v-01 (+ v0 (* fx (- v1 v0)))
+          v-23 (+ v2 (* fx (- v3 v2)))
+          v-45 (+ v4 (* fx (- v5 v4)))
+          v-67 (+ v6 (* fx (- v7 v6)))
+          
+          v-y0 (+ v-01 (* fy (- v-23 v-01)))
+          v-y1 (+ v-45 (* fy (- v-67 v-45)))]
+      (Double.to-float (+ v-y0 (* fz (- v-y1 v-y0))))))
+
+  (defn estimate-sdf-normal [world p]
+    (let [eps 0.1
+          px @(Vector3.x p)
+          py @(Vector3.y p)
+          pz @(Vector3.z p)
+          
+          dx-pos (Vector3.init (+ px eps) py pz)
+          dx-neg (Vector3.init (- px eps) py pz)
+          dy-pos (Vector3.init px (+ py eps) pz)
+          dy-neg (Vector3.init px (- py eps) pz)
+          dz-pos (Vector3.init px py (+ pz eps))
+          dz-neg (Vector3.init px py (- pz eps))
+          
+          nx (- (Physics.sample-sdf-trilinear world &dx-pos) (Physics.sample-sdf-trilinear world &dx-neg))
+          ny (- (Physics.sample-sdf-trilinear world &dy-pos) (Physics.sample-sdf-trilinear world &dy-neg))
+          nz (- (Physics.sample-sdf-trilinear world &dz-pos) (Physics.sample-sdf-trilinear world &dz-neg))
+          
+          n-len (Double.sqrt (+ (+ (* (Double.from-float nx) (Double.from-float nx)) (* (Double.from-float ny) (Double.from-float ny))) (* (Double.from-float nz) (Double.from-float nz))))]
+      (if (> n-len 0.001)
+          (Vector3.init (/ (Double.from-float nx) n-len) (/ (Double.from-float ny) n-len) (/ (Double.from-float nz) n-len))
+          (Vector3.init 0.0 1.0 0.0))))
+
+  (defn resolve-camera-collision! [world cam radius vel-y-ptr on-ground-ptr]
+    (let [p-pos (ref-to-ptr (Camera.pos cam))
+          cur-pos (Pointer.to-value p-pos)]
+      (do
+        (Pointer.set on-ground-ptr false)
+        ;; Check 5 vertical points along capsule to prevent clipping through slabs/narrow blocks
+        (for [i 0 5]
+          (let [offset-y (if (= i 0) -1.6
+                         (if (= i 1) -1.2
+                         (if (= i 2) -0.8
+                         (if (= i 3) -0.4
+                         0.0))))
+                p (Vector3.add &cur-pos &(Vector3.init 0.0 offset-y 0.0))
+                dist (Physics.sample-sdf-trilinear world &p)]
+            (when (< dist (Double.to-float radius))
+               (let [penetration (- radius (Double.from-float dist))
+                     normal (Physics.estimate-sdf-normal world &p)]
+                 (do
+                   (set! cur-pos (Vector3.add &@&cur-pos &(Vector3.mul &normal penetration)))
+                   ;; Feet collision (pointing up)
+                   (when (and (= i 0) (> @(Vector3.y &normal) 0.5))
+                     (do
+                       (Pointer.set on-ground-ptr true)
+                       (when (< (Pointer.to-value vel-y-ptr) 0.0)
+                         (Pointer.set vel-y-ptr 0.0))))
+                   ;; Head collision (pointing down)
+                   (when (and (= i 4) (< @(Vector3.y &normal) -0.5))
+                     (when (> (Pointer.to-value vel-y-ptr) 0.0)
+                        (Pointer.set vel-y-ptr 0.0))))))))
+        (Pointer.set p-pos cur-pos))))
+)

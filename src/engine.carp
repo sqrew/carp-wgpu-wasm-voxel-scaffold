@@ -1,22 +1,25 @@
 (load "scaffold.carp")
-(load "camera.carp")
+(load "player.carp")
 (load "world.carp")
 (load "renderer.carp")
 (load "../carp-diagnostics/diagnostics.carp")
+
+
 
 (deftype EngineState [
   eng Engine
   renderer Renderer
   world World
-  camera Camera
+  player Player
   uniforms (Array Float)
   diag Diagnostics
   frame-count Int
-  vel-y Double
-  on-ground Bool
-  flying Bool
-  current-mat Float
-  edit-radius Double
+  hit-x Float
+  hit-y Float
+  hit-z Float
+  hit-active Float
+  liquid-spawn Float
+  gas-spawn Float
 ])
 
 (defmodule EngineState
@@ -29,8 +32,8 @@
                                (Result.Error (str* "Renderer failed: " e)))
           (Result.Success ren)
             (let [world (World.create)
-                  cam (Camera.new (Vector3.init 32.0 45.0 32.0) -90.0 0.0 1.7777777777777777)
-                  uniforms (Array.allocate 20)
+                  player (Player.create (Vector3.init 32.0 45.0 32.0))
+                  uniforms (Array.allocate 32)
                   diag (Diagnostics.new @"diagnostics.log")]
               (do
                 ; Upload all chunks to world texture
@@ -39,9 +42,9 @@
                   (for [i 0 num-chunks]
                     (let [chunk (Array.unsafe-nth chunks i)]
                       (Renderer.update-chunk-texture &platform-eng &ren @(Chunk.coord-x chunk) @(Chunk.coord-y chunk) @(Chunk.coord-z chunk) (Chunk.voxel-data chunk)))))
-                (Camera.update-basis! &cam)
+                (Camera.update-basis! (Player.camera &player))
                 
-                (Result.Success (EngineState.init platform-eng ren world cam uniforms diag 0 0.0 false true 2.0f 3.0)))))))
+                (Result.Success (EngineState.init platform-eng ren world player uniforms diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f)))))))
 
   (defn draw-bounds-wireframe! [ren min-x min-y min-z max-x max-y max-z color]
     (let [w0 (Vector3.init min-x min-y min-z)
@@ -80,129 +83,184 @@
           noise (World.noise-state world)
           loaded-any false]
       (do
-        (for [lz 0 4]
-          (for [ly 0 4]
-            (for [lx 0 4]
+        (for [lz 0 5]
+          (for [ly 0 5]
+            (for [lx 0 5]
               (when (not loaded-any)
                 (let [qx (- (+ cx lx) 2)
                       qy (- (+ cy ly) 2)
                       qz (- (+ cz lz) 2)
-                      tx (EngineState.positive-mod qx 4)
-                      ty (EngineState.positive-mod qy 4)
-                      tz (EngineState.positive-mod qz 4)
-                      slot-idx (+ tx (+ (* ty 4) (* tz 16)))
+                      tx (EngineState.positive-mod qx 5)
+                      ty (EngineState.positive-mod qy 5)
+                      tz (EngineState.positive-mod qz 5)
+                      slot-idx (+ tx (+ (* ty 5) (* tz 25)))
                       current-chunk (Array.unsafe-nth chunks slot-idx)]
                   (when (or (/= @(Chunk.coord-x current-chunk) qx)
                             (or (/= @(Chunk.coord-y current-chunk) qy)
-                                (/= @(Chunk.coord-z current-chunk) qz)))
+                                 (/= @(Chunk.coord-z current-chunk) qz)))
                     (let [new-chunk (Chunk.create noise qx qy qz)]
                       (do
                         (Renderer.update-chunk-texture eng ren qx qy qz (Chunk.voxel-data &new-chunk))
                         (Array.aset! chunks slot-idx new-chunk)
                         (set! loaded-any true))))))))))))
 
-  (defn resolve-camera-collision! [world cam radius vel-y-ptr on-ground-ptr]
-    (let [p-pos (ref-to-ptr (Camera.pos cam))
-          cur-pos (Pointer.to-value p-pos)]
-      (do
-        (Pointer.set on-ground-ptr false)
-        (for [i 0 3]
-          (let [offset-y (if (= i 0) -1.6 (if (= i 1) -0.8 0.0))
-                p (Vector3.add &cur-pos &(Vector3.init 0.0 offset-y 0.0))
-                dist (World.sample-sdf-nearest world &p)]
-            (when (< dist (Double.to-float radius))
-               (let [penetration (- radius (Double.from-float dist))
-                     eps 0.1
-                     px @(Vector3.x &p)
-                     py @(Vector3.y &p)
-                     pz @(Vector3.z &p)
-                     
-                     dx-pos (Vector3.init (+ px eps) py pz)
-                     dx-neg (Vector3.init (- px eps) py pz)
-                     dy-pos (Vector3.init px (+ py eps) pz)
-                     dy-neg (Vector3.init px (- py eps) pz)
-                     dz-pos (Vector3.init px py (+ pz eps))
-                     dz-neg (Vector3.init px py (- pz eps))
-                     
-                     nx (- (World.sample-sdf-nearest world &dx-pos) (World.sample-sdf-nearest world &dx-neg))
-                     ny (- (World.sample-sdf-nearest world &dy-pos) (World.sample-sdf-nearest world &dy-neg))
-                     nz (- (World.sample-sdf-nearest world &dz-pos) (World.sample-sdf-nearest world &dz-neg))
-                     
-                     n-len (Double.sqrt (+ (+ (* (Double.from-float nx) (Double.from-float nx)) (* (Double.from-float ny) (Double.from-float ny))) (* (Double.from-float nz) (Double.from-float nz))))
-                     normal (if (> n-len 0.001)
-                                (Vector3.init (/ (Double.from-float nx) n-len) (/ (Double.from-float ny) n-len) (/ (Double.from-float nz) n-len))
-                                (Vector3.init 0.0 1.0 0.0))]
-                 (do
-                   (set! cur-pos (Vector3.add &@&cur-pos &(Vector3.mul &normal penetration)))
-                   (when (and (= i 0) (> @(Vector3.y &normal) 0.5))
-                     (do
-                       (Pointer.set on-ground-ptr true)
-                       (when (< (Pointer.to-value vel-y-ptr) 0.0)
-                         (Pointer.set vel-y-ptr 0.0))))
-                   (when (and (= i 2) (< @(Vector3.y &normal) -0.5))
-                     (when (> (Pointer.to-value vel-y-ptr) 0.0)
-                        (Pointer.set vel-y-ptr 0.0))))))))
-        (Pointer.set p-pos cur-pos))))
 
-  (defn tick [state win dt first-mouse-ptr last-x-ptr last-y-ptr]
-    (let [platform-eng (EngineState.eng state)
-          ren (EngineState.renderer state)
-          cam (EngineState.camera state)
-          diag (EngineState.diag state)]
+
+  (defn pre-update! [state win]
+    (let [diag (EngineState.diag state)]
       (do
         (Diagnostics.start-zone! diag "Total Frame Time")
+        (Diagnostics.start-zone! diag "Input & Camera"))))
+
+
+  (defn update! [state win dt first-mouse-ptr last-x-ptr last-y-ptr]
+    (let [platform-eng (EngineState.eng state)
+          ren (EngineState.renderer state)
+          player (EngineState.player state)
+          cam (Player.camera player)
+          world (EngineState.world state)]
+      (do
+        ;; 1. Handle player inputs (movement, look, flying, radius presets, cycling)
+        (Player.handle-input! player win dt first-mouse-ptr last-x-ptr last-y-ptr)
+        (Player.handle-jump! player win)
+        (Player.update-physics! player world dt)
         
-        (Diagnostics.start-zone! diag "Input & Camera")
-        ; Keyboard and toggle inputs
-        (let [curr-frame @(EngineState.frame-count state)]
-          (do
-            (when (and (= (GLFW.get-key win GLFW.Keycode.F) GLFW.PRESS) (= (Int.mod curr-frame 20) 0))
-              (let [p-flying (ref-to-ptr (EngineState.flying state))]
-                (Pointer.set p-flying (not (Pointer.to-value p-flying)))))
-            
-            (when (and (= (GLFW.get-key win GLFW.Keycode.K) GLFW.PRESS) (= (Int.mod curr-frame 20) 0))
-              (let [p-mat (ref-to-ptr (EngineState.current-mat state))
-                    curr-mat (Pointer.to-value p-mat)]
-                (if (= curr-mat 1.0f)
-                    (Pointer.set p-mat 2.0f)
-                    (if (= curr-mat 2.0f)
-                        (Pointer.set p-mat 3.0f)
-                        (Pointer.set p-mat 1.0f)))))
-            
-            (when (= (GLFW.get-key win GLFW.Keycode.NUM_1) GLFW.PRESS)
-              (Pointer.set (ref-to-ptr (EngineState.edit-radius state)) 1.5))
-            (when (= (GLFW.get-key win GLFW.Keycode.NUM_2) GLFW.PRESS)
-              (Pointer.set (ref-to-ptr (EngineState.edit-radius state)) 3.0))
-            (when (= (GLFW.get-key win GLFW.Keycode.NUM_3) GLFW.PRESS)
-              (Pointer.set (ref-to-ptr (EngineState.edit-radius state)) 6.0))))
-
-        ; Apply gravity & jump in walking mode
-        (when (not @(EngineState.flying state))
-          (let [p-vel-y (ref-to-ptr (EngineState.vel-y state))
-                curr-vel-y (Pointer.to-value p-vel-y)
-                p-pos (ref-to-ptr (Camera.pos cam))
-                curr-pos (Pointer.to-value p-pos)]
-            (do
-              (Pointer.set p-vel-y (- curr-vel-y (* 35.0 dt)))
-              (when (and (= (GLFW.get-key win GLFW.Keycode.SPACE) GLFW.PRESS) @(EngineState.on-ground state))
-                (do
-                  (Pointer.set p-vel-y 12.0)
-                  (Pointer.set (ref-to-ptr (EngineState.on-ground state)) false)))
-              (let [new-y (+ @(Vector3.y &curr-pos) (* (Pointer.to-value p-vel-y) dt))]
-                (Pointer.set p-pos (Vector3.init @(Vector3.x &curr-pos) new-y @(Vector3.z &curr-pos)))))))
-
-        ; Read inputs
-        (Camera.update-input win cam dt @(EngineState.flying state))
-        (Camera.update-look win cam first-mouse-ptr last-x-ptr last-y-ptr)
-
-        ; Resolve camera collision with terrain
-        (EngineState.resolve-camera-collision! (EngineState.world state) cam 0.8 (ref-to-ptr (EngineState.vel-y state)) (ref-to-ptr (EngineState.on-ground state)))
-
-        ; Stream chunks centered on player
-        (EngineState.stream-chunks! (EngineState.world state) platform-eng ren (Camera.pos cam))
-        (Diagnostics.end-zone! diag "Input & Camera")
+        ;; 2. Stream chunks centered on player
+        (EngineState.stream-chunks! world platform-eng ren (Camera.pos cam))
         
-        ; Draw world boundary box (red) around the currently loaded wrapping volume
+        ;; 3. Raycast & Voxel Editing (carve/splat)
+        (let [ro (Camera.pos cam)
+              rd (Camera.front cam)
+              hit-opt (World.raycast world ro rd 80.0)]
+          (match hit-opt
+            (Maybe.Nothing)
+              (do
+                (Pointer.set (ref-to-ptr (EngineState.hit-active state)) 0.0f)
+                (Pointer.set (ref-to-ptr (EngineState.liquid-spawn state)) 0.0f)
+                (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) 0.0f))
+            (Maybe.Just hit-pos)
+              (do
+                ;; Target highlight box (yellow)
+                (let [yellow (Vector3.init 1.0 1.0 0.0)
+                      hx @(Vector3.x &hit-pos)
+                      hy @(Vector3.y &hit-pos)
+                      hz @(Vector3.z &hit-pos)]
+                  (EngineState.draw-bounds-wireframe! ren (- hx 0.5) (- hy 0.5) (- hz 0.5) (+ hx 0.5) (+ hy 0.5) (+ hz 0.5) &yellow))
+                
+                 ;; Click to edit and cycle types
+                 (let [left-pressed (= (GLFW.get-mouse-button win 0) GLFW.PRESS)
+                       right-pressed (= (GLFW.get-mouse-button win 1) GLFW.PRESS)
+                       f-held (= (GLFW.get-key win GLFW.Keycode.F) GLFW.PRESS)
+                       h-held (= (GLFW.get-key win GLFW.Keycode.H) GLFW.PRESS)
+                       g-held (= (GLFW.get-key win GLFW.Keycode.G) GLFW.PRESS)]
+                   (do
+                     ;; Set hit-active and spawn values
+                     (Pointer.set (ref-to-ptr (EngineState.hit-x state)) (Double.to-float @(Vector3.x &hit-pos)))
+                     (Pointer.set (ref-to-ptr (EngineState.hit-y state)) (Double.to-float @(Vector3.y &hit-pos)))
+                     (Pointer.set (ref-to-ptr (EngineState.hit-z state)) (Double.to-float @(Vector3.z &hit-pos)))
+                     
+                     (if (or left-pressed right-pressed)
+                       (do
+                         (Pointer.set (ref-to-ptr (EngineState.hit-active state)) 1.0f)
+                         (if h-held
+                           (Pointer.set (ref-to-ptr (EngineState.liquid-spawn state)) @(Player.current-liq player))
+                           (Pointer.set (ref-to-ptr (EngineState.liquid-spawn state)) 0.0f))
+                         (if g-held
+                           (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) @(Player.current-gas player))
+                           (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) 0.0f)))
+                       (do
+                         (Pointer.set (ref-to-ptr (EngineState.hit-active state)) 0.0f)
+                         (Pointer.set (ref-to-ptr (EngineState.liquid-spawn state)) 0.0f)
+                         (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) 0.0f)))
+                     
+                     ;; Edit solid terrain if F is held
+                     (when (and (or left-pressed right-pressed) f-held)
+                       (let [radius @(Player.edit-radius player)
+                             mat-id @(Player.current-mat player)
+                             carve? left-pressed
+                             modified-coords (World.edit-sdf! world &hit-pos radius mat-id carve?)]
+                         (do
+                           (for [j 0 (Array.length &modified-coords)]
+                             (let [coord (Array.unsafe-nth &modified-coords j)
+                                   qx @(ChunkCoord.x coord)
+                                   qy @(ChunkCoord.y coord)
+                                   qz @(ChunkCoord.z coord)
+                                   chunk-opt (World.find-chunk world qx qy qz)]
+                               (match chunk-opt
+                                 (Maybe.Nothing) ()
+                                 (Maybe.Just chunk)
+                                    (Renderer.update-chunk-texture platform-eng ren qx qy qz (Chunk.voxel-data &chunk))))))))))))))))
+
+  (defn post-update! [state]
+    (Diagnostics.end-zone! (EngineState.diag state) "Input & Camera"))
+
+   (defn update-gpu-uniforms [state]
+    (let [eng (EngineState.eng state)
+          ren (EngineState.renderer state)
+          player (EngineState.player state)
+          cam (Player.camera player)
+          uniforms (EngineState.uniforms state)
+          c-pos (Camera.pos cam)
+          c-dir (Camera.front cam)
+          c-right (Camera.right cam)
+          c-up (Camera.up cam)
+          time (Engine.update-time eng)
+          w (Float.from-int @(Engine.width eng))
+          h (Float.from-int @(Engine.height eng))
+          sun-angle (* time 0.15f)
+          sun-x (cos (Double.from-float sun-angle))
+          sun-y (sin (Double.from-float sun-angle))
+          sun-z 0.3]
+      (do
+        (Array.aset! uniforms 0 time)
+        (Array.aset! uniforms 1 w)
+        (Array.aset! uniforms 2 h)
+        (Array.aset! uniforms 3 (Double.to-float @(Player.edit-radius player)))
+        
+        (Array.aset! uniforms 4 (Double.to-float @(Vector3.x c-pos)))
+        (Array.aset! uniforms 5 (Double.to-float @(Vector3.y c-pos)))
+        (Array.aset! uniforms 6 (Double.to-float @(Vector3.z c-pos)))
+        (Array.aset! uniforms 7 (if @(Player.flashlight-on player) 1.0f 0.0f))
+        
+        (Array.aset! uniforms 8 (Double.to-float @(Vector3.x c-dir)))
+        (Array.aset! uniforms 9 (Double.to-float @(Vector3.y c-dir)))
+        (Array.aset! uniforms 10 (Double.to-float @(Vector3.z c-dir)))
+        (Array.aset! uniforms 11 0.0f)
+        
+        (Array.aset! uniforms 12 (Double.to-float @(Vector3.x c-right)))
+        (Array.aset! uniforms 13 (Double.to-float @(Vector3.y c-right)))
+        (Array.aset! uniforms 14 (Double.to-float @(Vector3.z c-right)))
+        (Array.aset! uniforms 15 0.0f)
+        
+        (Array.aset! uniforms 16 (Double.to-float @(Vector3.x c-up)))
+        (Array.aset! uniforms 17 (Double.to-float @(Vector3.y c-up)))
+        (Array.aset! uniforms 18 (Double.to-float @(Vector3.z c-up)))
+        (Array.aset! uniforms 19 0.0f)
+        
+        (Array.aset! uniforms 20 (Double.to-float sun-x))
+        (Array.aset! uniforms 21 (Double.to-float sun-y))
+        (Array.aset! uniforms 22 (Double.to-float sun-z))
+        (Array.aset! uniforms 23 0.0f)
+        
+        (Array.aset! uniforms 24 @(EngineState.hit-x state))
+        (Array.aset! uniforms 25 @(EngineState.hit-y state))
+        (Array.aset! uniforms 26 @(EngineState.hit-z state))
+        (Array.aset! uniforms 27 @(EngineState.hit-active state))
+        
+        (Array.aset! uniforms 28 @(EngineState.liquid-spawn state))
+        (Array.aset! uniforms 29 0.5f)
+        (Array.aset! uniforms 30 @(EngineState.gas-spawn state))
+        (Array.aset! uniforms 31 0.5f)
+        
+        (Engine.update-uniform-buffer eng @(Renderer.uniform-buffer ren) uniforms))))
+
+  (defn pre-render! [state]
+    (let [platform-eng (EngineState.eng state)
+          ren (EngineState.renderer state)
+          cam (Player.camera (EngineState.player state))
+          diag (EngineState.diag state)]
+      (do
+        ;; Draw world boundary box (red)
         (let [cx (Double.to-int (Double.floor (/ @(Vector3.x (Camera.pos cam)) 32.0)))
               cy (Double.to-int (Double.floor (/ @(Vector3.y (Camera.pos cam)) 32.0)))
               cz (Double.to-int (Double.floor (/ @(Vector3.z (Camera.pos cam)) 32.0)))
@@ -210,69 +268,44 @@
               by (Double.from-int (* (- cy 2) 32))
               bz (Double.from-int (* (- cz 2) 32))
               red-color (Vector3.init 1.0 0.1 0.1)]
-          (EngineState.draw-bounds-wireframe! ren bx by bz (+ bx 128.0) (+ by 128.0) (+ bz 128.0) &red-color))
+          (EngineState.draw-bounds-wireframe! ren bx by bz (+ bx 160.0) (+ by 160.0) (+ bz 160.0) &red-color))
         
-        ; Raycast from camera front vector
-        (let [ro (Camera.pos cam)
-              rd (Camera.front cam)
-              world (EngineState.world state)
-              hit-opt (World.raycast world ro rd 80.0)]
-          (match hit-opt
-            (Maybe.Nothing) ()
-            (Maybe.Just hit-pos)
-              (do
-                ;; 1. Draw target highlight box (yellow)
-                (let [yellow (Vector3.init 1.0 1.0 0.0)
-                      hx @(Vector3.x &hit-pos)
-                      hy @(Vector3.y &hit-pos)
-                      hz @(Vector3.z &hit-pos)]
-                  (EngineState.draw-bounds-wireframe! ren (- hx 0.5) (- hy 0.5) (- hz 0.5) (+ hx 0.5) (+ hy 0.5) (+ hz 0.5) &yellow))
-                
-                ;; 2. Click to carve (left button) or splat (right button)
-                (let [left-pressed (= (GLFW.get-mouse-button win 0) GLFW.PRESS)
-                      right-pressed (= (GLFW.get-mouse-button win 1) GLFW.PRESS)]
-                  (when (or left-pressed right-pressed)
-                    (let [radius @(EngineState.edit-radius state)
-                          mat-id @(EngineState.current-mat state)
-                          carve? left-pressed
-                          modified-coords (World.edit-sdf! world &hit-pos radius mat-id carve?)]
-                      (do
-                        (for [j 0 (Array.length &modified-coords)]
-                          (let [coord (Array.unsafe-nth &modified-coords j)
-                                qx @(ChunkCoord.x coord)
-                                qy @(ChunkCoord.y coord)
-                                qz @(ChunkCoord.z coord)
-                                chunk-opt (World.find-chunk world qx qy qz)]
-                            (match chunk-opt
-                              (Maybe.Nothing) ()
-                              (Maybe.Just chunk)
-                                (Renderer.update-chunk-texture platform-eng ren qx qy qz (Chunk.voxel-data &chunk))))))))))))
-        
-        ; Handle resizing
         (Engine.handle-resize platform-eng)
-        
         (Diagnostics.start-zone! diag "Renderer & Draw")
-        ; Render frame
-        (Renderer.update-uniforms platform-eng ren cam (EngineState.uniforms state))
-        (Renderer.draw platform-eng ren cam)
+        (EngineState.update-gpu-uniforms state))))
+
+  (defn render! [state]
+    (let [platform-eng (EngineState.eng state)
+          ren (EngineState.renderer state)
+          cam (Player.camera (EngineState.player state))]
+      (Renderer.draw platform-eng ren cam)))
+
+  (defn post-render! [state]
+    (let [platform-eng (EngineState.eng state)
+          diag (EngineState.diag state)
+          p-frames (ref-to-ptr (EngineState.frame-count state))
+          curr-frames (Pointer.to-value p-frames)
+          next-frames (inc curr-frames)]
+      (do
         (Diagnostics.end-zone! diag "Renderer & Draw")
-        
-        ; Poll events
         (Engine.poll-events platform-eng)
-        
         (Diagnostics.end-zone! diag "Total Frame Time")
-        
-        ; Increment frame counter and print stats
-        (let [p-frames (ref-to-ptr (EngineState.frame-count state))
-              curr-frames (Pointer.to-value p-frames)
-              next-frames (inc curr-frames)]
-          (do
-            (Pointer.set p-frames next-frames)
-            (when (= (Int.mod next-frames 300) 0)
-              (Diagnostics.print-stats! diag)))))))
+        (Pointer.set p-frames next-frames)
+        (when (= (Int.mod next-frames 300) 0)
+          (Diagnostics.print-stats! diag)))))
+
+  (defn tick [state win dt first-mouse-ptr last-x-ptr last-y-ptr]
+    (do
+      (EngineState.pre-update! state win)
+      (EngineState.update! state win dt first-mouse-ptr last-x-ptr last-y-ptr)
+      (EngineState.post-update! state)
+      (EngineState.pre-render! state)
+      (EngineState.render! state)
+      (EngineState.post-render! state)))
 
   (defn cleanup [state]
     (do
       (Renderer.cleanup (EngineState.eng state) (EngineState.renderer state))
-      (Engine.cleanup @(EngineState.eng state))))
+      (Engine.cleanup @(EngineState.eng state)))
+)
 )

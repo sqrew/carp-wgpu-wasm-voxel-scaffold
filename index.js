@@ -7543,6 +7543,46 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
     };
 
   
+  var _wgpuAdapterGetLimits = (adapterPtr, limitsOutPtr) => {
+      var adapter = WebGPU.getJsObject(adapterPtr);
+      WebGPU.fillLimitStruct(adapter.limits, limitsOutPtr);
+      return 1;
+    };
+
+  
+  
+  var _wgpuBufferGetSize = function(bufferPtr) {
+  
+  var ret = (() => { 
+      var buffer = WebGPU.getJsObject(bufferPtr);
+      // 64-bit
+      return buffer.size;
+     })();
+  return BigInt(ret);
+  };
+
+  
+  
+  
+  var _wgpuCommandEncoderBeginComputePass = (encoderPtr, descriptor) => {
+      var desc;
+  
+      if (descriptor) {
+        assert(descriptor);assert(HEAPU32[((descriptor)>>2)] === 0);
+        desc = {
+          "label": WebGPU.makeStringFromOptionalStringView(
+            descriptor + 4),
+          "timestampWrites": WebGPU.makePassTimestampWrites(
+            HEAPU32[(((descriptor)+(12))>>2)]),
+        };
+      }
+      var commandEncoder = WebGPU.getJsObject(encoderPtr);
+      var ptr = _emwgpuCreateComputePassEncoder(0);
+      WebGPU.Internals.jsObjectInsert(ptr, commandEncoder.beginComputePass(desc));
+      return ptr;
+    };
+
+  
   
   
   
@@ -7639,12 +7679,65 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
     };
 
   
+  var _wgpuCommandEncoderCopyBufferToTexture = (encoderPtr, srcPtr, dstPtr, copySizePtr) => {
+      var commandEncoder = WebGPU.getJsObject(encoderPtr);
+      var copySize = WebGPU.makeExtent3D(copySizePtr);
+      commandEncoder.copyBufferToTexture(
+        WebGPU.makeTexelCopyBufferInfo(srcPtr), WebGPU.makeTexelCopyTextureInfo(dstPtr), copySize);
+    };
+
+  
   
   var _wgpuCommandEncoderFinish = (encoderPtr, descriptor) => {
       // TODO: Use the descriptor.
       var commandEncoder = WebGPU.getJsObject(encoderPtr);
       var ptr = _emwgpuCreateCommandBuffer(0);
       WebGPU.Internals.jsObjectInsert(ptr, commandEncoder.finish());
+      return ptr;
+    };
+
+  
+  var _wgpuComputePassEncoderDispatchWorkgroups = (passPtr, x, y, z) => {
+      assert(x >= 0);
+      assert(y >= 0);
+      assert(z >= 0);
+      var pass = WebGPU.getJsObject(passPtr);
+      pass.dispatchWorkgroups(x, y, z);
+    };
+
+  
+  var _wgpuComputePassEncoderEnd = (passPtr) => {
+      var pass = WebGPU.getJsObject(passPtr);
+      pass.end();
+    };
+
+  
+  
+  var _wgpuComputePassEncoderSetBindGroup = (passPtr, groupIndex, groupPtr, dynamicOffsetCount, dynamicOffsetsPtr) => {
+      assert(groupIndex >= 0);
+      var pass = WebGPU.getJsObject(passPtr);
+      var group = WebGPU.getJsObject(groupPtr);
+      if (dynamicOffsetCount == 0) {
+        pass.setBindGroup(groupIndex, group);
+      } else {
+        pass.setBindGroup(groupIndex, group, HEAPU32, ((dynamicOffsetsPtr)>>2), dynamicOffsetCount);
+      }
+    };
+
+  
+  var _wgpuComputePassEncoderSetPipeline = (passPtr, pipelinePtr) => {
+      var pass = WebGPU.getJsObject(passPtr);
+      var pipeline = WebGPU.getJsObject(pipelinePtr);
+      pass.setPipeline(pipeline);
+    };
+
+  
+  
+  var _wgpuComputePipelineGetBindGroupLayout = (pipelinePtr, groupIndex) => {
+      assert(groupIndex >= 0);
+      var pipeline = WebGPU.getJsObject(pipelinePtr);
+      var ptr = _emwgpuCreateBindGroupLayout(0);
+      WebGPU.Internals.jsObjectInsert(ptr, pipeline.getBindGroupLayout(groupIndex));
       return ptr;
     };
 
@@ -7840,6 +7933,16 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
 
   
   
+  var _wgpuDeviceCreateComputePipeline = (devicePtr, descriptor) => {
+      var desc = WebGPU.makeComputePipelineDesc(descriptor);
+      var device = WebGPU.getJsObject(devicePtr);
+      var ptr = _emwgpuCreateComputePipeline(0);
+      WebGPU.Internals.jsObjectInsert(ptr, device.createComputePipeline(desc));
+      return ptr;
+    };
+
+  
+  
   
   var _wgpuDeviceCreatePipelineLayout = (devicePtr, descriptor) => {
       assert(descriptor);assert(HEAPU32[((descriptor)>>2)] === 0);
@@ -8022,20 +8125,6 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
       queue.writeBuffer(buffer, bufferOffset, subarray, 0, size);
     ;
   }
-
-  
-  
-  var _wgpuQueueWriteTexture = (queuePtr, destinationPtr, data, dataSize, dataLayoutPtr, writeSizePtr) => {
-      var queue = WebGPU.getJsObject(queuePtr);
-  
-      var destination = WebGPU.makeTexelCopyTextureInfo(destinationPtr);
-      var dataLayout = WebGPU.makeTexelCopyBufferLayout(dataLayoutPtr);
-      var writeSize = WebGPU.makeExtent3D(writeSizePtr);
-      // This subarray isn't strictly necessary, but helps work around an issue
-      // where Chromium makes a copy of the entire heap. crbug.com/1134457
-      var subarray = HEAPU8.subarray(data, data + dataSize);
-      queue.writeTexture(destination, subarray, dataLayout, writeSize);
-    };
 
   
   var _wgpuRenderPassEncoderDraw = (passPtr, vertexCount, instanceCount, firstVertex, firstInstance) => {
@@ -9284,15 +9373,35 @@ var wasmImports = {
   /** @export */
   glfwWindowShouldClose: _glfwWindowShouldClose,
   /** @export */
+  wgpuAdapterGetLimits: _wgpuAdapterGetLimits,
+  /** @export */
+  wgpuBufferGetSize: _wgpuBufferGetSize,
+  /** @export */
+  wgpuCommandEncoderBeginComputePass: _wgpuCommandEncoderBeginComputePass,
+  /** @export */
   wgpuCommandEncoderBeginRenderPass: _wgpuCommandEncoderBeginRenderPass,
   /** @export */
+  wgpuCommandEncoderCopyBufferToTexture: _wgpuCommandEncoderCopyBufferToTexture,
+  /** @export */
   wgpuCommandEncoderFinish: _wgpuCommandEncoderFinish,
+  /** @export */
+  wgpuComputePassEncoderDispatchWorkgroups: _wgpuComputePassEncoderDispatchWorkgroups,
+  /** @export */
+  wgpuComputePassEncoderEnd: _wgpuComputePassEncoderEnd,
+  /** @export */
+  wgpuComputePassEncoderSetBindGroup: _wgpuComputePassEncoderSetBindGroup,
+  /** @export */
+  wgpuComputePassEncoderSetPipeline: _wgpuComputePassEncoderSetPipeline,
+  /** @export */
+  wgpuComputePipelineGetBindGroupLayout: _wgpuComputePipelineGetBindGroupLayout,
   /** @export */
   wgpuDeviceCreateBindGroup: _wgpuDeviceCreateBindGroup,
   /** @export */
   wgpuDeviceCreateBindGroupLayout: _wgpuDeviceCreateBindGroupLayout,
   /** @export */
   wgpuDeviceCreateCommandEncoder: _wgpuDeviceCreateCommandEncoder,
+  /** @export */
+  wgpuDeviceCreateComputePipeline: _wgpuDeviceCreateComputePipeline,
   /** @export */
   wgpuDeviceCreatePipelineLayout: _wgpuDeviceCreatePipelineLayout,
   /** @export */
@@ -9307,8 +9416,6 @@ var wasmImports = {
   wgpuQueueSubmit: _wgpuQueueSubmit,
   /** @export */
   wgpuQueueWriteBuffer: _wgpuQueueWriteBuffer,
-  /** @export */
-  wgpuQueueWriteTexture: _wgpuQueueWriteTexture,
   /** @export */
   wgpuRenderPassEncoderDraw: _wgpuRenderPassEncoderDraw,
   /** @export */

@@ -35,35 +35,47 @@
               (for [y 0 res]
                 (let [gy (+ (* qy 32) y)
                       idx (+ (* z 1024) (+ (* y 32) x))
-                      
-                      ;; Add some 3D noise details
-                      nx2 (* (Double.from-int gx) 0.04)
-                      ny2 (* (Double.from-int gy) 0.04)
-                      nz2 (* (Double.from-int gz) 0.04)
-                      detail (* 3.0 (Noise.noise3d noise-state nx2 ny2 nz2))
-                      
-                      base-sdf (Double.to-float (- (Double.from-int gy) (+ height detail)))
-                      
-                      ;; 3D noise caves
-                      cx (* (Double.from-int gx) 0.08)
-                      cy (* (Double.from-int gy) 0.08)
-                      cz (* (Double.from-int gz) 0.08)
-                      cave-val (Noise.noise3d noise-state cx cy cz)
-                      
-                      cave-sdf (Double.to-float (- 0.35 cave-val))
-                      sdf (if (> cave-val 0.45)
-                              (Float.max base-sdf cave-sdf)
-                              base-sdf)
-                      
-                      ;; Material ID
-                      depth (- height (Double.from-int gy))
-                      mat-id (if (< depth 1.5) 2.0f 1.0f)
-                      offset (* idx 4)]
-                  (do
-                    (Pointer.set (Pointer.add p-data (Long.from-int offset)) mat-id)
-                    (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) sdf)
-                    (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
-                    (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 1.0f)))))))
+                      offset (* idx 4)
+                      f-gy (Double.from-int gy)]
+                  (if (> f-gy (+ height 3.0))
+                      (do
+                        (Pointer.set (Pointer.add p-data (Long.from-int offset)) 0.0f)
+                        (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) (Double.to-float (- f-gy height)))
+                        (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
+                        (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 1.0f))
+                      (let [nx2 (* (Double.from-int gx) 0.04)
+                            ny2 (* f-gy 0.04)
+                            nz2 (* (Double.from-int gz) 0.04)
+                            detail (* 3.0 (Noise.noise3d noise-state nx2 ny2 nz2))
+                            base-sdf (Double.to-float (- f-gy (+ height detail)))
+                            
+                            ;; Giant cavern rooms (low frequency 3D noise - stretched out)
+                            cx (* (Double.from-int gx) 0.012)
+                            cy (* f-gy 0.012)
+                            cz (* (Double.from-int gz) 0.012)
+                            room-val (Noise.noise3d noise-state cx cy cz)
+                            
+                            ;; Winding tunnels (medium frequency 3D noise - wider tubes)
+                            tx (* (Double.from-int gx) 0.025)
+                            ty (* f-gy 0.025)
+                            tz (* (Double.from-int gz) 0.025)
+                            tunnel-val (Noise.noise3d noise-state tx ty tz)
+                            abs-tunnel (if (< tunnel-val 0.0) (- 0.0 tunnel-val) tunnel-val)
+                            
+                            ;; Carve caves under the surface layer (tighter thresholds)
+                            is-cave (and (< f-gy (- height 3.0))
+                                         (or (> room-val 0.50)
+                                             (< abs-tunnel 0.05)))
+                            
+                            sdf (if is-cave 1.0f base-sdf)
+                            mat-id (if is-cave
+                                       0.0f
+                                       (if (< (- height f-gy) 1.5) 2.0f 1.0f))]
+                        (do
+                          (Pointer.set (Pointer.add p-data (Long.from-int offset)) mat-id)
+                          (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) sdf)
+                          (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
+                          (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 1.0f)))))))))
         (Chunk.init qx qy qz voxel-data))))
 )
 
@@ -72,9 +84,9 @@
     (let [noise-state (Noise.make-noise 1337)
           world-chunks []]
       (do
-        (for [z 0 4]
-          (for [y 0 4]
-            (for [x 0 4]
+        (for [z 0 5]
+          (for [y 0 5]
+            (for [x 0 5]
               (Array.push-back! &world-chunks (Chunk.create &noise-state x y z)))))
         (World.init world-chunks 32 noise-state))))
 

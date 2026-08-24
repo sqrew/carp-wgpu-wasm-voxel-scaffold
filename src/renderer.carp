@@ -2,212 +2,7 @@
 (load "camera.carp")
 (load "line_pass.carp")
 
-(def voxel-wgsl
-  "struct Uniforms {
-    time: f32,
-    width: f32,
-    height: f32,
-    _pad0: f32,
-    cam_pos: vec4<f32>,
-    cam_dir: vec4<f32>,
-    cam_right: vec4<f32>,
-    cam_up: vec4<f32>,
-}
-
-@group(0) @binding(0) var<uniform> u: Uniforms;
-@group(0) @binding(1) var solid_texture: texture_3d<f32>;
-@group(0) @binding(2) var voxel_sampler: sampler;
-@group(0) @binding(3) var liquid_texture: texture_3d<f32>;
-@group(0) @binding(4) var gas_texture: texture_3d<f32>;
-
-struct VertexOutput {
-    @builtin(position) position: vec4<f32>,
-    @location(0) uv: vec2<f32>,
-}
-
-@vertex
-fn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {
-    var pos: array<vec2<f32>, 3> = array<vec2<f32>, 3>(
-        vec2<f32>(-1.0, -1.0),
-        vec2<f32>( 3.0, -1.0),
-        vec2<f32>(-1.0,  3.0),
-    );
-    var out: VertexOutput;
-    let p = pos[vi];
-    out.position = vec4<f32>(p, 0.0, 1.0);
-    out.uv = (p + 1.0) * 0.5;
-    return out;
-}
-
-fn intersect_box(ro: vec3<f32>, rd: vec3<f32>, box_min: vec3<f32>, box_max: vec3<f32>, t0: ptr<function, f32>, t1: ptr<function, f32>) -> bool {
-    let inv_d = 1.0 / rd;
-    let t_bot = inv_d * (box_min - ro);
-    let t_top = inv_d * (box_max - ro);
-    let t_min = min(t_bot, t_top);
-    let t_max = max(t_bot, t_top);
-    let t_near = max(t_min.x, max(t_min.y, t_min.z));
-    let t_far = min(t_max.x, min(t_max.y, t_max.z));
-    *t0 = t_near;
-    *t1 = t_far;
-    return t_near < t_far && t_far > 0.0;
-}
-
-fn getShadow(ro: vec3<f32>, rd: vec3<f32>, mint: f32, maxt: f32, k: f32) -> f32 {
-    var res: f32 = 1.0;
-    var t = mint;
-    for (var i = 0; i < 40; i = i + 1) {
-        let p = ro + rd * t;
-        let wrapped_p = p - floor(p / 128.0) * 128.0;
-        let uvw = clamp(wrapped_p / 128.0, vec3<f32>(0.002), vec3<f32>(0.998));
-        let h = textureSampleLevel(solid_texture, voxel_sampler, uvw, 0.0).g * 0.5;
-        if (h < 0.008) {
-            return 0.0;
-        }
-        res = min(res, k * h / t);
-        t += max(0.05, h);
-        if (t > maxt) {
-            break;
-        }
-    }
-    return clamp(res, 0.2, 1.0);
-}
-
-fn getAO(p: vec3<f32>, n: vec3<f32>) -> f32 {
-    var occ = 0.0;
-    var sca = 1.0;
-    for (var i = 0; i < 5; i = i + 1) {
-        let hr = 0.05 + 0.15 * f32(i) / 4.0;
-        let aopos = p + n * hr;
-        let wrapped_p = aopos - floor(aopos / 128.0) * 128.0;
-        let uvw = clamp(wrapped_p / 128.0, vec3<f32>(0.002), vec3<f32>(0.998));
-        let d = textureSampleLevel(solid_texture, voxel_sampler, uvw, 0.0).g * 0.5;
-        occ += -(d - hr) * sca;
-        sca *= 0.95;
-    }
-    return clamp(1.0 - occ * 4.0, 0.0, 1.0);
-}
-
-@fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let aspect = u.width / u.height;
-    let uv = (in.uv * 2.0 - 1.0) * vec2<f32>(aspect, 1.0);
-    
-    let ro = u.cam_pos.xyz;
-    let rd = normalize(u.cam_dir.xyz * 2.0 + uv.x * u.cam_right.xyz + uv.y * u.cam_up.xyz);
-    
-    let cx = floor(u.cam_pos.x / 32.0);
-    let cy = floor(u.cam_pos.y / 32.0);
-    let cz = floor(u.cam_pos.z / 32.0);
-    let box_min = vec3<f32>(cx - 2.0, cy - 2.0, cz - 2.0) * 32.0;
-    let box_max = box_min + 128.0;
-    
-    var t_near: f32 = 0.0;
-    var t_far: f32 = 0.0;
-    
-    // Create sky gradient based on ray direction Y component
-    let sky_dir_y = max(0.0, rd.y);
-    let space_color = vec3<f32>(0.05, 0.08, 0.15);
-    let horizon_color = vec3<f32>(0.15, 0.22, 0.35);
-    var color = mix(space_color, horizon_color, sky_dir_y);
-    
-    // Add a glowing sun
-    let sun_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));
-    let sun_cos = dot(rd, sun_dir);
-    if (sun_cos > 0.0) {
-        let sun_glow = pow(sun_cos, 120.0) * 1.5;
-        let sun_disk = pow(sun_cos, 1200.0) * 4.0;
-        color += vec3<f32>(1.0, 0.9, 0.7) * (sun_glow + sun_disk);
-    }
-    
-    if (intersect_box(ro, rd, box_min, box_max, &t_near, &t_far)) {
-        let t_start = max(t_near, 0.0);
-        var t = t_start;
-        var hit = false;
-        var hit_color = vec3<f32>(0.0);
-        
-        for (var step = 0; step < 200; step = step + 1) {
-            if (t > t_far) {
-                break;
-            }
-            let p = ro + rd * t;
-            
-            // Clamp normalized coordinates slightly inside [0, 1] to avoid border interpolation artifacts
-            let wrapped_p = p - floor(p / 128.0) * 128.0;
-            let uvw = clamp(wrapped_p / 128.0, vec3<f32>(0.002), vec3<f32>(0.998));
-            
-            // Sample SDF value from green channel (G) and scale by 0.5 (Lipschitz constant bound for Simplex noise)
-            let val = textureSampleLevel(solid_texture, voxel_sampler, uvw, 0.0);
-            let dist = val.g * 0.5;
-            
-            if (dist < 0.008) {
-                // Hit! Calculate normals using finite differences
-                let eps = 0.5;
-                let n = vec3<f32>(
-                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p + vec3<f32>(eps, 0.0, 0.0), vec3<f32>(0.0), vec3<f32>(128.0))/128.0, 0.0).g - 
-                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p - vec3<f32>(eps, 0.0, 0.0), vec3<f32>(0.0), vec3<f32>(128.0))/128.0, 0.0).g,
-                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p + vec3<f32>(0.0, eps, 0.0), vec3<f32>(0.0), vec3<f32>(128.0))/128.0, 0.0).g - 
-                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p - vec3<f32>(0.0, eps, 0.0), vec3<f32>(0.0), vec3<f32>(128.0))/128.0, 0.0).g,
-                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p + vec3<f32>(0.0, 0.0, eps), vec3<f32>(0.0), vec3<f32>(128.0))/128.0, 0.0).g - 
-                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p - vec3<f32>(0.0, 0.0, eps), vec3<f32>(0.0), vec3<f32>(128.0))/128.0, 0.0).g
-                );
-                let normal = normalize(n);
-                
-                // Fetch discrete material ID using textureLoad at the nearest integer coordinate (avoids trilinear bleeding!)
-                let ip = vec3<i32>(clamp(wrapped_p, vec3<f32>(0.0), vec3<f32>(127.0)));
-                let raw_voxel = textureLoad(solid_texture, ip, 0);
-                let mat_id = raw_voxel.r;
-                
-                // Color based on material ID
-                var base_color = vec3<f32>(0.5, 0.5, 0.5);
-                if (mat_id > 2.5) {
-                    base_color = vec3<f32>(0.65, 0.35, 0.2); // Warm brick-red/wood
-                } else if (mat_id > 1.5) {
-                    base_color = vec3<f32>(0.2, 0.8, 0.3);   // Organic green terrain
-                } else if (mat_id > 0.5) {
-                    base_color = vec3<f32>(0.8, 0.7, 0.5);   // Stone/sand
-                } else {
-                    base_color = vec3<f32>(0.3, 0.3, 0.3);
-                }
-                
-                let light_dir = normalize(vec3<f32>(0.5, 1.0, 0.3));
-                let diffuse = max(dot(normal, light_dir), 0.1);
-                
-                // Raymarched Shadows (soft shadows)
-                let shadow_pos = p + normal * 0.05;
-                let sha = getShadow(shadow_pos, light_dir, 0.05, 40.0, 16.0);
-                
-                // Ambient Occlusion
-                let ao = getAO(p, normal);
-                
-                // Combine Shading
-                let ambient = vec3<f32>(0.1, 0.12, 0.2) * ao;
-                let direct = vec3<f32>(1.0, 0.95, 0.85) * diffuse * sha;
-                
-                hit_color = base_color * (direct + ambient);
-                hit = true;
-                break;
-            }
-            
-            // Step forward by the SDF value
-            t = t + max(0.008, dist);
-        }
-        
-        if (hit) {
-            // Apply exponential atmospheric distance fog
-            let fog_density = 0.015;
-            let fog_factor = 1.0 - exp(-fog_density * t);
-            
-            // The fog color is the horizon color mixed with the space color
-            let fog_color = mix(space_color, horizon_color, max(0.0, rd.y));
-            color = mix(hit_color, fog_color, clamp(fog_factor, 0.0, 1.0));
-        }
-    }
-    
-    let dummy = textureSampleLevel(liquid_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r +
-                textureSampleLevel(gas_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r;
-    return vec4<f32>(color + dummy * 0.000001, 1.0);
-}
-")
+;; WGSL shaders are loaded from shaders.carp
 
 (deftype Renderer [
   pipeline (Ptr WGPURenderPipelineWrapper)
@@ -216,40 +11,68 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
   voxel-texture (Ptr WGPURenderTexture)
   liquid-texture (Ptr WGPURenderTexture)
   gas-texture (Ptr WGPURenderTexture)
+  light-texture (Ptr WGPURenderTexture)
   voxel-sampler WGPUSampler
   line-pass LinePassRenderer
   lines (Array Line)
   depth-texture (Ptr WGPUDepthTexture)
   width Int
   height Int
+  voxel-gpu-buffer-read (Ptr WGPUVertexBufferWrapper)
+  voxel-gpu-buffer-write (Ptr WGPUVertexBufferWrapper)
+  voxel-half-buffer (Ptr WGPUVertexBufferWrapper)
+  pack-pipeline WGPUComputePipeline
+  pack-bind-group WGPUBindGroup
+  voxel-staging-buffer (Ptr WGPUVertexBufferWrapper)
+  copy-pipeline WGPUComputePipeline
+  copy-bind-group WGPUBindGroup
+  copy-uniform-buffer (Ptr WGPUUniformBufferWrapper)
+  liquid-gpu-buffer (Ptr WGPUVertexBufferWrapper)
+  liquid-half-buffer (Ptr WGPUVertexBufferWrapper)
+  gas-gpu-buffer (Ptr WGPUVertexBufferWrapper)
+  gas-half-buffer (Ptr WGPUVertexBufferWrapper)
+  liquid-pack-bind-group WGPUBindGroup
+  gas-pack-bind-group WGPUBindGroup
+  liquid-sim-pipeline WGPUComputePipeline
+  liquid-sim-bind-group WGPUBindGroup
+  gas-sim-pipeline WGPUComputePipeline
+  gas-sim-bind-group WGPUBindGroup
 ])
+
+
 
 (defmodule Renderer
   (defn create [eng]
     (let [ctx @(Engine.ctx eng)]
-      (match (WGPURender.create-3d-texture ctx 128 128 128 "rgba16float")
+      (match (WGPURender.create-3d-texture ctx 160 160 160 "rgba16float")
         (Result.Error e) (Result.Error (str* "Voxel texture failed: " e))
         (Result.Success voxel-tex)
-          (match (WGPURender.create-3d-texture ctx 128 128 128 "rgba16float")
+          (match (WGPURender.create-3d-texture ctx 160 160 160 "rgba16float")
             (Result.Error e) (do (WGPURender.free-render-texture voxel-tex)
                                  (Result.Error (str* "Liquid texture failed: " e)))
             (Result.Success liquid-tex)
-              (match (WGPURender.create-3d-texture ctx 128 128 128 "rgba16float")
+              (match (WGPURender.create-3d-texture ctx 160 160 160 "rgba16float")
                 (Result.Error e) (do (WGPURender.free-render-texture voxel-tex)
                                      (WGPURender.free-render-texture liquid-tex)
                                      (Result.Error (str* "Gas texture failed: " e)))
                 (Result.Success gas-tex)
-                  (match (WGPURender.create-sampler ctx)
+                  (match (WGPURender.create-3d-texture ctx 160 160 160 "rgba16float")
                     (Result.Error e) (do (WGPURender.free-render-texture voxel-tex)
                                          (WGPURender.free-render-texture liquid-tex)
                                          (WGPURender.free-render-texture gas-tex)
+                                         (Result.Error (str* "Light texture failed: " e)))
+                    (Result.Success light-tex)
+                      (match (WGPURender.create-sampler ctx)
+                    (Result.Error e) (do (WGPURender.free-render-texture voxel-tex)
+                                         (WGPURender.free-render-texture liquid-tex)
+                                         (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex)
                                          (Result.Error (str* "Sampler failed: " e)))
                     (Result.Success voxel-sampler)
-                      (match (WGPURender.create-uniform-buffer ctx 80)
+                      (match (WGPURender.create-uniform-buffer ctx 128)
                         (Result.Error e) (do (WGPURender.free-sampler voxel-sampler)
                                              (WGPURender.free-render-texture voxel-tex)
                                              (WGPURender.free-render-texture liquid-tex)
-                                             (WGPURender.free-render-texture gas-tex)
+                                             (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex)
                                              (Result.Error (str* "Uniforms failed: " e)))
                         (Result.Success ub)
                           (match (Engine.create-pipeline eng voxel-wgsl "vs_main" "fs_main")
@@ -257,79 +80,123 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                                                  (WGPURender.free-sampler voxel-sampler)
                                                  (WGPURender.free-render-texture voxel-tex)
                                                  (WGPURender.free-render-texture liquid-tex)
-                                                 (WGPURender.free-render-texture gas-tex)
+                                                 (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex)
                                                  (Result.Error (str* "Pipeline failed: " e)))
                             (Result.Success pipe)
-                              (match (Engine.create-voxel-bind-group eng pipe voxel-tex liquid-tex gas-tex voxel-sampler ub)
+                              (match (Engine.create-voxel-bind-group eng pipe voxel-tex liquid-tex gas-tex light-tex voxel-sampler ub)
                                 (Result.Error e) (do (Engine.free-pipeline pipe)
                                                      (Engine.free-uniform-buffer ub)
                                                      (WGPURender.free-sampler voxel-sampler)
                                                      (WGPURender.free-render-texture voxel-tex)
                                                      (WGPURender.free-render-texture liquid-tex)
-                                                     (WGPURender.free-render-texture gas-tex)
+                                                     (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex)
                                                      (Result.Error (str* "Bind group failed: " e)))
                                 (Result.Success bg)
-                                  (let [w @(Engine.width eng)
-                                        h @(Engine.height eng)]
-                                    (match (WGPURender.create-depth-texture ctx w h)
-                                      (Result.Error e) (do (Engine.free-pipeline pipe)
-                                                           (Engine.free-uniform-buffer ub)
-                                                           (WGPURender.free-sampler voxel-sampler)
-                                                           (WGPURender.free-render-texture voxel-tex)
-                                                           (WGPURender.free-render-texture liquid-tex)
-                                                           (WGPURender.free-render-texture gas-tex)
-                                                           (Engine.free-bind-group bg)
-                                                           (Result.Error (str* "Depth texture failed: " e)))
-                                      (Result.Success depth-tex)
-                                        (let [format (WGPURender.surface-format @(Engine.surf eng))]
-                                          (match (LinePass.create ctx &format 1000)
-                                            (Result.Error e) (do (Engine.free-pipeline pipe)
-                                                                 (Engine.free-uniform-buffer ub)
-                                                                 (WGPURender.free-sampler voxel-sampler)
-                                                                 (WGPURender.free-render-texture voxel-tex)
-                                                                 (WGPURender.free-render-texture liquid-tex)
-                                                                 (WGPURender.free-render-texture gas-tex)
-                                                                 (Engine.free-bind-group bg)
-                                                                 (WGPURender.free-depth-texture depth-tex)
-                                                                 (Result.Error (str* "LinePass creation failed: " e)))
-                                            (Result.Success lp)
-                                              (Result.Success (Renderer.init pipe bg ub voxel-tex liquid-tex gas-tex voxel-sampler lp [] depth-tex w h)))))))))))))))
+                                  (match (WGPU.create-pipeline ctx pack-wgsl "main")
+                                    (Result.Error e) (do (Engine.free-pipeline pipe)
+                                                         (Engine.free-uniform-buffer ub)
+                                                         (WGPURender.free-sampler voxel-sampler)
+                                                         (WGPURender.free-render-texture voxel-tex)
+                                                         (WGPURender.free-render-texture liquid-tex)
+                                                         (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex)
+                                                         (Engine.free-bind-group bg)
+                                                         (Result.Error (str* "Pack compute pipeline failed: " e)))
+                                    (Result.Success pack-pipe)
+                                       (let [zero 0.0f
+                                             initial-data-read (Array.replicate 16384000 &zero)
+                                             initial-data-half (Array.replicate 8192000 &zero)]
+                                         (match (WGPURender.create-storage-vertex-buffer ctx &initial-data-read)
+                                           (Result.Error e) (do (Engine.free-pipeline pipe) (Engine.free-uniform-buffer ub) (WGPURender.free-sampler voxel-sampler) (WGPURender.free-render-texture voxel-tex) (WGPURender.free-render-texture liquid-tex) (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex) (Engine.free-bind-group bg) (WGPU.free-pipeline pack-pipe) (Result.Error (str* "Read SSBO failed: " e)))
+                                           (Result.Success read-buf)
+                                             (match (WGPURender.create-storage-vertex-buffer ctx &initial-data-read)
+                                               (Result.Error e) (do (Engine.free-pipeline pipe) (Engine.free-uniform-buffer ub) (WGPURender.free-sampler voxel-sampler) (WGPURender.free-render-texture voxel-tex) (WGPURender.free-render-texture liquid-tex) (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex) (Engine.free-bind-group bg) (WGPU.free-pipeline pack-pipe) (WGPURender.free-vertex-buffer read-buf) (Result.Error (str* "Write SSBO failed: " e)))
+                                               (Result.Success write-buf)
+                                                 (match (WGPURender.create-storage-vertex-buffer ctx &initial-data-half)
+                                                   (Result.Error e) (do (Engine.free-pipeline pipe) (Engine.free-uniform-buffer ub) (WGPURender.free-sampler voxel-sampler) (WGPURender.free-render-texture voxel-tex) (WGPURender.free-render-texture liquid-tex) (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex) (Engine.free-bind-group bg) (WGPU.free-pipeline pack-pipe) (WGPURender.free-vertex-buffer read-buf) (WGPURender.free-vertex-buffer write-buf) (Result.Error (str* "Half SSBO failed: " e)))
+                                                   (Result.Success half-buf)
+                                                     (match (WGPURender.create-storage-vertex-buffer ctx &initial-data-read)
+                                                       (Result.Error e) (do (Engine.free-pipeline pipe) (Engine.free-uniform-buffer ub) (WGPURender.free-sampler voxel-sampler) (WGPURender.free-render-texture voxel-tex) (WGPURender.free-render-texture liquid-tex) (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex) (Engine.free-bind-group bg) (WGPU.free-pipeline pack-pipe) (WGPURender.free-vertex-buffer read-buf) (WGPURender.free-vertex-buffer write-buf) (WGPURender.free-vertex-buffer half-buf) (Result.Error (str* "Liquid GPU buffer failed: " e)))
+                                                       (Result.Success liquid-gpu-buf)
+                                                         (match (WGPURender.create-storage-vertex-buffer ctx &initial-data-half)
+                                                           (Result.Error e) (do (Engine.free-pipeline pipe) (Engine.free-uniform-buffer ub) (WGPURender.free-sampler voxel-sampler) (WGPURender.free-render-texture voxel-tex) (WGPURender.free-render-texture liquid-tex) (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex) (Engine.free-bind-group bg) (WGPU.free-pipeline pack-pipe) (WGPURender.free-vertex-buffer read-buf) (WGPURender.free-vertex-buffer write-buf) (WGPURender.free-vertex-buffer half-buf) (WGPURender.free-vertex-buffer liquid-gpu-buf) (Result.Error (str* "Liquid half buffer failed: " e)))
+                                                           (Result.Success liquid-half-buf)
+                                                             (match (WGPURender.create-storage-vertex-buffer ctx &initial-data-read)
+                                                               (Result.Error e) (do (Engine.free-pipeline pipe) (Engine.free-uniform-buffer ub) (WGPURender.free-sampler voxel-sampler) (WGPURender.free-render-texture voxel-tex) (WGPURender.free-render-texture liquid-tex) (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex) (Engine.free-bind-group bg) (WGPU.free-pipeline pack-pipe) (WGPURender.free-vertex-buffer read-buf) (WGPURender.free-vertex-buffer write-buf) (WGPURender.free-vertex-buffer half-buf) (WGPURender.free-vertex-buffer liquid-gpu-buf) (WGPURender.free-vertex-buffer liquid-half-buf) (Result.Error (str* "Gas GPU buffer failed: " e)))
+                                                               (Result.Success gas-gpu-buf)
+                                                                 (match (WGPURender.create-storage-vertex-buffer ctx &initial-data-half)
+                                                                   (Result.Error e) (do (Engine.free-pipeline pipe) (Engine.free-uniform-buffer ub) (WGPURender.free-sampler voxel-sampler) (WGPURender.free-render-texture voxel-tex) (WGPURender.free-render-texture liquid-tex) (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex) (Engine.free-bind-group bg) (WGPU.free-pipeline pack-pipe) (WGPURender.free-vertex-buffer read-buf) (WGPURender.free-vertex-buffer write-buf) (WGPURender.free-vertex-buffer half-buf) (WGPURender.free-vertex-buffer liquid-gpu-buf) (WGPURender.free-vertex-buffer liquid-half-buf) (WGPURender.free-vertex-buffer gas-gpu-buf) (Result.Error (str* "Gas half buffer failed: " e)))
+                                                                   (Result.Success gas-half-buf)
+                                                                     (let [read-raw (WGPUVertexBufferWrapper.get-buffer read-buf)
+                                                                           half-raw (WGPUVertexBufferWrapper.get-buffer half-buf)
+                                                                           bufs [read-raw half-raw]
+                                                                           liquid-raw (WGPUVertexBufferWrapper.get-buffer liquid-gpu-buf)
+                                                                           liquid-half-raw (WGPUVertexBufferWrapper.get-buffer liquid-half-buf)
+                                                                           liquid-bufs [liquid-raw liquid-half-raw]
+                                                                           gas-raw (WGPUVertexBufferWrapper.get-buffer gas-gpu-buf)
+                                                                           gas-half-raw (WGPUVertexBufferWrapper.get-buffer gas-half-buf)
+                                                                           gas-bufs [gas-raw gas-half-raw]]
+                                                                       (match (WGPU.create-bind-group ctx pack-pipe &bufs)
+                                                                         (Result.Error e) (do (Engine.free-pipeline pipe) (Engine.free-uniform-buffer ub) (WGPURender.free-sampler voxel-sampler) (WGPURender.free-render-texture voxel-tex) (WGPURender.free-render-texture liquid-tex) (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex) (Engine.free-bind-group bg) (WGPU.free-pipeline pack-pipe) (WGPURender.free-vertex-buffer read-buf) (WGPURender.free-vertex-buffer write-buf) (WGPURender.free-vertex-buffer half-buf) (WGPURender.free-vertex-buffer liquid-gpu-buf) (WGPURender.free-vertex-buffer liquid-half-buf) (WGPURender.free-vertex-buffer gas-gpu-buf) (WGPURender.free-vertex-buffer gas-half-buf) (Result.Error (str* "Pack bind group failed: " e)))
+                                                                         (Result.Success pack-bg)
+                                                                           (match (WGPU.create-bind-group ctx pack-pipe &liquid-bufs)
+                                                                             (Result.Error e) (do (Engine.free-pipeline pipe) (Engine.free-uniform-buffer ub) (WGPURender.free-sampler voxel-sampler) (WGPURender.free-render-texture voxel-tex) (WGPURender.free-render-texture liquid-tex) (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex) (Engine.free-bind-group bg) (WGPU.free-pipeline pack-pipe) (WGPURender.free-vertex-buffer read-buf) (WGPURender.free-vertex-buffer write-buf) (WGPURender.free-vertex-buffer half-buf) (WGPURender.free-vertex-buffer liquid-gpu-buf) (WGPURender.free-vertex-buffer liquid-half-buf) (WGPURender.free-vertex-buffer gas-gpu-buf) (WGPURender.free-vertex-buffer gas-half-buf) (WGPU.free-bind-group pack-bg) (Result.Error (str* "Liquid pack bind group failed: " e)))
+                                                                             (Result.Success liquid-pack-bg)
+                                                                               (match (WGPU.create-bind-group ctx pack-pipe &gas-bufs)
+                                                                                 (Result.Error e) (do (Engine.free-pipeline pipe) (Engine.free-uniform-buffer ub) (WGPURender.free-sampler voxel-sampler) (WGPURender.free-render-texture voxel-tex) (WGPURender.free-render-texture liquid-tex) (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex) (Engine.free-bind-group bg) (WGPU.free-pipeline pack-pipe) (WGPURender.free-vertex-buffer read-buf) (WGPURender.free-vertex-buffer write-buf) (WGPURender.free-vertex-buffer half-buf) (WGPURender.free-vertex-buffer liquid-gpu-buf) (WGPURender.free-vertex-buffer liquid-half-buf) (WGPURender.free-vertex-buffer gas-gpu-buf) (WGPURender.free-vertex-buffer gas-half-buf) (WGPU.free-bind-group pack-bg) (WGPU.free-bind-group liquid-pack-bg) (Result.Error (str* "Gas pack bind group failed: " e)))
+                                                                                 (Result.Success gas-pack-bg)
+                                                                                   (match (WGPU.create-pipeline ctx copy-wgsl "main")
+                                                                                     (Result.Error e) (do (Engine.free-pipeline pipe) (Engine.free-uniform-buffer ub) (WGPURender.free-sampler voxel-sampler) (WGPURender.free-render-texture voxel-tex) (WGPURender.free-render-texture liquid-tex) (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex) (Engine.free-bind-group bg) (WGPU.free-pipeline pack-pipe) (WGPURender.free-vertex-buffer read-buf) (WGPURender.free-vertex-buffer write-buf) (WGPURender.free-vertex-buffer half-buf) (WGPURender.free-vertex-buffer liquid-gpu-buf) (WGPURender.free-vertex-buffer liquid-half-buf) (WGPURender.free-vertex-buffer gas-gpu-buf) (WGPURender.free-vertex-buffer gas-half-buf) (WGPU.free-bind-group pack-bg) (WGPU.free-bind-group liquid-pack-bg) (WGPU.free-bind-group gas-pack-bg) (Result.Error (str* "Copy compute pipeline failed: " e)))
+                                                                                     (Result.Success copy-pipe)
+                                                                                       (let [zero 0.0f
+                                                                                             staging-initial (Array.replicate 131072 &zero)]
+                                                                                         (match (WGPURender.create-storage-vertex-buffer ctx &staging-initial)
+                                                                                           (Result.Error e) (do (Engine.free-pipeline pipe) (Engine.free-uniform-buffer ub) (WGPURender.free-sampler voxel-sampler) (WGPURender.free-render-texture voxel-tex) (WGPURender.free-render-texture liquid-tex) (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex) (Engine.free-bind-group bg) (WGPU.free-pipeline pack-pipe) (WGPURender.free-vertex-buffer read-buf) (WGPURender.free-vertex-buffer write-buf) (WGPURender.free-vertex-buffer half-buf) (WGPURender.free-vertex-buffer liquid-gpu-buf) (WGPURender.free-vertex-buffer liquid-half-buf) (WGPURender.free-vertex-buffer gas-gpu-buf) (WGPURender.free-vertex-buffer gas-half-buf) (WGPU.free-bind-group pack-bg) (WGPU.free-bind-group liquid-pack-bg) (WGPU.free-bind-group gas-pack-bg) (WGPU.free-pipeline copy-pipe) (Result.Error (str* "Staging buffer failed: " e)))
+                                                                                           (Result.Success staging-buf)
+                                                                                             (match (WGPURender.create-uniform-buffer ctx 16)
+                                                                                               (Result.Error e) (do (Engine.free-pipeline pipe) (Engine.free-uniform-buffer ub) (WGPURender.free-sampler voxel-sampler) (WGPURender.free-render-texture voxel-tex) (WGPURender.free-render-texture liquid-tex) (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex) (Engine.free-bind-group bg) (WGPU.free-pipeline pack-pipe) (WGPURender.free-vertex-buffer read-buf) (WGPURender.free-vertex-buffer write-buf) (WGPURender.free-vertex-buffer half-buf) (WGPURender.free-vertex-buffer liquid-gpu-buf) (WGPURender.free-vertex-buffer liquid-half-buf) (WGPURender.free-vertex-buffer gas-gpu-buf) (WGPURender.free-vertex-buffer gas-half-buf) (WGPU.free-bind-group pack-bg) (WGPU.free-bind-group liquid-pack-bg) (WGPU.free-bind-group gas-pack-bg) (WGPU.free-pipeline copy-pipe) (WGPURender.free-vertex-buffer staging-buf) (Result.Error (str* "Copy uniforms failed: " e)))
+                                                                                               (Result.Success copy-ub)
+                                                                                                 (let [staging-raw (WGPUVertexBufferWrapper.get-buffer staging-buf)
+                                                                                                       read-raw (WGPUVertexBufferWrapper.get-buffer read-buf)
+                                                                                                       write-raw (WGPUVertexBufferWrapper.get-buffer write-buf)
+                                                                                                       ub-raw (WGPURender.uniform-buffer-get-buffer copy-ub)
+                                                                                                       copy-bufs [staging-raw read-raw write-raw ub-raw]]
+                                                                                                   (match (WGPU.create-bind-group ctx copy-pipe &copy-bufs)
+                                                                                                     (Result.Error e) (do (Engine.free-pipeline pipe) (Engine.free-uniform-buffer ub) (WGPURender.free-sampler voxel-sampler) (WGPURender.free-render-texture voxel-tex) (WGPURender.free-render-texture liquid-tex) (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex) (Engine.free-bind-group bg) (WGPU.free-pipeline pack-pipe) (WGPURender.free-vertex-buffer read-buf) (WGPURender.free-vertex-buffer write-buf) (WGPURender.free-vertex-buffer half-buf) (WGPURender.free-vertex-buffer liquid-gpu-buf) (WGPURender.free-vertex-buffer liquid-half-buf) (WGPURender.free-vertex-buffer gas-gpu-buf) (WGPURender.free-vertex-buffer gas-half-buf) (WGPU.free-bind-group pack-bg) (WGPU.free-bind-group liquid-pack-bg) (WGPU.free-bind-group gas-pack-bg) (WGPU.free-pipeline copy-pipe) (WGPURender.free-vertex-buffer staging-buf) (Engine.free-uniform-buffer copy-ub) (Result.Error (str* "Copy bind group failed: " e)))
+                                                                                                     (Result.Success copy-bg)
+                                                                                                       (match (WGPU.create-pipeline ctx liquid-sim-wgsl "main")
+                                                                                                         (Result.Error e) (do (Engine.free-pipeline pipe) (Engine.free-uniform-buffer ub) (WGPURender.free-sampler voxel-sampler) (WGPURender.free-render-texture voxel-tex) (WGPURender.free-render-texture liquid-tex) (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex) (Engine.free-bind-group bg) (WGPU.free-pipeline pack-pipe) (WGPURender.free-vertex-buffer read-buf) (WGPURender.free-vertex-buffer write-buf) (WGPURender.free-vertex-buffer half-buf) (WGPURender.free-vertex-buffer liquid-gpu-buf) (WGPURender.free-vertex-buffer liquid-half-buf) (WGPURender.free-vertex-buffer gas-gpu-buf) (WGPURender.free-vertex-buffer gas-half-buf) (WGPU.free-bind-group pack-bg) (WGPU.free-bind-group liquid-pack-bg) (WGPU.free-bind-group gas-pack-bg) (WGPU.free-pipeline copy-pipe) (WGPURender.free-vertex-buffer staging-buf) (Engine.free-uniform-buffer copy-ub) (WGPU.free-bind-group copy-bg) (Result.Error (str* "Liquid sim pipeline failed: " e)))
+                                                                                                         (Result.Success liquid-sim-pipe)
+                                                                                                           (match (WGPU.create-pipeline ctx gas-sim-wgsl "main")
+                                                                                                             (Result.Error e) (do (Engine.free-pipeline pipe) (Engine.free-uniform-buffer ub) (WGPURender.free-sampler voxel-sampler) (WGPURender.free-render-texture voxel-tex) (WGPURender.free-render-texture liquid-tex) (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex) (Engine.free-bind-group bg) (WGPU.free-pipeline pack-pipe) (WGPURender.free-vertex-buffer read-buf) (WGPURender.free-vertex-buffer write-buf) (WGPURender.free-vertex-buffer half-buf) (WGPURender.free-vertex-buffer liquid-gpu-buf) (WGPURender.free-vertex-buffer liquid-half-buf) (WGPURender.free-vertex-buffer gas-gpu-buf) (WGPURender.free-vertex-buffer gas-half-buf) (WGPU.free-bind-group pack-bg) (WGPU.free-bind-group liquid-pack-bg) (WGPU.free-bind-group gas-pack-bg) (WGPU.free-pipeline copy-pipe) (WGPURender.free-vertex-buffer staging-buf) (Engine.free-uniform-buffer copy-ub) (WGPU.free-bind-group copy-bg) (WGPU.free-pipeline liquid-sim-pipe) (Result.Error (str* "Gas sim pipeline failed: " e)))
+                                                                                                             (Result.Success gas-sim-pipe)
+                                                                                                               (let [read-raw (WGPUVertexBufferWrapper.get-buffer read-buf)
+                                                                                                                     write-raw (WGPUVertexBufferWrapper.get-buffer write-buf)
+                                                                                                                     liquid-raw (WGPUVertexBufferWrapper.get-buffer liquid-gpu-buf)
+                                                                                                                     gas-raw (WGPUVertexBufferWrapper.get-buffer gas-gpu-buf)]
+                                                                                                                 (match (WGPURender.create-jit-bind-group-water ctx liquid-sim-pipe read-raw liquid-raw (WGPURender.uniform-buffer-get-buffer ub) write-raw read-raw voxel-tex liquid-tex gas-tex)
+                                                                                                                   (Result.Error e) (do (Engine.free-pipeline pipe) (Engine.free-uniform-buffer ub) (WGPURender.free-sampler voxel-sampler) (WGPURender.free-render-texture voxel-tex) (WGPURender.free-render-texture liquid-tex) (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex) (Engine.free-bind-group bg) (WGPU.free-pipeline pack-pipe) (WGPURender.free-vertex-buffer read-buf) (WGPURender.free-vertex-buffer write-buf) (WGPURender.free-vertex-buffer half-buf) (WGPURender.free-vertex-buffer liquid-gpu-buf) (WGPURender.free-vertex-buffer liquid-half-buf) (WGPURender.free-vertex-buffer gas-gpu-buf) (WGPURender.free-vertex-buffer gas-half-buf) (WGPU.free-bind-group pack-bg) (WGPU.free-bind-group liquid-pack-bg) (WGPU.free-bind-group gas-pack-bg) (WGPU.free-pipeline copy-pipe) (WGPURender.free-vertex-buffer staging-buf) (Engine.free-uniform-buffer copy-ub) (WGPU.free-bind-group copy-bg) (WGPU.free-pipeline liquid-sim-pipe) (WGPU.free-pipeline gas-sim-pipe) (Result.Error (str* "Liquid sim bind group failed: " e)))
+                                                                                                                   (Result.Success liquid-sim-bg)
+                                                                                                                     (match (WGPURender.create-jit-bind-group-water ctx gas-sim-pipe read-raw gas-raw (WGPURender.uniform-buffer-get-buffer ub) read-raw read-raw voxel-tex liquid-tex gas-tex)
+                                                                                                                       (Result.Error e) (do (Engine.free-pipeline pipe) (Engine.free-uniform-buffer ub) (WGPURender.free-sampler voxel-sampler) (WGPURender.free-render-texture voxel-tex) (WGPURender.free-render-texture liquid-tex) (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex) (Engine.free-bind-group bg) (WGPU.free-pipeline pack-pipe) (WGPURender.free-vertex-buffer read-buf) (WGPURender.free-vertex-buffer write-buf) (WGPURender.free-vertex-buffer half-buf) (WGPURender.free-vertex-buffer liquid-gpu-buf) (WGPURender.free-vertex-buffer liquid-half-buf) (WGPURender.free-vertex-buffer gas-gpu-buf) (WGPURender.free-vertex-buffer gas-half-buf) (WGPU.free-bind-group pack-bg) (WGPU.free-bind-group liquid-pack-bg) (WGPU.free-bind-group gas-pack-bg) (WGPU.free-pipeline copy-pipe) (WGPURender.free-vertex-buffer staging-buf) (Engine.free-uniform-buffer copy-ub) (WGPU.free-bind-group copy-bg) (WGPU.free-pipeline liquid-sim-pipe) (WGPU.free-pipeline gas-sim-pipe) (WGPU.free-bind-group liquid-sim-bg) (Result.Error (str* "Gas sim bind group failed: " e)))
+                                                                                                                       (Result.Success gas-sim-bg)
+                                                                                                                       (let [w @(Engine.width eng)
+                                                                                                                             h @(Engine.height eng)]
+                                                                                                                         (match (WGPURender.create-depth-texture ctx w h)
+                                                                                                                           (Result.Error e) (do (Engine.free-pipeline pipe) (Engine.free-uniform-buffer ub) (WGPURender.free-sampler voxel-sampler) (WGPURender.free-render-texture voxel-tex) (WGPURender.free-render-texture liquid-tex) (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex) (Engine.free-bind-group bg) (WGPU.free-pipeline pack-pipe) (WGPURender.free-vertex-buffer read-buf) (WGPURender.free-vertex-buffer write-buf) (WGPURender.free-vertex-buffer half-buf) (WGPURender.free-vertex-buffer liquid-gpu-buf) (WGPURender.free-vertex-buffer liquid-half-buf) (WGPURender.free-vertex-buffer gas-gpu-buf) (WGPURender.free-vertex-buffer gas-half-buf) (WGPU.free-bind-group pack-bg) (WGPU.free-bind-group liquid-pack-bg) (WGPU.free-bind-group gas-pack-bg) (WGPU.free-pipeline copy-pipe) (WGPURender.free-vertex-buffer staging-buf) (Engine.free-uniform-buffer copy-ub) (WGPU.free-bind-group copy-bg) (WGPU.free-pipeline liquid-sim-pipe) (WGPU.free-pipeline gas-sim-pipe) (WGPU.free-bind-group liquid-sim-bg) (WGPU.free-bind-group gas-sim-bg) (Result.Error (str* "Depth texture failed: " e)))
+                                                                                                                           (Result.Success depth-tex)
+                                                                                                                             (let [format (WGPURender.surface-format @(Engine.surf eng))]
+                                                                                                                               (match (LinePass.create ctx &format 1000)
+                                                                                                                                 (Result.Error e) (do (Engine.free-pipeline pipe) (Engine.free-uniform-buffer ub) (WGPURender.free-sampler voxel-sampler) (WGPURender.free-render-texture voxel-tex) (WGPURender.free-render-texture liquid-tex) (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex) (Engine.free-bind-group bg) (WGPU.free-pipeline pack-pipe) (WGPURender.free-vertex-buffer read-buf) (WGPURender.free-vertex-buffer write-buf) (WGPURender.free-vertex-buffer half-buf) (WGPURender.free-vertex-buffer liquid-gpu-buf) (WGPURender.free-vertex-buffer liquid-half-buf) (WGPURender.free-vertex-buffer gas-gpu-buf) (WGPURender.free-vertex-buffer gas-half-buf) (WGPU.free-bind-group pack-bg) (WGPU.free-bind-group liquid-pack-bg) (WGPU.free-bind-group gas-pack-bg) (WGPU.free-pipeline copy-pipe) (WGPURender.free-vertex-buffer staging-buf) (Engine.free-uniform-buffer copy-ub) (WGPU.free-bind-group copy-bg) (WGPU.free-pipeline liquid-sim-pipe) (WGPU.free-pipeline gas-sim-pipe) (WGPU.free-bind-group liquid-sim-bg) (WGPU.free-bind-group gas-sim-bg) (WGPURender.free-depth-texture depth-tex) (Result.Error (str* "LinePass creation failed: " e)))
+                                                                                                                                 (Result.Success lp)
+                                                                                                                                   (Result.Success (Renderer.init pipe bg ub voxel-tex liquid-tex gas-tex light-tex voxel-sampler lp [] depth-tex w h
+                                                                                                                                                                                  read-buf write-buf half-buf pack-pipe pack-bg
+                                                                                                                                                                                  staging-buf copy-pipe copy-bg copy-ub
+                                                                                                                                                                                  liquid-gpu-buf liquid-half-buf gas-gpu-buf gas-half-buf
+                                                                                                                                                                                   liquid-pack-bg gas-pack-bg liquid-sim-pipe liquid-sim-bg gas-sim-pipe gas-sim-bg))))))))))))))))))))))))))))))))))))))))
 
-  (defn update-uniforms [eng ren cam uniforms]
-    (let [c-pos (Camera.pos cam)
-          c-dir (Camera.front cam)
-          c-right (Camera.right cam)
-          c-up (Camera.up cam)
-          time (Engine.update-time eng)
-          w (Float.from-int @(Engine.width eng))
-          h (Float.from-int @(Engine.height eng))]
-      (do
-        (Array.aset! uniforms 0 time)
-        (Array.aset! uniforms 1 w)
-        (Array.aset! uniforms 2 h)
-        (Array.aset! uniforms 3 0.0f)
-        
-        (Array.aset! uniforms 4 (Double.to-float @(Vector3.x c-pos)))
-        (Array.aset! uniforms 5 (Double.to-float @(Vector3.y c-pos)))
-        (Array.aset! uniforms 6 (Double.to-float @(Vector3.z c-pos)))
-        (Array.aset! uniforms 7 1.0f)
-        
-        (Array.aset! uniforms 8 (Double.to-float @(Vector3.x c-dir)))
-        (Array.aset! uniforms 9 (Double.to-float @(Vector3.y c-dir)))
-        (Array.aset! uniforms 10 (Double.to-float @(Vector3.z c-dir)))
-        (Array.aset! uniforms 11 0.0f)
-        
-        (Array.aset! uniforms 12 (Double.to-float @(Vector3.x c-right)))
-        (Array.aset! uniforms 13 (Double.to-float @(Vector3.y c-right)))
-        (Array.aset! uniforms 14 (Double.to-float @(Vector3.z c-right)))
-        (Array.aset! uniforms 15 0.0f)
-        
-        (Array.aset! uniforms 16 (Double.to-float @(Vector3.x c-up)))
-        (Array.aset! uniforms 17 (Double.to-float @(Vector3.y c-up)))
-        (Array.aset! uniforms 18 (Double.to-float @(Vector3.z c-up)))
-        (Array.aset! uniforms 19 0.0f)
-        
-        (Engine.update-uniform-buffer eng @(Renderer.uniform-buffer ren) uniforms))))
+
+
+
 
   (defn positive-mod [n m]
     (let [r (Int.mod n m)]
@@ -337,13 +204,25 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
   (defn update-chunk-texture [eng ren qx qy qz chunk-data]
     (let [ctx @(Engine.ctx eng)
-          tx (positive-mod qx 4)
-          ty (positive-mod qy 4)
-          tz (positive-mod qz 4)
-          offset-x (* tx 32)
-          offset-y (* ty 32)
-          offset-z (* tz 32)]
-      (WGPURender.update-3d-texture-subregion-floats ctx @(Renderer.voxel-texture ren) offset-x offset-y offset-z 32 32 32 chunk-data)))
+          tx (positive-mod qx 5)
+          ty (positive-mod qy 5)
+          tz (positive-mod qz 5)
+          offset-x (Float.from-int (* tx 32))
+          offset-y (Float.from-int (* ty 32))
+          offset-z (Float.from-int (* tz 32))
+          staging-buf @(Renderer.voxel-staging-buffer ren)
+          copy-ub @(Renderer.copy-uniform-buffer ren)]
+      (do
+        (WGPURender.update-vertex-buffer ctx staging-buf chunk-data)
+        (let [params-arr [offset-x offset-y offset-z 0.0f]]
+          (Engine.update-uniform-buffer eng copy-ub &params-arr))
+        (let [batch-encoder (GPUBatcher.begin-batch ctx)]
+          (do
+            (GPUBatcher.batch-dispatch batch-encoder @(Renderer.copy-pipeline ren) @(Renderer.copy-bind-group ren) 512)
+            (GPUBatcher.end-batch ctx batch-encoder))))))
+
+
+
 
   (defn draw-line! [ren start end color]
     (Array.push-back! (Renderer.lines ren) (Line.init @start @end @color)))
@@ -371,7 +250,41 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                     (Renderer.set-depth-texture! ren new-dt)
                     (Renderer.set-width! ren curr-w)
                     (Renderer.set-height! ren curr-h))))))
-                    
+
+        ;; GPU Compute Sim/Pack Passes + Texture Copy Passes using GPUBatcher
+        (let [ctx @(Engine.ctx eng)
+              batch-encoder (GPUBatcher.begin-batch ctx)]
+          (do
+            ;; 1. Run simulation passes (reads textures, writes to SSBOs)
+            (GPUBatcher.batch-dispatch batch-encoder @(Renderer.liquid-sim-pipeline ren) @(Renderer.liquid-sim-bind-group ren) 64000)
+            (GPUBatcher.batch-dispatch batch-encoder @(Renderer.gas-sim-pipeline ren) @(Renderer.gas-sim-bind-group ren) 64000)
+            
+            ;; 2. Run pack passes (packs SSBOs into half buffers)
+            (GPUBatcher.batch-dispatch batch-encoder @(Renderer.pack-pipeline ren) @(Renderer.pack-bind-group ren) 64000)
+            (GPUBatcher.batch-dispatch batch-encoder @(Renderer.pack-pipeline ren) @(Renderer.liquid-pack-bind-group ren) 64000)
+            (GPUBatcher.batch-dispatch batch-encoder @(Renderer.pack-pipeline ren) @(Renderer.gas-pack-bind-group ren) 64000)
+            
+            ;; 3. Copy half buffers to 3D textures
+            (GPUBatcher.batch-copy-texture batch-encoder
+                                           (WGPUVertexBufferWrapper.get-buffer @(Renderer.voxel-half-buffer ren))
+                                           0l
+                                           @(Renderer.voxel-texture ren)
+                                           0 0 0
+                                           160 160 160)
+            (GPUBatcher.batch-copy-texture batch-encoder
+                                           (WGPUVertexBufferWrapper.get-buffer @(Renderer.liquid-half-buffer ren))
+                                           0l
+                                           @(Renderer.liquid-texture ren)
+                                           0 0 0
+                                           160 160 160)
+            (GPUBatcher.batch-copy-texture batch-encoder
+                                           (WGPUVertexBufferWrapper.get-buffer @(Renderer.gas-half-buffer ren))
+                                           0l
+                                           @(Renderer.gas-texture ren)
+                                           0 0 0
+                                           160 160 160)
+            (GPUBatcher.end-batch ctx batch-encoder)))
+
         (match (Engine.begin-frame eng)
           (Maybe.Nothing) ()
           (Maybe.Just frame)
@@ -393,6 +306,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 ;; 4. Present
                 (Engine.end-frame eng frame)))))))
 
+
   (defn cleanup [eng ren]
     (do
       (Renderer.clear-lines! ren)
@@ -404,5 +318,18 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
       (WGPURender.free-sampler @(Renderer.voxel-sampler ren))
       (WGPURender.free-render-texture @(Renderer.voxel-texture ren))
       (WGPURender.free-render-texture @(Renderer.liquid-texture ren))
-      (WGPURender.free-render-texture @(Renderer.gas-texture ren))))
+      (WGPURender.free-render-texture @(Renderer.gas-texture ren))
+      (WGPURender.free-render-texture @(Renderer.light-texture ren))
+      (WGPURender.free-vertex-buffer @(Renderer.voxel-gpu-buffer-read ren))
+      (WGPURender.free-vertex-buffer @(Renderer.voxel-gpu-buffer-write ren))
+      (WGPURender.free-vertex-buffer @(Renderer.voxel-half-buffer ren))
+      (WGPU.free-bind-group @(Renderer.pack-bind-group ren))
+      (WGPU.free-pipeline @(Renderer.pack-pipeline ren))
+      (WGPURender.free-vertex-buffer @(Renderer.voxel-staging-buffer ren))
+      (WGPU.free-pipeline @(Renderer.copy-pipeline ren))
+      (WGPU.free-bind-group @(Renderer.copy-bind-group ren))
+      (Engine.free-uniform-buffer @(Renderer.copy-uniform-buffer ren))))
 )
+
+
+

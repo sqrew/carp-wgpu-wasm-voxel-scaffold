@@ -1,0 +1,152 @@
+(load "camera.carp")
+(load "scaffold.carp")
+
+(defmodule GLFW
+  (defmodule Keycode
+    (register LEFT_BRACKET Int "GLFW_KEY_LEFT_BRACKET")
+    (register RIGHT_BRACKET Int "GLFW_KEY_RIGHT_BRACKET")
+  )
+)
+
+(deftype Player [
+  vel-y Double
+  camera Camera
+  on-ground Bool
+  flying Bool
+  current-mat Float
+  current-liq Float
+  current-gas Float
+  edit-radius Double
+  v-last Bool
+  b-last Bool
+  n-last Bool
+  c-last Bool
+  lbracket-last Bool
+  rbracket-last Bool
+  flashlight-on Bool
+  l-last Bool
+])
+
+(defmodule Player
+  (defn create [start-pos]
+    (let [cam (Camera.new start-pos -90.0 0.0 1.7777777777777777)]
+      (Player.init 0.0 cam false true 2.0f 1.0f 1.0f 3.0 false false false false false false true false)))
+
+  (defn handle-input! [player win dt first-mouse-ptr last-x-ptr last-y-ptr]
+    (let [c-pressed (= (GLFW.get-key win GLFW.Keycode.C) GLFW.PRESS)
+          lbr-pressed (= (GLFW.get-key win GLFW.Keycode.LEFT_BRACKET) GLFW.PRESS)
+          rbr-pressed (= (GLFW.get-key win GLFW.Keycode.RIGHT_BRACKET) GLFW.PRESS)
+          v-pressed (= (GLFW.get-key win GLFW.Keycode.V) GLFW.PRESS)
+          b-pressed (= (GLFW.get-key win GLFW.Keycode.B) GLFW.PRESS)
+          n-pressed (= (GLFW.get-key win GLFW.Keycode.N) GLFW.PRESS)
+          l-pressed (= (GLFW.get-key win GLFW.Keycode.L) GLFW.PRESS)
+          cam (Player.camera player)]
+      (do
+        ;; 1. Toggle flying mode
+        (when (and c-pressed (not @(Player.c-last player)))
+          (let [p-flying (ref-to-ptr (Player.flying player))
+                next-flying (not @(Player.flying player))]
+            (do
+              (Pointer.set p-flying next-flying)
+              (IO.println &(str* "Flying mode: " next-flying)))))
+        (Pointer.set (ref-to-ptr (Player.c-last player)) c-pressed)
+
+        ;; Toggle flashlight (L key)
+        (when (and l-pressed (not @(Player.l-last player)))
+          (let [p-light (ref-to-ptr (Player.flashlight-on player))
+                next-light (not @(Player.flashlight-on player))]
+            (do
+              (Pointer.set p-light next-light)
+              (IO.println &(str* "Flashlight: " next-light)))))
+        (Pointer.set (ref-to-ptr (Player.l-last player)) l-pressed)
+
+        ;; 2. Decrease brush radius
+        (when (and lbr-pressed (not @(Player.lbracket-last player)))
+          (let [p-rad (ref-to-ptr (Player.edit-radius player))
+                curr-rad @(Player.edit-radius player)
+                next-rad (Double.max 0.5 (- curr-rad 0.5))]
+            (do
+              (Pointer.set p-rad next-rad)
+              (IO.println &(str* "Brush Radius: " next-rad)))))
+        (Pointer.set (ref-to-ptr (Player.lbracket-last player)) lbr-pressed)
+
+        ;; 3. Increase brush radius
+        (when (and rbr-pressed (not @(Player.rbracket-last player)))
+          (let [p-rad (ref-to-ptr (Player.edit-radius player))
+                curr-rad @(Player.edit-radius player)
+                next-rad (Double.min 15.0 (+ curr-rad 0.5))]
+            (do
+              (Pointer.set p-rad next-rad)
+              (IO.println &(str* "Brush Radius: " next-rad)))))
+        (Pointer.set (ref-to-ptr (Player.rbracket-last player)) rbr-pressed)
+
+        ;; 4. Quick presets for radius
+        (when (= (GLFW.get-key win GLFW.Keycode.NUM_1) GLFW.PRESS)
+          (Pointer.set (ref-to-ptr (Player.edit-radius player)) 1.5))
+        (when (= (GLFW.get-key win GLFW.Keycode.NUM_2) GLFW.PRESS)
+          (Pointer.set (ref-to-ptr (Player.edit-radius player)) 3.0))
+        (when (= (GLFW.get-key win GLFW.Keycode.NUM_3) GLFW.PRESS)
+          (Pointer.set (ref-to-ptr (Player.edit-radius player)) 6.0))
+
+        ;; 5. Cycle solid type (V key)
+        (when (and v-pressed (not @(Player.v-last player)))
+          (let [curr-solid @(Player.current-mat player)
+                next-solid (if (= curr-solid 1.0f) 2.0f
+                             (if (= curr-solid 2.0f) 3.0f
+                               (if (= curr-solid 3.0f) 4.0f
+                                 (if (= curr-solid 4.0f) 5.0f 1.0f))))]
+            (do
+              (Pointer.set (ref-to-ptr (Player.current-mat player)) next-solid)
+              (IO.println &(str* "Selected Solid Type: " next-solid)))))
+        (Pointer.set (ref-to-ptr (Player.v-last player)) v-pressed)
+
+        ;; 6. Cycle liquid type (N key)
+        (when (and n-pressed (not @(Player.n-last player)))
+          (let [curr-liq @(Player.current-liq player)
+                next-liq (if (= curr-liq 1.0f) 2.0f
+                           (if (= curr-liq 2.0f) 3.0f
+                             (if (= curr-liq 3.0f) 4.0f 1.0f)))]
+            (do
+              (Pointer.set (ref-to-ptr (Player.current-liq player)) next-liq)
+              (IO.println &(str* "Selected Liquid Type: " next-liq)))))
+        (Pointer.set (ref-to-ptr (Player.n-last player)) n-pressed)
+
+        ;; 7. Cycle gas type (B key)
+        (when (and b-pressed (not @(Player.b-last player)))
+          (let [curr-gas @(Player.current-gas player)
+                next-gas (if (= curr-gas 1.0f) 2.0f
+                           (if (= curr-gas 2.0f) 3.0f
+                             (if (= curr-gas 3.0f) 4.0f 1.0f)))]
+            (do
+              (Pointer.set (ref-to-ptr (Player.current-gas player)) next-gas)
+              (IO.println &(str* "Selected Gas Type: " next-gas)))))
+        (Pointer.set (ref-to-ptr (Player.b-last player)) b-pressed)
+
+        ;; 8. Handle camera movement & look inputs
+        (Camera.update-input win cam dt @(Player.flying player))
+        (Camera.update-look win cam first-mouse-ptr last-x-ptr last-y-ptr))))
+
+  (defn update-physics! [player world dt]
+    (let [cam (Player.camera player)]
+      (do
+        ;; Apply gravity if not flying
+        (when (not @(Player.flying player))
+          (let [p-vel-y (ref-to-ptr (Player.vel-y player))
+                curr-vel-y (Pointer.to-value p-vel-y)
+                p-pos (ref-to-ptr (Camera.pos cam))
+                curr-pos (Pointer.to-value p-pos)]
+            (do
+              (Pointer.set p-vel-y (- curr-vel-y (* 35.0 dt)))
+              (let [new-y (+ @(Vector3.y &curr-pos) (* (Pointer.to-value p-vel-y) dt))]
+                (Pointer.set p-pos (Vector3.init @(Vector3.x &curr-pos) new-y @(Vector3.z &curr-pos)))))))
+        
+        ;; Resolve collisions
+        (Physics.resolve-camera-collision! world cam 0.8 (ref-to-ptr (Player.vel-y player)) (ref-to-ptr (Player.on-ground player))))))
+
+  (defn handle-jump! [player win]
+    (when (and (not @(Player.flying player)) @(Player.on-ground player))
+      (when (= (GLFW.get-key win GLFW.Keycode.SPACE) GLFW.PRESS)
+        (do
+          (Pointer.set (ref-to-ptr (Player.vel-y player)) 12.0)
+          (Pointer.set (ref-to-ptr (Player.on-ground player)) false)))))
+)
