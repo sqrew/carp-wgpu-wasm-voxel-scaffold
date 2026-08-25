@@ -141,6 +141,42 @@ fn is_explosion_center(p: vec3<i32>) -> bool {
     return false;
 }
 
+fn positive_mod(n: i32, m: i32) -> i32 {
+    let r = n % m;
+    if (r < 0) {
+        return r + m;
+    }
+    return r;
+}
+
+fn get_world_pos(ip: vec3<i32>, cam_pos: vec3<f32>) -> vec3<f32> {
+    let cx = i32(floor(cam_pos.x / 32.0));
+    let cy = i32(floor(cam_pos.y / 32.0));
+    let cz = i32(floor(cam_pos.z / 32.0));
+    
+    let offset_cx = cx - 2;
+    let offset_cy = cy - 2;
+    let offset_cz = cz - 2;
+    
+    let slot_x = ip.x / 32;
+    let slot_y = ip.y / 32;
+    let slot_z = ip.z / 32;
+    
+    let lx = ip.x % 32;
+    let ly = ip.y % 32;
+    let lz = ip.z % 32;
+    
+    let qx = offset_cx + positive_mod(slot_x - positive_mod(offset_cx, 5), 5);
+    let qy = offset_cy + positive_mod(slot_y - positive_mod(offset_cy, 5), 5);
+    let qz = offset_cz + positive_mod(slot_z - positive_mod(offset_cz, 5), 5);
+    
+    let gx = qx * 32 + lx;
+    let gy = qy * 32 + ly;
+    let gz = qz * 32 + lz;
+    
+    return vec3<f32>(f32(gx), f32(gy), f32(gz));
+}
+
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let idx = global_id.x;
@@ -312,7 +348,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     // --- 3. Spawn liquid if click is active ---
     if (u.hit_pos.w > 0.5) {
-        let dist = distance(vec3<f32>(ip), u.hit_pos.xyz);
+        let world_pos = get_world_pos(ip, u.cam_pos.xyz);
+        let dist = distance(world_pos, u.hit_pos.xyz);
         if (dist <= u.brush_radius && u.edit_params.x > 0.5) {
             next_id = u.edit_params.x;
             next_vol = min(1.0, next_vol + u.edit_params.y);
@@ -468,10 +505,10 @@ struct GasProps {
 fn get_gas_props(id: f32) -> GasProps {
     let GAS_LUT = array<GasProps, 5>(
         GasProps(0.0, 0.0, 0.0),
-        GasProps(0.4, 0.1, 0.05),
+        GasProps(0.4, 0.1, 0.01),
         GasProps(0.15, 0.05, 0.01),
         GasProps(0.25, 0.08, 0.08),
-        GasProps(0.2, 0.04, 0.04)
+        GasProps(0.2, 0.04, 0.008)
     );
     let idx = clamp(i32(round(id)), 0, 4);
     return GAS_LUT[idx];
@@ -530,6 +567,42 @@ fn is_explosion_center(p: vec3<i32>) -> bool {
         }
     }
     return false;
+}
+
+fn positive_mod(n: i32, m: i32) -> i32 {
+    let r = n % m;
+    if (r < 0) {
+        return r + m;
+    }
+    return r;
+}
+
+fn get_world_pos(ip: vec3<i32>, cam_pos: vec3<f32>) -> vec3<f32> {
+    let cx = i32(floor(cam_pos.x / 32.0));
+    let cy = i32(floor(cam_pos.y / 32.0));
+    let cz = i32(floor(cam_pos.z / 32.0));
+    
+    let offset_cx = cx - 2;
+    let offset_cy = cy - 2;
+    let offset_cz = cz - 2;
+    
+    let slot_x = ip.x / 32;
+    let slot_y = ip.y / 32;
+    let slot_z = ip.z / 32;
+    
+    let lx = ip.x % 32;
+    let ly = ip.y % 32;
+    let lz = ip.z % 32;
+    
+    let qx = offset_cx + positive_mod(slot_x - positive_mod(offset_cx, 5), 5);
+    let qy = offset_cy + positive_mod(slot_y - positive_mod(offset_cy, 5), 5);
+    let qz = offset_cz + positive_mod(slot_z - positive_mod(offset_cz, 5), 5);
+    
+    let gx = qx * 32 + lx;
+    let gy = qy * 32 + ly;
+    let gz = qz * 32 + lz;
+    
+    return vec3<f32>(f32(gx), f32(gy), f32(gz));
 }
 
 @compute @workgroup_size(64)
@@ -621,7 +694,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     // --- 3. Spawn gas if click is active ---
     if (u.hit_pos.w > 0.5) {
-        let dist = distance(vec3<f32>(ip), u.hit_pos.xyz);
+        let world_pos = get_world_pos(ip, u.cam_pos.xyz);
+        let dist = distance(world_pos, u.hit_pos.xyz);
         if (dist <= u.brush_radius && u.edit_params.z > 0.5) {
             next_id = u.edit_params.z;
             next_vol = min(1.0, next_vol + u.edit_params.w);
@@ -706,6 +780,69 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             next_id = 1.0; // Steam
             next_vol = 0.5;
         }
+    }
+
+    // --- 4d. Spawn Steam/Smoke in Air adjacent to reactions ---
+    var reaction_spawn_id = 0.0;
+    var reaction_spawn_vol = 0.0;
+    
+    let dirs6 = array<vec3<i32>, 6>(
+        vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
+        vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
+        vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
+    );
+    
+    for (var i = 0; i < 6; i = i + 1) {
+        let np = ip + dirs6[i];
+        let n_liq = get_liquid(np);
+        if (n_liq.y > 0.05) {
+            if (n_liq.x == 2.0) { // Neighbor has Lava
+                var touches_water = false;
+                var touches_oil = false;
+                for (var j = 0; j < 6; j = j + 1) {
+                    let nnp = np + dirs6[j];
+                    let nn_liq = get_liquid(nnp);
+                    if (nn_liq.y > 0.05) {
+                        if (nn_liq.x == 1.0) { touches_water = true; }
+                        if (nn_liq.x == 4.0) { touches_oil = true; }
+                    }
+                }
+                if (touches_water) {
+                    reaction_spawn_id = 1.0; // Steam
+                    reaction_spawn_vol = 1.0;
+                } else if (touches_oil) {
+                    reaction_spawn_id = 4.0; // Smoke
+                    reaction_spawn_vol = 1.0;
+                }
+            } else if (n_liq.x == 1.0) { // Neighbor has Water
+                var touches_lava = false;
+                for (var j = 0; j < 6; j = j + 1) {
+                    let nnp = np + dirs6[j];
+                    let nn_liq = get_liquid(nnp);
+                    if (nn_liq.y > 0.05 && nn_liq.x == 2.0) { touches_lava = true; }
+                }
+                if (touches_lava) {
+                    reaction_spawn_id = 1.0; // Steam
+                    reaction_spawn_vol = 1.0;
+                }
+            } else if (n_liq.x == 4.0) { // Neighbor has Oil
+                var touches_lava = false;
+                for (var j = 0; j < 6; j = j + 1) {
+                    let nnp = np + dirs6[j];
+                    let nn_liq = get_liquid(nnp);
+                    if (nn_liq.y > 0.05 && nn_liq.x == 2.0) { touches_lava = true; }
+                }
+                if (touches_lava) {
+                    reaction_spawn_id = 4.0; // Smoke
+                    reaction_spawn_vol = 1.0;
+                }
+            }
+        }
+    }
+    
+    if (reaction_spawn_vol > 0.0) {
+        spawn_gas_id = reaction_spawn_id;
+        spawn_gas_vol = reaction_spawn_vol;
     }
 
     if (spawn_gas_vol > 0.0) {
