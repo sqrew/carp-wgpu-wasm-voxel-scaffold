@@ -7569,6 +7569,18 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
 
   
   
+  var _wgpuBufferGetSize = function(bufferPtr) {
+  
+  var ret = (() => { 
+      var buffer = WebGPU.getJsObject(bufferPtr);
+      // 64-bit
+      return buffer.size;
+     })();
+  return BigInt(ret);
+  };
+
+  
+  
   
   var _wgpuCommandEncoderBeginComputePass = (encoderPtr, descriptor) => {
       var desc;
@@ -9411,6 +9423,8 @@ var wasmImports = {
   glfwWindowShouldClose: _glfwWindowShouldClose,
   /** @export */
   wgpuAdapterGetLimits: _wgpuAdapterGetLimits,
+  /** @export */
+  wgpuBufferGetSize: _wgpuBufferGetSize,
   /** @export */
   wgpuCommandEncoderBeginComputePass: _wgpuCommandEncoderBeginComputePass,
   /** @export */

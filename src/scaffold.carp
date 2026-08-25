@@ -67,13 +67,17 @@
 
 (register-type GLFWwindow)
 
-(deftemplate create-voxel-scaffold-bind-group (Fn [(Ptr WGPUContext) (Ptr WGPURenderPipelineWrapper) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) WGPUSampler (Ptr WGPUUniformBufferWrapper)] WGPUBindGroup)
-  "WGPUBindGroup $NAME(WGPUContext* ctx, WGPURenderPipelineWrapper* pipe, WGPURenderTexture* solid_tex, WGPURenderTexture* liquid_tex, WGPURenderTexture* gas_tex, WGPURenderTexture* light_tex, WGPURenderTexture* stress_tex, WGPUSampler sampler, WGPUUniformBufferWrapper* ub)"
+(deftemplate create-voxel-scaffold-bind-group (Fn [(Ptr WGPUContext) (Ptr WGPURenderPipelineWrapper) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) WGPUSampler (Ptr WGPUUniformBufferWrapper)] WGPUBindGroup)
+  "WGPUBindGroup $NAME(WGPUContext* ctx, WGPURenderPipelineWrapper* pipe, WGPURenderTexture* solid_tex, WGPURenderTexture* liquid_tex, WGPURenderTexture* gas_tex, WGPURenderTexture* light_tex, WGPUSampler sampler, WGPUUniformBufferWrapper* ub)"
   "$DECL {
-      if (!ctx || !pipe || !solid_tex || !liquid_tex || !gas_tex || !light_tex || !stress_tex || !sampler || !ub) {
+      if (!ctx || !pipe || !solid_tex || !liquid_tex || !gas_tex || !light_tex || !sampler || !ub) {
           return NULL;
       }
-      WGPUBindGroupEntry entries[7] = {
+      WGPUBindGroupLayout layout = wgpuRenderPipelineGetBindGroupLayout(pipe->pipeline, 0);
+      if (!layout) {
+          return NULL;
+      }
+      WGPUBindGroupEntry entries[6] = {
           {
               .binding = 0,
               .buffer  = ub->buffer,
@@ -99,19 +103,11 @@
           {
               .binding     = 5,
               .textureView = light_tex->view,
-          },
-          {
-              .binding     = 6,
-              .textureView = stress_tex->view,
           }
       };
-      WGPUBindGroupLayout layout = wgpuRenderPipelineGetBindGroupLayout(pipe->pipeline, 0);
-      if (!layout) {
-          return NULL;
-      }
       WGPUBindGroupDescriptor desc = {
           .layout     = layout,
-          .entryCount = 7,
+          .entryCount = 6,
           .entries    = entries,
       };
       WGPUBindGroup bg = wgpuDeviceCreateBindGroup(ctx->device, &desc);
@@ -205,57 +201,8 @@
   (defn create-bind-group [eng pipeline uniform-buffer]
     (WGPURender.create-render-uniform-bind-group @(Engine.ctx eng) pipeline uniform-buffer))
 
-(deftemplate create-simulation-bind-group-raw
-  (Fn [(Ptr WGPUContext)
-       WGPUComputePipeline
-       WGPUBuffer
-       WGPUBuffer
-       WGPUBuffer
-       WGPUBuffer
-       WGPUBuffer
-       (Ptr WGPURenderTexture)
-       (Ptr WGPURenderTexture)
-       (Ptr WGPURenderTexture)
-       (Ptr WGPURenderTexture)
-       ] WGPUBindGroup)
-  "WGPUBindGroup $NAME(WGPUContext* ctx, WGPUComputePipeline pipe, WGPUBuffer in_buf, WGPUBuffer out_buf, WGPUBuffer ub, WGPUBuffer solid_buf, WGPUBuffer lookup_buf, WGPURenderTexture* solid_tex, WGPURenderTexture* liquid_tex, WGPURenderTexture* gas_tex, WGPURenderTexture* stress_tex)"
-  "$DECL {
-      if (!ctx || !pipe || !in_buf || !out_buf || !ub || !solid_buf || !lookup_buf || !solid_tex || !liquid_tex || !gas_tex || !stress_tex) {
-          return NULL;
-      }
-      WGPUBindGroupLayout layout = wgpuComputePipelineGetBindGroupLayout(pipe, 0);
-      if (!layout) {
-          return NULL;
-      }
-      WGPUBindGroupEntry entries[9] = {
-          { .binding = 0, .buffer = in_buf, .offset = 0, .size = WGPU_WHOLE_SIZE },
-          { .binding = 1, .buffer = out_buf, .offset = 0, .size = WGPU_WHOLE_SIZE },
-          { .binding = 2, .buffer = ub, .offset = 0, .size = WGPU_WHOLE_SIZE },
-          { .binding = 3, .buffer = solid_buf, .offset = 0, .size = WGPU_WHOLE_SIZE },
-          { .binding = 4, .buffer = lookup_buf, .offset = 0, .size = WGPU_WHOLE_SIZE },
-          { .binding = 5, .textureView = solid_tex->view },
-          { .binding = 6, .textureView = liquid_tex->view },
-          { .binding = 7, .textureView = gas_tex->view },
-          { .binding = 8, .textureView = stress_tex->view }
-      };
-      WGPUBindGroupDescriptor desc = {
-          .layout     = layout,
-          .entryCount = 9,
-          .entries    = entries,
-      };
-      WGPUBindGroup bg = wgpuDeviceCreateBindGroup(ctx->device, &desc);
-      wgpuBindGroupLayoutRelease(layout);
-      return bg;
-  }")
-
-  (defn create-simulation-bind-group [ctx pipeline in-buf out-buf ub solid-buf lookup-buf solid-tex liquid-tex gas-tex stress-tex]
-    (let [bg (create-simulation-bind-group-raw ctx pipeline in-buf out-buf ub solid-buf lookup-buf solid-tex liquid-tex gas-tex stress-tex)]
-      (if (WGPURender.bindgroup-null?- bg)
-        (Result.Error @"Failed to create simulation bind group")
-        (Result.Success bg))))
-
-  (defn create-voxel-bind-group [eng pipeline solid-tex liquid-tex gas-tex light-tex stress-tex sampler uniforms]
-    (let [bg (create-voxel-scaffold-bind-group @(Engine.ctx eng) pipeline solid-tex liquid-tex gas-tex light-tex stress-tex sampler uniforms)]
+  (defn create-voxel-bind-group [eng pipeline solid-tex liquid-tex gas-tex light-tex sampler uniforms]
+    (let [bg (create-voxel-scaffold-bind-group @(Engine.ctx eng) pipeline solid-tex liquid-tex gas-tex light-tex sampler uniforms)]
       (if (WGPURender.bindgroup-null?- bg)
         (Result.Error @"Failed to create voxel scaffold bind group")
         (Result.Success bg))))
@@ -284,14 +231,5 @@
   (deftemplate update-offset (Fn [(Ptr WGPUContext) (Ptr WGPUVertexBufferWrapper) Uint64 (Ptr Float) Uint64] ())
     "void $NAME(WGPUContext* ctx, WGPUVertexBufferWrapper* vb, uint64_t offset, float* data, uint64_t size)"
     "$DECL { wgpuQueueWriteBuffer(ctx->queue, vb->buffer, offset, data, size); }")
-  (deftemplate create-empty-storage-vertex-buffer- (Fn [(Ptr WGPUContext) Uint64] (Ptr WGPUVertexBufferWrapper))
-    "WGPUVertexBufferWrapper* $NAME(WGPUContext* ctx, uint64_t size)"
-    "$DECL { return wgpu_create_storage_vertex_buffer(ctx, NULL, size); }")
-
-  (defn create-empty-storage-vertex-buffer [ctx size]
-    (let [vb (create-empty-storage-vertex-buffer- ctx (Uint64.from-long (Long.from-int size)))]
-      (if (WGPURender.vertex-buffer-null?- vb)
-        (Result.Error (WGPURender.get-error))
-        (Result.Success vb))))
 )
 

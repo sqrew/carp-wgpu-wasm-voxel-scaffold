@@ -27,10 +27,6 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 @group(0) @binding(1) var<storage, read_write> voxel_gpu_buffer_read: array<vec4<f32>>;
 @group(0) @binding(2) var<storage, read_write> voxel_gpu_buffer_write: array<vec4<f32>>;
 @group(0) @binding(3) var<uniform>             p: Params;
-@group(0) @binding(4) var<storage, read_write> stress_gpu_buffer_read: array<vec4<f32>>;
-@group(0) @binding(5) var<storage, read_write> stress_gpu_buffer_write: array<vec4<f32>>;
-@group(0) @binding(6) var<storage, read_write> liquid_gpu_buffer: array<vec4<f32>>;
-@group(0) @binding(7) var<storage, read_write> gas_gpu_buffer: array<vec4<f32>>;
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
@@ -54,10 +50,6 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     voxel_gpu_buffer_read[g_idx] = val;
     voxel_gpu_buffer_write[g_idx] = val;
-    stress_gpu_buffer_read[g_idx] = vec4<f32>(0.0);
-    stress_gpu_buffer_write[g_idx] = vec4<f32>(0.0);
-    liquid_gpu_buffer[g_idx] = vec4<f32>(0.0);
-    gas_gpu_buffer[g_idx] = vec4<f32>(0.0);
 }
 ")
 
@@ -74,7 +66,6 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     sun_dir: vec4<f32>,
     hit_pos: vec4<f32>,
     edit_params: vec4<f32>,
-    view_mode: vec4<f32>,
 }
 
 struct LiquidProps {
@@ -84,15 +75,14 @@ struct LiquidProps {
 }
 
 fn get_liq_props(id: f32) -> LiquidProps {
-    let LIQ_LUT = array<LiquidProps, 6>(
-        LiquidProps(0.0, 0.0, 0.0),   // Empty
-        LiquidProps(1.0, 0.3, 0.08),  // Water
-        LiquidProps(2.0, 0.05, 0.02), // Lava
-        LiquidProps(1.2, 0.15, 0.05), // Acid
-        LiquidProps(0.8, 0.2, 0.06),  // Oil
-        LiquidProps(1.8, 0.3, 0.005)  // Rubble
+    let LIQ_LUT = array<LiquidProps, 5>(
+        LiquidProps(0.0, 0.0, 0.0),
+        LiquidProps(1.0, 0.3, 0.08),
+        LiquidProps(2.0, 0.05, 0.02),
+        LiquidProps(1.2, 0.15, 0.05),
+        LiquidProps(0.8, 0.2, 0.06)
     );
-    let idx = clamp(i32(round(id)), 0, 5);
+    let idx = clamp(i32(round(id)), 0, 4);
     return LIQ_LUT[idx];
 }
 
@@ -104,7 +94,6 @@ fn get_liq_props(id: f32) -> LiquidProps {
 @group(0) @binding(5) var solid_texture:       texture_3d<f32>;
 @group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
-@group(0) @binding(8) var stress_texture:      texture_3d<f32>;
 
 fn get_solid(p: vec3<i32>) -> vec2<f32> {
     let wrapped = (p + vec3<i32>(160)) % 160;
@@ -114,7 +103,7 @@ fn get_solid(p: vec3<i32>) -> vec2<f32> {
 
 fn is_solid(p: vec3<i32>) -> bool {
     let sol = get_solid(p);
-    return round(sol.x) >= 1.0 && sol.y * 0.5 < 0.008;
+    return sol.y * 0.5 < 0.008;
 }
 
 fn get_liquid(p: vec3<i32>) -> vec2<f32> {
@@ -158,9 +147,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (idx >= 4096000u) { return; }
 
     // Dummy reads to prevent compiler from optimizing out unused bindings
-    if (u.time < -1.0) {
-        let dummy_val = input_buffer[0] + solid_buffer[0] + chunk_lookup[0] + textureLoad(stress_texture, vec3<i32>(0), 0);
-        output_buffer[idx] = dummy_val + textureLoad(gas_texture, vec3<i32>(0), 0);
+    let dummy_val = input_buffer[0] + solid_buffer[0] + chunk_lookup[0];
+    if (dummy_val.x > 999999.0) {
+        output_buffer[idx] = textureLoad(gas_texture, vec3<i32>(0), 0);
     }
 
     let x = idx % 160u;
@@ -468,7 +457,6 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     sun_dir: vec4<f32>,
     hit_pos: vec4<f32>,
     edit_params: vec4<f32>,
-    view_mode: vec4<f32>,
 }
 
 struct GasProps {
@@ -497,7 +485,6 @@ fn get_gas_props(id: f32) -> GasProps {
 @group(0) @binding(5) var solid_texture:       texture_3d<f32>;
 @group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
-@group(0) @binding(8) var stress_texture:      texture_3d<f32>;
 
 fn get_solid(p: vec3<i32>) -> vec2<f32> {
     let wrapped = (p + vec3<i32>(160)) % 160;
@@ -551,9 +538,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (idx >= 4096000u) { return; }
 
     // Dummy reads to prevent compiler from optimizing out unused bindings
-    if (u.time < -1.0) {
-        let dummy_val = input_buffer[0] + chunk_info[0] + chunk_lookup[0] + textureLoad(stress_texture, vec3<i32>(0), 0);
-        output_buffer[idx] = dummy_val + textureLoad(liquid_texture, vec3<i32>(0), 0);
+    let dummy_val = input_buffer[0] + chunk_info[0] + chunk_lookup[0];
+    if (dummy_val.x > 999999.0) {
+        output_buffer[idx] = textureLoad(liquid_texture, vec3<i32>(0), 0);
     }
 
     let x = idx % 160u;
@@ -794,199 +781,5 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
 
     output_buffer[idx] = vec4<f32>(next_id, next_vol, 0.0, 0.0);
-}
-")
-
-(def solid-sim-wgsl
-  "struct Uniforms {
-    time: f32,
-    width: f32,
-    height: f32,
-    brush_radius: f32,
-    cam_pos: vec4<f32>,
-    cam_dir: vec4<f32>,
-    cam_right: vec4<f32>,
-    cam_up: vec4<f32>,
-    sun_dir: vec4<f32>,
-    hit_pos: vec4<f32>,
-    edit_params: vec4<f32>,
-    view_mode: vec4<f32>,
-}
-
-@group(0) @binding(0) var<storage, read>       input_buffer: array<vec4<f32>>;
-@group(0) @binding(1) var<storage, read_write> output_buffer: array<vec4<f32>>;
-@group(0) @binding(2) var<uniform>             u: Uniforms;
-@group(0) @binding(3) var<storage, read_write> solid_buffer: array<vec4<f32>>;
-@group(0) @binding(4) var<storage, read_write> liquid_buffer: array<vec4<f32>>;
-@group(0) @binding(5) var solid_texture:       texture_3d<f32>;
-@group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
-@group(0) @binding(7) var gas_texture:         texture_3d<f32>;
-@group(0) @binding(8) var stress_texture:      texture_3d<f32>;
-
-fn get_solid(p: vec3<i32>) -> vec2<f32> {
-    let wrapped = (p + vec3<i32>(160)) % 160;
-    let val = textureLoad(solid_texture, wrapped, 0);
-    return vec2<f32>(val.r, val.g);
-}
-
-fn is_solid(p: vec3<i32>) -> bool {
-    let sol = get_solid(p);
-    return round(sol.x) >= 1.0 && sol.y * 0.5 < 0.008;
-}
-
-fn get_stress(p: vec3<i32>) -> vec4<f32> {
-    let wrapped = (p + vec3<i32>(160)) % 160;
-    return textureLoad(stress_texture, wrapped, 0);
-}
-
-fn get_material_density(id: f32) -> f32 {
-    let id_round = i32(round(id));
-    if (id_round == 1) { return 1.0; } // Stone
-    if (id_round == 2) { return 0.8; } // Grass
-    if (id_round == 3) { return 0.5; } // Wood
-    if (id_round == 4) { return 1.2; } // Coal
-    if (id_round == 5) { return 3.0; } // Gold
-    return 0.0;
-}
-
-fn get_material_strength(id: f32) -> f32 {
-    let id_round = i32(round(id));
-    if (id_round == 1) { return 10.0; }
-    if (id_round == 2) { return 3.0; }
-    if (id_round == 3) { return 12.0; }
-    if (id_round == 4) { return 4.0; }
-    if (id_round == 5) { return 15.0; }
-    return 999.0;
-}
-
-@compute @workgroup_size(64)
-fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    let idx = global_id.x;
-    if (idx >= 4096000u) { return; }
-
-    // Dummy reads to prevent compiler from optimizing out unused bindings
-    if (u.time < -1.0) {
-        let dummy_val = vec4<f32>(u.time) + textureLoad(liquid_texture, vec3<i32>(0), 0) + textureLoad(gas_texture, vec3<i32>(0), 0);
-        output_buffer[idx] = dummy_val;
-    }
-
-    let x = idx % 160u;
-    let y = (idx / 160u) % 160u;
-    let z = idx / 25600u;
-    let ip = vec3<i32>(i32(x), i32(y), i32(z));
-
-    let sol = get_solid(ip);
-    let sol_id = sol.x;
-    let is_sol_block = round(sol_id) >= 1.0 && sol.y * 0.5 < 0.008;
-
-    if (!is_sol_block) {
-        output_buffer[idx] = vec4<f32>(0.0);
-        return;
-    }
-
-    let self_stress = input_buffer[idx]; // (temp, shear, comp, fatigue)
-    
-    // 1. Compressive Stress Propagation (Gravity load downwards)
-    var comp_stress = get_material_density(sol_id);
-    let above_p = ip + vec3<i32>(0, 1, 0);
-    if (ip.y < 159 && is_solid(above_p)) {
-        let above_stress = get_stress(above_p);
-        comp_stress += above_stress.z; // add compressive load from above
-    }
-
-    // 2. Shear Stress (Overhang calculation)
-    var shear_stress = 0.0;
-    let below_p = ip + vec3<i32>(0, -1, 0);
-    if (ip.y > 0 && !is_solid(below_p)) { // Air below us! (Cantilever)
-        var min_dist = 999.0;
-        
-        // Scan -X
-        for (var dx = 1; dx <= 6; dx = dx + 1) {
-            let np = ip + vec3<i32>(-dx, 0, 0);
-            if (is_solid(np)) {
-                if (is_solid(np + vec3<i32>(0, -1, 0))) {
-                    min_dist = min(min_dist, f32(dx));
-                    break;
-                }
-            } else {
-                break;
-            }
-        }
-        // Scan +X
-        for (var dx = 1; dx <= 6; dx = dx + 1) {
-            let np = ip + vec3<i32>(dx, 0, 0);
-            if (is_solid(np)) {
-                if (is_solid(np + vec3<i32>(0, -1, 0))) {
-                    min_dist = min(min_dist, f32(dx));
-                    break;
-                }
-            } else {
-                break;
-            }
-        }
-        // Scan -Z
-        for (var dz = 1; dz <= 6; dz = dz + 1) {
-            let np = ip + vec3<i32>(0, 0, -dz);
-            if (is_solid(np)) {
-                if (is_solid(np + vec3<i32>(0, -1, 0))) {
-                    min_dist = min(min_dist, f32(dz));
-                    break;
-                }
-            } else {
-                break;
-            }
-        }
-        // Scan +Z
-        for (var dz = 1; dz <= 6; dz = dz + 1) {
-            let np = ip + vec3<i32>(0, 0, dz);
-            if (is_solid(np)) {
-                if (is_solid(np + vec3<i32>(0, -1, 0))) {
-                    min_dist = min(min_dist, f32(dz));
-                    break;
-                }
-            } else {
-                break;
-            }
-        }
-
-        if (min_dist < 999.0) {
-            shear_stress = min_dist;
-        } else {
-            shear_stress = 6.0;
-        }
-    }
-
-    let dt = 0.016; // fixed timestep for 60 FPS
-    let total_stress = (comp_stress - 1.0) * 0.4 + shear_stress * 1.2;
-    let strength = get_material_strength(sol_id);
-
-    // Bedrock anchor logic (bottom layer is unbreakable and has zero fatigue)
-    var fatigue = self_stress.w;
-    if (ip.y <= 5) {
-        fatigue = 0.0;
-        comp_stress = 0.0;
-        shear_stress = 0.0;
-    } else {
-        let fatigue_threshold = strength * 0.65;
-        if (total_stress >= fatigue_threshold) {
-            let excess = total_stress - fatigue_threshold;
-            fatigue += (0.3 + excess * 0.2) * dt;
-        } else {
-            fatigue -= 0.05 * dt;
-        }
-    }
-    fatigue = clamp(fatigue, 0.0, 1.0);
-
-    // Check for collapse!
-    if (fatigue >= 1.0 || (total_stress >= strength && ip.y > 5)) {
-        // Destroy solid block
-        solid_buffer[idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0);
-        // Spawn falling Rubble (Liquid 5)
-        liquid_buffer[idx] = vec4<f32>(5.0, 1.0, 0.0, 0.0);
-        
-        output_buffer[idx] = vec4<f32>(0.0);
-    } else {
-        output_buffer[idx] = vec4<f32>(0.0, shear_stress, comp_stress, fatigue);
-    }
 }
 ")
