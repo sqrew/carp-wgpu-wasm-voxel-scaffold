@@ -118,12 +118,13 @@
           ren (EngineState.renderer state)
           player (EngineState.player state)
           cam (Player.camera player)
-          world (EngineState.world state)]
+          world (EngineState.world state)
+          prev-pos @(Camera.pos cam)]
       (do
         ;; 1. Handle player inputs (movement, look, flying, radius presets, cycling)
         (Player.handle-input! player win dt first-mouse-ptr last-x-ptr last-y-ptr)
         (Player.handle-jump! player win)
-        (Player.update-physics! player world dt)
+        (Player.update-physics! player world dt &prev-pos)
         
         ;; 2. Stream chunks centered on player
         (EngineState.stream-chunks! world platform-eng ren (Camera.pos cam))

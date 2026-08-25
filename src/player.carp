@@ -77,7 +77,7 @@
         (when (and lbr-pressed (not @(Player.lbracket-last player)))
           (let [p-rad (ref-to-ptr (Player.edit-radius player))
                 curr-rad @(Player.edit-radius player)
-                next-rad (Double.max 0.5 (- curr-rad 0.5))]
+                next-rad (if (< (- curr-rad 0.5) 0.5) 0.5 (- curr-rad 0.5))]
             (Pointer.set p-rad next-rad)))
         (Pointer.set (ref-to-ptr (Player.lbracket-last player)) lbr-pressed)
 
@@ -85,7 +85,7 @@
         (when (and rbr-pressed (not @(Player.rbracket-last player)))
           (let [p-rad (ref-to-ptr (Player.edit-radius player))
                 curr-rad @(Player.edit-radius player)
-                next-rad (Double.min 15.0 (+ curr-rad 0.5))]
+                next-rad (if (> (+ curr-rad 0.5) 15.0) 15.0 (+ curr-rad 0.5))]
             (Pointer.set p-rad next-rad)))
         (Pointer.set (ref-to-ptr (Player.rbracket-last player)) rbr-pressed)
 
@@ -157,7 +157,7 @@
         (Camera.update-input win cam dt @(Player.flying player))
         (Camera.update-look win cam first-mouse-ptr last-x-ptr last-y-ptr))))
 
-  (defn update-physics! [player world dt]
+  (defn update-physics! [player world dt prev-pos]
     (let [cam (Player.camera player)]
       (do
         ;; Apply gravity if not flying
@@ -172,7 +172,7 @@
                 (Pointer.set p-pos (Vector3.init @(Vector3.x &curr-pos) new-y @(Vector3.z &curr-pos)))))))
         
         ;; Resolve collisions
-        (Physics.resolve-camera-collision! world cam 0.8 (ref-to-ptr (Player.vel-y player)) (ref-to-ptr (Player.on-ground player))))))
+        (Physics.resolve-camera-collision! world cam prev-pos (ref-to-ptr (Player.vel-y player)) (ref-to-ptr (Player.on-ground player))))))
 
   (defn handle-jump! [player win]
     (when (and (not @(Player.flying player)) @(Player.on-ground player))

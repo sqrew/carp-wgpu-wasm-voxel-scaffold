@@ -42,7 +42,9 @@
 
 
 //Types:
+typedef struct AABB AABB;
 typedef struct ActiveTimer ActiveTimer;
+typedef struct BaseShape BaseShape;
 typedef struct Binary__Lambda_byte_MINUS_converter__ByteOrder_Array__uint8_t_Uint16_29_env_ty Binary__Lambda_byte_MINUS_converter__ByteOrder_Array__uint8_t_Uint16_29_env_ty;
 typedef struct Binary__Lambda_byte_MINUS_converter__ByteOrder_Array__uint8_t_Uint32_29_env_ty Binary__Lambda_byte_MINUS_converter__ByteOrder_Array__uint8_t_Uint32_29_env_ty;
 typedef struct Binary__Lambda_byte_MINUS_converter__ByteOrder_Array__uint8_t_Uint64_29_env_ty Binary__Lambda_byte_MINUS_converter__ByteOrder_Array__uint8_t_Uint64_29_env_ty;
@@ -59,15 +61,22 @@ typedef struct Camera Camera;
 typedef struct CameraMat4 CameraMat4;
 typedef struct Chunk Chunk;
 typedef struct ChunkCoord ChunkCoord;
+typedef struct Contact Contact;
+typedef struct ContactSet ContactSet;
+typedef struct CsgNode CsgNode;
 typedef struct Diagnostics Diagnostics;
 typedef struct Engine Engine;
 typedef struct EngineState EngineState;
 typedef struct FBMConfig FBMConfig;
+typedef struct Handle__void Handle__void;
 typedef struct Line Line;
 typedef struct LinePassRenderer LinePassRenderer;
+typedef struct LocalCrater LocalCrater;
 typedef struct LogLevel LogLevel;
 typedef struct Maybe__Chunk Maybe__Chunk;
+typedef struct Maybe__Contact Maybe__Contact;
 typedef struct Maybe__Long Maybe__Long;
+typedef struct Maybe__RayHit Maybe__RayHit;
 typedef struct Maybe__String Maybe__String;
 typedef struct Maybe__Uint16 Maybe__Uint16;
 typedef struct Maybe__Uint32 Maybe__Uint32;
@@ -87,7 +96,11 @@ typedef struct Pair__Array__Uint32_int Pair__Array__Uint32_int;
 typedef struct Pair__Array__Uint64_int Pair__Array__Uint64_int;
 typedef struct Par__Lambda_simd_MINUS_add_BANG__213_env_ty Par__Lambda_simd_MINUS_add_BANG__213_env_ty;
 typedef struct Pattern__Lambda_global_MINUS_match_MINUS_str_16_env_ty Pattern__Lambda_global_MINUS_match_MINUS_str_16_env_ty;
+typedef struct Plane Plane;
 typedef struct Player Player;
+typedef struct Quaternion Quaternion;
+typedef struct Ray Ray;
+typedef struct RayHit RayHit;
 typedef struct Renderer Renderer;
 typedef struct Result__Array__Uint16_int Result__Array__Uint16_int;
 typedef struct Result__Array__Uint32_int Result__Array__Uint32_int;
@@ -117,6 +130,11 @@ typedef struct Result__WGPUSampler_String Result__WGPUSampler_String;
 typedef struct Result__WGPUUniformBufferWrapper_MUL__String Result__WGPUUniformBufferWrapper_MUL__String;
 typedef struct Result__WGPUVertexBufferWrapper_MUL__String Result__WGPUVertexBufferWrapper_MUL__String;
 typedef struct Result__bool_String Result__bool_String;
+typedef struct SDF SDF;
+typedef struct Segment Segment;
+typedef struct Sphere Sphere;
+typedef struct Transform Transform;
+typedef struct TransformMat4 TransformMat4;
 typedef struct Vec3 Vec3;
 typedef struct Vector2__bool Vector2__bool;
 typedef struct Vector3__Lambda_div__double_13_env_ty Vector3__Lambda_div__double_13_env_ty;
@@ -293,6 +311,12 @@ struct ChunkCoord {
 };
 
 // Depth 3
+struct CsgNode {
+    SDF* shape;
+    int op;
+};
+
+// Depth 3
 struct FBMConfig {
     int octaves;
     double persistence;
@@ -308,6 +332,14 @@ struct Par__Lambda_simd_MINUS_add_BANG__213_env_ty {
     float* p_MINUS_src_MINUS_a;
     float* p_MINUS_src_MINUS_b;
     int start;
+};
+
+// Depth 3
+struct Quaternion {
+    double x;
+    double y;
+    double z;
+    double w;
 };
 
 // Depth 3
@@ -363,7 +395,16 @@ typedef Array Array__Chunk;
 typedef Array Array__ChunkCoord;
 
 // Depth 4
+typedef Array Array__Contact;
+
+// Depth 4
+typedef Array Array__CsgNode;
+
+// Depth 4
 typedef Array Array__Line;
+
+// Depth 4
+typedef Array Array__LocalCrater;
 
 // Depth 4
 typedef Array Array__PatternMatchResult;
@@ -391,6 +432,9 @@ typedef Array Array__Uint64;
 
 // Depth 4
 typedef Array Array__Vec3;
+
+// Depth 4
+typedef Array Array__Vector3__double;
 
 // Depth 4
 typedef Array Array__WGPUBuffer;
@@ -451,6 +495,9 @@ typedef bool(*Fn__Pattern_MUL__String_MUL__bool)(Pattern*, String*);
 
 // Depth 4
 typedef int(*Fn__Pattern_MUL__String_MUL__int)(Pattern*, String*);
+
+// Depth 4
+typedef SDF*(*Fn__SDF_MUL__SDF_MUL_)(SDF*);
 
 // Depth 4
 typedef int(*Fn__String_MUL__Char_int)(String*, Char);
@@ -743,6 +790,12 @@ struct Maybe__Vector3__double {
 #define Maybe__Vector3__double_Nothing_tag 1
 
 // Depth 5
+struct AABB {
+    Vector3__double min;
+    Vector3__double max;
+};
+
+// Depth 5
 struct Camera {
     Vector3__double pos;
     Vector3__double front;
@@ -758,10 +811,61 @@ struct Camera {
 };
 
 // Depth 5
+struct Contact {
+    double depth;
+    Vector3__double point;
+    Vector3__double normal;
+};
+
+// Depth 5
 struct Line {
     Vector3__double start;
     Vector3__double end;
     Vector3__double color;
+};
+
+// Depth 5
+struct LocalCrater {
+    Vector3__double pos;
+    double radius;
+};
+
+// Depth 5
+struct Plane {
+    Vector3__double normal;
+    double d;
+};
+
+// Depth 5
+struct Ray {
+    Vector3__double origin;
+    Vector3__double direction;
+};
+
+// Depth 5
+struct RayHit {
+    double t;
+    Vector3__double point;
+    Vector3__double normal;
+};
+
+// Depth 5
+struct Segment {
+    Vector3__double start;
+    Vector3__double end;
+};
+
+// Depth 5
+struct Sphere {
+    Vector3__double center;
+    double radius;
+};
+
+// Depth 5
+struct Transform {
+    Vector3__double position;
+    Quaternion rotation;
+    Vector3__double scale;
 };
 
 // Depth 6
@@ -785,6 +889,15 @@ typedef String(*Fn__ChunkCoord_MUL__String)(ChunkCoord*);
 
 // Depth 6
 typedef int*(*Fn__ChunkCoord_MUL__int_MUL_)(ChunkCoord*);
+
+// Depth 6
+typedef SDF**(*Fn__CsgNode_MUL__SDF_MUL__MUL_)(CsgNode*);
+
+// Depth 6
+typedef String(*Fn__CsgNode_MUL__String)(CsgNode*);
+
+// Depth 6
+typedef int*(*Fn__CsgNode_MUL__int_MUL_)(CsgNode*);
 
 // Depth 6
 typedef String(*Fn__FBMConfig_MUL__String)(FBMConfig*);
@@ -818,6 +931,24 @@ typedef String(*Fn__Maybe__String_String)(Maybe__String);
 
 // Depth 6
 typedef String(*Fn__Maybe__String_String_String)(Maybe__String, String);
+
+// Depth 6
+typedef Quaternion(*Fn__Quaternion_MUL__Quaternion)(Quaternion*);
+
+// Depth 6
+typedef Quaternion(*Fn__Quaternion_MUL__Quaternion_MUL__Quaternion)(Quaternion*, Quaternion*);
+
+// Depth 6
+typedef String(*Fn__Quaternion_MUL__String)(Quaternion*);
+
+// Depth 6
+typedef Vector3__double(*Fn__Quaternion_MUL__Vector3__double_MUL__Vector3__double)(Quaternion*, Vector3__double*);
+
+// Depth 6
+typedef double*(*Fn__Quaternion_MUL__double_MUL_)(Quaternion*);
+
+// Depth 6
+typedef Quaternion(*Fn__Quaternion_Quaternion)(Quaternion);
 
 // Depth 6
 typedef Maybe__String(*Fn__String_Maybe__String)(String);
@@ -892,6 +1023,9 @@ typedef Maybe__int(*Fn___Maybe__int)();
 typedef Maybe__uint8_t(*Fn___Maybe__uint8_t)();
 
 // Depth 6
+typedef Quaternion(*Fn___Quaternion)();
+
+// Depth 6
 typedef Result__bool_String(*Fn__bool_Result__bool_String)(bool);
 
 // Depth 6
@@ -902,6 +1036,9 @@ typedef Vec3(*Fn__double_double_double_Vec3)(double, double, double);
 
 // Depth 6
 typedef Vector3__double(*Fn__double_double_double_Vector3__double)(double, double, double);
+
+// Depth 6
+typedef Quaternion(*Fn__double_double_double_double_Quaternion)(double, double, double, double);
 
 // Depth 6
 typedef Maybe__float(*Fn__float_Maybe__float)(float);
@@ -919,6 +1056,78 @@ typedef Maybe__uint8_t(*Fn__uint8_t_Maybe__uint8_t)(uint8_t);
 struct NoiseState {
     Array__int p;
 };
+
+// Depth 6
+struct TransformMat4 {
+    Array__float data;
+};
+
+// Depth 7
+struct Maybe__Contact {
+    union {
+    struct {
+        Contact member0;
+    } Just;
+    // Nothing
+    char __dummy;
+    } u;
+    char _tag;
+};
+#define Maybe__Contact_Just_tag 0
+#define Maybe__Contact_Nothing_tag 1
+
+// Depth 7
+struct Maybe__RayHit {
+    union {
+    struct {
+        RayHit member0;
+    } Just;
+    // Nothing
+    char __dummy;
+    } u;
+    char _tag;
+};
+#define Maybe__RayHit_Just_tag 0
+#define Maybe__RayHit_Nothing_tag 1
+
+// Depth 7
+struct BaseShape {
+    union {
+    struct {
+        double member0;
+    } Ball;
+    struct {
+        Plane member0;
+    } Surface;
+    struct {
+        Vector3__double member0;
+    } Box;
+    struct {
+        double member0;
+        double member1;
+    } Cylinder;
+    struct {
+        double member0;
+        double member1;
+    } Capsule;
+    struct {
+        double member0;
+        double member1;
+    } Torus;
+    struct {
+        double member0;
+    } Octahedron;
+    char __dummy;
+    } u;
+    char _tag;
+};
+#define BaseShape_Ball_tag 0
+#define BaseShape_Surface_tag 1
+#define BaseShape_Box_tag 2
+#define BaseShape_Cylinder_tag 3
+#define BaseShape_Capsule_tag 4
+#define BaseShape_Torus_tag 5
+#define BaseShape_Octahedron_tag 6
 
 // Depth 7
 typedef Array__Char(*Fn__Array__Char_Array__Char)(Array__Char);
@@ -1117,6 +1326,12 @@ struct Maybe__Chunk {
 #define Maybe__Chunk_Nothing_tag 1
 
 // Depth 8
+typedef String(*Fn__AABB_MUL__String)(AABB*);
+
+// Depth 8
+typedef Vector3__double*(*Fn__AABB_MUL__Vector3__double_MUL_)(AABB*);
+
+// Depth 8
 typedef Camera(*Fn__Camera_Camera)(Camera);
 
 // Depth 8
@@ -1138,16 +1353,109 @@ typedef void(*Fn__Camera_MUL__double_void)(Camera*, double);
 typedef void(*Fn__Camera_MUL__void)(Camera*);
 
 // Depth 8
+typedef Contact(*Fn__Contact_MUL__Contact)(Contact*);
+
+// Depth 8
+typedef String(*Fn__Contact_MUL__String)(Contact*);
+
+// Depth 8
+typedef Vector3__double*(*Fn__Contact_MUL__Vector3__double_MUL_)(Contact*);
+
+// Depth 8
+typedef double*(*Fn__Contact_MUL__double_MUL_)(Contact*);
+
+// Depth 8
 typedef String(*Fn__Line_MUL__String)(Line*);
 
 // Depth 8
 typedef Vector3__double*(*Fn__Line_MUL__Vector3__double_MUL_)(Line*);
 
 // Depth 8
+typedef String(*Fn__LocalCrater_MUL__String)(LocalCrater*);
+
+// Depth 8
+typedef Vector3__double*(*Fn__LocalCrater_MUL__Vector3__double_MUL_)(LocalCrater*);
+
+// Depth 8
+typedef double*(*Fn__LocalCrater_MUL__double_MUL_)(LocalCrater*);
+
+// Depth 8
 typedef bool(*Fn__Maybe__Vector3__double_MUL__bool)(Maybe__Vector3__double*);
 
 // Depth 8
+typedef String(*Fn__Plane_MUL__String)(Plane*);
+
+// Depth 8
+typedef Vector3__double*(*Fn__Plane_MUL__Vector3__double_MUL_)(Plane*);
+
+// Depth 8
+typedef double(*Fn__Plane_MUL__Vector3__double_MUL__double)(Plane*, Vector3__double*);
+
+// Depth 8
+typedef double*(*Fn__Plane_MUL__double_MUL_)(Plane*);
+
+// Depth 8
+typedef String(*Fn__RayHit_MUL__String)(RayHit*);
+
+// Depth 8
+typedef double*(*Fn__RayHit_MUL__double_MUL_)(RayHit*);
+
+// Depth 8
+typedef String(*Fn__Ray_MUL__String)(Ray*);
+
+// Depth 8
+typedef Vector3__double*(*Fn__Ray_MUL__Vector3__double_MUL_)(Ray*);
+
+// Depth 8
+typedef Vector3__double(*Fn__Ray_MUL__double_Vector3__double)(Ray*, double);
+
+// Depth 8
+typedef String(*Fn__Segment_MUL__String)(Segment*);
+
+// Depth 8
+typedef Vector3__double(*Fn__Segment_MUL__Vector3__double)(Segment*);
+
+// Depth 8
+typedef Vector3__double*(*Fn__Segment_MUL__Vector3__double_MUL_)(Segment*);
+
+// Depth 8
+typedef double(*Fn__Segment_MUL__double)(Segment*);
+
+// Depth 8
+typedef String(*Fn__Sphere_MUL__String)(Sphere*);
+
+// Depth 8
+typedef Vector3__double*(*Fn__Sphere_MUL__Vector3__double_MUL_)(Sphere*);
+
+// Depth 8
+typedef double*(*Fn__Sphere_MUL__double_MUL_)(Sphere*);
+
+// Depth 8
+typedef Quaternion*(*Fn__Transform_MUL__Quaternion_MUL_)(Transform*);
+
+// Depth 8
+typedef String(*Fn__Transform_MUL__String)(Transform*);
+
+// Depth 8
+typedef Vector3__double*(*Fn__Transform_MUL__Vector3__double_MUL_)(Transform*);
+
+// Depth 8
+typedef Transform(*Fn__Transform_Quaternion_Transform)(Transform, Quaternion);
+
+// Depth 8
+typedef AABB(*Fn__Vector3__double_MUL__double_double_double_AABB)(Vector3__double*, double, double, double);
+
+// Depth 8
 typedef Maybe__Vector3__double(*Fn__Vector3__double_Maybe__Vector3__double)(Vector3__double);
+
+// Depth 8
+typedef Transform(*Fn__Vector3__double_Quaternion_Vector3__double_Transform)(Vector3__double, Quaternion, Vector3__double);
+
+// Depth 8
+typedef AABB(*Fn__Vector3__double_Vector3__double_AABB)(Vector3__double, Vector3__double);
+
+// Depth 8
+typedef Ray(*Fn__Vector3__double_Vector3__double_Ray)(Vector3__double, Vector3__double);
 
 // Depth 8
 typedef Line(*Fn__Vector3__double_Vector3__double_Vector3__double_Line)(Vector3__double, Vector3__double, Vector3__double);
@@ -1156,10 +1464,19 @@ typedef Line(*Fn__Vector3__double_Vector3__double_Vector3__double_Line)(Vector3_
 typedef Camera(*Fn__Vector3__double_Vector3__double_Vector3__double_Vector3__double_Vector3__double_double_double_double_double_double_double_Camera)(Vector3__double, Vector3__double, Vector3__double, Vector3__double, Vector3__double, double, double, double, double, double, double);
 
 // Depth 8
+typedef Plane(*Fn__Vector3__double_double_Plane)(Vector3__double, double);
+
+// Depth 8
 typedef Camera(*Fn__Vector3__double_double_double_double_Camera)(Vector3__double, double, double, double);
 
 // Depth 8
 typedef Maybe__Vector3__double(*Fn___Maybe__Vector3__double)();
+
+// Depth 8
+typedef Contact(*Fn__double_Vector3__double_Vector3__double_Contact)(double, Vector3__double, Vector3__double);
+
+// Depth 8
+typedef RayHit(*Fn__double_Vector3__double_Vector3__double_RayHit)(double, Vector3__double, Vector3__double);
 
 // Depth 9
 typedef void(*Fn__Array__ChunkCoord_MUL__ChunkCoord_void)(Array__ChunkCoord*, ChunkCoord);
@@ -1171,10 +1488,31 @@ typedef int(*Fn__Array__ChunkCoord_MUL__int)(Array__ChunkCoord*);
 typedef ChunkCoord*(*Fn__Array__ChunkCoord_MUL__int_ChunkCoord_MUL_)(Array__ChunkCoord*, int);
 
 // Depth 9
+typedef Array__CsgNode(*Fn__Array__CsgNode_Array__CsgNode)(Array__CsgNode);
+
+// Depth 9
+typedef void(*Fn__Array__CsgNode_MUL__CsgNode_void)(Array__CsgNode*, CsgNode);
+
+// Depth 9
+typedef String(*Fn__Array__CsgNode_MUL__String)(Array__CsgNode*);
+
+// Depth 9
+typedef int(*Fn__Array__CsgNode_MUL__int)(Array__CsgNode*);
+
+// Depth 9
+typedef CsgNode*(*Fn__Array__CsgNode_MUL__int_CsgNode_MUL_)(Array__CsgNode*, int);
+
+// Depth 9
 typedef Vec3*(*Fn__Array__Vec3_MUL__int_Vec3_MUL_)(Array__Vec3*, int);
 
 // Depth 9
+typedef void(*Fn__Array__Vector3__double_MUL__Vector3__double_void)(Array__Vector3__double*, Vector3__double);
+
+// Depth 9
 typedef CameraMat4(*Fn__Array__float_CameraMat4)(Array__float);
+
+// Depth 9
+typedef TransformMat4(*Fn__Array__float_TransformMat4)(Array__float);
 
 // Depth 9
 typedef NoiseState(*Fn__Array__int_NoiseState)(Array__int);
@@ -1225,6 +1563,24 @@ typedef void(*Fn__NoiseState_MUL__int_int_int_float_MUL__void)(NoiseState*, int,
 typedef NoiseState(*Fn__NoiseState_NoiseState)(NoiseState);
 
 // Depth 9
+typedef Array__float*(*Fn__TransformMat4_MUL__Array__float_MUL_)(TransformMat4*);
+
+// Depth 9
+typedef String(*Fn__TransformMat4_MUL__String)(TransformMat4*);
+
+// Depth 9
+typedef Vector3__double(*Fn__TransformMat4_MUL__int_Vector3__double)(TransformMat4*, int);
+
+// Depth 9
+typedef TransformMat4(*Fn__Transform_MUL__TransformMat4)(Transform*);
+
+// Depth 9
+typedef TransformMat4(*Fn__Vector3__double_MUL__Quaternion_MUL__Vector3__double_MUL__TransformMat4)(Vector3__double*, Quaternion*, Vector3__double*);
+
+// Depth 9
+typedef Array__Vector3__double(*Fn__int_Array__Vector3__double)(int);
+
+// Depth 9
 typedef NoiseState(*Fn__int_NoiseState)(int);
 
 // Depth 9
@@ -1246,7 +1602,22 @@ typedef void(*Fn__Array__Array__uint8_t_MUL__int_Array__uint8_t_void)(Array__Arr
 typedef Array__Array__uint8_t(*Fn__Array__uint8_t_MUL__int_Array__Array__uint8_t)(Array__uint8_t*, int);
 
 // Depth 10
+typedef BaseShape(*Fn__BaseShape_BaseShape)(BaseShape);
+
+// Depth 10
+typedef BaseShape(*Fn__BaseShape_MUL__BaseShape)(BaseShape*);
+
+// Depth 10
+typedef String(*Fn__BaseShape_MUL__String)(BaseShape*);
+
+// Depth 10
+typedef Maybe__Contact(*Fn__Contact_Maybe__Contact)(Contact);
+
+// Depth 10
 typedef Array__int(*Fn__Fn__Array__uint8_t_MUL__int_MUL__Array__Array__uint8_t_MUL__Array__int)(Lambda*, Array__Array__uint8_t*);
+
+// Depth 10
+typedef BaseShape(*Fn__Plane_BaseShape)(Plane);
 
 // Depth 10
 typedef Camera*(*Fn__Player_MUL__Camera_MUL_)(Player*);
@@ -1267,13 +1638,62 @@ typedef float*(*Fn__Player_MUL__float_MUL_)(Player*);
 typedef Player(*Fn__Player_Player)(Player);
 
 // Depth 10
+typedef Maybe__RayHit(*Fn__RayHit_Maybe__RayHit)(RayHit);
+
+// Depth 10
+typedef Maybe__RayHit(*Fn__Ray_MUL__AABB_MUL__Maybe__RayHit)(Ray*, AABB*);
+
+// Depth 10
+typedef Maybe__RayHit(*Fn__Ray_MUL__Sphere_MUL__Maybe__RayHit)(Ray*, Sphere*);
+
+// Depth 10
+typedef BaseShape(*Fn__Vector3__double_BaseShape)(Vector3__double);
+
+// Depth 10
 typedef Player(*Fn__Vector3__double_Player)(Vector3__double);
+
+// Depth 10
+typedef Maybe__Contact(*Fn___Maybe__Contact)();
+
+// Depth 10
+typedef Maybe__RayHit(*Fn___Maybe__RayHit)();
+
+// Depth 10
+typedef BaseShape(*Fn__double_BaseShape)(double);
 
 // Depth 10
 typedef Player(*Fn__double_Camera_bool_bool_float_float_float_double_bool_bool_bool_bool_bool_bool_bool_bool_Player)(double, Camera, bool, bool, float, float, float, double, bool, bool, bool, bool, bool, bool, bool, bool);
 
 // Depth 10
+typedef BaseShape(*Fn__double_double_BaseShape)(double, double);
+
+// Depth 10
 typedef Array__Array__uint8_t(*Fn__int_Array__Array__uint8_t)(int);
+
+// Depth 10
+struct SDF {
+    BaseShape base;
+    Array__LocalCrater craters;
+    Vector3__double position;
+    Quaternion rotation;
+    double scale;
+    Array__CsgNode csg_MINUS_nodes;
+};
+
+// Depth 11
+typedef Array__Contact(*Fn__Array__Contact_Array__Contact)(Array__Contact);
+
+// Depth 11
+typedef void(*Fn__Array__Contact_MUL__Contact_void)(Array__Contact*, Contact);
+
+// Depth 11
+typedef String(*Fn__Array__Contact_MUL__String)(Array__Contact*);
+
+// Depth 11
+typedef int(*Fn__Array__Contact_MUL__int)(Array__Contact*);
+
+// Depth 11
+typedef Contact*(*Fn__Array__Contact_MUL__int_Contact_MUL_)(Array__Contact*, int);
 
 // Depth 11
 typedef Array__Line(*Fn__Array__Line_Array__Line)(Array__Line);
@@ -1295,6 +1715,21 @@ typedef int(*Fn__Array__Line_MUL__int)(Array__Line*);
 
 // Depth 11
 typedef Line*(*Fn__Array__Line_MUL__int_Line_MUL_)(Array__Line*, int);
+
+// Depth 11
+typedef Array__LocalCrater(*Fn__Array__LocalCrater_Array__LocalCrater)(Array__LocalCrater);
+
+// Depth 11
+typedef void(*Fn__Array__LocalCrater_MUL__LocalCrater_void)(Array__LocalCrater*, LocalCrater);
+
+// Depth 11
+typedef String(*Fn__Array__LocalCrater_MUL__String)(Array__LocalCrater*);
+
+// Depth 11
+typedef int(*Fn__Array__LocalCrater_MUL__int)(Array__LocalCrater*);
+
+// Depth 11
+typedef LocalCrater*(*Fn__Array__LocalCrater_MUL__int_LocalCrater_MUL_)(Array__LocalCrater*, int);
 
 // Depth 11
 typedef Maybe__Chunk(*Fn__Chunk_Maybe__Chunk)(Chunk);
@@ -1327,26 +1762,59 @@ typedef Chunk*(*Fn__Array__Chunk_MUL__int_Chunk_MUL_)(Array__Chunk*, int);
 // Depth 12
 typedef void(*Fn__Array__Chunk_MUL__int_Chunk_void)(Array__Chunk*, int, Chunk);
 
+// Depth 13
+typedef SDF(*Fn__BaseShape_Array__LocalCrater_Vector3__double_Quaternion_double_Array__CsgNode_SDF)(BaseShape, Array__LocalCrater, Vector3__double, Quaternion, double, Array__CsgNode);
+
+// Depth 13
+typedef Array__CsgNode*(*Fn__SDF_MUL__Array__CsgNode_MUL_)(SDF*);
+
+// Depth 13
+typedef Array__LocalCrater*(*Fn__SDF_MUL__Array__LocalCrater_MUL_)(SDF*);
+
+// Depth 13
+typedef BaseShape*(*Fn__SDF_MUL__BaseShape_MUL_)(SDF*);
+
+// Depth 13
+typedef SDF*(*Fn__SDF_MUL__MUL__SDF_MUL_)(SDF**);
+
+// Depth 13
+typedef Quaternion*(*Fn__SDF_MUL__Quaternion_MUL_)(SDF*);
+
+// Depth 13
+typedef String(*Fn__SDF_MUL__String)(SDF*);
+
+// Depth 13
+typedef Vector3__double*(*Fn__SDF_MUL__Vector3__double_MUL_)(SDF*);
+
+// Depth 13
+typedef Vector3__double(*Fn__SDF_MUL__Vector3__double_MUL__Vector3__double)(SDF*, Vector3__double*);
+
+// Depth 13
+typedef double(*Fn__SDF_MUL__Vector3__double_MUL__double)(SDF*, Vector3__double*);
+
+// Depth 13
+typedef double(*Fn__SDF_MUL__Vector3__double_MUL__double_double)(SDF*, Vector3__double*, double);
+
+// Depth 13
+typedef double*(*Fn__SDF_MUL__double_MUL_)(SDF*);
+
 // Depth 14
 typedef World(*Fn__Array__Chunk_int_NoiseState_World)(Array__Chunk, int, NoiseState);
 
 // Depth 14
-typedef void(*Fn__Player_MUL__World_MUL__double_void)(Player*, World*, double);
+typedef void(*Fn__Player_MUL__World_MUL__double_Vector3__double_MUL__void)(Player*, World*, double, Vector3__double*);
 
 // Depth 14
 typedef Array__Chunk*(*Fn__World_MUL__Array__Chunk_MUL_)(World*);
 
 // Depth 14
-typedef void(*Fn__World_MUL__Camera_MUL__double_double_MUL__bool_MUL__void)(World*, Camera*, double, double*, bool*);
+typedef void(*Fn__World_MUL__Camera_MUL__Vector3__double_MUL__double_MUL__bool_MUL__void)(World*, Camera*, Vector3__double*, double*, bool*);
 
 // Depth 14
 typedef NoiseState*(*Fn__World_MUL__NoiseState_MUL_)(World*);
 
 // Depth 14
 typedef String(*Fn__World_MUL__String)(World*);
-
-// Depth 14
-typedef Vector3__double(*Fn__World_MUL__Vector3__double_MUL__Vector3__double)(World*, Vector3__double*);
 
 // Depth 14
 typedef Maybe__Vector3__double(*Fn__World_MUL__Vector3__double_MUL__Vector3__double_MUL__double_Maybe__Vector3__double)(World*, Vector3__double*, Vector3__double*, double);
@@ -1359,6 +1827,9 @@ typedef float(*Fn__World_MUL__Vector3__double_MUL__float)(World*, Vector3__doubl
 
 // Depth 14
 typedef Maybe__Chunk(*Fn__World_MUL__int_int_int_Maybe__Chunk)(World*, int, int, int);
+
+// Depth 14
+typedef bool(*Fn__World_MUL__int_int_int_bool)(World*, int, int, int);
 
 // Depth 14
 typedef float(*Fn__World_MUL__int_int_int_float)(World*, int, int, int);
@@ -1822,6 +2293,12 @@ struct Engine {
 };
 
 // Depth 103
+struct Handle__void {
+    Uint64 index_MINUS_raw;
+    Uint32 generation_MINUS_raw;
+};
+
+// Depth 103
 struct LinePassRenderer {
     WGPUGeomPipelineWrapper* pipeline;
     WGPUUniformBufferWrapper* u_MINUS_buffer;
@@ -2095,6 +2572,9 @@ typedef uint8_t(*Fn__Uint32_MUL__uint8_t)(Uint32*);
 
 // Depth 104
 typedef String(*Fn__Uint32_String)(Uint32);
+
+// Depth 104
+typedef Uint32(*Fn__Uint32_Uint32)(Uint32);
 
 // Depth 104
 typedef Uint32(*Fn__Uint32_Uint32_Uint32)(Uint32, Uint32);
@@ -2525,6 +3005,13 @@ struct Result__LinePassRenderer_String {
 #define Result__LinePassRenderer_String_Error_tag 1
 
 // Depth 105
+struct ContactSet {
+    Handle__void a;
+    Handle__void b;
+    Array__Contact contacts;
+};
+
+// Depth 105
 struct Renderer {
     WGPURenderPipelineWrapper* pipeline;
     WGPUBindGroup bind_MINUS_group;
@@ -2700,6 +3187,15 @@ typedef void(*Fn__Engine_void)(Engine);
 
 // Depth 106
 typedef Result__FILE_MUL__String(*Fn__FILE_MUL__Result__FILE_MUL__String)(FILE*);
+
+// Depth 106
+typedef Handle__void(*Fn__Handle__void_Handle__void)(Handle__void);
+
+// Depth 106
+typedef Handle__void(*Fn__Handle__void_MUL__Handle__void)(Handle__void*);
+
+// Depth 106
+typedef String(*Fn__Handle__void_MUL__String)(Handle__void*);
 
 // Depth 106
 typedef LinePassRenderer(*Fn__LinePassRenderer_LinePassRenderer)(LinePassRenderer);
@@ -3145,6 +3641,15 @@ struct Diagnostics {
 };
 
 // Depth 108
+typedef Array__Contact*(*Fn__ContactSet_MUL__Array__Contact_MUL_)(ContactSet*);
+
+// Depth 108
+typedef Handle__void*(*Fn__ContactSet_MUL__Handle__void_MUL_)(ContactSet*);
+
+// Depth 108
+typedef String(*Fn__ContactSet_MUL__String)(ContactSet*);
+
+// Depth 108
 typedef void(*Fn__Engine_MUL__Renderer_MUL__Camera_MUL__void)(Engine*, Renderer*, Camera*);
 
 // Depth 108
@@ -3155,6 +3660,9 @@ typedef void(*Fn__Engine_MUL__Renderer_MUL__void)(Engine*, Renderer*);
 
 // Depth 108
 typedef Result__Engine_String(*Fn__Engine_Result__Engine_String)(Engine);
+
+// Depth 108
+typedef ContactSet(*Fn__Handle__void_Handle__void_Array__Contact_ContactSet)(Handle__void, Handle__void, Array__Contact);
 
 // Depth 108
 typedef Result__LinePassRenderer_String(*Fn__LinePassRenderer_Result__LinePassRenderer_String)(LinePassRenderer);
@@ -3609,7 +4117,16 @@ typedef Array__ActiveTimer(*Fn__LambdaEnv_Array__ActiveTimer_Array__ActiveTimer)
 typedef Array__Chunk(*Fn__LambdaEnv_Array__Chunk_Array__Chunk)(LambdaEnv, Array__Chunk);
 
 // Depth 505
+typedef Array__Contact(*Fn__LambdaEnv_Array__Contact_Array__Contact)(LambdaEnv, Array__Contact);
+
+// Depth 505
+typedef Array__CsgNode(*Fn__LambdaEnv_Array__CsgNode_Array__CsgNode)(LambdaEnv, Array__CsgNode);
+
+// Depth 505
 typedef Array__Line(*Fn__LambdaEnv_Array__Line_Array__Line)(LambdaEnv, Array__Line);
+
+// Depth 505
+typedef Array__LocalCrater(*Fn__LambdaEnv_Array__LocalCrater_Array__LocalCrater)(LambdaEnv, Array__LocalCrater);
 
 // Depth 505
 typedef Array__ZoneStats(*Fn__LambdaEnv_Array__ZoneStats_Array__ZoneStats)(LambdaEnv, Array__ZoneStats);
@@ -3619,6 +4136,9 @@ typedef Array__float(*Fn__LambdaEnv_Array__float_Array__float)(LambdaEnv, Array_
 
 // Depth 505
 typedef Array__int(*Fn__LambdaEnv_Array__int_Array__int)(LambdaEnv, Array__int);
+
+// Depth 505
+typedef BaseShape(*Fn__LambdaEnv_BaseShape_BaseShape)(LambdaEnv, BaseShape);
 
 // Depth 505
 typedef Camera(*Fn__LambdaEnv_Camera_Camera)(LambdaEnv, Camera);
@@ -3633,6 +4153,9 @@ typedef Engine(*Fn__LambdaEnv_Engine_Engine)(LambdaEnv, Engine);
 typedef GLFWwindow*(*Fn__LambdaEnv_GLFWwindow_MUL__GLFWwindow_MUL_)(LambdaEnv, GLFWwindow*);
 
 // Depth 505
+typedef Handle__void(*Fn__LambdaEnv_Handle__void_Handle__void)(LambdaEnv, Handle__void);
+
+// Depth 505
 typedef JobHandle*(*Fn__LambdaEnv_JobHandle_MUL__JobHandle_MUL_)(LambdaEnv, JobHandle*);
 
 // Depth 505
@@ -3643,6 +4166,9 @@ typedef NoiseState(*Fn__LambdaEnv_NoiseState_NoiseState)(LambdaEnv, NoiseState);
 
 // Depth 505
 typedef Player(*Fn__LambdaEnv_Player_Player)(LambdaEnv, Player);
+
+// Depth 505
+typedef Quaternion(*Fn__LambdaEnv_Quaternion_Quaternion)(LambdaEnv, Quaternion);
 
 // Depth 505
 typedef Renderer(*Fn__LambdaEnv_Renderer_Renderer)(LambdaEnv, Renderer);
@@ -3657,10 +4183,16 @@ typedef bool(*Fn__LambdaEnv_Result__Uint32_Array__uint8_t_MUL__bool)(LambdaEnv, 
 typedef bool(*Fn__LambdaEnv_Result__Uint64_Array__uint8_t_MUL__bool)(LambdaEnv, Result__Uint64_Array__uint8_t*);
 
 // Depth 505
+typedef SDF*(*Fn__LambdaEnv_SDF_MUL__SDF_MUL_)(LambdaEnv, SDF*);
+
+// Depth 505
 typedef bool(*Fn__LambdaEnv_String_MUL__bool)(LambdaEnv, String*);
 
 // Depth 505
 typedef String(*Fn__LambdaEnv_String_String)(LambdaEnv, String);
+
+// Depth 505
+typedef Uint32(*Fn__LambdaEnv_Uint32_Uint32)(LambdaEnv, Uint32);
 
 // Depth 505
 typedef Uint64(*Fn__LambdaEnv_Uint64_Uint64)(LambdaEnv, Uint64);
@@ -3810,10 +4342,19 @@ bool _DIV__EQ___uint8_t(uint8_t a, uint8_t b);
 bool _LT__EQ___Char(Char a, Char b);
 
 // Depth 500
+bool _LT__EQ___double(double a, double b);
+
+// Depth 500
+bool _LT__EQ___float(float a, float b);
+
+// Depth 500
 bool _LT__EQ___int(int a, int b);
 
 // Depth 500
 bool _GT__EQ___double(double a, double b);
+
+// Depth 500
+bool _GT__EQ___float(float a, float b);
 
 // Depth 500
 bool _GT__EQ___int(int a, int b);
@@ -3907,6 +4448,9 @@ Vector3__Lambda_mul__double_13_env_ty* Vector3__Lambda_mul__double_13_env_ty_cop
 
 // Depth 500
 void Vector3__Lambda_mul__double_13_env_ty_delete(Vector3__Lambda_mul__double_13_env_ty* p);
+
+// Depth 500
+double clamp__double(double min, double max, double val);
 
 // Depth 500
 String* copy_MINUS_wgsl;
@@ -4050,6 +4594,47 @@ void set_MINUS_js_MINUS_solid_MINUS_mat(float m);
 
 // Depth 500
 String* voxel_MINUS_wgsl;
+
+// Depth 1000
+
+// Depth 500
+AABB AABB_copy(AABB* pRef);
+
+// Depth 500
+void AABB_delete(AABB p);
+
+// Depth 500
+AABB AABB_init(Vector3__double min, Vector3__double max);
+
+// Depth 500
+Vector3__double* AABB_max(AABB* p);
+
+// Depth 500
+Vector3__double* AABB_min(AABB* p);
+
+// Depth 500
+String AABB_prn(AABB *p);
+
+// Depth 500
+AABB AABB_set_MINUS_max(AABB p, Vector3__double newValue);
+
+// Depth 500
+void AABB_set_MINUS_max_BANG_(AABB* pRef, Vector3__double newValue);
+
+// Depth 500
+AABB AABB_set_MINUS_min(AABB p, Vector3__double newValue);
+
+// Depth 500
+void AABB_set_MINUS_min_BANG_(AABB* pRef, Vector3__double newValue);
+
+// Depth 500
+String AABB_str(AABB *p);
+
+// Depth 500
+AABB AABB_update_MINUS_max(AABB p, Lambda *updater);
+
+// Depth 500
+AABB AABB_update_MINUS_min(AABB p, Lambda *updater);
 
 // Depth 1000
 
@@ -4263,7 +4848,16 @@ Array Array_copy__ActiveTimer (Array* a);
 Array Array_copy__Chunk (Array* a);
 
 // Depth 500
+Array Array_copy__Contact (Array* a);
+
+// Depth 500
+Array Array_copy__CsgNode (Array* a);
+
+// Depth 500
 Array Array_copy__Line (Array* a);
+
+// Depth 500
+Array Array_copy__LocalCrater (Array* a);
 
 // Depth 500
 Array Array_copy__Result__Uint16_Array__uint8_t (Array* a);
@@ -4311,7 +4905,16 @@ void Array_delete__Chunk (Array a);
 void Array_delete__ChunkCoord (Array a);
 
 // Depth 500
+void Array_delete__Contact (Array a);
+
+// Depth 500
+void Array_delete__CsgNode (Array a);
+
+// Depth 500
 void Array_delete__Line (Array a);
+
+// Depth 500
+void Array_delete__LocalCrater (Array a);
 
 // Depth 500
 void Array_delete__PatternMatchResult (Array a);
@@ -4339,6 +4942,9 @@ void Array_delete__Uint64 (Array a);
 
 // Depth 500
 void Array_delete__Vec3 (Array a);
+
+// Depth 500
+void Array_delete__Vector3__double (Array a);
 
 // Depth 500
 void Array_delete__WGPUBuffer (Array a);
@@ -4389,7 +4995,16 @@ int Array_length__Chunk (Array *a);
 int Array_length__ChunkCoord (Array *a);
 
 // Depth 500
+int Array_length__Contact (Array *a);
+
+// Depth 500
+int Array_length__CsgNode (Array *a);
+
+// Depth 500
 int Array_length__Line (Array *a);
+
+// Depth 500
+int Array_length__LocalCrater (Array *a);
 
 // Depth 500
 int Array_length__PatternMatchResult (Array *a);
@@ -4452,7 +5067,16 @@ String Array_prn__ActiveTimer(Array__ActiveTimer* x);
 String Array_prn__Chunk(Array__Chunk* x);
 
 // Depth 500
+String Array_prn__Contact(Array__Contact* x);
+
+// Depth 500
+String Array_prn__CsgNode(Array__CsgNode* x);
+
+// Depth 500
 String Array_prn__Line(Array__Line* x);
+
+// Depth 500
+String Array_prn__LocalCrater(Array__LocalCrater* x);
 
 // Depth 500
 String Array_prn__ZoneStats(Array__ZoneStats* x);
@@ -4473,7 +5097,19 @@ void Array_push_MINUS_back_BANG___Chunk(Array *aRef, Chunk value);
 void Array_push_MINUS_back_BANG___ChunkCoord(Array *aRef, ChunkCoord value);
 
 // Depth 500
+void Array_push_MINUS_back_BANG___Contact(Array *aRef, Contact value);
+
+// Depth 500
+void Array_push_MINUS_back_BANG___CsgNode(Array *aRef, CsgNode value);
+
+// Depth 500
 void Array_push_MINUS_back_BANG___Line(Array *aRef, Line value);
+
+// Depth 500
+void Array_push_MINUS_back_BANG___LocalCrater(Array *aRef, LocalCrater value);
+
+// Depth 500
+void Array_push_MINUS_back_BANG___Vector3__double(Array *aRef, Vector3__double value);
 
 // Depth 500
 void Array_push_MINUS_back_BANG___ZoneStats(Array *aRef, ZoneStats value);
@@ -4524,7 +5160,16 @@ String Array_str__ActiveTimer (Array* a);
 String Array_str__Chunk (Array* a);
 
 // Depth 500
+String Array_str__Contact (Array* a);
+
+// Depth 500
+String Array_str__CsgNode (Array* a);
+
+// Depth 500
 String Array_str__Line (Array* a);
+
+// Depth 500
+String Array_str__LocalCrater (Array* a);
 
 // Depth 500
 String Array_str__ZoneStats (Array* a);
@@ -4554,7 +5199,16 @@ Chunk* Array_unsafe_MINUS_nth__Chunk (Array *aRef, int n);
 ChunkCoord* Array_unsafe_MINUS_nth__ChunkCoord (Array *aRef, int n);
 
 // Depth 500
+Contact* Array_unsafe_MINUS_nth__Contact (Array *aRef, int n);
+
+// Depth 500
+CsgNode* Array_unsafe_MINUS_nth__CsgNode (Array *aRef, int n);
+
+// Depth 500
 Line* Array_unsafe_MINUS_nth__Line (Array *aRef, int n);
+
+// Depth 500
+LocalCrater* Array_unsafe_MINUS_nth__LocalCrater (Array *aRef, int n);
 
 // Depth 500
 PatternMatchResult* Array_unsafe_MINUS_nth__PatternMatchResult (Array *aRef, int n);
@@ -4603,6 +5257,44 @@ int* Array_unsafe_MINUS_raw__int (Array* a);
 
 // Depth 500
 Array__uint8_t Array_zero__uint8_t();
+
+// Depth 1000
+
+// Depth 500
+BaseShape BaseShape_Ball(double member0);
+
+// Depth 500
+BaseShape BaseShape_Box(Vector3__double member0);
+
+// Depth 500
+BaseShape BaseShape_Capsule(double member0, double member1);
+
+// Depth 500
+BaseShape BaseShape_Cylinder(double member0, double member1);
+
+// Depth 500
+BaseShape BaseShape_Octahedron(double member0);
+
+// Depth 500
+BaseShape BaseShape_Surface(Plane member0);
+
+// Depth 500
+BaseShape BaseShape_Torus(double member0, double member1);
+
+// Depth 500
+BaseShape BaseShape_copy(BaseShape* pRef);
+
+// Depth 500
+void BaseShape_delete(BaseShape p);
+
+// Depth 500
+int BaseShape_get_MINUS_tag(BaseShape *p);
+
+// Depth 500
+String BaseShape_prn(BaseShape *p);
+
+// Depth 500
+String BaseShape_str(BaseShape *p);
 
 // Depth 1000
 
@@ -4795,6 +5487,20 @@ String BoolRef_prn(bool* x);
 
 // Depth 500
 String BoolRef_str(bool* x);
+
+// Depth 1000
+
+// Depth 500
+SDF* Box_copy__SDF (SDF** box);
+
+// Depth 500
+void Box_delete__SDF (SDF* box);
+
+// Depth 500
+SDF* Box_peek__SDF(SDF** box_ref);
+
+// Depth 500
+String Box_prn__SDF (SDF** box);
 
 // Depth 1000
 
@@ -5278,6 +5984,162 @@ int* ChunkCoord_y(ChunkCoord* p);
 
 // Depth 500
 int* ChunkCoord_z(ChunkCoord* p);
+
+// Depth 1000
+
+// Depth 500
+Contact Contact_copy(Contact* pRef);
+
+// Depth 500
+void Contact_delete(Contact p);
+
+// Depth 500
+double* Contact_depth(Contact* p);
+
+// Depth 500
+Contact Contact_init(double depth, Vector3__double point, Vector3__double normal);
+
+// Depth 500
+Vector3__double* Contact_normal(Contact* p);
+
+// Depth 500
+Vector3__double* Contact_point(Contact* p);
+
+// Depth 500
+String Contact_prn(Contact *p);
+
+// Depth 500
+Contact Contact_reverse(Contact* c);
+
+// Depth 500
+Contact Contact_set_MINUS_depth(Contact p, double newValue);
+
+// Depth 500
+void Contact_set_MINUS_depth_BANG_(Contact* pRef, double newValue);
+
+// Depth 500
+Contact Contact_set_MINUS_normal(Contact p, Vector3__double newValue);
+
+// Depth 500
+void Contact_set_MINUS_normal_BANG_(Contact* pRef, Vector3__double newValue);
+
+// Depth 500
+Contact Contact_set_MINUS_point(Contact p, Vector3__double newValue);
+
+// Depth 500
+void Contact_set_MINUS_point_BANG_(Contact* pRef, Vector3__double newValue);
+
+// Depth 500
+String Contact_str(Contact *p);
+
+// Depth 500
+Contact Contact_update_MINUS_depth(Contact p, Lambda *updater);
+
+// Depth 500
+Contact Contact_update_MINUS_normal(Contact p, Lambda *updater);
+
+// Depth 500
+Contact Contact_update_MINUS_point(Contact p, Lambda *updater);
+
+// Depth 1000
+
+// Depth 500
+Handle__void* ContactSet_a(ContactSet* p);
+
+// Depth 500
+Handle__void* ContactSet_b(ContactSet* p);
+
+// Depth 500
+Array__Contact* ContactSet_contacts(ContactSet* p);
+
+// Depth 500
+ContactSet ContactSet_copy(ContactSet* pRef);
+
+// Depth 500
+void ContactSet_delete(ContactSet p);
+
+// Depth 500
+ContactSet ContactSet_init(Handle__void a, Handle__void b, Array__Contact contacts);
+
+// Depth 500
+ContactSet ContactSet_new(Handle__void a, Handle__void b, Array__Contact contacts);
+
+// Depth 500
+String ContactSet_prn(ContactSet *p);
+
+// Depth 500
+ContactSet ContactSet_reverse(ContactSet* cs);
+
+// Depth 500
+ContactSet ContactSet_set_MINUS_a(ContactSet p, Handle__void newValue);
+
+// Depth 500
+void ContactSet_set_MINUS_a_BANG_(ContactSet* pRef, Handle__void newValue);
+
+// Depth 500
+ContactSet ContactSet_set_MINUS_b(ContactSet p, Handle__void newValue);
+
+// Depth 500
+void ContactSet_set_MINUS_b_BANG_(ContactSet* pRef, Handle__void newValue);
+
+// Depth 500
+ContactSet ContactSet_set_MINUS_contacts(ContactSet p, Array__Contact newValue);
+
+// Depth 500
+void ContactSet_set_MINUS_contacts_BANG_(ContactSet* pRef, Array__Contact newValue);
+
+// Depth 500
+String ContactSet_str(ContactSet *p);
+
+// Depth 500
+ContactSet ContactSet_update_MINUS_a(ContactSet p, Lambda *updater);
+
+// Depth 500
+ContactSet ContactSet_update_MINUS_b(ContactSet p, Lambda *updater);
+
+// Depth 500
+ContactSet ContactSet_update_MINUS_contacts(ContactSet p, Lambda *updater);
+
+// Depth 1000
+
+// Depth 500
+CsgNode CsgNode_copy(CsgNode* pRef);
+
+// Depth 500
+void CsgNode_delete(CsgNode p);
+
+// Depth 500
+CsgNode CsgNode_init(SDF* shape, int op);
+
+// Depth 500
+int* CsgNode_op(CsgNode* p);
+
+// Depth 500
+String CsgNode_prn(CsgNode *p);
+
+// Depth 500
+CsgNode CsgNode_set_MINUS_op(CsgNode p, int newValue);
+
+// Depth 500
+void CsgNode_set_MINUS_op_BANG_(CsgNode* pRef, int newValue);
+
+// Depth 500
+CsgNode CsgNode_set_MINUS_shape(CsgNode p, SDF* newValue);
+
+// Depth 500
+void CsgNode_set_MINUS_shape_BANG_(CsgNode* pRef, SDF* newValue);
+
+// Depth 500
+SDF** CsgNode_shape(CsgNode* p);
+
+// Depth 500
+String CsgNode_str(CsgNode *p);
+
+// Depth 500
+CsgNode CsgNode_update_MINUS_op(CsgNode p, Lambda *updater);
+
+// Depth 500
+CsgNode CsgNode_update_MINUS_shape(CsgNode p, Lambda *updater);
 
 // Depth 1000
 
@@ -6005,6 +6867,84 @@ void Function_delete__void_MUL__void (Lambda f);
 // Depth 1000
 
 // Depth 500
+double Geometry_EPSILON;
+
+// Depth 500
+Plane Geometry_create_MINUS_plane(Vector3__double* p, Vector3__double* n);
+
+// Depth 500
+Ray Geometry_create_MINUS_ray(Vector3__double* origin, Vector3__double* direction);
+
+// Depth 1000
+
+// Depth 500
+Maybe__Contact Geometry_AABB_collide_MINUS_aabb(AABB* a, AABB* b);
+
+// Depth 500
+bool Geometry_AABB_contains_QMARK_(AABB* a, Vector3__double* p);
+
+// Depth 1000
+
+// Depth 500
+Vector3__double Geometry_Ray_at(Ray* r, double t);
+
+// Depth 500
+Array__Vector3__double Geometry_Ray_fibonacci_MINUS_samples;
+
+// Depth 500
+Array__Vector3__double Geometry_Ray_fibonacci_MINUS_sphere(int samples);
+
+// Depth 500
+Maybe__RayHit Geometry_Ray_intersect_MINUS_aabb(Ray* ray, AABB* aabb);
+
+// Depth 500
+Maybe__RayHit Geometry_Ray_intersect_MINUS_sphere(Ray* ray, Sphere* sphere);
+
+// Depth 1000
+
+// Depth 500
+Vector3__double Geometry_Segment_direction(Segment* s);
+
+// Depth 500
+Maybe__RayHit Geometry_Segment_intersect_MINUS_aabb(Segment* s, AABB* aabb);
+
+// Depth 500
+Maybe__RayHit Geometry_Segment_intersect_MINUS_sdf(Segment* s, SDF* sdf);
+
+// Depth 500
+Maybe__RayHit Geometry_Segment_intersect_MINUS_sphere(Segment* s, Sphere* sphere);
+
+// Depth 500
+double Geometry_Segment_length(Segment* s);
+
+// Depth 1000
+
+// Depth 500
+Maybe__Contact Geometry_Sphere_collide_MINUS_aabb(Sphere* sphere, AABB* aabb);
+
+// Depth 500
+Maybe__Contact Geometry_Sphere_collide_MINUS_sdf(Sphere* sphere, SDF* sdf);
+
+// Depth 500
+Maybe__Contact Geometry_Sphere_collide_MINUS_sphere(Sphere* s1, Sphere* s2);
+
+// Depth 500
+bool Geometry_Sphere_contains_QMARK_(Sphere* s, Vector3__double* p);
+
+// Depth 1000
+
+// Depth 500
+Handle__void Handle_copy__void(Handle__void* pRef);
+
+// Depth 500
+void Handle_delete__void(Handle__void p);
+
+// Depth 500
+String Handle_prn__void(Handle__void *p);
+
+// Depth 1000
+
+// Depth 500
 int Heap_lchild(int i);
 
 // Depth 500
@@ -6423,6 +7363,47 @@ Array__float* LinePassRenderer_v_MINUS_data(LinePassRenderer* p);
 // Depth 1000
 
 // Depth 500
+LocalCrater LocalCrater_copy(LocalCrater* pRef);
+
+// Depth 500
+void LocalCrater_delete(LocalCrater p);
+
+// Depth 500
+LocalCrater LocalCrater_init(Vector3__double pos, double radius);
+
+// Depth 500
+Vector3__double* LocalCrater_pos(LocalCrater* p);
+
+// Depth 500
+String LocalCrater_prn(LocalCrater *p);
+
+// Depth 500
+double* LocalCrater_radius(LocalCrater* p);
+
+// Depth 500
+LocalCrater LocalCrater_set_MINUS_pos(LocalCrater p, Vector3__double newValue);
+
+// Depth 500
+void LocalCrater_set_MINUS_pos_BANG_(LocalCrater* pRef, Vector3__double newValue);
+
+// Depth 500
+LocalCrater LocalCrater_set_MINUS_radius(LocalCrater p, double newValue);
+
+// Depth 500
+void LocalCrater_set_MINUS_radius_BANG_(LocalCrater* pRef, double newValue);
+
+// Depth 500
+String LocalCrater_str(LocalCrater *p);
+
+// Depth 500
+LocalCrater LocalCrater_update_MINUS_pos(LocalCrater p, Lambda *updater);
+
+// Depth 500
+LocalCrater LocalCrater_update_MINUS_radius(LocalCrater p, Lambda *updater);
+
+// Depth 1000
+
+// Depth 500
 LogLevel LogLevel_Critical();
 
 // Depth 500
@@ -6533,7 +7514,13 @@ int Map_min_MINUS_load;
 Maybe__Chunk Maybe_Just__Chunk(Chunk member0);
 
 // Depth 500
+Maybe__Contact Maybe_Just__Contact(Contact member0);
+
+// Depth 500
 Maybe__Long Maybe_Just__Long(Long member0);
+
+// Depth 500
+Maybe__RayHit Maybe_Just__RayHit(RayHit member0);
 
 // Depth 500
 Maybe__String Maybe_Just__String(String member0);
@@ -6572,7 +7559,13 @@ Maybe__uint8_t Maybe_Just__uint8_t(uint8_t member0);
 Maybe__Chunk Maybe_Nothing__Chunk();
 
 // Depth 500
+Maybe__Contact Maybe_Nothing__Contact();
+
+// Depth 500
 Maybe__Long Maybe_Nothing__Long();
+
+// Depth 500
+Maybe__RayHit Maybe_Nothing__RayHit();
 
 // Depth 500
 Maybe__String Maybe_Nothing__String();
@@ -6611,7 +7604,13 @@ Maybe__uint8_t Maybe_Nothing__uint8_t();
 void Maybe_delete__Chunk(Maybe__Chunk p);
 
 // Depth 500
+void Maybe_delete__Contact(Maybe__Contact p);
+
+// Depth 500
 void Maybe_delete__Long(Maybe__Long p);
+
+// Depth 500
+void Maybe_delete__RayHit(Maybe__RayHit p);
 
 // Depth 500
 void Maybe_delete__String(Maybe__String p);
@@ -6884,16 +7883,75 @@ PatternMatchResult Pattern_MatchResult_update_MINUS_start(PatternMatchResult p, 
 int Physics_clamp__int(int min_MINUS_val, int max_MINUS_val, int val);
 
 // Depth 500
+double Physics_dmax__double(double a, double b);
+
+// Depth 500
+double Physics_dmin__double(double a, double b);
+
+// Depth 500
 Vector3__double Physics_estimate_MINUS_sdf_MINUS_normal(World* world, Vector3__double* p);
 
 // Depth 500
-void Physics_resolve_MINUS_camera_MINUS_collision_BANG_(World* world, Camera* cam, double radius, double* vel_MINUS_y_MINUS_ptr, bool* on_MINUS_ground_MINUS_ptr);
+AABB Physics_get_MINUS_player_MINUS_aabb_MINUS_shrunk(Vector3__double* pos, double sx, double sy, double sz);
+
+// Depth 500
+bool Physics_is_MINUS_solid_MINUS_at_QMARK_(World* world, int gx, int gy, int gz);
+
+// Depth 500
+void Physics_resolve_MINUS_camera_MINUS_collision_BANG_(World* world, Camera* cam, Vector3__double* prev_MINUS_pos, double* vel_MINUS_y_MINUS_ptr, bool* on_MINUS_ground_MINUS_ptr);
 
 // Depth 500
 float Physics_sample_MINUS_sdf_MINUS_at(World* world, int gx, int gy, int gz);
 
 // Depth 500
 float Physics_sample_MINUS_sdf_MINUS_trilinear(World* world, Vector3__double* p);
+
+// Depth 1000
+
+// Depth 500
+Plane Plane_copy(Plane* pRef);
+
+// Depth 500
+double* Plane_d(Plane* p);
+
+// Depth 500
+void Plane_delete(Plane p);
+
+// Depth 500
+double Plane_distance_MINUS_to_MINUS_point(Plane* plane, Vector3__double* p);
+
+// Depth 500
+Plane Plane_init(Vector3__double normal, double d);
+
+// Depth 500
+Vector3__double* Plane_normal(Plane* p);
+
+// Depth 500
+String Plane_prn(Plane *p);
+
+// Depth 500
+Vector3__double Plane_project_MINUS_point(Plane* plane, Vector3__double* p);
+
+// Depth 500
+Plane Plane_set_MINUS_d(Plane p, double newValue);
+
+// Depth 500
+void Plane_set_MINUS_d_BANG_(Plane* pRef, double newValue);
+
+// Depth 500
+Plane Plane_set_MINUS_normal(Plane p, Vector3__double newValue);
+
+// Depth 500
+void Plane_set_MINUS_normal_BANG_(Plane* pRef, Vector3__double newValue);
+
+// Depth 500
+String Plane_str(Plane *p);
+
+// Depth 500
+Plane Plane_update_MINUS_d(Plane p, Lambda *updater);
+
+// Depth 500
+Plane Plane_update_MINUS_normal(Plane p, Lambda *updater);
 
 // Depth 1000
 
@@ -7099,7 +8157,7 @@ Player Player_update_MINUS_n_MINUS_last(Player p, Lambda *updater);
 Player Player_update_MINUS_on_MINUS_ground(Player p, Lambda *updater);
 
 // Depth 500
-void Player_update_MINUS_physics_BANG_(Player* player, World* world, double dt);
+void Player_update_MINUS_physics_BANG_(Player* player, World* world, double dt, Vector3__double* prev_MINUS_pos);
 
 // Depth 500
 Player Player_update_MINUS_rbracket_MINUS_last(Player p, Lambda *updater);
@@ -7229,6 +8287,110 @@ int Pointer_to_MINUS_value__int(int* p);
 // Depth 1000
 
 // Depth 500
+Quaternion Quaternion_add(Quaternion* a, Quaternion* b);
+
+// Depth 500
+Quaternion Quaternion_conjugate(Quaternion* q);
+
+// Depth 500
+Quaternion Quaternion_copy(Quaternion* pRef);
+
+// Depth 500
+void Quaternion_delete(Quaternion p);
+
+// Depth 500
+Quaternion Quaternion_from_MINUS_axis_MINUS_angle(Vector3__double axis, double angle);
+
+// Depth 500
+Quaternion Quaternion_from_MINUS_euler(double yaw, double pitch, double roll);
+
+// Depth 500
+Quaternion Quaternion_identity();
+
+// Depth 500
+Quaternion Quaternion_init(double x, double y, double z, double w);
+
+// Depth 500
+Quaternion Quaternion_inverse(Quaternion* q);
+
+// Depth 500
+Quaternion Quaternion_mul(Quaternion* a, Quaternion* b);
+
+// Depth 500
+Quaternion Quaternion_mul_MINUS_raw(Quaternion* a, Quaternion* b);
+
+// Depth 500
+Quaternion Quaternion_new(double x, double y, double z, double w);
+
+// Depth 500
+Quaternion Quaternion_normalize(Quaternion* q);
+
+// Depth 500
+String Quaternion_prn(Quaternion *p);
+
+// Depth 500
+Vector3__double Quaternion_rotate(Quaternion* q, Vector3__double* v);
+
+// Depth 500
+Quaternion Quaternion_scale(Quaternion* q, double s);
+
+// Depth 500
+Quaternion Quaternion_set_MINUS_w(Quaternion p, double newValue);
+
+// Depth 500
+void Quaternion_set_MINUS_w_BANG_(Quaternion* pRef, double newValue);
+
+// Depth 500
+Quaternion Quaternion_set_MINUS_x(Quaternion p, double newValue);
+
+// Depth 500
+void Quaternion_set_MINUS_x_BANG_(Quaternion* pRef, double newValue);
+
+// Depth 500
+Quaternion Quaternion_set_MINUS_y(Quaternion p, double newValue);
+
+// Depth 500
+void Quaternion_set_MINUS_y_BANG_(Quaternion* pRef, double newValue);
+
+// Depth 500
+Quaternion Quaternion_set_MINUS_z(Quaternion p, double newValue);
+
+// Depth 500
+void Quaternion_set_MINUS_z_BANG_(Quaternion* pRef, double newValue);
+
+// Depth 500
+String Quaternion_str(Quaternion *p);
+
+// Depth 500
+Vector3__double Quaternion_to_MINUS_euler(Quaternion* q);
+
+// Depth 500
+Quaternion Quaternion_update_MINUS_w(Quaternion p, Lambda *updater);
+
+// Depth 500
+Quaternion Quaternion_update_MINUS_x(Quaternion p, Lambda *updater);
+
+// Depth 500
+Quaternion Quaternion_update_MINUS_y(Quaternion p, Lambda *updater);
+
+// Depth 500
+Quaternion Quaternion_update_MINUS_z(Quaternion p, Lambda *updater);
+
+// Depth 500
+double* Quaternion_w(Quaternion* p);
+
+// Depth 500
+double* Quaternion_x(Quaternion* p);
+
+// Depth 500
+double* Quaternion_y(Quaternion* p);
+
+// Depth 500
+double* Quaternion_z(Quaternion* p);
+
+// Depth 1000
+
+// Depth 500
 bool Random__;
 
 // Depth 500
@@ -7254,6 +8416,100 @@ void Random_seed();
 
 // Depth 500
 void Random_seed_MINUS_from(double new_MINUS_seed);
+
+// Depth 1000
+
+// Depth 500
+Ray Ray_copy(Ray* pRef);
+
+// Depth 500
+void Ray_delete(Ray p);
+
+// Depth 500
+Vector3__double* Ray_direction(Ray* p);
+
+// Depth 500
+Ray Ray_init(Vector3__double origin, Vector3__double direction);
+
+// Depth 500
+Vector3__double* Ray_origin(Ray* p);
+
+// Depth 500
+String Ray_prn(Ray *p);
+
+// Depth 500
+Ray Ray_set_MINUS_direction(Ray p, Vector3__double newValue);
+
+// Depth 500
+void Ray_set_MINUS_direction_BANG_(Ray* pRef, Vector3__double newValue);
+
+// Depth 500
+Ray Ray_set_MINUS_origin(Ray p, Vector3__double newValue);
+
+// Depth 500
+void Ray_set_MINUS_origin_BANG_(Ray* pRef, Vector3__double newValue);
+
+// Depth 500
+String Ray_str(Ray *p);
+
+// Depth 500
+Ray Ray_update_MINUS_direction(Ray p, Lambda *updater);
+
+// Depth 500
+Ray Ray_update_MINUS_origin(Ray p, Lambda *updater);
+
+// Depth 1000
+
+// Depth 500
+RayHit RayHit_copy(RayHit* pRef);
+
+// Depth 500
+void RayHit_delete(RayHit p);
+
+// Depth 500
+RayHit RayHit_init(double t, Vector3__double point, Vector3__double normal);
+
+// Depth 500
+Vector3__double* RayHit_normal(RayHit* p);
+
+// Depth 500
+Vector3__double* RayHit_point(RayHit* p);
+
+// Depth 500
+String RayHit_prn(RayHit *p);
+
+// Depth 500
+RayHit RayHit_set_MINUS_normal(RayHit p, Vector3__double newValue);
+
+// Depth 500
+void RayHit_set_MINUS_normal_BANG_(RayHit* pRef, Vector3__double newValue);
+
+// Depth 500
+RayHit RayHit_set_MINUS_point(RayHit p, Vector3__double newValue);
+
+// Depth 500
+void RayHit_set_MINUS_point_BANG_(RayHit* pRef, Vector3__double newValue);
+
+// Depth 500
+RayHit RayHit_set_MINUS_t(RayHit p, double newValue);
+
+// Depth 500
+void RayHit_set_MINUS_t_BANG_(RayHit* pRef, double newValue);
+
+// Depth 500
+String RayHit_str(RayHit *p);
+
+// Depth 500
+double* RayHit_t(RayHit* p);
+
+// Depth 500
+RayHit RayHit_update_MINUS_normal(RayHit p, Lambda *updater);
+
+// Depth 500
+RayHit RayHit_update_MINUS_point(RayHit p, Lambda *updater);
+
+// Depth 500
+RayHit RayHit_update_MINUS_t(RayHit p, Lambda *updater);
 
 // Depth 1000
 
@@ -8002,6 +9258,187 @@ Uint64 Result_unwrap_MINUS_or_MINUS_zero__Uint64_Array__uint8_t(Result__Uint64_A
 // Depth 1000
 
 // Depth 500
+void SDF_add_MINUS_crater_BANG_(SDF* sdf, LocalCrater c);
+
+// Depth 500
+void SDF_add_MINUS_csg_MINUS_node_BANG_(SDF* sdf, CsgNode node);
+
+// Depth 500
+double SDF_apply_MINUS_craters(SDF* sdf, Vector3__double* p, double base_MINUS_d);
+
+// Depth 500
+BaseShape* SDF_base(SDF* p);
+
+// Depth 500
+SDF SDF_copy(SDF* pRef);
+
+// Depth 500
+Array__LocalCrater* SDF_craters(SDF* p);
+
+// Depth 500
+Array__CsgNode* SDF_csg_MINUS_nodes(SDF* p);
+
+// Depth 500
+void SDF_delete(SDF p);
+
+// Depth 500
+double SDF_distance(SDF* sdf, Vector3__double* p_MINUS_world);
+
+// Depth 500
+double SDF_distance_MINUS_local(SDF* sdf, Vector3__double* p);
+
+// Depth 500
+double SDF_distance_MINUS_world(SDF* sdf, Vector3__double* p_MINUS_world);
+
+// Depth 500
+double SDF_evaluate_MINUS_noise(Vector3__double* p);
+
+// Depth 500
+SDF SDF_init(BaseShape base, Array__LocalCrater craters, Vector3__double position, Quaternion rotation, double scale, Array__CsgNode csg_MINUS_nodes);
+
+// Depth 500
+SDF SDF_init_MINUS_box(Vector3__double e, Vector3__double pos, Quaternion rot);
+
+// Depth 500
+SDF SDF_init_MINUS_capsule(double r, double h, Vector3__double pos, Quaternion rot);
+
+// Depth 500
+SDF SDF_init_MINUS_cylinder(double r, double h, Vector3__double pos, Quaternion rot);
+
+// Depth 500
+SDF SDF_init_MINUS_octahedron(double s, Vector3__double pos, Quaternion rot);
+
+// Depth 500
+SDF SDF_init_MINUS_plane(Plane pl, Vector3__double pos, Quaternion rot);
+
+// Depth 500
+SDF SDF_init_MINUS_sphere(double r, Vector3__double pos, Quaternion rot);
+
+// Depth 500
+SDF SDF_init_MINUS_torus(double R, double r, Vector3__double pos, Quaternion rot);
+
+// Depth 500
+Vector3__double SDF_normal_MINUS_at(SDF* sdf, Vector3__double* p_MINUS_world);
+
+// Depth 500
+Vector3__double SDF_normal_MINUS_local(SDF* sdf, Vector3__double* p);
+
+// Depth 500
+Vector3__double SDF_normal_MINUS_world(SDF* sdf, Vector3__double* p_MINUS_world);
+
+// Depth 500
+Vector3__double* SDF_position(SDF* p);
+
+// Depth 500
+String SDF_prn(SDF *p);
+
+// Depth 500
+Quaternion* SDF_rotation(SDF* p);
+
+// Depth 500
+double* SDF_scale(SDF* p);
+
+// Depth 500
+SDF SDF_set_MINUS_base(SDF p, BaseShape newValue);
+
+// Depth 500
+void SDF_set_MINUS_base_BANG_(SDF* pRef, BaseShape newValue);
+
+// Depth 500
+SDF SDF_set_MINUS_craters(SDF p, Array__LocalCrater newValue);
+
+// Depth 500
+void SDF_set_MINUS_craters_BANG_(SDF* pRef, Array__LocalCrater newValue);
+
+// Depth 500
+SDF SDF_set_MINUS_csg_MINUS_nodes(SDF p, Array__CsgNode newValue);
+
+// Depth 500
+void SDF_set_MINUS_csg_MINUS_nodes_BANG_(SDF* pRef, Array__CsgNode newValue);
+
+// Depth 500
+SDF SDF_set_MINUS_position(SDF p, Vector3__double newValue);
+
+// Depth 500
+void SDF_set_MINUS_position_BANG_(SDF* pRef, Vector3__double newValue);
+
+// Depth 500
+SDF SDF_set_MINUS_rotation(SDF p, Quaternion newValue);
+
+// Depth 500
+void SDF_set_MINUS_rotation_BANG_(SDF* pRef, Quaternion newValue);
+
+// Depth 500
+SDF SDF_set_MINUS_scale(SDF p, double newValue);
+
+// Depth 500
+void SDF_set_MINUS_scale_BANG_(SDF* pRef, double newValue);
+
+// Depth 500
+String SDF_str(SDF *p);
+
+// Depth 500
+SDF SDF_update_MINUS_base(SDF p, Lambda *updater);
+
+// Depth 500
+SDF SDF_update_MINUS_craters(SDF p, Lambda *updater);
+
+// Depth 500
+SDF SDF_update_MINUS_csg_MINUS_nodes(SDF p, Lambda *updater);
+
+// Depth 500
+SDF SDF_update_MINUS_position(SDF p, Lambda *updater);
+
+// Depth 500
+SDF SDF_update_MINUS_rotation(SDF p, Lambda *updater);
+
+// Depth 500
+SDF SDF_update_MINUS_scale(SDF p, Lambda *updater);
+
+// Depth 1000
+
+// Depth 500
+Segment Segment_copy(Segment* pRef);
+
+// Depth 500
+void Segment_delete(Segment p);
+
+// Depth 500
+Vector3__double* Segment_end(Segment* p);
+
+// Depth 500
+Segment Segment_init(Vector3__double start, Vector3__double end);
+
+// Depth 500
+String Segment_prn(Segment *p);
+
+// Depth 500
+Segment Segment_set_MINUS_end(Segment p, Vector3__double newValue);
+
+// Depth 500
+void Segment_set_MINUS_end_BANG_(Segment* pRef, Vector3__double newValue);
+
+// Depth 500
+Segment Segment_set_MINUS_start(Segment p, Vector3__double newValue);
+
+// Depth 500
+void Segment_set_MINUS_start_BANG_(Segment* pRef, Vector3__double newValue);
+
+// Depth 500
+Vector3__double* Segment_start(Segment* p);
+
+// Depth 500
+String Segment_str(Segment *p);
+
+// Depth 500
+Segment Segment_update_MINUS_end(Segment p, Lambda *updater);
+
+// Depth 500
+Segment Segment_update_MINUS_start(Segment p, Lambda *updater);
+
+// Depth 1000
+
+// Depth 500
 int Set_dflt_MINUS_len;
 
 // Depth 500
@@ -8232,6 +9669,47 @@ String SimdInt_str(const simd_int *val);
 // Depth 1000
 
 // Depth 500
+Vector3__double* Sphere_center(Sphere* p);
+
+// Depth 500
+Sphere Sphere_copy(Sphere* pRef);
+
+// Depth 500
+void Sphere_delete(Sphere p);
+
+// Depth 500
+Sphere Sphere_init(Vector3__double center, double radius);
+
+// Depth 500
+String Sphere_prn(Sphere *p);
+
+// Depth 500
+double* Sphere_radius(Sphere* p);
+
+// Depth 500
+Sphere Sphere_set_MINUS_center(Sphere p, Vector3__double newValue);
+
+// Depth 500
+void Sphere_set_MINUS_center_BANG_(Sphere* pRef, Vector3__double newValue);
+
+// Depth 500
+Sphere Sphere_set_MINUS_radius(Sphere p, double newValue);
+
+// Depth 500
+void Sphere_set_MINUS_radius_BANG_(Sphere* pRef, double newValue);
+
+// Depth 500
+String Sphere_str(Sphere *p);
+
+// Depth 500
+Sphere Sphere_update_MINUS_center(Sphere p, Lambda *updater);
+
+// Depth 500
+Sphere Sphere_update_MINUS_radius(Sphere p, Lambda *updater);
+
+// Depth 1000
+
+// Depth 500
 uint8_t String__Lambda_ascii_MINUS_to_MINUS_lower_14_env(uint8_t c);
 
 // Depth 500
@@ -8392,6 +9870,130 @@ String System_strerror(int error_MINUS_no);
 
 // Depth 500
 void Terrain_generate_BANG_(NoiseState* noise_MINUS_state, int qx, int qy, int qz, float* p_MINUS_data);
+
+// Depth 1000
+
+// Depth 500
+Transform Transform_copy(Transform* pRef);
+
+// Depth 500
+void Transform_delete(Transform p);
+
+// Depth 500
+Vector3__double Transform_forward(Transform* t);
+
+// Depth 500
+Vector3__double Transform_forward_MINUS_quat(Quaternion* q);
+
+// Depth 500
+Transform Transform_identity();
+
+// Depth 500
+Transform Transform_init(Vector3__double position, Quaternion rotation, Vector3__double scale);
+
+// Depth 500
+Transform Transform_new(Vector3__double p, Quaternion r, Vector3__double s);
+
+// Depth 500
+Vector3__double* Transform_position(Transform* p);
+
+// Depth 500
+String Transform_prn(Transform *p);
+
+// Depth 500
+Vector3__double Transform_right(Transform* t);
+
+// Depth 500
+Vector3__double Transform_right_MINUS_quat(Quaternion* q);
+
+// Depth 500
+Quaternion* Transform_rotation(Transform* p);
+
+// Depth 500
+Vector3__double* Transform_scale(Transform* p);
+
+// Depth 500
+Transform Transform_set_MINUS_position(Transform p, Vector3__double newValue);
+
+// Depth 500
+void Transform_set_MINUS_position_BANG_(Transform* pRef, Vector3__double newValue);
+
+// Depth 500
+Transform Transform_set_MINUS_rotation(Transform p, Quaternion newValue);
+
+// Depth 500
+void Transform_set_MINUS_rotation_BANG_(Transform* pRef, Quaternion newValue);
+
+// Depth 500
+Transform Transform_set_MINUS_rotation_MINUS_val_BANG_(Transform t, Quaternion r);
+
+// Depth 500
+Transform Transform_set_MINUS_scale(Transform p, Vector3__double newValue);
+
+// Depth 500
+void Transform_set_MINUS_scale_BANG_(Transform* pRef, Vector3__double newValue);
+
+// Depth 500
+String Transform_str(Transform *p);
+
+// Depth 500
+TransformMat4 Transform_to_MINUS_inverse_MINUS_matrix(Transform* t);
+
+// Depth 500
+TransformMat4 Transform_to_MINUS_matrix(Transform* t);
+
+// Depth 500
+Vector3__double Transform_up(Transform* t);
+
+// Depth 500
+Vector3__double Transform_up_MINUS_quat(Quaternion* q);
+
+// Depth 500
+Transform Transform_update_MINUS_position(Transform p, Lambda *updater);
+
+// Depth 500
+Transform Transform_update_MINUS_rotation(Transform p, Lambda *updater);
+
+// Depth 500
+Transform Transform_update_MINUS_scale(Transform p, Lambda *updater);
+
+// Depth 1000
+
+// Depth 500
+TransformMat4 TransformMat4_copy(TransformMat4* pRef);
+
+// Depth 500
+Array__float* TransformMat4_data(TransformMat4* p);
+
+// Depth 500
+void TransformMat4_delete(TransformMat4 p);
+
+// Depth 500
+TransformMat4 TransformMat4_from_MINUS_trs(Vector3__double* pos, Quaternion* rot, Vector3__double* scale);
+
+// Depth 500
+Vector3__double TransformMat4_get_MINUS_column(TransformMat4* m, int col);
+
+// Depth 500
+TransformMat4 TransformMat4_identity();
+
+// Depth 500
+TransformMat4 TransformMat4_init(Array__float data);
+
+// Depth 500
+String TransformMat4_prn(TransformMat4 *p);
+
+// Depth 500
+TransformMat4 TransformMat4_set_MINUS_data(TransformMat4 p, Array__float newValue);
+
+// Depth 500
+void TransformMat4_set_MINUS_data_BANG_(TransformMat4* pRef, Array__float newValue);
+
+// Depth 500
+String TransformMat4_str(TransformMat4 *p);
+
+// Depth 500
+TransformMat4 TransformMat4_update_MINUS_data(TransformMat4 p, Lambda *updater);
 
 // Depth 1000
 
@@ -8607,6 +10209,9 @@ void Vector3_delete__bool(Vector3__bool p);
 
 // Depth 500
 void Vector3_delete__double(Vector3__double p);
+
+// Depth 500
+double Vector3_dist__double(Vector3__double* a, Vector3__double* b);
 
 // Depth 500
 Vector3__double Vector3_div__double(Vector3__double* v, double n);
@@ -9201,6 +10806,11 @@ void carp_init_globals(int argc, char** argv) {
 
     // Depth 0
     {
+        Geometry_EPSILON = 1.0e-6;
+    }
+
+    // Depth 0
+    {
         static String _2 = "struct Uniforms {\n        view_proj: mat4x4<f32>,\n    }\n    @group(0) @binding(0) var<uniform> u: Uniforms;\n\n    struct VertexInput {\n        @location(0) position: vec3<f32>,\n        @location(1) color: vec3<f32>,\n    }\n\n    struct VertexOutput {\n        @builtin(position) clip_pos: vec4<f32>,\n        @location(0) color: vec3<f32>,\n    }\n\n    @vertex\n    fn vs_main(in: VertexInput) -> VertexOutput {\n        var out: VertexOutput;\n        out.clip_pos = u.view_proj * vec4<f32>(in.position, 1.0);\n        out.color = in.color;\n        return out;\n    }\n\n    @fragment\n    fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {\n        return vec4<f32>(in.color, 1.0);\n    }\n    ";
         String *_2_ref = &_2;
         LinePass_line_MINUS_shader_MINUS_wgsl = _2_ref;
@@ -9292,6 +10902,12 @@ void carp_init_globals(int argc, char** argv) {
         bool _6 = true;
         Random__ = _6;
     }
+
+    // Depth 3
+    {
+        Array__Vector3__double _4 = Geometry_Ray_fibonacci_MINUS_sphere(32);
+        Geometry_Ray_fibonacci_MINUS_samples = _4;
+    }
 }
 
 //Definitions:
@@ -9339,6 +10955,34 @@ bool _LT__EQ___Char(Char a, Char b) {
     return _19;
 }
 
+bool _LT__EQ___double(double a, double b) {
+    bool _19;
+    bool _9 = Double__LT_(a, b);
+    if (_9) {
+        bool _12 = true;
+        _19 = _12;
+    } else {
+        bool _17 = Double__EQ_(a, b);
+        bool _18 = _17;
+        _19 = _18;
+    }
+    return _19;
+}
+
+bool _LT__EQ___float(float a, float b) {
+    bool _19;
+    bool _9 = Float__LT_(a, b);
+    if (_9) {
+        bool _12 = true;
+        _19 = _12;
+    } else {
+        bool _17 = Float__EQ_(a, b);
+        bool _18 = _17;
+        _19 = _18;
+    }
+    return _19;
+}
+
 bool _LT__EQ___int(int a, int b) {
     bool _19;
     bool _9 = Int__LT_(a, b);
@@ -9367,6 +11011,20 @@ bool _GT__EQ___double(double a, double b) {
     return _19;
 }
 
+bool _GT__EQ___float(float a, float b) {
+    bool _19;
+    bool _9 = Float__GT_(a, b);
+    if (_9) {
+        bool _12 = true;
+        _19 = _12;
+    } else {
+        bool _17 = Float__EQ_(a, b);
+        bool _18 = _17;
+        _19 = _18;
+    }
+    return _19;
+}
+
 bool _GT__EQ___int(int a, int b) {
     bool _19;
     bool _9 = Int__GT_(a, b);
@@ -9380,6 +11038,135 @@ bool _GT__EQ___int(int a, int b) {
     }
     return _19;
 }
+
+AABB AABB_copy(AABB* pRef) {
+    AABB copy = *pRef;
+    copy.min = Vector3_copy__double(&(pRef->min));
+    copy.max = Vector3_copy__double(&(pRef->max));
+    return copy;
+}
+
+void AABB_delete(AABB p) {
+    Vector3_delete__double(p.min);
+    Vector3_delete__double(p.max);
+}
+
+AABB AABB_init(Vector3__double min, Vector3__double max) {
+    AABB instance;
+    instance.min = min;
+    instance.max = max;
+    return instance;
+}
+
+Vector3__double* AABB_max(AABB* p) { return (&(p->max)); }
+
+Vector3__double* AABB_min(AABB* p) { return (&(p->min)); }
+
+String AABB_prn(AABB *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "AABB");
+  temp = Vector3_prn__double(&p->min); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->max); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "AABB");
+  temp = Vector3_prn__double(&p->min);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->max);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+AABB AABB_set_MINUS_max(AABB p, Vector3__double newValue) {
+    Vector3_delete__double(p.max);
+    p.max = newValue;
+    return p;
+}
+
+
+void AABB_set_MINUS_max_BANG_(AABB* pRef, Vector3__double newValue) {
+    Vector3_delete__double(pRef->max);
+    pRef->max = newValue;
+}
+
+
+AABB AABB_set_MINUS_min(AABB p, Vector3__double newValue) {
+    Vector3_delete__double(p.min);
+    p.min = newValue;
+    return p;
+}
+
+
+void AABB_set_MINUS_min_BANG_(AABB* pRef, Vector3__double newValue) {
+    Vector3_delete__double(pRef->min);
+    pRef->min = newValue;
+}
+
+
+String AABB_str(AABB *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "AABB");
+  temp = Vector3_prn__double(&p->min); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->max); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "AABB");
+  temp = Vector3_prn__double(&p->min);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->max);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+AABB AABB_update_MINUS_max(AABB p, Lambda *updater) {
+    p.max = (*updater).env ? ((Fn__LambdaEnv_Vector3__double_Vector3__double)(*updater).callback)((*updater).env, p.max) : ((Fn__Vector3__double_Vector3__double)(*updater).callback)(p.max);
+    return p;
+}
+
+
+AABB AABB_update_MINUS_min(AABB p, Lambda *updater) {
+    p.min = (*updater).env ? ((Fn__LambdaEnv_Vector3__double_Vector3__double)(*updater).callback)((*updater).env, p.min) : ((Fn__Vector3__double_Vector3__double)(*updater).callback)(p.min);
+    return p;
+}
+
 
 ActiveTimer ActiveTimer_copy(ActiveTimer* pRef) {
     ActiveTimer copy = *pRef;
@@ -10413,6 +12200,28 @@ Array Array_copy__Chunk (Array* a){
     return copy;
 }
 
+Array Array_copy__Contact (Array* a){
+    Array copy;
+    copy.len = a->len;
+    copy.capacity = a->capacity;
+    copy.data = CARP_MALLOC(sizeof(Contact) * a->capacity);
+    for(int i = 0; i < a->len; i++) {
+        ((Contact*)(copy.data))[i] = Contact_copy(&(((Contact*)a->data)[i]));
+    }
+    return copy;
+}
+
+Array Array_copy__CsgNode (Array* a){
+    Array copy;
+    copy.len = a->len;
+    copy.capacity = a->capacity;
+    copy.data = CARP_MALLOC(sizeof(CsgNode) * a->capacity);
+    for(int i = 0; i < a->len; i++) {
+        ((CsgNode*)(copy.data))[i] = CsgNode_copy(&(((CsgNode*)a->data)[i]));
+    }
+    return copy;
+}
+
 Array Array_copy__Line (Array* a){
     Array copy;
     copy.len = a->len;
@@ -10420,6 +12229,17 @@ Array Array_copy__Line (Array* a){
     copy.data = CARP_MALLOC(sizeof(Line) * a->capacity);
     for(int i = 0; i < a->len; i++) {
         ((Line*)(copy.data))[i] = Line_copy(&(((Line*)a->data)[i]));
+    }
+    return copy;
+}
+
+Array Array_copy__LocalCrater (Array* a){
+    Array copy;
+    copy.len = a->len;
+    copy.capacity = a->capacity;
+    copy.data = CARP_MALLOC(sizeof(LocalCrater) * a->capacity);
+    for(int i = 0; i < a->len; i++) {
+        ((LocalCrater*)(copy.data))[i] = LocalCrater_copy(&(((LocalCrater*)a->data)[i]));
     }
     return copy;
 }
@@ -10557,9 +12377,30 @@ void Array_delete__ChunkCoord (Array a){
     CARP_FREE(a.data);
 }
 
+void Array_delete__Contact (Array a){
+    for(int i = 0; i < a.len; i++) {
+        Contact_delete(((Contact*)a.data)[i]);
+    }
+    CARP_FREE(a.data);
+}
+
+void Array_delete__CsgNode (Array a){
+    for(int i = 0; i < a.len; i++) {
+        CsgNode_delete(((CsgNode*)a.data)[i]);
+    }
+    CARP_FREE(a.data);
+}
+
 void Array_delete__Line (Array a){
     for(int i = 0; i < a.len; i++) {
         Line_delete(((Line*)a.data)[i]);
+    }
+    CARP_FREE(a.data);
+}
+
+void Array_delete__LocalCrater (Array a){
+    for(int i = 0; i < a.len; i++) {
+        LocalCrater_delete(((LocalCrater*)a.data)[i]);
     }
     CARP_FREE(a.data);
 }
@@ -10623,6 +12464,13 @@ void Array_delete__Uint64 (Array a){
 void Array_delete__Vec3 (Array a){
     for(int i = 0; i < a.len; i++) {
         Vec3_delete(((Vec3*)a.data)[i]);
+    }
+    CARP_FREE(a.data);
+}
+
+void Array_delete__Vector3__double (Array a){
+    for(int i = 0; i < a.len; i++) {
+        Vector3_delete__double(((Vector3__double*)a.data)[i]);
     }
     CARP_FREE(a.data);
 }
@@ -10756,7 +12604,10 @@ int Array_length__Array__uint8_t (Array *a) { return (*a).len; }
 int Array_length__Char (Array *a) { return (*a).len; }
 int Array_length__Chunk (Array *a) { return (*a).len; }
 int Array_length__ChunkCoord (Array *a) { return (*a).len; }
+int Array_length__Contact (Array *a) { return (*a).len; }
+int Array_length__CsgNode (Array *a) { return (*a).len; }
 int Array_length__Line (Array *a) { return (*a).len; }
+int Array_length__LocalCrater (Array *a) { return (*a).len; }
 int Array_length__PatternMatchResult (Array *a) { return (*a).len; }
 int Array_length__Result__Uint16_Array__uint8_t (Array *a) { return (*a).len; }
 int Array_length__Result__Uint32_Array__uint8_t (Array *a) { return (*a).len; }
@@ -10868,8 +12719,23 @@ String Array_prn__Chunk(Array__Chunk* x) {
     return _6;
 }
 
+String Array_prn__Contact(Array__Contact* x) {
+    String _6 = Array_str__Contact(x);
+    return _6;
+}
+
+String Array_prn__CsgNode(Array__CsgNode* x) {
+    String _6 = Array_str__CsgNode(x);
+    return _6;
+}
+
 String Array_prn__Line(Array__Line* x) {
     String _6 = Array_str__Line(x);
+    return _6;
+}
+
+String Array_prn__LocalCrater(Array__LocalCrater* x) {
+    String _6 = Array_str__LocalCrater(x);
     return _6;
 }
 
@@ -10915,6 +12781,24 @@ void Array_push_MINUS_back_BANG___ChunkCoord(Array *aRef, ChunkCoord value) {
     ((ChunkCoord*)aRef->data)[aRef->len - 1] = value;
 }
 
+void Array_push_MINUS_back_BANG___Contact(Array *aRef, Contact value) { 
+    aRef->len++;
+    if(aRef->len > aRef->capacity) {
+        aRef->capacity = aRef->len * 2;
+        aRef->data = CARP_REALLOC(aRef->data, sizeof(Contact) * aRef->capacity);
+    }
+    ((Contact*)aRef->data)[aRef->len - 1] = value;
+}
+
+void Array_push_MINUS_back_BANG___CsgNode(Array *aRef, CsgNode value) { 
+    aRef->len++;
+    if(aRef->len > aRef->capacity) {
+        aRef->capacity = aRef->len * 2;
+        aRef->data = CARP_REALLOC(aRef->data, sizeof(CsgNode) * aRef->capacity);
+    }
+    ((CsgNode*)aRef->data)[aRef->len - 1] = value;
+}
+
 void Array_push_MINUS_back_BANG___Line(Array *aRef, Line value) { 
     aRef->len++;
     if(aRef->len > aRef->capacity) {
@@ -10922,6 +12806,24 @@ void Array_push_MINUS_back_BANG___Line(Array *aRef, Line value) {
         aRef->data = CARP_REALLOC(aRef->data, sizeof(Line) * aRef->capacity);
     }
     ((Line*)aRef->data)[aRef->len - 1] = value;
+}
+
+void Array_push_MINUS_back_BANG___LocalCrater(Array *aRef, LocalCrater value) { 
+    aRef->len++;
+    if(aRef->len > aRef->capacity) {
+        aRef->capacity = aRef->len * 2;
+        aRef->data = CARP_REALLOC(aRef->data, sizeof(LocalCrater) * aRef->capacity);
+    }
+    ((LocalCrater*)aRef->data)[aRef->len - 1] = value;
+}
+
+void Array_push_MINUS_back_BANG___Vector3__double(Array *aRef, Vector3__double value) { 
+    aRef->len++;
+    if(aRef->len > aRef->capacity) {
+        aRef->capacity = aRef->len * 2;
+        aRef->data = CARP_REALLOC(aRef->data, sizeof(Vector3__double) * aRef->capacity);
+    }
+    ((Vector3__double*)aRef->data)[aRef->len - 1] = value;
 }
 
 void Array_push_MINUS_back_BANG___ZoneStats(Array *aRef, ZoneStats value) { 
@@ -11272,6 +13174,76 @@ String Array_str__Chunk (Array* a) {
   return buffer;
 }
 
+String Array_str__Contact (Array* a) {
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize;
+  int size = 3; // opening and closing brackets and terminator
+  for(int i = 0; i < a->len; i++) {
+    temp = Contact_prn(&((Contact*)a->data)[i]);
+    size += snprintf(NULL, 0, "%s ", temp);
+    if(temp) {
+      CARP_FREE(temp);
+      temp = NULL;
+    }
+  }
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  snprintf(buffer, size, "[");
+  bufferPtr += 1;
+
+  for(int i = 0; i < a->len; i++) {
+    temp = Contact_prn(&((Contact*)a->data)[i]);
+    tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+    bufferPtr += tempsize;
+    if(temp) {
+      CARP_FREE(temp);
+      temp = NULL;
+    }
+  }
+
+  if(a->len > 0) { bufferPtr -= 1; }
+  snprintf(bufferPtr, size - (bufferPtr - buffer), "]");
+  return buffer;
+}
+
+String Array_str__CsgNode (Array* a) {
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize;
+  int size = 3; // opening and closing brackets and terminator
+  for(int i = 0; i < a->len; i++) {
+    temp = CsgNode_prn(&((CsgNode*)a->data)[i]);
+    size += snprintf(NULL, 0, "%s ", temp);
+    if(temp) {
+      CARP_FREE(temp);
+      temp = NULL;
+    }
+  }
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  snprintf(buffer, size, "[");
+  bufferPtr += 1;
+
+  for(int i = 0; i < a->len; i++) {
+    temp = CsgNode_prn(&((CsgNode*)a->data)[i]);
+    tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+    bufferPtr += tempsize;
+    if(temp) {
+      CARP_FREE(temp);
+      temp = NULL;
+    }
+  }
+
+  if(a->len > 0) { bufferPtr -= 1; }
+  snprintf(bufferPtr, size - (bufferPtr - buffer), "]");
+  return buffer;
+}
+
 String Array_str__Line (Array* a) {
   String temp = NULL;
   int tempsize = 0;
@@ -11294,6 +13266,41 @@ String Array_str__Line (Array* a) {
 
   for(int i = 0; i < a->len; i++) {
     temp = Line_prn(&((Line*)a->data)[i]);
+    tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+    bufferPtr += tempsize;
+    if(temp) {
+      CARP_FREE(temp);
+      temp = NULL;
+    }
+  }
+
+  if(a->len > 0) { bufferPtr -= 1; }
+  snprintf(bufferPtr, size - (bufferPtr - buffer), "]");
+  return buffer;
+}
+
+String Array_str__LocalCrater (Array* a) {
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize;
+  int size = 3; // opening and closing brackets and terminator
+  for(int i = 0; i < a->len; i++) {
+    temp = LocalCrater_prn(&((LocalCrater*)a->data)[i]);
+    size += snprintf(NULL, 0, "%s ", temp);
+    if(temp) {
+      CARP_FREE(temp);
+      temp = NULL;
+    }
+  }
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  snprintf(buffer, size, "[");
+  bufferPtr += 1;
+
+  for(int i = 0; i < a->len; i++) {
+    temp = LocalCrater_prn(&((LocalCrater*)a->data)[i]);
     tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
     bufferPtr += tempsize;
     if(temp) {
@@ -11453,11 +13460,32 @@ ChunkCoord* Array_unsafe_MINUS_nth__ChunkCoord (Array *aRef, int n) {
     return &(((ChunkCoord*)a.data)[n]);
 }
 
+Contact* Array_unsafe_MINUS_nth__Contact (Array *aRef, int n) {
+    Array a = *aRef;
+    assert(n >= 0);
+    assert(n < a.len);
+    return &(((Contact*)a.data)[n]);
+}
+
+CsgNode* Array_unsafe_MINUS_nth__CsgNode (Array *aRef, int n) {
+    Array a = *aRef;
+    assert(n >= 0);
+    assert(n < a.len);
+    return &(((CsgNode*)a.data)[n]);
+}
+
 Line* Array_unsafe_MINUS_nth__Line (Array *aRef, int n) {
     Array a = *aRef;
     assert(n >= 0);
     assert(n < a.len);
     return &(((Line*)a.data)[n]);
+}
+
+LocalCrater* Array_unsafe_MINUS_nth__LocalCrater (Array *aRef, int n) {
+    Array a = *aRef;
+    assert(n >= 0);
+    assert(n < a.len);
+    return &(((LocalCrater*)a.data)[n]);
 }
 
 PatternMatchResult* Array_unsafe_MINUS_nth__PatternMatchResult (Array *aRef, int n) {
@@ -11556,6 +13584,443 @@ int* Array_unsafe_MINUS_raw__int (Array* a) { return a->data; }
 Array__uint8_t Array_zero__uint8_t() {
     Array _3 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(uint8_t) * 0) };
     return _3;
+}
+
+BaseShape BaseShape_Ball(double member0) {
+  BaseShape instance;
+    instance.u.Ball.member0 = member0;
+    instance._tag = BaseShape_Ball_tag;
+    return instance;
+}
+
+BaseShape BaseShape_Box(Vector3__double member0) {
+  BaseShape instance;
+    instance.u.Box.member0 = member0;
+    instance._tag = BaseShape_Box_tag;
+    return instance;
+}
+
+BaseShape BaseShape_Capsule(double member0, double member1) {
+  BaseShape instance;
+    instance.u.Capsule.member0 = member0;
+    instance.u.Capsule.member1 = member1;
+    instance._tag = BaseShape_Capsule_tag;
+    return instance;
+}
+
+BaseShape BaseShape_Cylinder(double member0, double member1) {
+  BaseShape instance;
+    instance.u.Cylinder.member0 = member0;
+    instance.u.Cylinder.member1 = member1;
+    instance._tag = BaseShape_Cylinder_tag;
+    return instance;
+}
+
+BaseShape BaseShape_Octahedron(double member0) {
+  BaseShape instance;
+    instance.u.Octahedron.member0 = member0;
+    instance._tag = BaseShape_Octahedron_tag;
+    return instance;
+}
+
+BaseShape BaseShape_Surface(Plane member0) {
+  BaseShape instance;
+    instance.u.Surface.member0 = member0;
+    instance._tag = BaseShape_Surface_tag;
+    return instance;
+}
+
+BaseShape BaseShape_Torus(double member0, double member1) {
+  BaseShape instance;
+    instance.u.Torus.member0 = member0;
+    instance.u.Torus.member1 = member1;
+    instance._tag = BaseShape_Torus_tag;
+    return instance;
+}
+
+BaseShape BaseShape_copy(BaseShape* pRef) {
+    BaseShape copy = *pRef;
+    if(pRef->_tag == BaseShape_Ball_tag) {
+    /* Ignore non-managed member 'u.Ball.member0' : Double */
+    }
+
+    else if(pRef->_tag == BaseShape_Surface_tag) {
+    copy.u.Surface.member0 = Plane_copy(&(pRef->u.Surface.member0));
+    }
+
+    else if(pRef->_tag == BaseShape_Box_tag) {
+    copy.u.Box.member0 = Vector3_copy__double(&(pRef->u.Box.member0));
+    }
+
+    else if(pRef->_tag == BaseShape_Cylinder_tag) {
+    /* Ignore non-managed member 'u.Cylinder.member0' : Double */
+    /* Ignore non-managed member 'u.Cylinder.member1' : Double */
+    }
+
+    else if(pRef->_tag == BaseShape_Capsule_tag) {
+    /* Ignore non-managed member 'u.Capsule.member0' : Double */
+    /* Ignore non-managed member 'u.Capsule.member1' : Double */
+    }
+
+    else if(pRef->_tag == BaseShape_Torus_tag) {
+    /* Ignore non-managed member 'u.Torus.member0' : Double */
+    /* Ignore non-managed member 'u.Torus.member1' : Double */
+    }
+
+    else if(pRef->_tag == BaseShape_Octahedron_tag) {
+    /* Ignore non-managed member 'u.Octahedron.member0' : Double */
+    }
+
+    return copy;
+}
+
+void BaseShape_delete(BaseShape p) {
+  if(p._tag == BaseShape_Ball_tag) {
+    /* Ignore non-managed member 'u.Ball.member0' : Double */
+  }
+  else if(p._tag == BaseShape_Surface_tag) {
+    Plane_delete(p.u.Surface.member0);
+  }
+  else if(p._tag == BaseShape_Box_tag) {
+    Vector3_delete__double(p.u.Box.member0);
+  }
+  else if(p._tag == BaseShape_Cylinder_tag) {
+    /* Ignore non-managed member 'u.Cylinder.member0' : Double */
+    /* Ignore non-managed member 'u.Cylinder.member1' : Double */
+  }
+  else if(p._tag == BaseShape_Capsule_tag) {
+    /* Ignore non-managed member 'u.Capsule.member0' : Double */
+    /* Ignore non-managed member 'u.Capsule.member1' : Double */
+  }
+  else if(p._tag == BaseShape_Torus_tag) {
+    /* Ignore non-managed member 'u.Torus.member0' : Double */
+    /* Ignore non-managed member 'u.Torus.member1' : Double */
+  }
+  else if(p._tag == BaseShape_Octahedron_tag) {
+    /* Ignore non-managed member 'u.Octahedron.member0' : Double */
+  }
+
+}
+
+int BaseShape_get_MINUS_tag(BaseShape *p) { return p->_tag; }
+String BaseShape_prn(BaseShape *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = 1;
+  if(p->_tag == BaseShape_Ball_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Ball");
+  temp = Double_prn(p->u.Ball.member0); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  }
+  if(p->_tag == BaseShape_Surface_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Surface");
+  temp = Plane_prn(&p->u.Surface.member0); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  }
+  if(p->_tag == BaseShape_Box_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Box");
+  temp = Vector3_prn__double(&p->u.Box.member0); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  }
+  if(p->_tag == BaseShape_Cylinder_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Cylinder");
+  temp = Double_prn(p->u.Cylinder.member0); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->u.Cylinder.member1); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  }
+  if(p->_tag == BaseShape_Capsule_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Capsule");
+  temp = Double_prn(p->u.Capsule.member0); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->u.Capsule.member1); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  }
+  if(p->_tag == BaseShape_Torus_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Torus");
+  temp = Double_prn(p->u.Torus.member0); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->u.Torus.member1); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  }
+  if(p->_tag == BaseShape_Octahedron_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Octahedron");
+  temp = Double_prn(p->u.Octahedron.member0); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  }
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  if(p->_tag == BaseShape_Ball_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Ball");
+  temp = Double_prn(p->u.Ball.member0);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+  if(p->_tag == BaseShape_Surface_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Surface");
+  temp = Plane_prn(&p->u.Surface.member0);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+  if(p->_tag == BaseShape_Box_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Box");
+  temp = Vector3_prn__double(&p->u.Box.member0);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+  if(p->_tag == BaseShape_Cylinder_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Cylinder");
+  temp = Double_prn(p->u.Cylinder.member0);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->u.Cylinder.member1);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+  if(p->_tag == BaseShape_Capsule_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Capsule");
+  temp = Double_prn(p->u.Capsule.member0);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->u.Capsule.member1);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+  if(p->_tag == BaseShape_Torus_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Torus");
+  temp = Double_prn(p->u.Torus.member0);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->u.Torus.member1);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+  if(p->_tag == BaseShape_Octahedron_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Octahedron");
+  temp = Double_prn(p->u.Octahedron.member0);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+
+  return buffer;
+}
+
+String BaseShape_str(BaseShape *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = 1;
+  if(p->_tag == BaseShape_Ball_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Ball");
+  temp = Double_prn(p->u.Ball.member0); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  }
+  if(p->_tag == BaseShape_Surface_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Surface");
+  temp = Plane_prn(&p->u.Surface.member0); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  }
+  if(p->_tag == BaseShape_Box_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Box");
+  temp = Vector3_prn__double(&p->u.Box.member0); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  }
+  if(p->_tag == BaseShape_Cylinder_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Cylinder");
+  temp = Double_prn(p->u.Cylinder.member0); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->u.Cylinder.member1); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  }
+  if(p->_tag == BaseShape_Capsule_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Capsule");
+  temp = Double_prn(p->u.Capsule.member0); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->u.Capsule.member1); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  }
+  if(p->_tag == BaseShape_Torus_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Torus");
+  temp = Double_prn(p->u.Torus.member0); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->u.Torus.member1); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  }
+  if(p->_tag == BaseShape_Octahedron_tag) {
+    size += snprintf(NULL, 0, "(%s ", "Octahedron");
+  temp = Double_prn(p->u.Octahedron.member0); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  }
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  if(p->_tag == BaseShape_Ball_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Ball");
+  temp = Double_prn(p->u.Ball.member0);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+  if(p->_tag == BaseShape_Surface_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Surface");
+  temp = Plane_prn(&p->u.Surface.member0);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+  if(p->_tag == BaseShape_Box_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Box");
+  temp = Vector3_prn__double(&p->u.Box.member0);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+  if(p->_tag == BaseShape_Cylinder_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Cylinder");
+  temp = Double_prn(p->u.Cylinder.member0);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->u.Cylinder.member1);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+  if(p->_tag == BaseShape_Capsule_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Capsule");
+  temp = Double_prn(p->u.Capsule.member0);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->u.Capsule.member1);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+  if(p->_tag == BaseShape_Torus_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Torus");
+  temp = Double_prn(p->u.Torus.member0);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->u.Torus.member1);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+  if(p->_tag == BaseShape_Octahedron_tag) {
+    bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Octahedron");
+  temp = Double_prn(p->u.Octahedron.member0);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+    bufferPtr--;
+    snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  }
+
+  return buffer;
 }
 
 Result__Uint16_Array__uint8_t Binary__Lambda_byte_MINUS_converter__ByteOrder_Array__uint8_t_Uint16_29_env(Binary__Lambda_byte_MINUS_converter__ByteOrder_Array__uint8_t_Uint16_29_env_ty* _env, Array__uint8_t* bs) {
@@ -13656,6 +16121,40 @@ String BoolRef_str(bool* x) {
     return _8;
 }
 
+SDF* Box_copy__SDF (SDF** box) {
+  SDF* copy;
+  copy = CARP_MALLOC(sizeof(SDF));
+  *copy = SDF_copy(*box);
+  return copy;
+}
+
+void Box_delete__SDF (SDF* box) {
+    SDF_delete(*box);
+  CARP_FREE(box);
+}
+
+SDF* Box_peek__SDF(SDF** box_ref) {
+  return *box_ref;
+}
+
+String Box_prn__SDF (SDF** box) {
+  if(!box){
+    String buffer = CARP_MALLOC(4);
+    snprintf(buffer, 4, "Nil");
+    return buffer;
+  }
+  char* temp = SDF_prn(*box);
+  int size = snprintf(NULL, 0, "(Box %s)", temp) + 1;
+  String buffer = CARP_MALLOC(size);
+  snprintf(buffer, size, "(Box %s)", temp);
+  if(temp) {
+    CARP_FREE(temp);
+    temp = NULL;
+  }
+
+  return buffer;
+}
+
 uint8_t Byte_add_MINUS_ref(uint8_t* x, uint8_t* y) {
     uint8_t _8 = Byte_copy(x);
     uint8_t _11 = Byte_copy(y);
@@ -15731,6 +18230,528 @@ int* ChunkCoord_x(ChunkCoord* p) { return (&(p->x)); }
 int* ChunkCoord_y(ChunkCoord* p) { return (&(p->y)); }
 
 int* ChunkCoord_z(ChunkCoord* p) { return (&(p->z)); }
+
+Contact Contact_copy(Contact* pRef) {
+    Contact copy = *pRef;
+    /* Ignore non-managed member 'depth' : Double */
+    copy.point = Vector3_copy__double(&(pRef->point));
+    copy.normal = Vector3_copy__double(&(pRef->normal));
+    return copy;
+}
+
+void Contact_delete(Contact p) {
+    /* Ignore non-managed member 'depth' : Double */
+    Vector3_delete__double(p.point);
+    Vector3_delete__double(p.normal);
+}
+
+double* Contact_depth(Contact* p) { return (&(p->depth)); }
+
+Contact Contact_init(double depth, Vector3__double point, Vector3__double normal) {
+    Contact instance;
+    instance.depth = depth;
+    instance.point = point;
+    instance.normal = normal;
+    return instance;
+}
+
+Vector3__double* Contact_normal(Contact* p) { return (&(p->normal)); }
+
+Vector3__double* Contact_point(Contact* p) { return (&(p->point)); }
+
+String Contact_prn(Contact *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "Contact");
+  temp = Double_prn(p->depth); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->point); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->normal); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Contact");
+  temp = Double_prn(p->depth);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->point);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->normal);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+Contact Contact_reverse(Contact* c) {
+    double* _8 = Contact_depth(c);
+    double _9 = Double_copy(_8);
+    Vector3__double* _13 = Contact_point(c);
+    Vector3__double _14 = Vector3_copy__double(_13);
+    Vector3__double* _18 = Contact_normal(c);
+    Vector3__double _20 = Vector3_mul__double(_18, -1.0);
+    Contact _21 = Contact_init(_9, _14, _20);
+    return _21;
+}
+
+Contact Contact_set_MINUS_depth(Contact p, double newValue) {
+    /* Ignore non-managed member 'depth' : Double */
+    p.depth = newValue;
+    return p;
+}
+
+
+void Contact_set_MINUS_depth_BANG_(Contact* pRef, double newValue) {
+    /* Ignore non-managed member 'depth' : Double */
+    pRef->depth = newValue;
+}
+
+
+Contact Contact_set_MINUS_normal(Contact p, Vector3__double newValue) {
+    Vector3_delete__double(p.normal);
+    p.normal = newValue;
+    return p;
+}
+
+
+void Contact_set_MINUS_normal_BANG_(Contact* pRef, Vector3__double newValue) {
+    Vector3_delete__double(pRef->normal);
+    pRef->normal = newValue;
+}
+
+
+Contact Contact_set_MINUS_point(Contact p, Vector3__double newValue) {
+    Vector3_delete__double(p.point);
+    p.point = newValue;
+    return p;
+}
+
+
+void Contact_set_MINUS_point_BANG_(Contact* pRef, Vector3__double newValue) {
+    Vector3_delete__double(pRef->point);
+    pRef->point = newValue;
+}
+
+
+String Contact_str(Contact *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "Contact");
+  temp = Double_prn(p->depth); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->point); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->normal); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Contact");
+  temp = Double_prn(p->depth);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->point);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->normal);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+Contact Contact_update_MINUS_depth(Contact p, Lambda *updater) {
+    p.depth = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.depth) : ((Fn__double_double)(*updater).callback)(p.depth);
+    return p;
+}
+
+
+Contact Contact_update_MINUS_normal(Contact p, Lambda *updater) {
+    p.normal = (*updater).env ? ((Fn__LambdaEnv_Vector3__double_Vector3__double)(*updater).callback)((*updater).env, p.normal) : ((Fn__Vector3__double_Vector3__double)(*updater).callback)(p.normal);
+    return p;
+}
+
+
+Contact Contact_update_MINUS_point(Contact p, Lambda *updater) {
+    p.point = (*updater).env ? ((Fn__LambdaEnv_Vector3__double_Vector3__double)(*updater).callback)((*updater).env, p.point) : ((Fn__Vector3__double_Vector3__double)(*updater).callback)(p.point);
+    return p;
+}
+
+
+Handle__void* ContactSet_a(ContactSet* p) { return (&(p->a)); }
+
+Handle__void* ContactSet_b(ContactSet* p) { return (&(p->b)); }
+
+Array__Contact* ContactSet_contacts(ContactSet* p) { return (&(p->contacts)); }
+
+ContactSet ContactSet_copy(ContactSet* pRef) {
+    ContactSet copy = *pRef;
+    copy.a = Handle_copy__void(&(pRef->a));
+    copy.b = Handle_copy__void(&(pRef->b));
+    copy.contacts = Array_copy__Contact(&(pRef->contacts));
+    return copy;
+}
+
+void ContactSet_delete(ContactSet p) {
+    Handle_delete__void(p.a);
+    Handle_delete__void(p.b);
+    Array_delete__Contact(p.contacts);
+}
+
+ContactSet ContactSet_init(Handle__void a, Handle__void b, Array__Contact contacts) {
+    ContactSet instance;
+    instance.a = a;
+    instance.b = b;
+    instance.contacts = contacts;
+    return instance;
+}
+
+ContactSet ContactSet_new(Handle__void a, Handle__void b, Array__Contact contacts) {
+    ContactSet _10 = ContactSet_init(a, b, contacts);
+    return _10;
+}
+
+String ContactSet_prn(ContactSet *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "ContactSet");
+  temp = Handle_prn__void(&p->a); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Handle_prn__void(&p->b); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__Contact(&p->contacts); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "ContactSet");
+  temp = Handle_prn__void(&p->a);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Handle_prn__void(&p->b);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__Contact(&p->contacts);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+ContactSet ContactSet_reverse(ContactSet* cs) {
+    ContactSet _60;
+    /* let */ {
+        Array _6 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(Contact) * 0) };
+        Array__Contact rev_MINUS_contacts = _6;
+        Array__Contact* _10 = ContactSet_contacts(cs);
+        Array__Contact* orig_MINUS_contacts = _10;
+        /* let */ {
+            int i = 0;
+            int _22 = Array_length__Contact(orig_MINUS_contacts);
+            bool _1000008 = Int__LT_(i, _22);
+            bool _1000006 = _1000008;
+            while (_1000006) {
+                Array__Contact* _28 = &rev_MINUS_contacts; // ref
+                Contact* _33 = Array_unsafe_MINUS_nth__Contact(orig_MINUS_contacts, i);
+                Contact _34 = Contact_reverse(_33);
+                Array_push_MINUS_back_BANG___Contact(_28, _34);
+                int _1000013 = Int__PLUS_(i, 1);
+                i = _1000013;  // Int = Int
+                int _22 = Array_length__Contact(orig_MINUS_contacts);
+                bool _1000008 = Int__LT_(i, _22);
+                _1000006 = _1000008;
+            }
+        }
+        Handle__void* _50 = ContactSet_b(cs);
+        Handle__void _51 = Handle_copy__void(_50);
+        Handle__void* _55 = ContactSet_a(cs);
+        Handle__void _56 = Handle_copy__void(_55);
+        ContactSet _58 = ContactSet_init(_51, _56, rev_MINUS_contacts);
+        ContactSet _59 = _58;
+        _60 = _59;
+    }
+    return _60;
+}
+
+ContactSet ContactSet_set_MINUS_a(ContactSet p, Handle__void newValue) {
+    Handle_delete__void(p.a);
+    p.a = newValue;
+    return p;
+}
+
+
+void ContactSet_set_MINUS_a_BANG_(ContactSet* pRef, Handle__void newValue) {
+    Handle_delete__void(pRef->a);
+    pRef->a = newValue;
+}
+
+
+ContactSet ContactSet_set_MINUS_b(ContactSet p, Handle__void newValue) {
+    Handle_delete__void(p.b);
+    p.b = newValue;
+    return p;
+}
+
+
+void ContactSet_set_MINUS_b_BANG_(ContactSet* pRef, Handle__void newValue) {
+    Handle_delete__void(pRef->b);
+    pRef->b = newValue;
+}
+
+
+ContactSet ContactSet_set_MINUS_contacts(ContactSet p, Array__Contact newValue) {
+    Array_delete__Contact(p.contacts);
+    p.contacts = newValue;
+    return p;
+}
+
+
+void ContactSet_set_MINUS_contacts_BANG_(ContactSet* pRef, Array__Contact newValue) {
+    Array_delete__Contact(pRef->contacts);
+    pRef->contacts = newValue;
+}
+
+
+String ContactSet_str(ContactSet *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "ContactSet");
+  temp = Handle_prn__void(&p->a); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Handle_prn__void(&p->b); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__Contact(&p->contacts); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "ContactSet");
+  temp = Handle_prn__void(&p->a);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Handle_prn__void(&p->b);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__Contact(&p->contacts);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+ContactSet ContactSet_update_MINUS_a(ContactSet p, Lambda *updater) {
+    p.a = (*updater).env ? ((Fn__LambdaEnv_Handle__void_Handle__void)(*updater).callback)((*updater).env, p.a) : ((Fn__Handle__void_Handle__void)(*updater).callback)(p.a);
+    return p;
+}
+
+
+ContactSet ContactSet_update_MINUS_b(ContactSet p, Lambda *updater) {
+    p.b = (*updater).env ? ((Fn__LambdaEnv_Handle__void_Handle__void)(*updater).callback)((*updater).env, p.b) : ((Fn__Handle__void_Handle__void)(*updater).callback)(p.b);
+    return p;
+}
+
+
+ContactSet ContactSet_update_MINUS_contacts(ContactSet p, Lambda *updater) {
+    p.contacts = (*updater).env ? ((Fn__LambdaEnv_Array__Contact_Array__Contact)(*updater).callback)((*updater).env, p.contacts) : ((Fn__Array__Contact_Array__Contact)(*updater).callback)(p.contacts);
+    return p;
+}
+
+
+CsgNode CsgNode_copy(CsgNode* pRef) {
+    CsgNode copy = *pRef;
+    copy.shape = Box_copy__SDF(&(pRef->shape));
+    /* Ignore non-managed member 'op' : Int */
+    return copy;
+}
+
+void CsgNode_delete(CsgNode p) {
+    Box_delete__SDF(p.shape);
+    /* Ignore non-managed member 'op' : Int */
+}
+
+CsgNode CsgNode_init(SDF* shape, int op) {
+    CsgNode instance;
+    instance.shape = shape;
+    instance.op = op;
+    return instance;
+}
+
+int* CsgNode_op(CsgNode* p) { return (&(p->op)); }
+
+String CsgNode_prn(CsgNode *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "CsgNode");
+  temp = Box_prn__SDF(&p->shape); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->op); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "CsgNode");
+  temp = Box_prn__SDF(&p->shape);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->op);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+CsgNode CsgNode_set_MINUS_op(CsgNode p, int newValue) {
+    /* Ignore non-managed member 'op' : Int */
+    p.op = newValue;
+    return p;
+}
+
+
+void CsgNode_set_MINUS_op_BANG_(CsgNode* pRef, int newValue) {
+    /* Ignore non-managed member 'op' : Int */
+    pRef->op = newValue;
+}
+
+
+CsgNode CsgNode_set_MINUS_shape(CsgNode p, SDF* newValue) {
+    Box_delete__SDF(p.shape);
+    p.shape = newValue;
+    return p;
+}
+
+
+void CsgNode_set_MINUS_shape_BANG_(CsgNode* pRef, SDF* newValue) {
+    Box_delete__SDF(pRef->shape);
+    pRef->shape = newValue;
+}
+
+
+SDF** CsgNode_shape(CsgNode* p) { return (&(p->shape)); }
+
+String CsgNode_str(CsgNode *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "CsgNode");
+  temp = Box_prn__SDF(&p->shape); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->op); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "CsgNode");
+  temp = Box_prn__SDF(&p->shape);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Int_prn(p->op);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+CsgNode CsgNode_update_MINUS_op(CsgNode p, Lambda *updater) {
+    p.op = (*updater).env ? ((Fn__LambdaEnv_int_int)(*updater).callback)((*updater).env, p.op) : ((Fn__int_int)(*updater).callback)(p.op);
+    return p;
+}
+
+
+CsgNode CsgNode_update_MINUS_shape(CsgNode p, Lambda *updater) {
+    p.shape = (*updater).env ? ((Fn__LambdaEnv_SDF_MUL__SDF_MUL_)(*updater).callback)((*updater).env, p.shape) : ((Fn__SDF_MUL__SDF_MUL_)(*updater).callback)(p.shape);
+    return p;
+}
+
 
 Array__ActiveTimer* Diagnostics_active_MINUS_timers(Diagnostics* p) { return (&(p->active_MINUS_timers)); }
 
@@ -18508,213 +21529,217 @@ void EngineState_update_BANG_(EngineState* state, GLFWwindow* win, double dt, bo
         Camera* cam = _25;
         World* _29 = EngineState_world(state);
         World* world = _29;
+        Vector3__double* _34 = Camera_pos(cam);
+        Vector3__double _35 = Vector3_copy__double(_34);
+        Vector3__double prev_MINUS_pos = _35;
         Player_handle_MINUS_input_BANG_(player, win, dt, first_MINUS_mouse_MINUS_ptr, last_MINUS_x_MINUS_ptr, last_MINUS_y_MINUS_ptr);
         Player_handle_MINUS_jump_BANG_(player, win);
-        Player_update_MINUS_physics_BANG_(player, world, dt);
-        Vector3__double* _55 = Camera_pos(cam);
-        EngineState_stream_MINUS_chunks_BANG_(world, platform_MINUS_eng, ren, _55);
+        Vector3__double* _56 = &prev_MINUS_pos; // ref
+        Player_update_MINUS_physics_BANG_(player, world, dt, _56);
+        Vector3__double* _64 = Camera_pos(cam);
+        EngineState_stream_MINUS_chunks_BANG_(world, platform_MINUS_eng, ren, _64);
         /* let */ {
-            Vector3__double* _61 = Camera_pos(cam);
-            Vector3__double* ro = _61;
-            Vector3__double* _65 = Camera_front(cam);
-            Vector3__double* rd = _65;
-            Maybe__Vector3__double _72 = World_raycast(world, ro, rd, 80.0);
-            Maybe__Vector3__double hit_MINUS_opt = _72;
+            Vector3__double* _70 = Camera_pos(cam);
+            Vector3__double* ro = _70;
+            Vector3__double* _74 = Camera_front(cam);
+            Vector3__double* rd = _74;
+            Maybe__Vector3__double _81 = World_raycast(world, ro, rd, 80.0);
+            Maybe__Vector3__double hit_MINUS_opt = _81;
             if(hit_MINUS_opt._tag == Maybe__Vector3__double_Nothing_tag) {
-                Maybe__Vector3__double _75_temp = hit_MINUS_opt;
+                Maybe__Vector3__double _84_temp = hit_MINUS_opt;
                 // Case expr:
-                float* _83 = EngineState_hit_MINUS_active(state);
-                float* _84 = ref_MINUS_to_MINUS_ptr__float(_83);
-                Pointer_set__float(_84, 0.0f);
-                float* _91 = EngineState_liquid_MINUS_spawn(state);
-                float* _92 = ref_MINUS_to_MINUS_ptr__float(_91);
-                Pointer_set__float(_92, 0.0f);
-                float* _99 = EngineState_gas_MINUS_spawn(state);
-                float* _100 = ref_MINUS_to_MINUS_ptr__float(_99);
-                Pointer_set__float(_100, 0.0f);
+                float* _92 = EngineState_hit_MINUS_active(state);
+                float* _93 = ref_MINUS_to_MINUS_ptr__float(_92);
+                Pointer_set__float(_93, 0.0f);
+                float* _100 = EngineState_liquid_MINUS_spawn(state);
+                float* _101 = ref_MINUS_to_MINUS_ptr__float(_100);
+                Pointer_set__float(_101, 0.0f);
+                float* _108 = EngineState_gas_MINUS_spawn(state);
+                float* _109 = ref_MINUS_to_MINUS_ptr__float(_108);
+                Pointer_set__float(_109, 0.0f);
             }
             else if(hit_MINUS_opt._tag == Maybe__Vector3__double_Just_tag) {
-                Maybe__Vector3__double _75_temp = hit_MINUS_opt;
-                Vector3__double hit_MINUS_pos = _75_temp.u.Just.member0;
+                Maybe__Vector3__double _84_temp = hit_MINUS_opt;
+                Vector3__double hit_MINUS_pos = _84_temp.u.Just.member0;
                 // Case expr:
                 /* let */ {
-                    Vector3__double _114 = Vector3_init__double(1.0, 1.0, 0.0);
-                    Vector3__double yellow = _114;
-                    Vector3__double* _120 = &hit_MINUS_pos; // ref
-                    double* _121 = Vector3_x__double(_120);
-                    double _122 = Double_copy(_121);
-                    double hx = _122;
-                    Vector3__double* _128 = &hit_MINUS_pos; // ref
-                    double* _129 = Vector3_y__double(_128);
-                    double _130 = Double_copy(_129);
-                    double hy = _130;
-                    Vector3__double* _136 = &hit_MINUS_pos; // ref
-                    double* _137 = Vector3_z__double(_136);
-                    double _138 = Double_copy(_137);
-                    double hz = _138;
-                    double _145 = Double__MINUS_(hx, 0.5);
-                    double _149 = Double__MINUS_(hy, 0.5);
-                    double _153 = Double__MINUS_(hz, 0.5);
-                    double _157 = Double__PLUS_(hx, 0.5);
-                    double _161 = Double__PLUS_(hy, 0.5);
-                    double _165 = Double__PLUS_(hz, 0.5);
-                    Vector3__double* _168 = &yellow; // ref
-                    EngineState_draw_MINUS_bounds_MINUS_wireframe_BANG_(ren, _145, _149, _153, _157, _161, _165, _168);
+                    Vector3__double _123 = Vector3_init__double(1.0, 1.0, 0.0);
+                    Vector3__double yellow = _123;
+                    Vector3__double* _129 = &hit_MINUS_pos; // ref
+                    double* _130 = Vector3_x__double(_129);
+                    double _131 = Double_copy(_130);
+                    double hx = _131;
+                    Vector3__double* _137 = &hit_MINUS_pos; // ref
+                    double* _138 = Vector3_y__double(_137);
+                    double _139 = Double_copy(_138);
+                    double hy = _139;
+                    Vector3__double* _145 = &hit_MINUS_pos; // ref
+                    double* _146 = Vector3_z__double(_145);
+                    double _147 = Double_copy(_146);
+                    double hz = _147;
+                    double _154 = Double__MINUS_(hx, 0.5);
+                    double _158 = Double__MINUS_(hy, 0.5);
+                    double _162 = Double__MINUS_(hz, 0.5);
+                    double _166 = Double__PLUS_(hx, 0.5);
+                    double _170 = Double__PLUS_(hy, 0.5);
+                    double _174 = Double__PLUS_(hz, 0.5);
+                    Vector3__double* _177 = &yellow; // ref
+                    EngineState_draw_MINUS_bounds_MINUS_wireframe_BANG_(ren, _154, _158, _162, _166, _170, _174, _177);
                     Vector3_delete__double(yellow);
                 }
                 /* let */ {
-                    int _177 = glfwGetMouseButton(win, 0);
-                    bool _179 = Int__EQ_(_177, GLFW_PRESS);
-                    bool left_MINUS_pressed = _179;
-                    int _185 = glfwGetMouseButton(win, 1);
-                    bool _187 = Int__EQ_(_185, GLFW_PRESS);
-                    bool right_MINUS_pressed = _187;
-                    int _193 = glfwGetKey(win, GLFW_KEY_F);
-                    bool _195 = Int__EQ_(_193, GLFW_PRESS);
-                    bool f_MINUS_held = _195;
-                    int _201 = glfwGetKey(win, GLFW_KEY_H);
-                    bool _203 = Int__EQ_(_201, GLFW_PRESS);
-                    bool h_MINUS_held = _203;
-                    int _209 = glfwGetKey(win, GLFW_KEY_G);
-                    bool _211 = Int__EQ_(_209, GLFW_PRESS);
-                    bool g_MINUS_held = _211;
-                    float* _218 = EngineState_hit_MINUS_x(state);
-                    float* _219 = ref_MINUS_to_MINUS_ptr__float(_218);
-                    Vector3__double* _225 = &hit_MINUS_pos; // ref
-                    double* _226 = Vector3_x__double(_225);
-                    double _227 = Double_copy(_226);
-                    float _228 = Double_to_MINUS_float(_227);
-                    Pointer_set__float(_219, _228);
-                    float* _234 = EngineState_hit_MINUS_y(state);
-                    float* _235 = ref_MINUS_to_MINUS_ptr__float(_234);
-                    Vector3__double* _241 = &hit_MINUS_pos; // ref
-                    double* _242 = Vector3_y__double(_241);
-                    double _243 = Double_copy(_242);
-                    float _244 = Double_to_MINUS_float(_243);
-                    Pointer_set__float(_235, _244);
-                    float* _250 = EngineState_hit_MINUS_z(state);
-                    float* _251 = ref_MINUS_to_MINUS_ptr__float(_250);
-                    Vector3__double* _257 = &hit_MINUS_pos; // ref
-                    double* _258 = Vector3_z__double(_257);
-                    double _259 = Double_copy(_258);
-                    float _260 = Double_to_MINUS_float(_259);
-                    Pointer_set__float(_251, _260);
-                    bool _271;
+                    int _186 = glfwGetMouseButton(win, 0);
+                    bool _188 = Int__EQ_(_186, GLFW_PRESS);
+                    bool left_MINUS_pressed = _188;
+                    int _194 = glfwGetMouseButton(win, 1);
+                    bool _196 = Int__EQ_(_194, GLFW_PRESS);
+                    bool right_MINUS_pressed = _196;
+                    int _202 = glfwGetKey(win, GLFW_KEY_F);
+                    bool _204 = Int__EQ_(_202, GLFW_PRESS);
+                    bool f_MINUS_held = _204;
+                    int _210 = glfwGetKey(win, GLFW_KEY_H);
+                    bool _212 = Int__EQ_(_210, GLFW_PRESS);
+                    bool h_MINUS_held = _212;
+                    int _218 = glfwGetKey(win, GLFW_KEY_G);
+                    bool _220 = Int__EQ_(_218, GLFW_PRESS);
+                    bool g_MINUS_held = _220;
+                    float* _227 = EngineState_hit_MINUS_x(state);
+                    float* _228 = ref_MINUS_to_MINUS_ptr__float(_227);
+                    Vector3__double* _234 = &hit_MINUS_pos; // ref
+                    double* _235 = Vector3_x__double(_234);
+                    double _236 = Double_copy(_235);
+                    float _237 = Double_to_MINUS_float(_236);
+                    Pointer_set__float(_228, _237);
+                    float* _243 = EngineState_hit_MINUS_y(state);
+                    float* _244 = ref_MINUS_to_MINUS_ptr__float(_243);
+                    Vector3__double* _250 = &hit_MINUS_pos; // ref
+                    double* _251 = Vector3_y__double(_250);
+                    double _252 = Double_copy(_251);
+                    float _253 = Double_to_MINUS_float(_252);
+                    Pointer_set__float(_244, _253);
+                    float* _259 = EngineState_hit_MINUS_z(state);
+                    float* _260 = ref_MINUS_to_MINUS_ptr__float(_259);
+                    Vector3__double* _266 = &hit_MINUS_pos; // ref
+                    double* _267 = Vector3_z__double(_266);
+                    double _268 = Double_copy(_267);
+                    float _269 = Double_to_MINUS_float(_268);
+                    Pointer_set__float(_260, _269);
+                    bool _280;
                     if (left_MINUS_pressed) {
-                        bool _267 = true;
-                        _271 = _267;
+                        bool _276 = true;
+                        _280 = _276;
                     } else {
-                        bool _270 = right_MINUS_pressed;
-                        _271 = _270;
+                        bool _279 = right_MINUS_pressed;
+                        _280 = _279;
                     }
-                    if (_271) {
-                        float* _277 = EngineState_hit_MINUS_active(state);
-                        float* _278 = ref_MINUS_to_MINUS_ptr__float(_277);
-                        Pointer_set__float(_278, 1.0f);
+                    if (_280) {
+                        float* _286 = EngineState_hit_MINUS_active(state);
+                        float* _287 = ref_MINUS_to_MINUS_ptr__float(_286);
+                        Pointer_set__float(_287, 1.0f);
                         if (h_MINUS_held) {
-                            float* _288 = EngineState_liquid_MINUS_spawn(state);
-                            float* _289 = ref_MINUS_to_MINUS_ptr__float(_288);
-                            float* _293 = Player_current_MINUS_liq(player);
-                            float _294 = Float_copy(_293);
-                            Pointer_set__float(_289, _294);
+                            float* _297 = EngineState_liquid_MINUS_spawn(state);
+                            float* _298 = ref_MINUS_to_MINUS_ptr__float(_297);
+                            float* _302 = Player_current_MINUS_liq(player);
+                            float _303 = Float_copy(_302);
+                            Pointer_set__float(_298, _303);
                         } else {
-                            float* _302 = EngineState_liquid_MINUS_spawn(state);
-                            float* _303 = ref_MINUS_to_MINUS_ptr__float(_302);
-                            Pointer_set__float(_303, 0.0f);
+                            float* _311 = EngineState_liquid_MINUS_spawn(state);
+                            float* _312 = ref_MINUS_to_MINUS_ptr__float(_311);
+                            Pointer_set__float(_312, 0.0f);
                         }
                         if (g_MINUS_held) {
-                            float* _315 = EngineState_gas_MINUS_spawn(state);
-                            float* _316 = ref_MINUS_to_MINUS_ptr__float(_315);
-                            float* _320 = Player_current_MINUS_gas(player);
-                            float _321 = Float_copy(_320);
-                            Pointer_set__float(_316, _321);
+                            float* _324 = EngineState_gas_MINUS_spawn(state);
+                            float* _325 = ref_MINUS_to_MINUS_ptr__float(_324);
+                            float* _329 = Player_current_MINUS_gas(player);
+                            float _330 = Float_copy(_329);
+                            Pointer_set__float(_325, _330);
                         } else {
-                            float* _329 = EngineState_gas_MINUS_spawn(state);
-                            float* _330 = ref_MINUS_to_MINUS_ptr__float(_329);
-                            Pointer_set__float(_330, 0.0f);
+                            float* _338 = EngineState_gas_MINUS_spawn(state);
+                            float* _339 = ref_MINUS_to_MINUS_ptr__float(_338);
+                            Pointer_set__float(_339, 0.0f);
                         }
                     } else {
-                        float* _341 = EngineState_hit_MINUS_active(state);
-                        float* _342 = ref_MINUS_to_MINUS_ptr__float(_341);
-                        Pointer_set__float(_342, 0.0f);
-                        float* _349 = EngineState_liquid_MINUS_spawn(state);
-                        float* _350 = ref_MINUS_to_MINUS_ptr__float(_349);
-                        Pointer_set__float(_350, 0.0f);
-                        float* _357 = EngineState_gas_MINUS_spawn(state);
-                        float* _358 = ref_MINUS_to_MINUS_ptr__float(_357);
-                        Pointer_set__float(_358, 0.0f);
+                        float* _350 = EngineState_hit_MINUS_active(state);
+                        float* _351 = ref_MINUS_to_MINUS_ptr__float(_350);
+                        Pointer_set__float(_351, 0.0f);
+                        float* _358 = EngineState_liquid_MINUS_spawn(state);
+                        float* _359 = ref_MINUS_to_MINUS_ptr__float(_358);
+                        Pointer_set__float(_359, 0.0f);
+                        float* _366 = EngineState_gas_MINUS_spawn(state);
+                        float* _367 = ref_MINUS_to_MINUS_ptr__float(_366);
+                        Pointer_set__float(_367, 0.0f);
                     }
-                    bool _380;
-                    bool _373;
+                    bool _389;
+                    bool _382;
                     if (left_MINUS_pressed) {
-                        bool _369 = true;
-                        _373 = _369;
+                        bool _378 = true;
+                        _382 = _378;
                     } else {
-                        bool _372 = right_MINUS_pressed;
-                        _373 = _372;
+                        bool _381 = right_MINUS_pressed;
+                        _382 = _381;
                     }
-                    if (_373) {
-                        bool _376 = f_MINUS_held;
-                        _380 = _376;
+                    if (_382) {
+                        bool _385 = f_MINUS_held;
+                        _389 = _385;
                     } else {
-                        bool _379 = false;
-                        _380 = _379;
+                        bool _388 = false;
+                        _389 = _388;
                     }
-                    if (_380) {
+                    if (_389) {
                         /* let */ {
-                            double* _387 = Player_edit_MINUS_radius(player);
-                            double _388 = Double_copy(_387);
-                            double radius = _388;
-                            float* _393 = Player_current_MINUS_mat(player);
-                            float _394 = Float_copy(_393);
-                            float mat_MINUS_id = _394;
+                            double* _396 = Player_edit_MINUS_radius(player);
+                            double _397 = Double_copy(_396);
+                            double radius = _397;
+                            float* _402 = Player_current_MINUS_mat(player);
+                            float _403 = Float_copy(_402);
+                            float mat_MINUS_id = _403;
                             bool carve_QMARK_ = left_MINUS_pressed;
-                            Vector3__double* _402 = &hit_MINUS_pos; // ref
-                            Array__ChunkCoord _406 = World_edit_MINUS_sdf_BANG_(world, _402, radius, mat_MINUS_id, carve_QMARK_);
-                            Array__ChunkCoord modified_MINUS_coords = _406;
+                            Vector3__double* _411 = &hit_MINUS_pos; // ref
+                            Array__ChunkCoord _415 = World_edit_MINUS_sdf_BANG_(world, _411, radius, mat_MINUS_id, carve_QMARK_);
+                            Array__ChunkCoord modified_MINUS_coords = _415;
                             /* let */ {
                                 int j = 0;
-                                Array__ChunkCoord* _419 = &modified_MINUS_coords; // ref
-                                int _420 = Array_length__ChunkCoord(_419);
-                                bool _1000037 = Int__LT_(j, _420);
+                                Array__ChunkCoord* _428 = &modified_MINUS_coords; // ref
+                                int _429 = Array_length__ChunkCoord(_428);
+                                bool _1000037 = Int__LT_(j, _429);
                                 bool _1000035 = _1000037;
                                 while (_1000035) {
                                     /* let */ {
-                                        Array__ChunkCoord* _428 = &modified_MINUS_coords; // ref
-                                        ChunkCoord* _430 = Array_unsafe_MINUS_nth__ChunkCoord(_428, j);
-                                        ChunkCoord* coord = _430;
-                                        int* _435 = ChunkCoord_x(coord);
-                                        int _436 = Int_copy(_435);
-                                        int qx = _436;
-                                        int* _441 = ChunkCoord_y(coord);
-                                        int _442 = Int_copy(_441);
-                                        int qy = _442;
-                                        int* _447 = ChunkCoord_z(coord);
-                                        int _448 = Int_copy(_447);
-                                        int qz = _448;
-                                        Maybe__Chunk _455 = World_find_MINUS_chunk(world, qx, qy, qz);
-                                        Maybe__Chunk chunk_MINUS_opt = _455;
+                                        Array__ChunkCoord* _437 = &modified_MINUS_coords; // ref
+                                        ChunkCoord* _439 = Array_unsafe_MINUS_nth__ChunkCoord(_437, j);
+                                        ChunkCoord* coord = _439;
+                                        int* _444 = ChunkCoord_x(coord);
+                                        int _445 = Int_copy(_444);
+                                        int qx = _445;
+                                        int* _450 = ChunkCoord_y(coord);
+                                        int _451 = Int_copy(_450);
+                                        int qy = _451;
+                                        int* _456 = ChunkCoord_z(coord);
+                                        int _457 = Int_copy(_456);
+                                        int qz = _457;
+                                        Maybe__Chunk _464 = World_find_MINUS_chunk(world, qx, qy, qz);
+                                        Maybe__Chunk chunk_MINUS_opt = _464;
                                         if(chunk_MINUS_opt._tag == Maybe__Chunk_Nothing_tag) {
-                                            Maybe__Chunk _458_temp = chunk_MINUS_opt;
+                                            Maybe__Chunk _467_temp = chunk_MINUS_opt;
                                             // Case expr:
                                             /* () */
                                         }
                                         else if(chunk_MINUS_opt._tag == Maybe__Chunk_Just_tag) {
-                                            Maybe__Chunk _458_temp = chunk_MINUS_opt;
-                                            Chunk chunk = _458_temp.u.Just.member0;
+                                            Maybe__Chunk _467_temp = chunk_MINUS_opt;
+                                            Chunk chunk = _467_temp.u.Just.member0;
                                             // Case expr:
-                                            Chunk* _474 = &chunk; // ref
-                                            Array__float* _475 = Chunk_voxel_MINUS_data(_474);
-                                            Renderer_update_MINUS_chunk_MINUS_texture(platform_MINUS_eng, ren, qx, qy, qz, _475);
+                                            Chunk* _483 = &chunk; // ref
+                                            Array__float* _484 = Chunk_voxel_MINUS_data(_483);
+                                            Renderer_update_MINUS_chunk_MINUS_texture(platform_MINUS_eng, ren, qx, qy, qz, _484);
                                             Chunk_delete(chunk);
                                         }
-                                        else UNHANDLED("engine.carp", 189);
+                                        else UNHANDLED("engine.carp", 190);
                                     }
                                     int _1000044 = Int__PLUS_(j, 1);
                                     j = _1000044;  // Int = Int
-                                    Array__ChunkCoord* _419 = &modified_MINUS_coords; // ref
-                                    int _420 = Array_length__ChunkCoord(_419);
-                                    bool _1000037 = Int__LT_(j, _420);
+                                    Array__ChunkCoord* _428 = &modified_MINUS_coords; // ref
+                                    int _429 = Array_length__ChunkCoord(_428);
+                                    bool _1000037 = Int__LT_(j, _429);
                                     _1000035 = _1000037;
                                 }
                             }
@@ -18726,8 +21751,9 @@ void EngineState_update_BANG_(EngineState* state, GLFWwindow* win, double dt, bo
                 }
                 Vector3_delete__double(hit_MINUS_pos);
             }
-            else UNHANDLED("engine.carp", 135);
+            else UNHANDLED("engine.carp", 136);
         }
+        Vector3_delete__double(prev_MINUS_pos);
     }
 }
 
@@ -19425,6 +22451,1297 @@ void Function_delete__void_MUL__void (Lambda f) {
       ((void(*)(void*))f.delete)(f.env);
       CARP_FREE(f.env);
   }
+}
+
+Maybe__Contact Geometry_AABB_collide_MINUS_aabb(AABB* a, AABB* b) {
+    Maybe__Contact _393;
+    /* let */ {
+        Vector3__double* _9 = AABB_min(a);
+        Vector3__double* amin = _9;
+        Vector3__double* _13 = AABB_max(a);
+        Vector3__double* amax = _13;
+        Vector3__double* _17 = AABB_min(b);
+        Vector3__double* bmin = _17;
+        Vector3__double* _21 = AABB_max(b);
+        Vector3__double* bmax = _21;
+        double* _28 = Vector3_x__double(amax);
+        double _29 = Double_copy(_28);
+        double* _33 = Vector3_x__double(bmax);
+        double _34 = Double_copy(_33);
+        double _35 = min__double(_29, _34);
+        double* _40 = Vector3_x__double(amin);
+        double _41 = Double_copy(_40);
+        double* _45 = Vector3_x__double(bmin);
+        double _46 = Double_copy(_45);
+        double _47 = max__double(_41, _46);
+        double _48 = Double__MINUS_(_35, _47);
+        double ox = _48;
+        double* _55 = Vector3_y__double(amax);
+        double _56 = Double_copy(_55);
+        double* _60 = Vector3_y__double(bmax);
+        double _61 = Double_copy(_60);
+        double _62 = min__double(_56, _61);
+        double* _67 = Vector3_y__double(amin);
+        double _68 = Double_copy(_67);
+        double* _72 = Vector3_y__double(bmin);
+        double _73 = Double_copy(_72);
+        double _74 = max__double(_68, _73);
+        double _75 = Double__MINUS_(_62, _74);
+        double oy = _75;
+        double* _82 = Vector3_z__double(amax);
+        double _83 = Double_copy(_82);
+        double* _87 = Vector3_z__double(bmax);
+        double _88 = Double_copy(_87);
+        double _89 = min__double(_83, _88);
+        double* _94 = Vector3_z__double(amin);
+        double _95 = Double_copy(_94);
+        double* _99 = Vector3_z__double(bmin);
+        double _100 = Double_copy(_99);
+        double _101 = max__double(_95, _100);
+        double _102 = Double__MINUS_(_89, _101);
+        double oz = _102;
+        Maybe__Contact _392;
+        bool _130;
+        bool _120;
+        bool _110 = Double__GT_(ox, 0.0);
+        if (_110) {
+            bool _115 = Double__GT_(oy, 0.0);
+            bool _116 = _115;
+            _120 = _116;
+        } else {
+            bool _119 = false;
+            _120 = _119;
+        }
+        if (_120) {
+            bool _125 = Double__GT_(oz, 0.0);
+            bool _126 = _125;
+            _130 = _126;
+        } else {
+            bool _129 = false;
+            _130 = _129;
+        }
+        if (_130) {
+            Maybe__Contact _386;
+            /* let */ {
+                double depth = ox;
+                int axis = 0;
+                bool _143 = Double__LT_(oy, depth);
+                if (_143) {
+                    depth = oy;  // Double = Double
+                    axis = 1;  // Int = Int
+                } else {
+                    /* () */
+                }
+                bool _162 = Double__LT_(oz, depth);
+                if (_162) {
+                    depth = oz;  // Double = Double
+                    axis = 2;  // Int = Int
+                } else {
+                    /* () */
+                }
+                Maybe__Contact _384;
+                /* let */ {
+                    Vector3__double* _182 = AABB_min(a);
+                    Vector3__double* _185 = AABB_min(b);
+                    Vector3__double _186 = Vector3_sub__double(_182, _185);
+                    Vector3__double diff = _186;
+                    Vector3__double _273;
+                    bool _192 = Int__EQ_(axis, 0);
+                    if (_192) {
+                        double _212;
+                        Vector3__double* _201 = &diff; // ref
+                        double* _202 = Vector3_x__double(_201);
+                        double _203 = Double_copy(_202);
+                        bool _205 = Double__LT_(_203, 0.0);
+                        if (_205) {
+                            double _208 = -1.0;
+                            _212 = _208;
+                        } else {
+                            double _211 = 1.0;
+                            _212 = _211;
+                        }
+                        Vector3__double _215 = Vector3_init__double(_212, 0.0, 0.0);
+                        Vector3__double _216 = _215;
+                        _273 = _216;
+                    } else {
+                        Vector3__double _271;
+                        bool _222 = Int__EQ_(axis, 1);
+                        if (_222) {
+                            double _243;
+                            Vector3__double* _232 = &diff; // ref
+                            double* _233 = Vector3_y__double(_232);
+                            double _234 = Double_copy(_233);
+                            bool _236 = Double__LT_(_234, 0.0);
+                            if (_236) {
+                                double _239 = -1.0;
+                                _243 = _239;
+                            } else {
+                                double _242 = 1.0;
+                                _243 = _242;
+                            }
+                            Vector3__double _245 = Vector3_init__double(0.0, _243, 0.0);
+                            Vector3__double _246 = _245;
+                            _271 = _246;
+                        } else {
+                            double _268;
+                            Vector3__double* _257 = &diff; // ref
+                            double* _258 = Vector3_z__double(_257);
+                            double _259 = Double_copy(_258);
+                            bool _261 = Double__LT_(_259, 0.0);
+                            if (_261) {
+                                double _264 = -1.0;
+                                _268 = _264;
+                            } else {
+                                double _267 = 1.0;
+                                _268 = _267;
+                            }
+                            Vector3__double _269 = Vector3_init__double(0.0, 0.0, _268);
+                            Vector3__double _270 = _269;
+                            _271 = _270;
+                        }
+                        Vector3__double _272 = _271;
+                        _273 = _272;
+                    }
+                    Vector3__double norm = _273;
+                    double* _279 = Vector3_x__double(amin);
+                    double _280 = Double_copy(_279);
+                    double* _284 = Vector3_x__double(bmin);
+                    double _285 = Double_copy(_284);
+                    double _286 = max__double(_280, _285);
+                    double x0 = _286;
+                    double* _292 = Vector3_x__double(amax);
+                    double _293 = Double_copy(_292);
+                    double* _297 = Vector3_x__double(bmax);
+                    double _298 = Double_copy(_297);
+                    double _299 = min__double(_293, _298);
+                    double x1 = _299;
+                    double* _305 = Vector3_y__double(amin);
+                    double _306 = Double_copy(_305);
+                    double* _310 = Vector3_y__double(bmin);
+                    double _311 = Double_copy(_310);
+                    double _312 = max__double(_306, _311);
+                    double y0 = _312;
+                    double* _318 = Vector3_y__double(amax);
+                    double _319 = Double_copy(_318);
+                    double* _323 = Vector3_y__double(bmax);
+                    double _324 = Double_copy(_323);
+                    double _325 = min__double(_319, _324);
+                    double y1 = _325;
+                    double* _331 = Vector3_z__double(amin);
+                    double _332 = Double_copy(_331);
+                    double* _336 = Vector3_z__double(bmin);
+                    double _337 = Double_copy(_336);
+                    double _338 = max__double(_332, _337);
+                    double z0 = _338;
+                    double* _344 = Vector3_z__double(amax);
+                    double _345 = Double_copy(_344);
+                    double* _349 = Vector3_z__double(bmax);
+                    double _350 = Double_copy(_349);
+                    double _351 = min__double(_345, _350);
+                    double z1 = _351;
+                    double _358 = Double__PLUS_(x0, x1);
+                    double _360 = Double__MUL_(_358, 0.5);
+                    double _365 = Double__PLUS_(y0, y1);
+                    double _367 = Double__MUL_(_365, 0.5);
+                    double _372 = Double__PLUS_(z0, z1);
+                    double _374 = Double__MUL_(_372, 0.5);
+                    Vector3__double _375 = Vector3_init__double(_360, _367, _374);
+                    Vector3__double cp = _375;
+                    Contact _382 = Contact_init(depth, cp, norm);
+                    Maybe__Contact _383 = Maybe_Just__Contact(_382);
+                    _384 = _383;
+                    Vector3_delete__double(diff);
+                }
+                Maybe__Contact _385 = _384;
+                _386 = _385;
+            }
+            Maybe__Contact _387 = _386;
+            _392 = _387;
+        } else {
+            Maybe__Contact _390 = Maybe_Nothing__Contact();
+            Maybe__Contact _391 = _390;
+            _392 = _391;
+        }
+        _393 = _392;
+    }
+    return _393;
+}
+
+bool Geometry_AABB_contains_QMARK_(AABB* a, Vector3__double* p) {
+    bool _122;
+    /* let */ {
+        Vector3__double* _9 = AABB_min(a);
+        Vector3__double* amin = _9;
+        Vector3__double* _13 = AABB_max(a);
+        Vector3__double* amax = _13;
+        bool _121;
+        bool _46;
+        double* _21 = Vector3_x__double(p);
+        double _22 = Double_copy(_21);
+        double* _26 = Vector3_x__double(amin);
+        double _27 = Double_copy(_26);
+        bool _28 = _GT__EQ___double(_22, _27);
+        if (_28) {
+            double* _34 = Vector3_x__double(p);
+            double _35 = Double_copy(_34);
+            double* _39 = Vector3_x__double(amax);
+            double _40 = Double_copy(_39);
+            bool _41 = _LT__EQ___double(_35, _40);
+            bool _42 = _41;
+            _46 = _42;
+        } else {
+            bool _45 = false;
+            _46 = _45;
+        }
+        if (_46) {
+            bool _116;
+            bool _79;
+            double* _54 = Vector3_y__double(p);
+            double _55 = Double_copy(_54);
+            double* _59 = Vector3_y__double(amin);
+            double _60 = Double_copy(_59);
+            bool _61 = _GT__EQ___double(_55, _60);
+            if (_61) {
+                double* _67 = Vector3_y__double(p);
+                double _68 = Double_copy(_67);
+                double* _72 = Vector3_y__double(amax);
+                double _73 = Double_copy(_72);
+                bool _74 = _LT__EQ___double(_68, _73);
+                bool _75 = _74;
+                _79 = _75;
+            } else {
+                bool _78 = false;
+                _79 = _78;
+            }
+            if (_79) {
+                bool _111;
+                double* _86 = Vector3_z__double(p);
+                double _87 = Double_copy(_86);
+                double* _91 = Vector3_z__double(amin);
+                double _92 = Double_copy(_91);
+                bool _93 = _GT__EQ___double(_87, _92);
+                if (_93) {
+                    double* _99 = Vector3_z__double(p);
+                    double _100 = Double_copy(_99);
+                    double* _104 = Vector3_z__double(amax);
+                    double _105 = Double_copy(_104);
+                    bool _106 = _LT__EQ___double(_100, _105);
+                    bool _107 = _106;
+                    _111 = _107;
+                } else {
+                    bool _110 = false;
+                    _111 = _110;
+                }
+                bool _112 = _111;
+                _116 = _112;
+            } else {
+                bool _115 = false;
+                _116 = _115;
+            }
+            bool _117 = _116;
+            _121 = _117;
+        } else {
+            bool _120 = false;
+            _121 = _120;
+        }
+        _122 = _121;
+    }
+    return _122;
+}
+
+Vector3__double Geometry_Ray_at(Ray* r, double t) {
+    Vector3__double* _8 = Ray_origin(r);
+    Vector3__double* _13 = Ray_direction(r);
+    Vector3__double _15 = Vector3_mul__double(_13, t);
+    Vector3__double* _16 = &_15; // ref
+    Vector3__double _17 = Vector3_add__double(_8, _16);
+    Vector3_delete__double(_15);
+    return _17;
+}
+
+Array__Vector3__double Geometry_Ray_fibonacci_MINUS_sphere(int samples) {
+    Array__Vector3__double _106;
+    /* let */ {
+        Array _6 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(Vector3__double) * 0) };
+        Array__Vector3__double points = _6;
+        double _14 = Double_sqrt(5.0);
+        double _15 = Double__MINUS_(3.0, _14);
+        double _16 = Double__MUL_(3.141592653589793, _15);
+        double phi = _16;
+        /* let */ {
+            int i = 0;
+            bool _1000008 = Int__LT_(i, samples);
+            bool _1000006 = _1000008;
+            while (_1000006) {
+                /* let */ {
+                    double _37 = Double_from_MINUS_int(i);
+                    int _42 = Int__MINUS_(samples, 1);
+                    double _43 = Double_from_MINUS_int(_42);
+                    double _44 = Double__DIV_(_37, _43);
+                    double _46 = Double__MUL_(_44, 2.0);
+                    double _47 = Double__MINUS_(1.0, _46);
+                    double y = _47;
+                    double _57 = Double__MUL_(y, y);
+                    double _58 = Double__MINUS_(1.0, _57);
+                    double _59 = max__double(0.0, _58);
+                    double _60 = Double_sqrt(_59);
+                    double r_MINUS_at_MINUS_y = _60;
+                    double _66 = Double_from_MINUS_int(i);
+                    double _67 = Double__MUL_(phi, _66);
+                    double theta = _67;
+                    double _72 = Double_cos(theta);
+                    double _74 = Double__MUL_(_72, r_MINUS_at_MINUS_y);
+                    double x = _74;
+                    double _79 = Double_sin(theta);
+                    double _81 = Double__MUL_(_79, r_MINUS_at_MINUS_y);
+                    double z = _81;
+                    Array__Vector3__double* _86 = &points; // ref
+                    Vector3__double _91 = Vector3_init__double(x, y, z);
+                    Array_push_MINUS_back_BANG___Vector3__double(_86, _91);
+                }
+                int _1000014 = Int__PLUS_(i, 1);
+                i = _1000014;  // Int = Int
+                bool _1000008 = Int__LT_(i, samples);
+                _1000006 = _1000008;
+            }
+        }
+        Array__Vector3__double _105 = points;
+        _106 = _105;
+    }
+    return _106;
+}
+
+Maybe__RayHit Geometry_Ray_intersect_MINUS_aabb(Ray* ray, AABB* aabb) {
+    Maybe__RayHit _603;
+    /* let */ {
+        Vector3__double* _9 = Ray_origin(ray);
+        Vector3__double* origin = _9;
+        Vector3__double* _13 = Ray_direction(ray);
+        Vector3__double* dir = _13;
+        Vector3__double* _17 = AABB_min(aabb);
+        Vector3__double* amin = _17;
+        Vector3__double* _21 = AABB_max(aabb);
+        Vector3__double* amax = _21;
+        double _25 = Double_neg(CARP_DBL_MAX);
+        double tmin = _25;
+        double tmax = CARP_DBL_MAX;
+        int hit_MINUS_axis = -1;
+        double hit_MINUS_sign = 1.0;
+        double* _40 = Vector3_x__double(dir);
+        double _41 = Double_copy(_40);
+        double _42 = Double_abs(_41);
+        bool _44 = Double__LT_(_42, Geometry_EPSILON);
+        if (_44) {
+            bool _77;
+            double* _52 = Vector3_x__double(origin);
+            double _53 = Double_copy(_52);
+            double* _57 = Vector3_x__double(amin);
+            double _58 = Double_copy(_57);
+            bool _59 = Double__LT_(_53, _58);
+            if (_59) {
+                bool _62 = true;
+                _77 = _62;
+            } else {
+                double* _68 = Vector3_x__double(origin);
+                double _69 = Double_copy(_68);
+                double* _73 = Vector3_x__double(amax);
+                double _74 = Double_copy(_73);
+                bool _75 = Double__GT_(_69, _74);
+                bool _76 = _75;
+                _77 = _76;
+            }
+            if (_77) {
+                tmax = -1.0;  // Double = Double
+            } else {
+                /* () */
+            }
+        } else {
+            /* let */ {
+                double* _97 = Vector3_x__double(dir);
+                double _98 = Double_copy(_97);
+                double _99 = Double__DIV_(1.0, _98);
+                double invD = _99;
+                double* _106 = Vector3_x__double(amin);
+                double _107 = Double_copy(_106);
+                double* _111 = Vector3_x__double(origin);
+                double _112 = Double_copy(_111);
+                double _113 = Double__MINUS_(_107, _112);
+                double _115 = Double__MUL_(_113, invD);
+                double t0 = _115;
+                double* _122 = Vector3_x__double(amax);
+                double _123 = Double_copy(_122);
+                double* _127 = Vector3_x__double(origin);
+                double _128 = Double_copy(_127);
+                double _129 = Double__MINUS_(_123, _128);
+                double _131 = Double__MUL_(_129, invD);
+                double t1 = _131;
+                double _136 = min__double(t0, t1);
+                double near = _136;
+                double _141 = max__double(t0, t1);
+                double far = _141;
+                double _150 = Double__PLUS_(tmin, Geometry_EPSILON);
+                bool _151 = Double__GT_(near, _150);
+                if (_151) {
+                    tmin = near;  // Double = Double
+                    hit_MINUS_axis = 0;  // Int = Int
+                    double _174;
+                    bool _167 = Double__LT_(t0, t1);
+                    if (_167) {
+                        double _170 = -1.0;
+                        _174 = _170;
+                    } else {
+                        double _173 = 1.0;
+                        _174 = _173;
+                    }
+                    hit_MINUS_sign = _174;  // Double = Double
+                } else {
+                    /* () */
+                }
+                double _186 = min__double(tmax, far);
+                tmax = _186;  // Double = Double
+            }
+        }
+        double* _198 = Vector3_y__double(dir);
+        double _199 = Double_copy(_198);
+        double _200 = Double_abs(_199);
+        bool _202 = Double__LT_(_200, Geometry_EPSILON);
+        if (_202) {
+            bool _235;
+            double* _210 = Vector3_y__double(origin);
+            double _211 = Double_copy(_210);
+            double* _215 = Vector3_y__double(amin);
+            double _216 = Double_copy(_215);
+            bool _217 = Double__LT_(_211, _216);
+            if (_217) {
+                bool _220 = true;
+                _235 = _220;
+            } else {
+                double* _226 = Vector3_y__double(origin);
+                double _227 = Double_copy(_226);
+                double* _231 = Vector3_y__double(amax);
+                double _232 = Double_copy(_231);
+                bool _233 = Double__GT_(_227, _232);
+                bool _234 = _233;
+                _235 = _234;
+            }
+            if (_235) {
+                tmax = -1.0;  // Double = Double
+            } else {
+                /* () */
+            }
+        } else {
+            /* let */ {
+                double* _255 = Vector3_y__double(dir);
+                double _256 = Double_copy(_255);
+                double _257 = Double__DIV_(1.0, _256);
+                double invD = _257;
+                double* _264 = Vector3_y__double(amin);
+                double _265 = Double_copy(_264);
+                double* _269 = Vector3_y__double(origin);
+                double _270 = Double_copy(_269);
+                double _271 = Double__MINUS_(_265, _270);
+                double _273 = Double__MUL_(_271, invD);
+                double t0 = _273;
+                double* _280 = Vector3_y__double(amax);
+                double _281 = Double_copy(_280);
+                double* _285 = Vector3_y__double(origin);
+                double _286 = Double_copy(_285);
+                double _287 = Double__MINUS_(_281, _286);
+                double _289 = Double__MUL_(_287, invD);
+                double t1 = _289;
+                double _294 = min__double(t0, t1);
+                double near = _294;
+                double _299 = max__double(t0, t1);
+                double far = _299;
+                double _308 = Double__PLUS_(tmin, Geometry_EPSILON);
+                bool _309 = Double__GT_(near, _308);
+                if (_309) {
+                    tmin = near;  // Double = Double
+                    hit_MINUS_axis = 1;  // Int = Int
+                    double _332;
+                    bool _325 = Double__LT_(t0, t1);
+                    if (_325) {
+                        double _328 = -1.0;
+                        _332 = _328;
+                    } else {
+                        double _331 = 1.0;
+                        _332 = _331;
+                    }
+                    hit_MINUS_sign = _332;  // Double = Double
+                } else {
+                    /* () */
+                }
+                double _344 = min__double(tmax, far);
+                tmax = _344;  // Double = Double
+            }
+        }
+        double* _356 = Vector3_z__double(dir);
+        double _357 = Double_copy(_356);
+        double _358 = Double_abs(_357);
+        bool _360 = Double__LT_(_358, Geometry_EPSILON);
+        if (_360) {
+            bool _393;
+            double* _368 = Vector3_z__double(origin);
+            double _369 = Double_copy(_368);
+            double* _373 = Vector3_z__double(amin);
+            double _374 = Double_copy(_373);
+            bool _375 = Double__LT_(_369, _374);
+            if (_375) {
+                bool _378 = true;
+                _393 = _378;
+            } else {
+                double* _384 = Vector3_z__double(origin);
+                double _385 = Double_copy(_384);
+                double* _389 = Vector3_z__double(amax);
+                double _390 = Double_copy(_389);
+                bool _391 = Double__GT_(_385, _390);
+                bool _392 = _391;
+                _393 = _392;
+            }
+            if (_393) {
+                tmax = -1.0;  // Double = Double
+            } else {
+                /* () */
+            }
+        } else {
+            /* let */ {
+                double* _413 = Vector3_z__double(dir);
+                double _414 = Double_copy(_413);
+                double _415 = Double__DIV_(1.0, _414);
+                double invD = _415;
+                double* _422 = Vector3_z__double(amin);
+                double _423 = Double_copy(_422);
+                double* _427 = Vector3_z__double(origin);
+                double _428 = Double_copy(_427);
+                double _429 = Double__MINUS_(_423, _428);
+                double _431 = Double__MUL_(_429, invD);
+                double t0 = _431;
+                double* _438 = Vector3_z__double(amax);
+                double _439 = Double_copy(_438);
+                double* _443 = Vector3_z__double(origin);
+                double _444 = Double_copy(_443);
+                double _445 = Double__MINUS_(_439, _444);
+                double _447 = Double__MUL_(_445, invD);
+                double t1 = _447;
+                double _452 = min__double(t0, t1);
+                double near = _452;
+                double _457 = max__double(t0, t1);
+                double far = _457;
+                double _466 = Double__PLUS_(tmin, Geometry_EPSILON);
+                bool _467 = Double__GT_(near, _466);
+                if (_467) {
+                    tmin = near;  // Double = Double
+                    hit_MINUS_axis = 2;  // Int = Int
+                    double _490;
+                    bool _483 = Double__LT_(t0, t1);
+                    if (_483) {
+                        double _486 = -1.0;
+                        _490 = _486;
+                    } else {
+                        double _489 = 1.0;
+                        _490 = _489;
+                    }
+                    hit_MINUS_sign = _490;  // Double = Double
+                } else {
+                    /* () */
+                }
+                double _502 = min__double(tmax, far);
+                tmax = _502;  // Double = Double
+            }
+        }
+        Maybe__RayHit _601;
+        bool _523;
+        bool _513 = _LT__EQ___double(tmin, tmax);
+        if (_513) {
+            bool _518 = Double__GT_(tmax, Geometry_EPSILON);
+            bool _519 = _518;
+            _523 = _519;
+        } else {
+            bool _522 = false;
+            _523 = _522;
+        }
+        if (_523) {
+            Maybe__RayHit _595;
+            /* let */ {
+                double _530 = max__double(0.0, tmin);
+                double t = _530;
+                Vector3__double _535 = Geometry_Ray_at(ray, t);
+                Vector3__double p = _535;
+                Vector3__double _586;
+                bool _541 = Int__EQ_(hit_MINUS_axis, 0);
+                if (_541) {
+                    Vector3__double _547 = Vector3_init__double(hit_MINUS_sign, 0.0, 0.0);
+                    Vector3__double _548 = _547;
+                    _586 = _548;
+                } else {
+                    Vector3__double _584;
+                    bool _554 = Int__EQ_(hit_MINUS_axis, 1);
+                    if (_554) {
+                        Vector3__double _560 = Vector3_init__double(0.0, hit_MINUS_sign, 0.0);
+                        Vector3__double _561 = _560;
+                        _584 = _561;
+                    } else {
+                        Vector3__double _582;
+                        bool _567 = Int__EQ_(hit_MINUS_axis, 2);
+                        if (_567) {
+                            Vector3__double _573 = Vector3_init__double(0.0, 0.0, hit_MINUS_sign);
+                            Vector3__double _574 = _573;
+                            _582 = _574;
+                        } else {
+                            Vector3__double _580 = Vector3_init__double(0.0, 0.0, 0.0);
+                            Vector3__double _581 = _580;
+                            _582 = _581;
+                        }
+                        Vector3__double _583 = _582;
+                        _584 = _583;
+                    }
+                    Vector3__double _585 = _584;
+                    _586 = _585;
+                }
+                Vector3__double n = _586;
+                RayHit _593 = RayHit_init(t, p, n);
+                Maybe__RayHit _594 = Maybe_Just__RayHit(_593);
+                _595 = _594;
+            }
+            Maybe__RayHit _596 = _595;
+            _601 = _596;
+        } else {
+            Maybe__RayHit _599 = Maybe_Nothing__RayHit();
+            Maybe__RayHit _600 = _599;
+            _601 = _600;
+        }
+        Maybe__RayHit _602 = _601;
+        _603 = _602;
+    }
+    return _603;
+}
+
+Maybe__RayHit Geometry_Ray_intersect_MINUS_sphere(Ray* ray, Sphere* sphere) {
+    Maybe__RayHit _173;
+    /* let */ {
+        Vector3__double* _10 = Ray_origin(ray);
+        Vector3__double* _13 = Sphere_center(sphere);
+        Vector3__double _14 = Vector3_sub__double(_10, _13);
+        Vector3__double oc = _14;
+        Vector3__double* _19 = &oc; // ref
+        Vector3__double* _22 = Ray_direction(ray);
+        double _23 = Vector3_dot__double(_19, _22);
+        double half_MINUS_b = _23;
+        Vector3__double* _29 = &oc; // ref
+        double _30 = Vector3_mag_MINUS_sq__double(_29);
+        double* _35 = Sphere_radius(sphere);
+        double _36 = Double_copy(_35);
+        double* _40 = Sphere_radius(sphere);
+        double _41 = Double_copy(_40);
+        double _42 = Double__MUL_(_36, _41);
+        double _43 = Double__MINUS_(_30, _42);
+        double c = _43;
+        double _49 = Double__MUL_(half_MINUS_b, half_MINUS_b);
+        double _51 = Double__MINUS_(_49, c);
+        double discriminant = _51;
+        Maybe__RayHit _172;
+        bool _57 = Double__LT_(discriminant, 0.0);
+        if (_57) {
+            Maybe__RayHit _60 = Maybe_Nothing__RayHit();
+            Maybe__RayHit _61 = _60;
+            _172 = _61;
+        } else {
+            Maybe__RayHit _170;
+            /* let */ {
+                double _67 = Double_sqrt(discriminant);
+                double sqrtd = _67;
+                double _72 = Double_neg(half_MINUS_b);
+                double _74 = Double__MINUS_(_72, sqrtd);
+                double root1 = _74;
+                double _79 = Double_neg(half_MINUS_b);
+                double _81 = Double__PLUS_(_79, sqrtd);
+                double root2 = _81;
+                double _105;
+                bool _87 = Double__GT_(root1, Geometry_EPSILON);
+                if (_87) {
+                    double _90 = root1;
+                    _105 = _90;
+                } else {
+                    double _103;
+                    bool _96 = Double__GT_(root2, Geometry_EPSILON);
+                    if (_96) {
+                        double _99 = root2;
+                        _103 = _99;
+                    } else {
+                        double _102 = -1.0;
+                        _103 = _102;
+                    }
+                    double _104 = _103;
+                    _105 = _104;
+                }
+                double t = _105;
+                Maybe__RayHit _169;
+                bool _111 = Double__GT_(t, 0.0);
+                if (_111) {
+                    Maybe__RayHit _163;
+                    /* let */ {
+                        Vector3__double _118 = Geometry_Ray_at(ray, t);
+                        Vector3__double p = _118;
+                        Vector3__double* _123 = &p; // ref
+                        Vector3__double* _126 = Sphere_center(sphere);
+                        Vector3__double _127 = Vector3_sub__double(_123, _126);
+                        Vector3__double diff = _127;
+                        Vector3__double* _132 = &diff; // ref
+                        double _133 = Vector3_mag__double(_132);
+                        double dist = _133;
+                        Vector3__double _154;
+                        bool _139 = Double__LT_(dist, Geometry_EPSILON);
+                        if (_139) {
+                            Vector3__double _145 = Vector3_init__double(0.0, 1.0, 0.0);
+                            Vector3__double _146 = _145;
+                            _154 = _146;
+                        } else {
+                            Vector3__double* _151 = &diff; // ref
+                            Vector3__double _152 = Vector3_normalize__double(_151);
+                            Vector3__double _153 = _152;
+                            _154 = _153;
+                        }
+                        Vector3__double n = _154;
+                        RayHit _161 = RayHit_init(t, p, n);
+                        Maybe__RayHit _162 = Maybe_Just__RayHit(_161);
+                        _163 = _162;
+                        Vector3_delete__double(diff);
+                    }
+                    Maybe__RayHit _164 = _163;
+                    _169 = _164;
+                } else {
+                    Maybe__RayHit _167 = Maybe_Nothing__RayHit();
+                    Maybe__RayHit _168 = _167;
+                    _169 = _168;
+                }
+                _170 = _169;
+            }
+            Maybe__RayHit _171 = _170;
+            _172 = _171;
+        }
+        _173 = _172;
+        Vector3_delete__double(oc);
+    }
+    return _173;
+}
+
+Vector3__double Geometry_Segment_direction(Segment* s) {
+    Vector3__double _41;
+    /* let */ {
+        Vector3__double* _9 = Segment_end(s);
+        Vector3__double* _12 = Segment_start(s);
+        Vector3__double _13 = Vector3_sub__double(_9, _12);
+        Vector3__double diff = _13;
+        Vector3__double* _18 = &diff; // ref
+        double _19 = Vector3_mag__double(_18);
+        double dist = _19;
+        Vector3__double _40;
+        bool _25 = Double__LT_(dist, Geometry_EPSILON);
+        if (_25) {
+            Vector3__double _31 = Vector3_init__double(0.0, 0.0, 1.0);
+            Vector3__double _32 = _31;
+            _40 = _32;
+        } else {
+            Vector3__double* _37 = &diff; // ref
+            Vector3__double _38 = Vector3_normalize__double(_37);
+            Vector3__double _39 = _38;
+            _40 = _39;
+        }
+        _41 = _40;
+        Vector3_delete__double(diff);
+    }
+    return _41;
+}
+
+Maybe__RayHit Geometry_Segment_intersect_MINUS_aabb(Segment* s, AABB* aabb) {
+    Maybe__RayHit _63;
+    /* let */ {
+        Vector3__double* _11 = Segment_start(s);
+        Vector3__double _12 = Vector3_copy__double(_11);
+        Vector3__double _15 = Geometry_Segment_direction(s);
+        Ray _16 = Ray_init(_12, _15);
+        Ray ray = _16;
+        double _20 = Geometry_Segment_length(s);
+        double len = _20;
+        Ray* _25 = &ray; // ref
+        Maybe__RayHit _27 = Geometry_Ray_intersect_MINUS_aabb(_25, aabb);
+        Maybe__RayHit hit_MINUS_res = _27;
+        Maybe__RayHit _62;
+        if(hit_MINUS_res._tag == Maybe__RayHit_Nothing_tag) {
+            Maybe__RayHit _30_temp = hit_MINUS_res;
+            // Case expr:
+            Maybe__RayHit _34 = Maybe_Nothing__RayHit();
+            _62 = _34;
+        }
+        else if(hit_MINUS_res._tag == Maybe__RayHit_Just_tag) {
+            Maybe__RayHit _30_temp = hit_MINUS_res;
+            RayHit hit = _30_temp.u.Just.member0;
+            // Case expr:
+            Maybe__RayHit _61;
+            RayHit* _44 = &hit; // ref
+            double* _45 = RayHit_t(_44);
+            double _46 = Double_copy(_45);
+            double _50 = Double__PLUS_(len, Geometry_EPSILON);
+            bool _51 = _LT__EQ___double(_46, _50);
+            if (_51) {
+                Maybe__RayHit _55 = Maybe_Just__RayHit(hit);
+                Maybe__RayHit _56 = _55;
+                _61 = _56;
+            } else {
+                Maybe__RayHit _59 = Maybe_Nothing__RayHit();
+                Maybe__RayHit _60 = _59;
+                RayHit_delete(hit);
+                _61 = _60;
+            }
+            _62 = _61;
+        }
+        else UNHANDLED("geometry.carp", 511);
+        _63 = _62;
+        Ray_delete(ray);
+    }
+    return _63;
+}
+
+Maybe__RayHit Geometry_Segment_intersect_MINUS_sdf(Segment* s, SDF* sdf) {
+    Maybe__RayHit _178;
+    /* let */ {
+        Vector3__double* _9 = Segment_start(s);
+        Vector3__double* start = _9;
+        Vector3__double* _13 = Segment_end(s);
+        Vector3__double* end = _13;
+        Vector3__double _18 = Vector3_sub__double(end, start);
+        Vector3__double diff = _18;
+        Vector3__double* _23 = &diff; // ref
+        double _24 = Vector3_mag__double(_23);
+        double len = _24;
+        Vector3__double _45;
+        bool _30 = Double__LT_(len, 1.0e-4);
+        if (_30) {
+            Vector3__double _36 = Vector3_init__double(0.0, 0.0, 1.0);
+            Vector3__double _37 = _36;
+            _45 = _37;
+        } else {
+            Vector3__double* _42 = &diff; // ref
+            Vector3__double _43 = Vector3_normalize__double(_42);
+            Vector3__double _44 = _43;
+            _45 = _44;
+        }
+        Vector3__double dir = _45;
+        double t = 0.0;
+        bool hit_QMARK_ = false;
+        Vector3__double _55 = Vector3_init__double(0.0, 0.0, 0.0);
+        Vector3__double hit_MINUS_pt = _55;
+        Vector3__double _61 = Vector3_init__double(0.0, 1.0, 0.0);
+        Vector3__double hit_MINUS_norm = _61;
+        /* let */ {
+            int step = 0;
+            bool _1000011 = Int__LT_(step, 10);
+            bool _1000009 = _1000011;
+            while (_1000009) {
+                bool _88;
+                bool _78 = not(hit_QMARK_);
+                if (_78) {
+                    bool _83 = _LT__EQ___double(t, len);
+                    bool _84 = _83;
+                    _88 = _84;
+                } else {
+                    bool _87 = false;
+                    _88 = _87;
+                }
+                if (_88) {
+                    /* let */ {
+                        Vector3__double* _98 = &dir; // ref
+                        Vector3__double _100 = Vector3_mul__double(_98, t);
+                        Vector3__double* _101 = &_100; // ref
+                        Vector3__double _102 = Vector3_add__double(start, _101);
+                        Vector3__double p = _102;
+                        Vector3__double* _108 = &p; // ref
+                        double _109 = SDF_distance_MINUS_world(sdf, _108);
+                        double d = _109;
+                        bool _115 = Double__LT_(d, 1.0e-3);
+                        if (_115) {
+                            hit_QMARK_ = true;  // Bool = Bool
+                            Vector3__double* _127 = &p; // ref
+                            Vector3__double _128 = SDF_normal_MINUS_world(sdf, _127);
+                            Vector3_delete__double(hit_MINUS_norm);
+                            hit_MINUS_norm = _128;  // (Vector3 Double) = (Vector3 Double)
+                            Vector3_delete__double(hit_MINUS_pt);
+                            hit_MINUS_pt = p;  // (Vector3 Double) = (Vector3 Double)
+                        } else {
+                            double _141 = Double__PLUS_(t, d);
+                            t = _141;  // Double = Double
+                            Vector3_delete__double(p);
+                        }
+                        Vector3_delete__double(_100);
+                    }
+                } else {
+                    /* () */
+                }
+                int _1000030 = Int__PLUS_(step, 1);
+                step = _1000030;  // Int = Int
+                bool _1000011 = Int__LT_(step, 10);
+                _1000009 = _1000011;
+            }
+        }
+        Maybe__RayHit _176;
+        if (hit_QMARK_) {
+            RayHit _169 = RayHit_init(t, hit_MINUS_pt, hit_MINUS_norm);
+            Maybe__RayHit _170 = Maybe_Just__RayHit(_169);
+            Maybe__RayHit _171 = _170;
+            _176 = _171;
+        } else {
+            Maybe__RayHit _174 = Maybe_Nothing__RayHit();
+            Maybe__RayHit _175 = _174;
+            Vector3_delete__double(hit_MINUS_norm);
+            Vector3_delete__double(hit_MINUS_pt);
+            _176 = _175;
+        }
+        Maybe__RayHit _177 = _176;
+        _178 = _177;
+        Vector3_delete__double(diff);
+        Vector3_delete__double(dir);
+    }
+    return _178;
+}
+
+Maybe__RayHit Geometry_Segment_intersect_MINUS_sphere(Segment* s, Sphere* sphere) {
+    Maybe__RayHit _63;
+    /* let */ {
+        Vector3__double* _11 = Segment_start(s);
+        Vector3__double _12 = Vector3_copy__double(_11);
+        Vector3__double _15 = Geometry_Segment_direction(s);
+        Ray _16 = Ray_init(_12, _15);
+        Ray ray = _16;
+        double _20 = Geometry_Segment_length(s);
+        double len = _20;
+        Ray* _25 = &ray; // ref
+        Maybe__RayHit _27 = Geometry_Ray_intersect_MINUS_sphere(_25, sphere);
+        Maybe__RayHit hit_MINUS_res = _27;
+        Maybe__RayHit _62;
+        if(hit_MINUS_res._tag == Maybe__RayHit_Nothing_tag) {
+            Maybe__RayHit _30_temp = hit_MINUS_res;
+            // Case expr:
+            Maybe__RayHit _34 = Maybe_Nothing__RayHit();
+            _62 = _34;
+        }
+        else if(hit_MINUS_res._tag == Maybe__RayHit_Just_tag) {
+            Maybe__RayHit _30_temp = hit_MINUS_res;
+            RayHit hit = _30_temp.u.Just.member0;
+            // Case expr:
+            Maybe__RayHit _61;
+            RayHit* _44 = &hit; // ref
+            double* _45 = RayHit_t(_44);
+            double _46 = Double_copy(_45);
+            double _50 = Double__PLUS_(len, Geometry_EPSILON);
+            bool _51 = _LT__EQ___double(_46, _50);
+            if (_51) {
+                Maybe__RayHit _55 = Maybe_Just__RayHit(hit);
+                Maybe__RayHit _56 = _55;
+                _61 = _56;
+            } else {
+                Maybe__RayHit _59 = Maybe_Nothing__RayHit();
+                Maybe__RayHit _60 = _59;
+                RayHit_delete(hit);
+                _61 = _60;
+            }
+            _62 = _61;
+        }
+        else UNHANDLED("geometry.carp", 501);
+        _63 = _62;
+        Ray_delete(ray);
+    }
+    return _63;
+}
+
+double Geometry_Segment_length(Segment* s) {
+    Vector3__double* _7 = Segment_start(s);
+    Vector3__double* _10 = Segment_end(s);
+    double _11 = Vector3_dist__double(_7, _10);
+    return _11;
+}
+
+Maybe__Contact Geometry_Sphere_collide_MINUS_aabb(Sphere* sphere, AABB* aabb) {
+    Maybe__Contact _159;
+    /* let */ {
+        Vector3__double* _9 = Sphere_center(sphere);
+        Vector3__double* center = _9;
+        Vector3__double* _13 = AABB_min(aabb);
+        Vector3__double* amin = _13;
+        Vector3__double* _17 = AABB_max(aabb);
+        Vector3__double* amax = _17;
+        double* _24 = Vector3_x__double(amin);
+        double _25 = Double_copy(_24);
+        double* _29 = Vector3_x__double(amax);
+        double _30 = Double_copy(_29);
+        double* _34 = Vector3_x__double(center);
+        double _35 = Double_copy(_34);
+        double _36 = clamp__double(_25, _30, _35);
+        double* _41 = Vector3_y__double(amin);
+        double _42 = Double_copy(_41);
+        double* _46 = Vector3_y__double(amax);
+        double _47 = Double_copy(_46);
+        double* _51 = Vector3_y__double(center);
+        double _52 = Double_copy(_51);
+        double _53 = clamp__double(_42, _47, _52);
+        double* _58 = Vector3_z__double(amin);
+        double _59 = Double_copy(_58);
+        double* _63 = Vector3_z__double(amax);
+        double _64 = Double_copy(_63);
+        double* _68 = Vector3_z__double(center);
+        double _69 = Double_copy(_68);
+        double _70 = clamp__double(_59, _64, _69);
+        Vector3__double _71 = Vector3_init__double(_36, _53, _70);
+        Vector3__double closest = _71;
+        Vector3__double* _76 = &closest; // ref
+        Vector3__double _78 = Vector3_sub__double(_76, center);
+        Vector3__double diff = _78;
+        Vector3__double* _83 = &diff; // ref
+        double _84 = Vector3_mag_MINUS_sq__double(_83);
+        double d2 = _84;
+        double* _89 = Sphere_radius(sphere);
+        double _90 = Double_copy(_89);
+        double r = _90;
+        Maybe__Contact _158;
+        double _98 = Double__MUL_(r, r);
+        bool _99 = _LT__EQ___double(d2, _98);
+        if (_99) {
+            Maybe__Contact _152;
+            /* let */ {
+                double _105 = Double_sqrt(d2);
+                double dist = _105;
+                Vector3__double _136;
+                bool _111 = Double__LT_(dist, Geometry_EPSILON);
+                if (_111) {
+                    Vector3__double _117 = Vector3_init__double(0.0, 1.0, 0.0);
+                    Vector3__double _118 = _117;
+                    _136 = _118;
+                } else {
+                    Vector3__double _134;
+                    /* let */ {
+                        Vector3__double* _125 = &diff; // ref
+                        Vector3__double _126 = Vector3_normalize__double(_125);
+                        Vector3__double n = _126;
+                        Vector3__double* _131 = &n; // ref
+                        Vector3__double _133 = Vector3_mul__double(_131, -1.0);
+                        _134 = _133;
+                        Vector3_delete__double(n);
+                    }
+                    Vector3__double _135 = _134;
+                    _136 = _135;
+                }
+                Vector3__double norm = _136;
+                double _141 = Double__MINUS_(r, dist);
+                double depth = _141;
+                Vector3__double p = closest;
+                Contact _150 = Contact_init(depth, p, norm);
+                Maybe__Contact _151 = Maybe_Just__Contact(_150);
+                _152 = _151;
+            }
+            Maybe__Contact _153 = _152;
+            _158 = _153;
+        } else {
+            Maybe__Contact _156 = Maybe_Nothing__Contact();
+            Maybe__Contact _157 = _156;
+            Vector3_delete__double(closest);
+            _158 = _157;
+        }
+        _159 = _158;
+        Vector3_delete__double(diff);
+    }
+    return _159;
+}
+
+Maybe__Contact Geometry_Sphere_collide_MINUS_sdf(Sphere* sphere, SDF* sdf) {
+    Maybe__Contact _66;
+    /* let */ {
+        Vector3__double* _9 = Sphere_center(sphere);
+        Vector3__double* center = _9;
+        double _14 = SDF_distance(sdf, center);
+        double dist = _14;
+        double* _19 = Sphere_radius(sphere);
+        double _20 = Double_copy(_19);
+        double r = _20;
+        Maybe__Contact _65;
+        bool _26 = Double__LT_(dist, r);
+        if (_26) {
+            Maybe__Contact _59;
+            /* let */ {
+                double _33 = Double__MINUS_(r, dist);
+                double depth = _33;
+                Vector3__double _38 = SDF_normal_MINUS_at(sdf, center);
+                Vector3__double norm = _38;
+                Vector3__double* _46 = &norm; // ref
+                Vector3__double _48 = Vector3_mul__double(_46, dist);
+                Vector3__double* _49 = &_48; // ref
+                Vector3__double _50 = Vector3_sub__double(center, _49);
+                Vector3__double cp = _50;
+                Contact _57 = Contact_init(depth, cp, norm);
+                Maybe__Contact _58 = Maybe_Just__Contact(_57);
+                _59 = _58;
+                Vector3_delete__double(_48);
+            }
+            Maybe__Contact _60 = _59;
+            _65 = _60;
+        } else {
+            Maybe__Contact _63 = Maybe_Nothing__Contact();
+            Maybe__Contact _64 = _63;
+            _65 = _64;
+        }
+        _66 = _65;
+    }
+    return _66;
+}
+
+Maybe__Contact Geometry_Sphere_collide_MINUS_sphere(Sphere* s1, Sphere* s2) {
+    Maybe__Contact _108;
+    /* let */ {
+        Vector3__double* _10 = Sphere_center(s1);
+        Vector3__double* _13 = Sphere_center(s2);
+        Vector3__double _14 = Vector3_sub__double(_10, _13);
+        Vector3__double diff = _14;
+        Vector3__double* _19 = &diff; // ref
+        double _20 = Vector3_mag_MINUS_sq__double(_19);
+        double d2 = _20;
+        double* _26 = Sphere_radius(s1);
+        double _27 = Double_copy(_26);
+        double* _31 = Sphere_radius(s2);
+        double _32 = Double_copy(_31);
+        double _33 = Double__PLUS_(_27, _32);
+        double sum = _33;
+        Maybe__Contact _107;
+        double _41 = Double__MUL_(sum, sum);
+        bool _42 = _LT__EQ___double(d2, _41);
+        if (_42) {
+            Maybe__Contact _101;
+            /* let */ {
+                double _48 = Double_sqrt(d2);
+                double dist = _48;
+                Vector3__double _69;
+                bool _54 = Double__LT_(dist, Geometry_EPSILON);
+                if (_54) {
+                    Vector3__double _60 = Vector3_init__double(0.0, 1.0, 0.0);
+                    Vector3__double _61 = _60;
+                    _69 = _61;
+                } else {
+                    Vector3__double* _66 = &diff; // ref
+                    Vector3__double _67 = Vector3_normalize__double(_66);
+                    Vector3__double _68 = _67;
+                    _69 = _68;
+                }
+                Vector3__double norm = _69;
+                double _74 = Double__MINUS_(sum, dist);
+                double depth = _74;
+                Vector3__double* _79 = Sphere_center(s1);
+                Vector3__double* _84 = &norm; // ref
+                double* _88 = Sphere_radius(s1);
+                double _89 = Double_copy(_88);
+                Vector3__double _90 = Vector3_mul__double(_84, _89);
+                Vector3__double* _91 = &_90; // ref
+                Vector3__double _92 = Vector3_sub__double(_79, _91);
+                Vector3__double p = _92;
+                Contact _99 = Contact_init(depth, p, norm);
+                Maybe__Contact _100 = Maybe_Just__Contact(_99);
+                _101 = _100;
+                Vector3_delete__double(_90);
+            }
+            Maybe__Contact _102 = _101;
+            _107 = _102;
+        } else {
+            Maybe__Contact _105 = Maybe_Nothing__Contact();
+            Maybe__Contact _106 = _105;
+            _107 = _106;
+        }
+        _108 = _107;
+        Vector3_delete__double(diff);
+    }
+    return _108;
+}
+
+bool Geometry_Sphere_contains_QMARK_(Sphere* s, Vector3__double* p) {
+    bool _33;
+    /* let */ {
+        Vector3__double* _12 = Sphere_center(s);
+        Vector3__double _14 = Vector3_sub__double(_12, p);
+        Vector3__double* _15 = &_14; // ref
+        double _16 = Vector3_mag_MINUS_sq__double(_15);
+        double d2 = _16;
+        double* _24 = Sphere_radius(s);
+        double _25 = Double_copy(_24);
+        double* _29 = Sphere_radius(s);
+        double _30 = Double_copy(_29);
+        double _31 = Double__MUL_(_25, _30);
+        bool _32 = _LT__EQ___double(d2, _31);
+        _33 = _32;
+        Vector3_delete__double(_14);
+    }
+    return _33;
+}
+
+Plane Geometry_create_MINUS_plane(Vector3__double* p, Vector3__double* n) {
+    Plane _22;
+    /* let */ {
+        Vector3__double _9 = Vector3_normalize__double(n);
+        Vector3__double norm = _9;
+        Vector3__double* _18 = &norm; // ref
+        double _19 = Vector3_dot__double(p, _18);
+        double _20 = Double_neg(_19);
+        Plane _21 = Plane_init(norm, _20);
+        _22 = _21;
+    }
+    return _22;
+}
+
+Ray Geometry_create_MINUS_ray(Vector3__double* origin, Vector3__double* direction) {
+    Vector3__double _8 = Vector3_copy__double(origin);
+    Vector3__double _11 = Vector3_normalize__double(direction);
+    Ray _12 = Ray_init(_8, _11);
+    return _12;
+}
+
+Handle__void Handle_copy__void(Handle__void* pRef) {
+    Handle__void copy = *pRef;
+    /* Ignore non-managed member 'index_MINUS_raw' : Uint64 */
+    /* Ignore non-managed member 'generation_MINUS_raw' : Uint32 */
+    return copy;
+}
+
+void Handle_delete__void(Handle__void p) {
+    /* Ignore non-managed member 'index_MINUS_raw' : Uint64 */
+    /* Ignore non-managed member 'generation_MINUS_raw' : Uint32 */
+}
+
+String Handle_prn__void(Handle__void *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "(Handle ())");
+  temp = Uint64_prn(p->index_MINUS_raw); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Uint32_prn(p->generation_MINUS_raw); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Handle");
+  temp = Uint64_prn(p->index_MINUS_raw);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Uint32_prn(p->generation_MINUS_raw);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
 }
 
 int Heap_lchild(int i) {
@@ -21077,6 +25394,135 @@ WGPUVertexBufferWrapper** LinePassRenderer_v_MINUS_buffer(LinePassRenderer* p) {
 
 Array__float* LinePassRenderer_v_MINUS_data(LinePassRenderer* p) { return (&(p->v_MINUS_data)); }
 
+LocalCrater LocalCrater_copy(LocalCrater* pRef) {
+    LocalCrater copy = *pRef;
+    copy.pos = Vector3_copy__double(&(pRef->pos));
+    /* Ignore non-managed member 'radius' : Double */
+    return copy;
+}
+
+void LocalCrater_delete(LocalCrater p) {
+    Vector3_delete__double(p.pos);
+    /* Ignore non-managed member 'radius' : Double */
+}
+
+LocalCrater LocalCrater_init(Vector3__double pos, double radius) {
+    LocalCrater instance;
+    instance.pos = pos;
+    instance.radius = radius;
+    return instance;
+}
+
+Vector3__double* LocalCrater_pos(LocalCrater* p) { return (&(p->pos)); }
+
+String LocalCrater_prn(LocalCrater *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "LocalCrater");
+  temp = Vector3_prn__double(&p->pos); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->radius); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "LocalCrater");
+  temp = Vector3_prn__double(&p->pos);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->radius);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+double* LocalCrater_radius(LocalCrater* p) { return (&(p->radius)); }
+
+LocalCrater LocalCrater_set_MINUS_pos(LocalCrater p, Vector3__double newValue) {
+    Vector3_delete__double(p.pos);
+    p.pos = newValue;
+    return p;
+}
+
+
+void LocalCrater_set_MINUS_pos_BANG_(LocalCrater* pRef, Vector3__double newValue) {
+    Vector3_delete__double(pRef->pos);
+    pRef->pos = newValue;
+}
+
+
+LocalCrater LocalCrater_set_MINUS_radius(LocalCrater p, double newValue) {
+    /* Ignore non-managed member 'radius' : Double */
+    p.radius = newValue;
+    return p;
+}
+
+
+void LocalCrater_set_MINUS_radius_BANG_(LocalCrater* pRef, double newValue) {
+    /* Ignore non-managed member 'radius' : Double */
+    pRef->radius = newValue;
+}
+
+
+String LocalCrater_str(LocalCrater *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "LocalCrater");
+  temp = Vector3_prn__double(&p->pos); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->radius); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "LocalCrater");
+  temp = Vector3_prn__double(&p->pos);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->radius);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+LocalCrater LocalCrater_update_MINUS_pos(LocalCrater p, Lambda *updater) {
+    p.pos = (*updater).env ? ((Fn__LambdaEnv_Vector3__double_Vector3__double)(*updater).callback)((*updater).env, p.pos) : ((Fn__Vector3__double_Vector3__double)(*updater).callback)(p.pos);
+    return p;
+}
+
+
+LocalCrater LocalCrater_update_MINUS_radius(LocalCrater p, Lambda *updater) {
+    p.radius = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.radius) : ((Fn__double_double)(*updater).callback)(p.radius);
+    return p;
+}
+
+
 LogLevel LogLevel_Critical() {
   LogLevel instance;
 
@@ -21486,10 +25932,24 @@ Maybe__Chunk Maybe_Just__Chunk(Chunk member0) {
     return instance;
 }
 
+Maybe__Contact Maybe_Just__Contact(Contact member0) {
+  Maybe__Contact instance;
+    instance.u.Just.member0 = member0;
+    instance._tag = Maybe__Contact_Just_tag;
+    return instance;
+}
+
 Maybe__Long Maybe_Just__Long(Long member0) {
   Maybe__Long instance;
     instance.u.Just.member0 = member0;
     instance._tag = Maybe__Long_Just_tag;
+    return instance;
+}
+
+Maybe__RayHit Maybe_Just__RayHit(RayHit member0) {
+  Maybe__RayHit instance;
+    instance.u.Just.member0 = member0;
+    instance._tag = Maybe__RayHit_Just_tag;
     return instance;
 }
 
@@ -21577,10 +26037,24 @@ Maybe__Chunk Maybe_Nothing__Chunk() {
     return instance;
 }
 
+Maybe__Contact Maybe_Nothing__Contact() {
+  Maybe__Contact instance;
+
+    instance._tag = Maybe__Contact_Nothing_tag;
+    return instance;
+}
+
 Maybe__Long Maybe_Nothing__Long() {
   Maybe__Long instance;
 
     instance._tag = Maybe__Long_Nothing_tag;
+    return instance;
+}
+
+Maybe__RayHit Maybe_Nothing__RayHit() {
+  Maybe__RayHit instance;
+
+    instance._tag = Maybe__RayHit_Nothing_tag;
     return instance;
 }
 
@@ -21671,11 +26145,31 @@ void Maybe_delete__Chunk(Maybe__Chunk p) {
 
 }
 
+void Maybe_delete__Contact(Maybe__Contact p) {
+  if(p._tag == Maybe__Contact_Just_tag) {
+    Contact_delete(p.u.Just.member0);
+  }
+  else if(p._tag == Maybe__Contact_Nothing_tag) {
+
+  }
+
+}
+
 void Maybe_delete__Long(Maybe__Long p) {
   if(p._tag == Maybe__Long_Just_tag) {
     /* Ignore non-managed member 'u.Just.member0' : Long */
   }
   else if(p._tag == Maybe__Long_Nothing_tag) {
+
+  }
+
+}
+
+void Maybe_delete__RayHit(Maybe__RayHit p) {
+  if(p._tag == Maybe__RayHit_Just_tag) {
+    RayHit_delete(p.u.Just.member0);
+  }
+  else if(p._tag == Maybe__RayHit_Nothing_tag) {
 
   }
 
@@ -23486,6 +27980,32 @@ int Physics_clamp__int(int min_MINUS_val, int max_MINUS_val, int val) {
     return _28;
 }
 
+double Physics_dmax__double(double a, double b) {
+    double _16;
+    bool _9 = Double__GT_(a, b);
+    if (_9) {
+        double _12 = a;
+        _16 = _12;
+    } else {
+        double _15 = b;
+        _16 = _15;
+    }
+    return _16;
+}
+
+double Physics_dmin__double(double a, double b) {
+    double _16;
+    bool _9 = Double__LT_(a, b);
+    if (_9) {
+        double _12 = a;
+        _16 = _12;
+    } else {
+        double _15 = b;
+        _16 = _15;
+    }
+    return _16;
+}
+
 Vector3__double Physics_estimate_MINUS_sdf_MINUS_normal(World* world, Vector3__double* p) {
     Vector3__double _192;
     /* let */ {
@@ -23576,150 +28096,779 @@ Vector3__double Physics_estimate_MINUS_sdf_MINUS_normal(World* world, Vector3__d
     return _192;
 }
 
-void Physics_resolve_MINUS_camera_MINUS_collision_BANG_(World* world, Camera* cam, double radius, double* vel_MINUS_y_MINUS_ptr, bool* on_MINUS_ground_MINUS_ptr) {
+AABB Physics_get_MINUS_player_MINUS_aabb_MINUS_shrunk(Vector3__double* pos, double sx, double sy, double sz) {
+    AABB _75;
+    /* let */ {
+        double* _12 = Vector3_x__double(pos);
+        double _13 = Double_copy(_12);
+        double px = _13;
+        double* _18 = Vector3_y__double(pos);
+        double _19 = Double_copy(_18);
+        double py = _19;
+        double* _24 = Vector3_z__double(pos);
+        double _25 = Double_copy(_24);
+        double pz = _25;
+        double _34 = Double__MINUS_(0.3, sx);
+        double _35 = Double__MINUS_(px, _34);
+        double _41 = Double__MINUS_(1.6, sy);
+        double _42 = Double__MINUS_(py, _41);
+        double _48 = Double__MINUS_(0.3, sz);
+        double _49 = Double__MINUS_(pz, _48);
+        Vector3__double _50 = Vector3_init__double(_35, _42, _49);
+        double _57 = Double__MINUS_(0.3, sx);
+        double _58 = Double__PLUS_(px, _57);
+        double _64 = Double__MINUS_(0.2, sy);
+        double _65 = Double__PLUS_(py, _64);
+        double _71 = Double__MINUS_(0.3, sz);
+        double _72 = Double__PLUS_(pz, _71);
+        Vector3__double _73 = Vector3_init__double(_58, _65, _72);
+        AABB _74 = AABB_init(_50, _73);
+        _75 = _74;
+    }
+    return _75;
+}
+
+bool Physics_is_MINUS_solid_MINUS_at_QMARK_(World* world, int gx, int gy, int gz) {
+    bool _154;
+    /* let */ {
+        double _14 = Double_from_MINUS_int(gx);
+        double _16 = Double__DIV_(_14, 32.0);
+        double _17 = Double_floor(_16);
+        int _18 = Double_to_MINUS_int(_17);
+        int qx = _18;
+        double _25 = Double_from_MINUS_int(gy);
+        double _27 = Double__DIV_(_25, 32.0);
+        double _28 = Double_floor(_27);
+        int _29 = Double_to_MINUS_int(_28);
+        int qy = _29;
+        double _36 = Double_from_MINUS_int(gz);
+        double _38 = Double__DIV_(_36, 32.0);
+        double _39 = Double_floor(_38);
+        int _40 = Double_to_MINUS_int(_39);
+        int qz = _40;
+        Maybe__Chunk _48 = World_find_MINUS_chunk(world, qx, qy, qz);
+        bool _153;
+        if(_48._tag == Maybe__Chunk_Nothing_tag) {
+            Maybe__Chunk _48_temp = _48;
+            // Case expr:
+            _153 = false;
+        }
+        else if(_48._tag == Maybe__Chunk_Just_tag) {
+            Maybe__Chunk _48_temp = _48;
+            Chunk chunk = _48_temp.u.Just.member0;
+            // Case expr:
+            bool _152;
+            /* let */ {
+                int _65 = Int__MUL_(qx, 32);
+                int _66 = Int__MINUS_(gx, _65);
+                int _67 = Physics_clamp__int(0, 31, _66);
+                int lx = _67;
+                int _77 = Int__MUL_(qy, 32);
+                int _78 = Int__MINUS_(gy, _77);
+                int _79 = Physics_clamp__int(0, 31, _78);
+                int ly = _79;
+                int _89 = Int__MUL_(qz, 32);
+                int _90 = Int__MINUS_(gz, _89);
+                int _91 = Physics_clamp__int(0, 31, _90);
+                int lz = _91;
+                int _97 = Int__MUL_(lz, 1024);
+                int _102 = Int__MUL_(ly, 32);
+                int _104 = Int__PLUS_(_102, lx);
+                int _105 = Int__PLUS_(_97, _104);
+                int idx = _105;
+                int _110 = Int__MUL_(idx, 4);
+                int offset = _110;
+                Chunk* _117 = &chunk; // ref
+                Array__float* _118 = Chunk_voxel_MINUS_data(_117);
+                float* _120 = Array_unsafe_MINUS_nth__float(_118, offset);
+                float _121 = Float_copy(_120);
+                float mat_MINUS_id = _121;
+                Chunk* _128 = &chunk; // ref
+                Array__float* _129 = Chunk_voxel_MINUS_data(_128);
+                int _133 = Int__PLUS_(offset, 1);
+                float* _134 = Array_unsafe_MINUS_nth__float(_129, _133);
+                float _135 = Float_copy(_134);
+                float sdf = _135;
+                bool _151;
+                bool _141 = _GT__EQ___float(mat_MINUS_id, 1.0f);
+                if (_141) {
+                    bool _146 = _LT__EQ___float(sdf, 5.0e-2f);
+                    bool _147 = _146;
+                    _151 = _147;
+                } else {
+                    bool _150 = false;
+                    _151 = _150;
+                }
+                _152 = _151;
+            }
+            _153 = _152;
+            Chunk_delete(chunk);
+        }
+        else UNHANDLED("physics.carp", 14);
+        _154 = _153;
+    }
+    return _154;
+}
+
+void Physics_resolve_MINUS_camera_MINUS_collision_BANG_(World* world, Camera* cam, Vector3__double* prev_MINUS_pos, double* vel_MINUS_y_MINUS_ptr, bool* on_MINUS_ground_MINUS_ptr) {
     /* let */ {
         Vector3__double* _13 = Camera_pos(cam);
         Vector3__double* _14 = ref_MINUS_to_MINUS_ptr__Vector3__double(_13);
         Vector3__double* p_MINUS_pos = _14;
         Vector3__double _18 = Pointer_to_MINUS_value__Vector3__double(p_MINUS_pos);
-        Vector3__double cur_MINUS_pos = _18;
+        Vector3__double cand_MINUS_pos = _18;
+        double* _23 = Vector3_x__double(prev_MINUS_pos);
+        double _24 = Double_copy(_23);
+        double res_MINUS_x = _24;
+        double* _29 = Vector3_y__double(prev_MINUS_pos);
+        double _30 = Double_copy(_29);
+        double res_MINUS_y = _30;
+        double* _35 = Vector3_z__double(prev_MINUS_pos);
+        double _36 = Double_copy(_35);
+        double res_MINUS_z = _36;
+        Vector3__double* _42 = &cand_MINUS_pos; // ref
+        double* _43 = Vector3_x__double(_42);
+        double _44 = Double_copy(_43);
+        double cand_MINUS_x = _44;
+        Vector3__double* _50 = &cand_MINUS_pos; // ref
+        double* _51 = Vector3_y__double(_50);
+        double _52 = Double_copy(_51);
+        double cand_MINUS_y = _52;
+        Vector3__double* _58 = &cand_MINUS_pos; // ref
+        double* _59 = Vector3_z__double(_58);
+        double _60 = Double_copy(_59);
+        double cand_MINUS_z = _60;
+        double* _65 = Vector3_x__double(prev_MINUS_pos);
+        double _66 = Double_copy(_65);
+        double prev_MINUS_x = _66;
+        double* _71 = Vector3_y__double(prev_MINUS_pos);
+        double _72 = Double_copy(_71);
+        double prev_MINUS_y = _72;
+        double* _77 = Vector3_z__double(prev_MINUS_pos);
+        double _78 = Double_copy(_77);
+        double prev_MINUS_z = _78;
         Pointer_set__bool(on_MINUS_ground_MINUS_ptr, false);
+        res_MINUS_x = cand_MINUS_x;  // Double = Double
         /* let */ {
-            int i = 0;
-            bool _1000008 = Int__LT_(i, 5);
-            bool _1000006 = _1000008;
-            while (_1000006) {
-                /* let */ {
-                    double _81;
-                    bool _41 = Int__EQ_(i, 0);
-                    if (_41) {
-                        double _44 = -1.6;
-                        _81 = _44;
-                    } else {
-                        double _79;
-                        bool _50 = Int__EQ_(i, 1);
-                        if (_50) {
-                            double _53 = -1.2;
-                            _79 = _53;
-                        } else {
-                            double _77;
-                            bool _59 = Int__EQ_(i, 2);
-                            if (_59) {
-                                double _62 = -0.8;
-                                _77 = _62;
-                            } else {
-                                double _75;
-                                bool _68 = Int__EQ_(i, 3);
-                                if (_68) {
-                                    double _71 = -0.4;
-                                    _75 = _71;
-                                } else {
-                                    double _74 = 0.0;
-                                    _75 = _74;
+            Vector3__double _97 = Vector3_init__double(res_MINUS_x, res_MINUS_y, res_MINUS_z);
+            Vector3__double* _98 = &_97; // ref
+            AABB _102 = Physics_get_MINUS_player_MINUS_aabb_MINUS_shrunk(_98, 0.0, 5.0e-2, 2.0e-2);
+            AABB p_MINUS_aabb = _102;
+            AABB* _107 = &p_MINUS_aabb; // ref
+            Vector3__double* _108 = AABB_min(_107);
+            Vector3__double* amin = _108;
+            AABB* _113 = &p_MINUS_aabb; // ref
+            Vector3__double* _114 = AABB_max(_113);
+            Vector3__double* amax = _114;
+            double* _121 = Vector3_x__double(amin);
+            double _122 = Double_copy(_121);
+            double _123 = Double_floor(_122);
+            int _124 = Double_to_MINUS_int(_123);
+            int min_MINUS_x = _124;
+            double* _131 = Vector3_x__double(amax);
+            double _132 = Double_copy(_131);
+            double _133 = Double_floor(_132);
+            int _134 = Double_to_MINUS_int(_133);
+            int max_MINUS_x = _134;
+            double* _141 = Vector3_y__double(amin);
+            double _142 = Double_copy(_141);
+            double _143 = Double_floor(_142);
+            int _144 = Double_to_MINUS_int(_143);
+            int min_MINUS_y = _144;
+            double* _151 = Vector3_y__double(amax);
+            double _152 = Double_copy(_151);
+            double _153 = Double_floor(_152);
+            int _154 = Double_to_MINUS_int(_153);
+            int max_MINUS_y = _154;
+            double* _161 = Vector3_z__double(amin);
+            double _162 = Double_copy(_161);
+            double _163 = Double_floor(_162);
+            int _164 = Double_to_MINUS_int(_163);
+            int min_MINUS_z = _164;
+            double* _171 = Vector3_z__double(amax);
+            double _172 = Double_copy(_171);
+            double _173 = Double_floor(_172);
+            int _174 = Double_to_MINUS_int(_173);
+            int max_MINUS_z = _174;
+            /* let */ {
+                int z = min_MINUS_z;
+                int _185 = Int_inc(max_MINUS_z);
+                bool _1000010 = Int__LT_(z, _185);
+                bool _1000008 = _1000010;
+                while (_1000008) {
+                    /* let */ {
+                        int y = min_MINUS_y;
+                        int _197 = Int_inc(max_MINUS_y);
+                        bool _1000017 = Int__LT_(y, _197);
+                        bool _1000015 = _1000017;
+                        while (_1000015) {
+                            /* let */ {
+                                int x = min_MINUS_x;
+                                int _209 = Int_inc(max_MINUS_x);
+                                bool _1000024 = Int__LT_(x, _209);
+                                bool _1000022 = _1000024;
+                                while (_1000022) {
+                                    bool _218 = Physics_is_MINUS_solid_MINUS_at_QMARK_(world, x, y, z);
+                                    if (_218) {
+                                        /* let */ {
+                                            double _224 = Double_from_MINUS_int(x);
+                                            double voxel_MINUS_min_MINUS_x = _224;
+                                            int _229 = Int_inc(x);
+                                            double _230 = Double_from_MINUS_int(_229);
+                                            double voxel_MINUS_max_MINUS_x = _230;
+                                            double _234 = Double_from_MINUS_int(y);
+                                            double voxel_MINUS_min_MINUS_y = _234;
+                                            int _239 = Int_inc(y);
+                                            double _240 = Double_from_MINUS_int(_239);
+                                            double voxel_MINUS_max_MINUS_y = _240;
+                                            double _244 = Double_from_MINUS_int(z);
+                                            double voxel_MINUS_min_MINUS_z = _244;
+                                            int _249 = Int_inc(z);
+                                            double _250 = Double_from_MINUS_int(_249);
+                                            double voxel_MINUS_max_MINUS_z = _250;
+                                            AABB* _255 = &p_MINUS_aabb; // ref
+                                            Vector3__double* _256 = AABB_min(_255);
+                                            Vector3__double* p_MINUS_min = _256;
+                                            AABB* _261 = &p_MINUS_aabb; // ref
+                                            Vector3__double* _262 = AABB_max(_261);
+                                            Vector3__double* p_MINUS_max = _262;
+                                            double* _267 = Vector3_x__double(p_MINUS_min);
+                                            double _268 = Double_copy(_267);
+                                            double p_MINUS_min_MINUS_x = _268;
+                                            double* _273 = Vector3_x__double(p_MINUS_max);
+                                            double _274 = Double_copy(_273);
+                                            double p_MINUS_max_MINUS_x = _274;
+                                            double* _279 = Vector3_y__double(p_MINUS_min);
+                                            double _280 = Double_copy(_279);
+                                            double p_MINUS_min_MINUS_y = _280;
+                                            double* _285 = Vector3_y__double(p_MINUS_max);
+                                            double _286 = Double_copy(_285);
+                                            double p_MINUS_max_MINUS_y = _286;
+                                            double* _291 = Vector3_z__double(p_MINUS_min);
+                                            double _292 = Double_copy(_291);
+                                            double p_MINUS_min_MINUS_z = _292;
+                                            double* _297 = Vector3_z__double(p_MINUS_max);
+                                            double _298 = Double_copy(_297);
+                                            double p_MINUS_max_MINUS_z = _298;
+                                            double _304 = Physics_dmin__double(p_MINUS_max_MINUS_x, voxel_MINUS_max_MINUS_x);
+                                            double _308 = Physics_dmax__double(p_MINUS_min_MINUS_x, voxel_MINUS_min_MINUS_x);
+                                            double _309 = Double__MINUS_(_304, _308);
+                                            double ox = _309;
+                                            double _315 = Physics_dmin__double(p_MINUS_max_MINUS_y, voxel_MINUS_max_MINUS_y);
+                                            double _319 = Physics_dmax__double(p_MINUS_min_MINUS_y, voxel_MINUS_min_MINUS_y);
+                                            double _320 = Double__MINUS_(_315, _319);
+                                            double oy = _320;
+                                            double _326 = Physics_dmin__double(p_MINUS_max_MINUS_z, voxel_MINUS_max_MINUS_z);
+                                            double _330 = Physics_dmax__double(p_MINUS_min_MINUS_z, voxel_MINUS_min_MINUS_z);
+                                            double _331 = Double__MINUS_(_326, _330);
+                                            double oz = _331;
+                                            bool _359;
+                                            bool _349;
+                                            bool _339 = Double__GT_(ox, 0.0);
+                                            if (_339) {
+                                                bool _344 = Double__GT_(oy, 0.0);
+                                                bool _345 = _344;
+                                                _349 = _345;
+                                            } else {
+                                                bool _348 = false;
+                                                _349 = _348;
+                                            }
+                                            if (_349) {
+                                                bool _354 = Double__GT_(oz, 0.0);
+                                                bool _355 = _354;
+                                                _359 = _355;
+                                            } else {
+                                                bool _358 = false;
+                                                _359 = _358;
+                                            }
+                                            if (_359) {
+                                                bool _365 = Double__GT_(cand_MINUS_x, prev_MINUS_x);
+                                                if (_365) {
+                                                    double _372 = Double__MINUS_(res_MINUS_x, ox);
+                                                    res_MINUS_x = _372;  // Double = Double
+                                                } else {
+                                                    bool _380 = Double__LT_(cand_MINUS_x, prev_MINUS_x);
+                                                    if (_380) {
+                                                        double _387 = Double__PLUS_(res_MINUS_x, ox);
+                                                        res_MINUS_x = _387;  // Double = Double
+                                                    } else {
+                                                        /* let */ {
+                                                            double _398 = Double__PLUS_(voxel_MINUS_min_MINUS_x, 0.5);
+                                                            double _399 = Double__MINUS_(res_MINUS_x, _398);
+                                                            double diff = _399;
+                                                            bool _405 = Double__LT_(diff, 0.0);
+                                                            if (_405) {
+                                                                double _412 = Double__MINUS_(res_MINUS_x, ox);
+                                                                res_MINUS_x = _412;  // Double = Double
+                                                            } else {
+                                                                double _421 = Double__PLUS_(res_MINUS_x, ox);
+                                                                res_MINUS_x = _421;  // Double = Double
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                Vector3__double _438 = Vector3_init__double(res_MINUS_x, res_MINUS_y, res_MINUS_z);
+                                                Vector3__double* _439 = &_438; // ref
+                                                AABB _443 = Physics_get_MINUS_player_MINUS_aabb_MINUS_shrunk(_439, 0.0, 5.0e-2, 2.0e-2);
+                                                AABB_delete(p_MINUS_aabb);
+                                                p_MINUS_aabb = _443;  // AABB = AABB
+                                                Vector3_delete__double(_438);
+                                            } else {
+                                                /* () */
+                                            }
+                                        }
+                                    } else {
+                                        /* () */
+                                    }
+                                    int _1000057 = Int__PLUS_(x, 1);
+                                    x = _1000057;  // Int = Int
+                                    int _209 = Int_inc(max_MINUS_x);
+                                    bool _1000024 = Int__LT_(x, _209);
+                                    _1000022 = _1000024;
                                 }
-                                double _76 = _75;
-                                _77 = _76;
                             }
-                            double _78 = _77;
-                            _79 = _78;
+                            int _1000060 = Int__PLUS_(y, 1);
+                            y = _1000060;  // Int = Int
+                            int _197 = Int_inc(max_MINUS_y);
+                            bool _1000017 = Int__LT_(y, _197);
+                            _1000015 = _1000017;
                         }
-                        double _80 = _79;
-                        _81 = _80;
                     }
-                    double offset_MINUS_y = _81;
-                    Vector3__double* _86 = &cur_MINUS_pos; // ref
-                    Vector3__double _92 = Vector3_init__double(0.0, offset_MINUS_y, 0.0);
-                    Vector3__double* _93 = &_92; // ref
-                    Vector3__double _94 = Vector3_add__double(_86, _93);
-                    Vector3__double p = _94;
-                    Vector3__double* _100 = &p; // ref
-                    float _101 = Physics_sample_MINUS_sdf_MINUS_trilinear(world, _100);
-                    float dist = _101;
-                    float _108 = Double_to_MINUS_float(radius);
-                    bool _109 = Float__LT_(dist, _108);
-                    if (_109) {
-                        /* let */ {
-                            double _117 = Double_from_MINUS_float(dist);
-                            double _118 = Double__MINUS_(radius, _117);
-                            double penetration = _118;
-                            Vector3__double* _124 = &p; // ref
-                            Vector3__double _125 = Physics_estimate_MINUS_sdf_MINUS_normal(world, _124);
-                            Vector3__double normal = _125;
-                            Vector3__double* _135 = &cur_MINUS_pos; // ref
-                            Vector3__double _136 = Vector3_copy__double(_135);
-                            Vector3__double* _137 = &_136; // ref
-                            Vector3__double* _142 = &normal; // ref
-                            Vector3__double _144 = Vector3_mul__double(_142, penetration);
-                            Vector3__double* _145 = &_144; // ref
-                            Vector3__double _146 = Vector3_add__double(_137, _145);
-                            Vector3_delete__double(cur_MINUS_pos);
-                            cur_MINUS_pos = _146;  // (Vector3 Double) = (Vector3 Double)
-                            bool _169;
-                            bool _153 = Int__EQ_(i, 0);
-                            if (_153) {
-                                Vector3__double* _160 = &normal; // ref
-                                double* _161 = Vector3_y__double(_160);
-                                double _162 = Double_copy(_161);
-                                bool _164 = Double__GT_(_162, 0.5);
-                                bool _165 = _164;
-                                _169 = _165;
-                            } else {
-                                bool _168 = false;
-                                _169 = _168;
-                            }
-                            if (_169) {
-                                Pointer_set__bool(on_MINUS_ground_MINUS_ptr, true);
-                                double _179 = Pointer_to_MINUS_value__double(vel_MINUS_y_MINUS_ptr);
-                                bool _181 = Double__LT_(_179, 0.0);
-                                if (_181) {
-                                    Pointer_set__double(vel_MINUS_y_MINUS_ptr, 0.0);
-                                } else {
-                                    /* () */
-                                }
-                            } else {
-                                /* () */
-                            }
-                            bool _218;
-                            bool _202 = Int__EQ_(i, 4);
-                            if (_202) {
-                                Vector3__double* _209 = &normal; // ref
-                                double* _210 = Vector3_y__double(_209);
-                                double _211 = Double_copy(_210);
-                                bool _213 = Double__LT_(_211, -0.5);
-                                bool _214 = _213;
-                                _218 = _214;
-                            } else {
-                                bool _217 = false;
-                                _218 = _217;
-                            }
-                            if (_218) {
-                                double _224 = Pointer_to_MINUS_value__double(vel_MINUS_y_MINUS_ptr);
-                                bool _226 = Double__GT_(_224, 0.0);
-                                if (_226) {
-                                    Pointer_set__double(vel_MINUS_y_MINUS_ptr, 0.0);
-                                } else {
-                                    /* () */
-                                }
-                            } else {
-                                /* () */
-                            }
-                            Vector3_delete__double(_136);
-                            Vector3_delete__double(_144);
-                            Vector3_delete__double(normal);
-                        }
-                    } else {
-                        /* () */
-                    }
-                    Vector3_delete__double(_92);
-                    Vector3_delete__double(p);
+                    int _1000063 = Int__PLUS_(z, 1);
+                    z = _1000063;  // Int = Int
+                    int _185 = Int_inc(max_MINUS_z);
+                    bool _1000010 = Int__LT_(z, _185);
+                    _1000008 = _1000010;
                 }
-                int _1000050 = Int__PLUS_(i, 1);
-                i = _1000050;  // Int = Int
-                bool _1000008 = Int__LT_(i, 5);
-                _1000006 = _1000008;
             }
+            AABB_delete(p_MINUS_aabb);
+            Vector3_delete__double(_97);
         }
-        Pointer_set__Vector3__double(p_MINUS_pos, cur_MINUS_pos);
+        res_MINUS_z = cand_MINUS_z;  // Double = Double
+        /* let */ {
+            Vector3__double _499 = Vector3_init__double(res_MINUS_x, res_MINUS_y, res_MINUS_z);
+            Vector3__double* _500 = &_499; // ref
+            AABB _504 = Physics_get_MINUS_player_MINUS_aabb_MINUS_shrunk(_500, 2.0e-2, 5.0e-2, 0.0);
+            AABB p_MINUS_aabb = _504;
+            AABB* _509 = &p_MINUS_aabb; // ref
+            Vector3__double* _510 = AABB_min(_509);
+            Vector3__double* amin = _510;
+            AABB* _515 = &p_MINUS_aabb; // ref
+            Vector3__double* _516 = AABB_max(_515);
+            Vector3__double* amax = _516;
+            double* _523 = Vector3_x__double(amin);
+            double _524 = Double_copy(_523);
+            double _525 = Double_floor(_524);
+            int _526 = Double_to_MINUS_int(_525);
+            int min_MINUS_x = _526;
+            double* _533 = Vector3_x__double(amax);
+            double _534 = Double_copy(_533);
+            double _535 = Double_floor(_534);
+            int _536 = Double_to_MINUS_int(_535);
+            int max_MINUS_x = _536;
+            double* _543 = Vector3_y__double(amin);
+            double _544 = Double_copy(_543);
+            double _545 = Double_floor(_544);
+            int _546 = Double_to_MINUS_int(_545);
+            int min_MINUS_y = _546;
+            double* _553 = Vector3_y__double(amax);
+            double _554 = Double_copy(_553);
+            double _555 = Double_floor(_554);
+            int _556 = Double_to_MINUS_int(_555);
+            int max_MINUS_y = _556;
+            double* _563 = Vector3_z__double(amin);
+            double _564 = Double_copy(_563);
+            double _565 = Double_floor(_564);
+            int _566 = Double_to_MINUS_int(_565);
+            int min_MINUS_z = _566;
+            double* _573 = Vector3_z__double(amax);
+            double _574 = Double_copy(_573);
+            double _575 = Double_floor(_574);
+            int _576 = Double_to_MINUS_int(_575);
+            int max_MINUS_z = _576;
+            /* let */ {
+                int z = min_MINUS_z;
+                int _587 = Int_inc(max_MINUS_z);
+                bool _1000070 = Int__LT_(z, _587);
+                bool _1000068 = _1000070;
+                while (_1000068) {
+                    /* let */ {
+                        int y = min_MINUS_y;
+                        int _599 = Int_inc(max_MINUS_y);
+                        bool _1000077 = Int__LT_(y, _599);
+                        bool _1000075 = _1000077;
+                        while (_1000075) {
+                            /* let */ {
+                                int x = min_MINUS_x;
+                                int _611 = Int_inc(max_MINUS_x);
+                                bool _1000084 = Int__LT_(x, _611);
+                                bool _1000082 = _1000084;
+                                while (_1000082) {
+                                    bool _620 = Physics_is_MINUS_solid_MINUS_at_QMARK_(world, x, y, z);
+                                    if (_620) {
+                                        /* let */ {
+                                            double _626 = Double_from_MINUS_int(x);
+                                            double voxel_MINUS_min_MINUS_x = _626;
+                                            int _631 = Int_inc(x);
+                                            double _632 = Double_from_MINUS_int(_631);
+                                            double voxel_MINUS_max_MINUS_x = _632;
+                                            double _636 = Double_from_MINUS_int(y);
+                                            double voxel_MINUS_min_MINUS_y = _636;
+                                            int _641 = Int_inc(y);
+                                            double _642 = Double_from_MINUS_int(_641);
+                                            double voxel_MINUS_max_MINUS_y = _642;
+                                            double _646 = Double_from_MINUS_int(z);
+                                            double voxel_MINUS_min_MINUS_z = _646;
+                                            int _651 = Int_inc(z);
+                                            double _652 = Double_from_MINUS_int(_651);
+                                            double voxel_MINUS_max_MINUS_z = _652;
+                                            AABB* _657 = &p_MINUS_aabb; // ref
+                                            Vector3__double* _658 = AABB_min(_657);
+                                            Vector3__double* p_MINUS_min = _658;
+                                            AABB* _663 = &p_MINUS_aabb; // ref
+                                            Vector3__double* _664 = AABB_max(_663);
+                                            Vector3__double* p_MINUS_max = _664;
+                                            double* _669 = Vector3_x__double(p_MINUS_min);
+                                            double _670 = Double_copy(_669);
+                                            double p_MINUS_min_MINUS_x = _670;
+                                            double* _675 = Vector3_x__double(p_MINUS_max);
+                                            double _676 = Double_copy(_675);
+                                            double p_MINUS_max_MINUS_x = _676;
+                                            double* _681 = Vector3_y__double(p_MINUS_min);
+                                            double _682 = Double_copy(_681);
+                                            double p_MINUS_min_MINUS_y = _682;
+                                            double* _687 = Vector3_y__double(p_MINUS_max);
+                                            double _688 = Double_copy(_687);
+                                            double p_MINUS_max_MINUS_y = _688;
+                                            double* _693 = Vector3_z__double(p_MINUS_min);
+                                            double _694 = Double_copy(_693);
+                                            double p_MINUS_min_MINUS_z = _694;
+                                            double* _699 = Vector3_z__double(p_MINUS_max);
+                                            double _700 = Double_copy(_699);
+                                            double p_MINUS_max_MINUS_z = _700;
+                                            double _706 = Physics_dmin__double(p_MINUS_max_MINUS_x, voxel_MINUS_max_MINUS_x);
+                                            double _710 = Physics_dmax__double(p_MINUS_min_MINUS_x, voxel_MINUS_min_MINUS_x);
+                                            double _711 = Double__MINUS_(_706, _710);
+                                            double ox = _711;
+                                            double _717 = Physics_dmin__double(p_MINUS_max_MINUS_y, voxel_MINUS_max_MINUS_y);
+                                            double _721 = Physics_dmax__double(p_MINUS_min_MINUS_y, voxel_MINUS_min_MINUS_y);
+                                            double _722 = Double__MINUS_(_717, _721);
+                                            double oy = _722;
+                                            double _728 = Physics_dmin__double(p_MINUS_max_MINUS_z, voxel_MINUS_max_MINUS_z);
+                                            double _732 = Physics_dmax__double(p_MINUS_min_MINUS_z, voxel_MINUS_min_MINUS_z);
+                                            double _733 = Double__MINUS_(_728, _732);
+                                            double oz = _733;
+                                            bool _761;
+                                            bool _751;
+                                            bool _741 = Double__GT_(ox, 0.0);
+                                            if (_741) {
+                                                bool _746 = Double__GT_(oy, 0.0);
+                                                bool _747 = _746;
+                                                _751 = _747;
+                                            } else {
+                                                bool _750 = false;
+                                                _751 = _750;
+                                            }
+                                            if (_751) {
+                                                bool _756 = Double__GT_(oz, 0.0);
+                                                bool _757 = _756;
+                                                _761 = _757;
+                                            } else {
+                                                bool _760 = false;
+                                                _761 = _760;
+                                            }
+                                            if (_761) {
+                                                bool _767 = Double__GT_(cand_MINUS_z, prev_MINUS_z);
+                                                if (_767) {
+                                                    double _774 = Double__MINUS_(res_MINUS_z, oz);
+                                                    res_MINUS_z = _774;  // Double = Double
+                                                } else {
+                                                    bool _782 = Double__LT_(cand_MINUS_z, prev_MINUS_z);
+                                                    if (_782) {
+                                                        double _789 = Double__PLUS_(res_MINUS_z, oz);
+                                                        res_MINUS_z = _789;  // Double = Double
+                                                    } else {
+                                                        /* let */ {
+                                                            double _800 = Double__PLUS_(voxel_MINUS_min_MINUS_z, 0.5);
+                                                            double _801 = Double__MINUS_(res_MINUS_z, _800);
+                                                            double diff = _801;
+                                                            bool _807 = Double__LT_(diff, 0.0);
+                                                            if (_807) {
+                                                                double _814 = Double__MINUS_(res_MINUS_z, oz);
+                                                                res_MINUS_z = _814;  // Double = Double
+                                                            } else {
+                                                                double _823 = Double__PLUS_(res_MINUS_z, oz);
+                                                                res_MINUS_z = _823;  // Double = Double
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                Vector3__double _840 = Vector3_init__double(res_MINUS_x, res_MINUS_y, res_MINUS_z);
+                                                Vector3__double* _841 = &_840; // ref
+                                                AABB _845 = Physics_get_MINUS_player_MINUS_aabb_MINUS_shrunk(_841, 2.0e-2, 5.0e-2, 0.0);
+                                                AABB_delete(p_MINUS_aabb);
+                                                p_MINUS_aabb = _845;  // AABB = AABB
+                                                Vector3_delete__double(_840);
+                                            } else {
+                                                /* () */
+                                            }
+                                        }
+                                    } else {
+                                        /* () */
+                                    }
+                                    int _1000117 = Int__PLUS_(x, 1);
+                                    x = _1000117;  // Int = Int
+                                    int _611 = Int_inc(max_MINUS_x);
+                                    bool _1000084 = Int__LT_(x, _611);
+                                    _1000082 = _1000084;
+                                }
+                            }
+                            int _1000120 = Int__PLUS_(y, 1);
+                            y = _1000120;  // Int = Int
+                            int _599 = Int_inc(max_MINUS_y);
+                            bool _1000077 = Int__LT_(y, _599);
+                            _1000075 = _1000077;
+                        }
+                    }
+                    int _1000123 = Int__PLUS_(z, 1);
+                    z = _1000123;  // Int = Int
+                    int _587 = Int_inc(max_MINUS_z);
+                    bool _1000070 = Int__LT_(z, _587);
+                    _1000068 = _1000070;
+                }
+            }
+            AABB_delete(p_MINUS_aabb);
+            Vector3_delete__double(_499);
+        }
+        res_MINUS_y = cand_MINUS_y;  // Double = Double
+        /* let */ {
+            Vector3__double _901 = Vector3_init__double(res_MINUS_x, res_MINUS_y, res_MINUS_z);
+            Vector3__double* _902 = &_901; // ref
+            AABB _906 = Physics_get_MINUS_player_MINUS_aabb_MINUS_shrunk(_902, 2.0e-2, 0.0, 2.0e-2);
+            AABB p_MINUS_aabb = _906;
+            AABB* _911 = &p_MINUS_aabb; // ref
+            Vector3__double* _912 = AABB_min(_911);
+            Vector3__double* amin = _912;
+            AABB* _917 = &p_MINUS_aabb; // ref
+            Vector3__double* _918 = AABB_max(_917);
+            Vector3__double* amax = _918;
+            double* _925 = Vector3_x__double(amin);
+            double _926 = Double_copy(_925);
+            double _927 = Double_floor(_926);
+            int _928 = Double_to_MINUS_int(_927);
+            int min_MINUS_x = _928;
+            double* _935 = Vector3_x__double(amax);
+            double _936 = Double_copy(_935);
+            double _937 = Double_floor(_936);
+            int _938 = Double_to_MINUS_int(_937);
+            int max_MINUS_x = _938;
+            double* _945 = Vector3_y__double(amin);
+            double _946 = Double_copy(_945);
+            double _947 = Double_floor(_946);
+            int _948 = Double_to_MINUS_int(_947);
+            int min_MINUS_y = _948;
+            double* _955 = Vector3_y__double(amax);
+            double _956 = Double_copy(_955);
+            double _957 = Double_floor(_956);
+            int _958 = Double_to_MINUS_int(_957);
+            int max_MINUS_y = _958;
+            double* _965 = Vector3_z__double(amin);
+            double _966 = Double_copy(_965);
+            double _967 = Double_floor(_966);
+            int _968 = Double_to_MINUS_int(_967);
+            int min_MINUS_z = _968;
+            double* _975 = Vector3_z__double(amax);
+            double _976 = Double_copy(_975);
+            double _977 = Double_floor(_976);
+            int _978 = Double_to_MINUS_int(_977);
+            int max_MINUS_z = _978;
+            /* let */ {
+                int z = min_MINUS_z;
+                int _989 = Int_inc(max_MINUS_z);
+                bool _1000130 = Int__LT_(z, _989);
+                bool _1000128 = _1000130;
+                while (_1000128) {
+                    /* let */ {
+                        int y = min_MINUS_y;
+                        int _1001 = Int_inc(max_MINUS_y);
+                        bool _1000137 = Int__LT_(y, _1001);
+                        bool _1000135 = _1000137;
+                        while (_1000135) {
+                            /* let */ {
+                                int x = min_MINUS_x;
+                                int _1013 = Int_inc(max_MINUS_x);
+                                bool _1000144 = Int__LT_(x, _1013);
+                                bool _1000142 = _1000144;
+                                while (_1000142) {
+                                    bool _1022 = Physics_is_MINUS_solid_MINUS_at_QMARK_(world, x, y, z);
+                                    if (_1022) {
+                                        /* let */ {
+                                            double _1028 = Double_from_MINUS_int(x);
+                                            double voxel_MINUS_min_MINUS_x = _1028;
+                                            int _1033 = Int_inc(x);
+                                            double _1034 = Double_from_MINUS_int(_1033);
+                                            double voxel_MINUS_max_MINUS_x = _1034;
+                                            double _1038 = Double_from_MINUS_int(y);
+                                            double voxel_MINUS_min_MINUS_y = _1038;
+                                            int _1043 = Int_inc(y);
+                                            double _1044 = Double_from_MINUS_int(_1043);
+                                            double voxel_MINUS_max_MINUS_y = _1044;
+                                            double _1048 = Double_from_MINUS_int(z);
+                                            double voxel_MINUS_min_MINUS_z = _1048;
+                                            int _1053 = Int_inc(z);
+                                            double _1054 = Double_from_MINUS_int(_1053);
+                                            double voxel_MINUS_max_MINUS_z = _1054;
+                                            AABB* _1059 = &p_MINUS_aabb; // ref
+                                            Vector3__double* _1060 = AABB_min(_1059);
+                                            Vector3__double* p_MINUS_min = _1060;
+                                            AABB* _1065 = &p_MINUS_aabb; // ref
+                                            Vector3__double* _1066 = AABB_max(_1065);
+                                            Vector3__double* p_MINUS_max = _1066;
+                                            double* _1071 = Vector3_x__double(p_MINUS_min);
+                                            double _1072 = Double_copy(_1071);
+                                            double p_MINUS_min_MINUS_x = _1072;
+                                            double* _1077 = Vector3_x__double(p_MINUS_max);
+                                            double _1078 = Double_copy(_1077);
+                                            double p_MINUS_max_MINUS_x = _1078;
+                                            double* _1083 = Vector3_y__double(p_MINUS_min);
+                                            double _1084 = Double_copy(_1083);
+                                            double p_MINUS_min_MINUS_y = _1084;
+                                            double* _1089 = Vector3_y__double(p_MINUS_max);
+                                            double _1090 = Double_copy(_1089);
+                                            double p_MINUS_max_MINUS_y = _1090;
+                                            double* _1095 = Vector3_z__double(p_MINUS_min);
+                                            double _1096 = Double_copy(_1095);
+                                            double p_MINUS_min_MINUS_z = _1096;
+                                            double* _1101 = Vector3_z__double(p_MINUS_max);
+                                            double _1102 = Double_copy(_1101);
+                                            double p_MINUS_max_MINUS_z = _1102;
+                                            double _1108 = Physics_dmin__double(p_MINUS_max_MINUS_x, voxel_MINUS_max_MINUS_x);
+                                            double _1112 = Physics_dmax__double(p_MINUS_min_MINUS_x, voxel_MINUS_min_MINUS_x);
+                                            double _1113 = Double__MINUS_(_1108, _1112);
+                                            double ox = _1113;
+                                            double _1119 = Physics_dmin__double(p_MINUS_max_MINUS_y, voxel_MINUS_max_MINUS_y);
+                                            double _1123 = Physics_dmax__double(p_MINUS_min_MINUS_y, voxel_MINUS_min_MINUS_y);
+                                            double _1124 = Double__MINUS_(_1119, _1123);
+                                            double oy = _1124;
+                                            double _1130 = Physics_dmin__double(p_MINUS_max_MINUS_z, voxel_MINUS_max_MINUS_z);
+                                            double _1134 = Physics_dmax__double(p_MINUS_min_MINUS_z, voxel_MINUS_min_MINUS_z);
+                                            double _1135 = Double__MINUS_(_1130, _1134);
+                                            double oz = _1135;
+                                            bool _1163;
+                                            bool _1153;
+                                            bool _1143 = Double__GT_(ox, 0.0);
+                                            if (_1143) {
+                                                bool _1148 = Double__GT_(oy, 0.0);
+                                                bool _1149 = _1148;
+                                                _1153 = _1149;
+                                            } else {
+                                                bool _1152 = false;
+                                                _1153 = _1152;
+                                            }
+                                            if (_1153) {
+                                                bool _1158 = Double__GT_(oz, 0.0);
+                                                bool _1159 = _1158;
+                                                _1163 = _1159;
+                                            } else {
+                                                bool _1162 = false;
+                                                _1163 = _1162;
+                                            }
+                                            if (_1163) {
+                                                bool _1169 = Double__GT_(cand_MINUS_y, prev_MINUS_y);
+                                                if (_1169) {
+                                                    double _1176 = Double__MINUS_(res_MINUS_y, oy);
+                                                    res_MINUS_y = _1176;  // Double = Double
+                                                    double _1182 = Pointer_to_MINUS_value__double(vel_MINUS_y_MINUS_ptr);
+                                                    bool _1184 = Double__GT_(_1182, 0.0);
+                                                    if (_1184) {
+                                                        Pointer_set__double(vel_MINUS_y_MINUS_ptr, 0.0);
+                                                    } else {
+                                                        /* () */
+                                                    }
+                                                } else {
+                                                    bool _1201 = Double__LT_(cand_MINUS_y, prev_MINUS_y);
+                                                    if (_1201) {
+                                                        double _1208 = Double__PLUS_(res_MINUS_y, oy);
+                                                        res_MINUS_y = _1208;  // Double = Double
+                                                        Pointer_set__bool(on_MINUS_ground_MINUS_ptr, true);
+                                                        double _1218 = Pointer_to_MINUS_value__double(vel_MINUS_y_MINUS_ptr);
+                                                        bool _1220 = Double__LT_(_1218, 0.0);
+                                                        if (_1220) {
+                                                            Pointer_set__double(vel_MINUS_y_MINUS_ptr, 0.0);
+                                                        } else {
+                                                            /* () */
+                                                        }
+                                                    } else {
+                                                        /* let */ {
+                                                            double _1240 = Double__PLUS_(voxel_MINUS_min_MINUS_y, 0.5);
+                                                            double _1241 = Double__MINUS_(res_MINUS_y, _1240);
+                                                            double diff = _1241;
+                                                            bool _1247 = Double__LT_(diff, 0.0);
+                                                            if (_1247) {
+                                                                double _1254 = Double__MINUS_(res_MINUS_y, oy);
+                                                                res_MINUS_y = _1254;  // Double = Double
+                                                                double _1260 = Pointer_to_MINUS_value__double(vel_MINUS_y_MINUS_ptr);
+                                                                bool _1262 = Double__GT_(_1260, 0.0);
+                                                                if (_1262) {
+                                                                    Pointer_set__double(vel_MINUS_y_MINUS_ptr, 0.0);
+                                                                } else {
+                                                                    /* () */
+                                                                }
+                                                            } else {
+                                                                double _1280 = Double__PLUS_(res_MINUS_y, oy);
+                                                                res_MINUS_y = _1280;  // Double = Double
+                                                                Pointer_set__bool(on_MINUS_ground_MINUS_ptr, true);
+                                                                double _1290 = Pointer_to_MINUS_value__double(vel_MINUS_y_MINUS_ptr);
+                                                                bool _1292 = Double__LT_(_1290, 0.0);
+                                                                if (_1292) {
+                                                                    Pointer_set__double(vel_MINUS_y_MINUS_ptr, 0.0);
+                                                                } else {
+                                                                    /* () */
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                Vector3__double _1318 = Vector3_init__double(res_MINUS_x, res_MINUS_y, res_MINUS_z);
+                                                Vector3__double* _1319 = &_1318; // ref
+                                                AABB _1323 = Physics_get_MINUS_player_MINUS_aabb_MINUS_shrunk(_1319, 2.0e-2, 0.0, 2.0e-2);
+                                                AABB_delete(p_MINUS_aabb);
+                                                p_MINUS_aabb = _1323;  // AABB = AABB
+                                                Vector3_delete__double(_1318);
+                                            } else {
+                                                /* () */
+                                            }
+                                        }
+                                    } else {
+                                        /* () */
+                                    }
+                                    int _1000189 = Int__PLUS_(x, 1);
+                                    x = _1000189;  // Int = Int
+                                    int _1013 = Int_inc(max_MINUS_x);
+                                    bool _1000144 = Int__LT_(x, _1013);
+                                    _1000142 = _1000144;
+                                }
+                            }
+                            int _1000192 = Int__PLUS_(y, 1);
+                            y = _1000192;  // Int = Int
+                            int _1001 = Int_inc(max_MINUS_y);
+                            bool _1000137 = Int__LT_(y, _1001);
+                            _1000135 = _1000137;
+                        }
+                    }
+                    int _1000195 = Int__PLUS_(z, 1);
+                    z = _1000195;  // Int = Int
+                    int _989 = Int_inc(max_MINUS_z);
+                    bool _1000130 = Int__LT_(z, _989);
+                    _1000128 = _1000130;
+                }
+            }
+            AABB_delete(p_MINUS_aabb);
+            Vector3_delete__double(_901);
+        }
+        Vector3__double _1373 = Vector3_init__double(res_MINUS_x, res_MINUS_y, res_MINUS_z);
+        Pointer_set__Vector3__double(p_MINUS_pos, _1373);
+        Vector3_delete__double(cand_MINUS_pos);
     }
 }
 
@@ -23783,7 +28932,7 @@ float Physics_sample_MINUS_sdf_MINUS_at(World* world, int gx, int gy, int gz) {
             _126 = _125;
             Chunk_delete(chunk);
         }
-        else UNHANDLED("physics.carp", 12);
+        else UNHANDLED("physics.carp", 31);
         _127 = _126;
     }
     return _127;
@@ -23893,6 +29042,159 @@ float Physics_sample_MINUS_sdf_MINUS_trilinear(World* world, Vector3__double* p)
     }
     return _253;
 }
+
+Plane Plane_copy(Plane* pRef) {
+    Plane copy = *pRef;
+    copy.normal = Vector3_copy__double(&(pRef->normal));
+    /* Ignore non-managed member 'd' : Double */
+    return copy;
+}
+
+double* Plane_d(Plane* p) { return (&(p->d)); }
+
+void Plane_delete(Plane p) {
+    Vector3_delete__double(p.normal);
+    /* Ignore non-managed member 'd' : Double */
+}
+
+double Plane_distance_MINUS_to_MINUS_point(Plane* plane, Vector3__double* p) {
+    Vector3__double* _9 = Plane_normal(plane);
+    double _11 = Vector3_dot__double(_9, p);
+    double* _15 = Plane_d(plane);
+    double _16 = Double_copy(_15);
+    double _17 = Double__PLUS_(_11, _16);
+    return _17;
+}
+
+Plane Plane_init(Vector3__double normal, double d) {
+    Plane instance;
+    instance.normal = normal;
+    instance.d = d;
+    return instance;
+}
+
+Vector3__double* Plane_normal(Plane* p) { return (&(p->normal)); }
+
+String Plane_prn(Plane *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "Plane");
+  temp = Vector3_prn__double(&p->normal); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->d); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Plane");
+  temp = Vector3_prn__double(&p->normal);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->d);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+Vector3__double Plane_project_MINUS_point(Plane* plane, Vector3__double* p) {
+    Vector3__double _23;
+    /* let */ {
+        double _10 = Plane_distance_MINUS_to_MINUS_point(plane, p);
+        double dist = _10;
+        Vector3__double* _18 = Plane_normal(plane);
+        Vector3__double _20 = Vector3_mul__double(_18, dist);
+        Vector3__double* _21 = &_20; // ref
+        Vector3__double _22 = Vector3_sub__double(p, _21);
+        _23 = _22;
+        Vector3_delete__double(_20);
+    }
+    return _23;
+}
+
+Plane Plane_set_MINUS_d(Plane p, double newValue) {
+    /* Ignore non-managed member 'd' : Double */
+    p.d = newValue;
+    return p;
+}
+
+
+void Plane_set_MINUS_d_BANG_(Plane* pRef, double newValue) {
+    /* Ignore non-managed member 'd' : Double */
+    pRef->d = newValue;
+}
+
+
+Plane Plane_set_MINUS_normal(Plane p, Vector3__double newValue) {
+    Vector3_delete__double(p.normal);
+    p.normal = newValue;
+    return p;
+}
+
+
+void Plane_set_MINUS_normal_BANG_(Plane* pRef, Vector3__double newValue) {
+    Vector3_delete__double(pRef->normal);
+    pRef->normal = newValue;
+}
+
+
+String Plane_str(Plane *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "Plane");
+  temp = Vector3_prn__double(&p->normal); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->d); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Plane");
+  temp = Vector3_prn__double(&p->normal);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->d);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+Plane Plane_update_MINUS_d(Plane p, Lambda *updater) {
+    p.d = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.d) : ((Fn__double_double)(*updater).callback)(p.d);
+    return p;
+}
+
+
+Plane Plane_update_MINUS_normal(Plane p, Lambda *updater) {
+    p.normal = (*updater).env ? ((Fn__LambdaEnv_Vector3__double_Vector3__double)(*updater).callback)((*updater).env, p.normal) : ((Fn__Vector3__double_Vector3__double)(*updater).callback)(p.normal);
+    return p;
+}
+
 
 bool* Player_b_MINUS_last(Player* p) { return (&(p->b_MINUS_last)); }
 
@@ -24126,359 +29428,377 @@ void Player_handle_MINUS_input_BANG_(Player* player, GLFWwindow* win, double dt,
                 double* _316 = Player_edit_MINUS_radius(player);
                 double _317 = Double_copy(_316);
                 double curr_MINUS_rad = _317;
+                double _336;
                 double _324 = Double__MINUS_(curr_MINUS_rad, 0.5);
-                double _325 = max__double(0.5, _324);
-                double next_MINUS_rad = _325;
+                bool _326 = Double__LT_(_324, 0.5);
+                if (_326) {
+                    double _329 = 0.5;
+                    _336 = _329;
+                } else {
+                    double _334 = Double__MINUS_(curr_MINUS_rad, 0.5);
+                    double _335 = _334;
+                    _336 = _335;
+                }
+                double next_MINUS_rad = _336;
                 Pointer_set__double(p_MINUS_rad, next_MINUS_rad);
             }
         } else {
             /* () */
         }
-        bool* _341 = Player_lbracket_MINUS_last(player);
-        bool* _342 = ref_MINUS_to_MINUS_ptr__bool(_341);
-        Pointer_set__bool(_342, lbr_MINUS_pressed);
-        bool _360;
+        bool* _352 = Player_lbracket_MINUS_last(player);
+        bool* _353 = ref_MINUS_to_MINUS_ptr__bool(_352);
+        Pointer_set__bool(_353, lbr_MINUS_pressed);
+        bool _371;
         if (rbr_MINUS_pressed) {
-            bool* _353 = Player_rbracket_MINUS_last(player);
-            bool _354 = Bool_copy(_353);
-            bool _355 = not(_354);
-            bool _356 = _355;
-            _360 = _356;
+            bool* _364 = Player_rbracket_MINUS_last(player);
+            bool _365 = Bool_copy(_364);
+            bool _366 = not(_365);
+            bool _367 = _366;
+            _371 = _367;
         } else {
-            bool _359 = false;
-            _360 = _359;
+            bool _370 = false;
+            _371 = _370;
         }
-        if (_360) {
+        if (_371) {
             /* let */ {
-                double* _367 = Player_edit_MINUS_radius(player);
-                double* _368 = ref_MINUS_to_MINUS_ptr__double(_367);
-                double* p_MINUS_rad = _368;
-                double* _373 = Player_edit_MINUS_radius(player);
-                double _374 = Double_copy(_373);
-                double curr_MINUS_rad = _374;
-                double _381 = Double__PLUS_(curr_MINUS_rad, 0.5);
-                double _382 = min__double(15.0, _381);
-                double next_MINUS_rad = _382;
+                double* _378 = Player_edit_MINUS_radius(player);
+                double* _379 = ref_MINUS_to_MINUS_ptr__double(_378);
+                double* p_MINUS_rad = _379;
+                double* _384 = Player_edit_MINUS_radius(player);
+                double _385 = Double_copy(_384);
+                double curr_MINUS_rad = _385;
+                double _404;
+                double _392 = Double__PLUS_(curr_MINUS_rad, 0.5);
+                bool _394 = Double__GT_(_392, 15.0);
+                if (_394) {
+                    double _397 = 15.0;
+                    _404 = _397;
+                } else {
+                    double _402 = Double__PLUS_(curr_MINUS_rad, 0.5);
+                    double _403 = _402;
+                    _404 = _403;
+                }
+                double next_MINUS_rad = _404;
                 Pointer_set__double(p_MINUS_rad, next_MINUS_rad);
             }
         } else {
             /* () */
         }
-        bool* _398 = Player_rbracket_MINUS_last(player);
-        bool* _399 = ref_MINUS_to_MINUS_ptr__bool(_398);
-        Pointer_set__bool(_399, rbr_MINUS_pressed);
-        int _407 = glfwGetKey(win, GLFW_KEY_1);
-        bool _409 = Int__EQ_(_407, GLFW_PRESS);
-        if (_409) {
-            double* _415 = Player_edit_MINUS_radius(player);
-            double* _416 = ref_MINUS_to_MINUS_ptr__double(_415);
-            Pointer_set__double(_416, 1.5);
-        } else {
-            /* () */
-        }
-        int _429 = glfwGetKey(win, GLFW_KEY_2);
+        bool* _420 = Player_rbracket_MINUS_last(player);
+        bool* _421 = ref_MINUS_to_MINUS_ptr__bool(_420);
+        Pointer_set__bool(_421, rbr_MINUS_pressed);
+        int _429 = glfwGetKey(win, GLFW_KEY_1);
         bool _431 = Int__EQ_(_429, GLFW_PRESS);
         if (_431) {
             double* _437 = Player_edit_MINUS_radius(player);
             double* _438 = ref_MINUS_to_MINUS_ptr__double(_437);
-            Pointer_set__double(_438, 3.0);
+            Pointer_set__double(_438, 1.5);
         } else {
             /* () */
         }
-        int _451 = glfwGetKey(win, GLFW_KEY_3);
+        int _451 = glfwGetKey(win, GLFW_KEY_2);
         bool _453 = Int__EQ_(_451, GLFW_PRESS);
         if (_453) {
             double* _459 = Player_edit_MINUS_radius(player);
             double* _460 = ref_MINUS_to_MINUS_ptr__double(_459);
-            Pointer_set__double(_460, 6.0);
+            Pointer_set__double(_460, 3.0);
         } else {
             /* () */
         }
-        bool _483;
+        int _473 = glfwGetKey(win, GLFW_KEY_3);
+        bool _475 = Int__EQ_(_473, GLFW_PRESS);
+        if (_475) {
+            double* _481 = Player_edit_MINUS_radius(player);
+            double* _482 = ref_MINUS_to_MINUS_ptr__double(_481);
+            Pointer_set__double(_482, 6.0);
+        } else {
+            /* () */
+        }
+        bool _505;
         if (v_MINUS_pressed) {
-            bool* _476 = Player_v_MINUS_last(player);
-            bool _477 = Bool_copy(_476);
-            bool _478 = not(_477);
-            bool _479 = _478;
-            _483 = _479;
+            bool* _498 = Player_v_MINUS_last(player);
+            bool _499 = Bool_copy(_498);
+            bool _500 = not(_499);
+            bool _501 = _500;
+            _505 = _501;
         } else {
-            bool _482 = false;
-            _483 = _482;
+            bool _504 = false;
+            _505 = _504;
         }
-        if (_483) {
+        if (_505) {
             /* let */ {
-                float* _490 = Player_current_MINUS_mat(player);
-                float _491 = Float_copy(_490);
-                float curr_MINUS_solid = _491;
-                float _537;
-                bool _497 = Float__EQ_(curr_MINUS_solid, 1.0f);
-                if (_497) {
-                    float _500 = 2.0f;
-                    _537 = _500;
+                float* _512 = Player_current_MINUS_mat(player);
+                float _513 = Float_copy(_512);
+                float curr_MINUS_solid = _513;
+                float _559;
+                bool _519 = Float__EQ_(curr_MINUS_solid, 1.0f);
+                if (_519) {
+                    float _522 = 2.0f;
+                    _559 = _522;
                 } else {
-                    float _535;
-                    bool _506 = Float__EQ_(curr_MINUS_solid, 2.0f);
-                    if (_506) {
-                        float _509 = 3.0f;
-                        _535 = _509;
+                    float _557;
+                    bool _528 = Float__EQ_(curr_MINUS_solid, 2.0f);
+                    if (_528) {
+                        float _531 = 3.0f;
+                        _557 = _531;
                     } else {
-                        float _533;
-                        bool _515 = Float__EQ_(curr_MINUS_solid, 3.0f);
-                        if (_515) {
-                            float _518 = 4.0f;
-                            _533 = _518;
+                        float _555;
+                        bool _537 = Float__EQ_(curr_MINUS_solid, 3.0f);
+                        if (_537) {
+                            float _540 = 4.0f;
+                            _555 = _540;
                         } else {
-                            float _531;
-                            bool _524 = Float__EQ_(curr_MINUS_solid, 4.0f);
-                            if (_524) {
-                                float _527 = 5.0f;
-                                _531 = _527;
+                            float _553;
+                            bool _546 = Float__EQ_(curr_MINUS_solid, 4.0f);
+                            if (_546) {
+                                float _549 = 5.0f;
+                                _553 = _549;
                             } else {
-                                float _530 = 1.0f;
-                                _531 = _530;
+                                float _552 = 1.0f;
+                                _553 = _552;
                             }
-                            float _532 = _531;
-                            _533 = _532;
+                            float _554 = _553;
+                            _555 = _554;
                         }
-                        float _534 = _533;
-                        _535 = _534;
+                        float _556 = _555;
+                        _557 = _556;
                     }
-                    float _536 = _535;
-                    _537 = _536;
+                    float _558 = _557;
+                    _559 = _558;
                 }
-                float next_MINUS_solid = _537;
-                float* _543 = Player_current_MINUS_mat(player);
-                float* _544 = ref_MINUS_to_MINUS_ptr__float(_543);
-                Pointer_set__float(_544, next_MINUS_solid);
+                float next_MINUS_solid = _559;
+                float* _565 = Player_current_MINUS_mat(player);
+                float* _566 = ref_MINUS_to_MINUS_ptr__float(_565);
+                Pointer_set__float(_566, next_MINUS_solid);
             }
         } else {
             /* () */
         }
-        bool* _557 = Player_v_MINUS_last(player);
-        bool* _558 = ref_MINUS_to_MINUS_ptr__bool(_557);
-        Pointer_set__bool(_558, v_MINUS_pressed);
-        bool _576;
+        bool* _579 = Player_v_MINUS_last(player);
+        bool* _580 = ref_MINUS_to_MINUS_ptr__bool(_579);
+        Pointer_set__bool(_580, v_MINUS_pressed);
+        bool _598;
         if (n_MINUS_pressed) {
-            bool* _569 = Player_n_MINUS_last(player);
-            bool _570 = Bool_copy(_569);
-            bool _571 = not(_570);
-            bool _572 = _571;
-            _576 = _572;
+            bool* _591 = Player_n_MINUS_last(player);
+            bool _592 = Bool_copy(_591);
+            bool _593 = not(_592);
+            bool _594 = _593;
+            _598 = _594;
         } else {
-            bool _575 = false;
-            _576 = _575;
+            bool _597 = false;
+            _598 = _597;
         }
-        if (_576) {
+        if (_598) {
             /* let */ {
-                float* _583 = Player_current_MINUS_liq(player);
-                float _584 = Float_copy(_583);
-                float curr_MINUS_liq = _584;
-                float _619;
-                bool _590 = Float__EQ_(curr_MINUS_liq, 1.0f);
-                if (_590) {
-                    float _593 = 2.0f;
-                    _619 = _593;
+                float* _605 = Player_current_MINUS_liq(player);
+                float _606 = Float_copy(_605);
+                float curr_MINUS_liq = _606;
+                float _641;
+                bool _612 = Float__EQ_(curr_MINUS_liq, 1.0f);
+                if (_612) {
+                    float _615 = 2.0f;
+                    _641 = _615;
                 } else {
-                    float _617;
-                    bool _599 = Float__EQ_(curr_MINUS_liq, 2.0f);
-                    if (_599) {
-                        float _602 = 3.0f;
-                        _617 = _602;
+                    float _639;
+                    bool _621 = Float__EQ_(curr_MINUS_liq, 2.0f);
+                    if (_621) {
+                        float _624 = 3.0f;
+                        _639 = _624;
                     } else {
-                        float _615;
-                        bool _608 = Float__EQ_(curr_MINUS_liq, 3.0f);
-                        if (_608) {
-                            float _611 = 4.0f;
-                            _615 = _611;
+                        float _637;
+                        bool _630 = Float__EQ_(curr_MINUS_liq, 3.0f);
+                        if (_630) {
+                            float _633 = 4.0f;
+                            _637 = _633;
                         } else {
-                            float _614 = 1.0f;
-                            _615 = _614;
+                            float _636 = 1.0f;
+                            _637 = _636;
                         }
-                        float _616 = _615;
-                        _617 = _616;
+                        float _638 = _637;
+                        _639 = _638;
                     }
-                    float _618 = _617;
-                    _619 = _618;
+                    float _640 = _639;
+                    _641 = _640;
                 }
-                float next_MINUS_liq = _619;
-                float* _625 = Player_current_MINUS_liq(player);
-                float* _626 = ref_MINUS_to_MINUS_ptr__float(_625);
-                Pointer_set__float(_626, next_MINUS_liq);
+                float next_MINUS_liq = _641;
+                float* _647 = Player_current_MINUS_liq(player);
+                float* _648 = ref_MINUS_to_MINUS_ptr__float(_647);
+                Pointer_set__float(_648, next_MINUS_liq);
             }
         } else {
             /* () */
         }
-        bool* _639 = Player_n_MINUS_last(player);
-        bool* _640 = ref_MINUS_to_MINUS_ptr__bool(_639);
-        Pointer_set__bool(_640, n_MINUS_pressed);
-        bool _658;
+        bool* _661 = Player_n_MINUS_last(player);
+        bool* _662 = ref_MINUS_to_MINUS_ptr__bool(_661);
+        Pointer_set__bool(_662, n_MINUS_pressed);
+        bool _680;
         if (b_MINUS_pressed) {
-            bool* _651 = Player_b_MINUS_last(player);
-            bool _652 = Bool_copy(_651);
-            bool _653 = not(_652);
-            bool _654 = _653;
-            _658 = _654;
+            bool* _673 = Player_b_MINUS_last(player);
+            bool _674 = Bool_copy(_673);
+            bool _675 = not(_674);
+            bool _676 = _675;
+            _680 = _676;
         } else {
-            bool _657 = false;
-            _658 = _657;
+            bool _679 = false;
+            _680 = _679;
         }
-        if (_658) {
+        if (_680) {
             /* let */ {
-                float* _665 = Player_current_MINUS_gas(player);
-                float _666 = Float_copy(_665);
-                float curr_MINUS_gas = _666;
-                float _701;
-                bool _672 = Float__EQ_(curr_MINUS_gas, 1.0f);
-                if (_672) {
-                    float _675 = 2.0f;
-                    _701 = _675;
+                float* _687 = Player_current_MINUS_gas(player);
+                float _688 = Float_copy(_687);
+                float curr_MINUS_gas = _688;
+                float _723;
+                bool _694 = Float__EQ_(curr_MINUS_gas, 1.0f);
+                if (_694) {
+                    float _697 = 2.0f;
+                    _723 = _697;
                 } else {
-                    float _699;
-                    bool _681 = Float__EQ_(curr_MINUS_gas, 2.0f);
-                    if (_681) {
-                        float _684 = 3.0f;
-                        _699 = _684;
+                    float _721;
+                    bool _703 = Float__EQ_(curr_MINUS_gas, 2.0f);
+                    if (_703) {
+                        float _706 = 3.0f;
+                        _721 = _706;
                     } else {
-                        float _697;
-                        bool _690 = Float__EQ_(curr_MINUS_gas, 3.0f);
-                        if (_690) {
-                            float _693 = 4.0f;
-                            _697 = _693;
+                        float _719;
+                        bool _712 = Float__EQ_(curr_MINUS_gas, 3.0f);
+                        if (_712) {
+                            float _715 = 4.0f;
+                            _719 = _715;
                         } else {
-                            float _696 = 1.0f;
-                            _697 = _696;
+                            float _718 = 1.0f;
+                            _719 = _718;
                         }
-                        float _698 = _697;
-                        _699 = _698;
+                        float _720 = _719;
+                        _721 = _720;
                     }
-                    float _700 = _699;
-                    _701 = _700;
+                    float _722 = _721;
+                    _723 = _722;
                 }
-                float next_MINUS_gas = _701;
-                float* _707 = Player_current_MINUS_gas(player);
-                float* _708 = ref_MINUS_to_MINUS_ptr__float(_707);
-                Pointer_set__float(_708, next_MINUS_gas);
+                float next_MINUS_gas = _723;
+                float* _729 = Player_current_MINUS_gas(player);
+                float* _730 = ref_MINUS_to_MINUS_ptr__float(_729);
+                Pointer_set__float(_730, next_MINUS_gas);
             }
         } else {
             /* () */
         }
-        bool* _721 = Player_b_MINUS_last(player);
-        bool* _722 = ref_MINUS_to_MINUS_ptr__bool(_721);
-        Pointer_set__bool(_722, b_MINUS_pressed);
+        bool* _743 = Player_b_MINUS_last(player);
+        bool* _744 = ref_MINUS_to_MINUS_ptr__bool(_743);
+        Pointer_set__bool(_744, b_MINUS_pressed);
         /* let */ {
-            double* _730 = Player_edit_MINUS_radius(player);
-            double _731 = Double_copy(_730);
-            double curr_MINUS_rad = _731;
-            float* _736 = Player_current_MINUS_mat(player);
-            float _737 = Float_copy(_736);
-            float curr_MINUS_mat = _737;
-            float* _742 = Player_current_MINUS_liq(player);
-            float _743 = Float_copy(_742);
-            float curr_MINUS_liq = _743;
-            float* _748 = Player_current_MINUS_gas(player);
-            float _749 = Float_copy(_748);
-            float curr_MINUS_gas = _749;
-            bool* _754 = Player_flying(player);
-            bool _755 = Bool_copy(_754);
-            bool curr_MINUS_fly = _755;
-            bool* _760 = Player_flashlight_MINUS_on(player);
-            bool _761 = Bool_copy(_760);
-            bool curr_MINUS_light = _761;
-            bool _822;
-            bool _812;
-            bool _802;
-            bool _792;
-            bool _782;
-            bool _772 = _DIV__EQ___double(prev_MINUS_rad, curr_MINUS_rad);
-            if (_772) {
-                bool _775 = true;
-                _782 = _775;
+            double* _752 = Player_edit_MINUS_radius(player);
+            double _753 = Double_copy(_752);
+            double curr_MINUS_rad = _753;
+            float* _758 = Player_current_MINUS_mat(player);
+            float _759 = Float_copy(_758);
+            float curr_MINUS_mat = _759;
+            float* _764 = Player_current_MINUS_liq(player);
+            float _765 = Float_copy(_764);
+            float curr_MINUS_liq = _765;
+            float* _770 = Player_current_MINUS_gas(player);
+            float _771 = Float_copy(_770);
+            float curr_MINUS_gas = _771;
+            bool* _776 = Player_flying(player);
+            bool _777 = Bool_copy(_776);
+            bool curr_MINUS_fly = _777;
+            bool* _782 = Player_flashlight_MINUS_on(player);
+            bool _783 = Bool_copy(_782);
+            bool curr_MINUS_light = _783;
+            bool _844;
+            bool _834;
+            bool _824;
+            bool _814;
+            bool _804;
+            bool _794 = _DIV__EQ___double(prev_MINUS_rad, curr_MINUS_rad);
+            if (_794) {
+                bool _797 = true;
+                _804 = _797;
             } else {
-                bool _780 = _DIV__EQ___float(prev_MINUS_mat, curr_MINUS_mat);
-                bool _781 = _780;
-                _782 = _781;
+                bool _802 = _DIV__EQ___float(prev_MINUS_mat, curr_MINUS_mat);
+                bool _803 = _802;
+                _804 = _803;
             }
-            if (_782) {
-                bool _785 = true;
-                _792 = _785;
+            if (_804) {
+                bool _807 = true;
+                _814 = _807;
             } else {
-                bool _790 = _DIV__EQ___float(prev_MINUS_liq, curr_MINUS_liq);
-                bool _791 = _790;
-                _792 = _791;
+                bool _812 = _DIV__EQ___float(prev_MINUS_liq, curr_MINUS_liq);
+                bool _813 = _812;
+                _814 = _813;
             }
-            if (_792) {
-                bool _795 = true;
-                _802 = _795;
+            if (_814) {
+                bool _817 = true;
+                _824 = _817;
             } else {
-                bool _800 = _DIV__EQ___float(prev_MINUS_gas, curr_MINUS_gas);
-                bool _801 = _800;
-                _802 = _801;
+                bool _822 = _DIV__EQ___float(prev_MINUS_gas, curr_MINUS_gas);
+                bool _823 = _822;
+                _824 = _823;
             }
-            if (_802) {
-                bool _805 = true;
-                _812 = _805;
+            if (_824) {
+                bool _827 = true;
+                _834 = _827;
             } else {
-                bool _810 = _DIV__EQ___bool(prev_MINUS_fly, curr_MINUS_fly);
-                bool _811 = _810;
-                _812 = _811;
+                bool _832 = _DIV__EQ___bool(prev_MINUS_fly, curr_MINUS_fly);
+                bool _833 = _832;
+                _834 = _833;
             }
-            if (_812) {
-                bool _815 = true;
-                _822 = _815;
+            if (_834) {
+                bool _837 = true;
+                _844 = _837;
             } else {
-                bool _820 = _DIV__EQ___bool(prev_MINUS_light, curr_MINUS_light);
-                bool _821 = _820;
-                _822 = _821;
+                bool _842 = _DIV__EQ___bool(prev_MINUS_light, curr_MINUS_light);
+                bool _843 = _842;
+                _844 = _843;
             }
-            if (_822) {
-                float _827 = Double_to_MINUS_float(curr_MINUS_rad);
-                set_MINUS_js_MINUS_brush_MINUS_radius(_827);
+            if (_844) {
+                float _849 = Double_to_MINUS_float(curr_MINUS_rad);
+                set_MINUS_js_MINUS_brush_MINUS_radius(_849);
                 set_MINUS_js_MINUS_solid_MINUS_mat(curr_MINUS_mat);
                 set_MINUS_js_MINUS_liq_MINUS_mat(curr_MINUS_liq);
                 set_MINUS_js_MINUS_gas_MINUS_mat(curr_MINUS_gas);
-                float _847;
+                float _869;
                 if (curr_MINUS_fly) {
-                    float _843 = 1.0f;
-                    _847 = _843;
+                    float _865 = 1.0f;
+                    _869 = _865;
                 } else {
-                    float _846 = 0.0f;
-                    _847 = _846;
+                    float _868 = 0.0f;
+                    _869 = _868;
                 }
-                set_MINUS_js_MINUS_flying(_847);
-                float _858;
+                set_MINUS_js_MINUS_flying(_869);
+                float _880;
                 if (curr_MINUS_light) {
-                    float _854 = 1.0f;
-                    _858 = _854;
+                    float _876 = 1.0f;
+                    _880 = _876;
                 } else {
-                    float _857 = 0.0f;
-                    _858 = _857;
+                    float _879 = 0.0f;
+                    _880 = _879;
                 }
-                set_MINUS_js_MINUS_flashlight(_858);
-                float _863 = Double_to_MINUS_float(curr_MINUS_rad);
-                float _875;
+                set_MINUS_js_MINUS_flashlight(_880);
+                float _885 = Double_to_MINUS_float(curr_MINUS_rad);
+                float _897;
                 if (curr_MINUS_fly) {
-                    float _871 = 1.0f;
-                    _875 = _871;
+                    float _893 = 1.0f;
+                    _897 = _893;
                 } else {
-                    float _874 = 0.0f;
-                    _875 = _874;
+                    float _896 = 0.0f;
+                    _897 = _896;
                 }
-                float _884;
+                float _906;
                 if (curr_MINUS_light) {
-                    float _880 = 1.0f;
-                    _884 = _880;
+                    float _902 = 1.0f;
+                    _906 = _902;
                 } else {
-                    float _883 = 0.0f;
-                    _884 = _883;
+                    float _905 = 0.0f;
+                    _906 = _905;
                 }
-                js_MINUS_sync_MINUS_all(_863, curr_MINUS_mat, curr_MINUS_liq, curr_MINUS_gas, _875, _884);
+                js_MINUS_sync_MINUS_all(_885, curr_MINUS_mat, curr_MINUS_liq, curr_MINUS_gas, _897, _906);
             } else {
                 /* () */
             }
         }
-        bool* _899 = Player_flying(player);
-        bool _900 = Bool_copy(_899);
-        Camera_update_MINUS_input(win, cam, dt, _900);
+        bool* _921 = Player_flying(player);
+        bool _922 = Bool_copy(_921);
+        Camera_update_MINUS_input(win, cam, dt, _922);
         Camera_update_MINUS_look(win, cam, first_MINUS_mouse_MINUS_ptr, last_MINUS_x_MINUS_ptr, last_MINUS_y_MINUS_ptr);
     }
 }
@@ -25152,55 +30472,55 @@ Player Player_update_MINUS_on_MINUS_ground(Player p, Lambda *updater) {
 }
 
 
-void Player_update_MINUS_physics_BANG_(Player* player, World* world, double dt) {
+void Player_update_MINUS_physics_BANG_(Player* player, World* world, double dt, Vector3__double* prev_MINUS_pos) {
     /* let */ {
-        Camera* _10 = Player_camera(player);
-        Camera* cam = _10;
-        bool* _18 = Player_flying(player);
-        bool _19 = Bool_copy(_18);
-        bool _20 = not(_19);
-        if (_20) {
+        Camera* _11 = Player_camera(player);
+        Camera* cam = _11;
+        bool* _19 = Player_flying(player);
+        bool _20 = Bool_copy(_19);
+        bool _21 = not(_20);
+        if (_21) {
             /* let */ {
-                double* _27 = Player_vel_MINUS_y(player);
-                double* _28 = ref_MINUS_to_MINUS_ptr__double(_27);
-                double* p_MINUS_vel_MINUS_y = _28;
-                double _32 = Pointer_to_MINUS_value__double(p_MINUS_vel_MINUS_y);
-                double curr_MINUS_vel_MINUS_y = _32;
-                Vector3__double* _37 = Camera_pos(cam);
-                Vector3__double* _38 = ref_MINUS_to_MINUS_ptr__Vector3__double(_37);
-                Vector3__double* p_MINUS_pos = _38;
-                Vector3__double _42 = Pointer_to_MINUS_value__Vector3__double(p_MINUS_pos);
-                Vector3__double curr_MINUS_pos = _42;
-                double _52 = Double__MUL_(35.0, dt);
-                double _53 = Double__MINUS_(curr_MINUS_vel_MINUS_y, _52);
-                Pointer_set__double(p_MINUS_vel_MINUS_y, _53);
+                double* _28 = Player_vel_MINUS_y(player);
+                double* _29 = ref_MINUS_to_MINUS_ptr__double(_28);
+                double* p_MINUS_vel_MINUS_y = _29;
+                double _33 = Pointer_to_MINUS_value__double(p_MINUS_vel_MINUS_y);
+                double curr_MINUS_vel_MINUS_y = _33;
+                Vector3__double* _38 = Camera_pos(cam);
+                Vector3__double* _39 = ref_MINUS_to_MINUS_ptr__Vector3__double(_38);
+                Vector3__double* p_MINUS_pos = _39;
+                Vector3__double _43 = Pointer_to_MINUS_value__Vector3__double(p_MINUS_pos);
+                Vector3__double curr_MINUS_pos = _43;
+                double _53 = Double__MUL_(35.0, dt);
+                double _54 = Double__MINUS_(curr_MINUS_vel_MINUS_y, _53);
+                Pointer_set__double(p_MINUS_vel_MINUS_y, _54);
                 /* let */ {
-                    Vector3__double* _62 = &curr_MINUS_pos; // ref
-                    double* _63 = Vector3_y__double(_62);
-                    double _64 = Double_copy(_63);
-                    double _68 = Pointer_to_MINUS_value__double(p_MINUS_vel_MINUS_y);
-                    double _70 = Double__MUL_(_68, dt);
-                    double _71 = Double__PLUS_(_64, _70);
-                    double new_MINUS_y = _71;
-                    Vector3__double* _80 = &curr_MINUS_pos; // ref
-                    double* _81 = Vector3_x__double(_80);
-                    double _82 = Double_copy(_81);
-                    Vector3__double* _88 = &curr_MINUS_pos; // ref
-                    double* _89 = Vector3_z__double(_88);
-                    double _90 = Double_copy(_89);
-                    Vector3__double _91 = Vector3_init__double(_82, new_MINUS_y, _90);
-                    Pointer_set__Vector3__double(p_MINUS_pos, _91);
+                    Vector3__double* _63 = &curr_MINUS_pos; // ref
+                    double* _64 = Vector3_y__double(_63);
+                    double _65 = Double_copy(_64);
+                    double _69 = Pointer_to_MINUS_value__double(p_MINUS_vel_MINUS_y);
+                    double _71 = Double__MUL_(_69, dt);
+                    double _72 = Double__PLUS_(_65, _71);
+                    double new_MINUS_y = _72;
+                    Vector3__double* _81 = &curr_MINUS_pos; // ref
+                    double* _82 = Vector3_x__double(_81);
+                    double _83 = Double_copy(_82);
+                    Vector3__double* _89 = &curr_MINUS_pos; // ref
+                    double* _90 = Vector3_z__double(_89);
+                    double _91 = Double_copy(_90);
+                    Vector3__double _92 = Vector3_init__double(_83, new_MINUS_y, _91);
+                    Pointer_set__Vector3__double(p_MINUS_pos, _92);
                 }
                 Vector3_delete__double(curr_MINUS_pos);
             }
         } else {
             /* () */
         }
-        double* _108 = Player_vel_MINUS_y(player);
-        double* _109 = ref_MINUS_to_MINUS_ptr__double(_108);
-        bool* _113 = Player_on_MINUS_ground(player);
-        bool* _114 = ref_MINUS_to_MINUS_ptr__bool(_113);
-        Physics_resolve_MINUS_camera_MINUS_collision_BANG_(world, cam, 0.8, _109, _114);
+        double* _109 = Player_vel_MINUS_y(player);
+        double* _110 = ref_MINUS_to_MINUS_ptr__double(_109);
+        bool* _114 = Player_on_MINUS_ground(player);
+        bool* _115 = ref_MINUS_to_MINUS_ptr__bool(_114);
+        Physics_resolve_MINUS_camera_MINUS_collision_BANG_(world, cam, prev_MINUS_pos, _110, _115);
     }
 }
 
@@ -25328,6 +30648,597 @@ void Pointer_set__int(int* p, int a) { *p = a; }
  double Pointer_to_MINUS_value__double(double* p) { return *p; }
  float Pointer_to_MINUS_value__float(float* p) { return *p; }
  int Pointer_to_MINUS_value__int(int* p) { return *p; }
+Quaternion Quaternion_add(Quaternion* a, Quaternion* b) {
+    double* _10 = Quaternion_x(a);
+    double _11 = Double_copy(_10);
+    double* _15 = Quaternion_x(b);
+    double _16 = Double_copy(_15);
+    double _17 = Double__PLUS_(_11, _16);
+    double* _22 = Quaternion_y(a);
+    double _23 = Double_copy(_22);
+    double* _27 = Quaternion_y(b);
+    double _28 = Double_copy(_27);
+    double _29 = Double__PLUS_(_23, _28);
+    double* _34 = Quaternion_z(a);
+    double _35 = Double_copy(_34);
+    double* _39 = Quaternion_z(b);
+    double _40 = Double_copy(_39);
+    double _41 = Double__PLUS_(_35, _40);
+    double* _46 = Quaternion_w(a);
+    double _47 = Double_copy(_46);
+    double* _51 = Quaternion_w(b);
+    double _52 = Double_copy(_51);
+    double _53 = Double__PLUS_(_47, _52);
+    Quaternion _54 = Quaternion_init(_17, _29, _41, _53);
+    return _54;
+}
+
+Quaternion Quaternion_conjugate(Quaternion* q) {
+    double* _10 = Quaternion_x(q);
+    double _11 = Double_copy(_10);
+    double _12 = Double__MINUS_(0.0, _11);
+    double* _18 = Quaternion_y(q);
+    double _19 = Double_copy(_18);
+    double _20 = Double__MINUS_(0.0, _19);
+    double* _26 = Quaternion_z(q);
+    double _27 = Double_copy(_26);
+    double _28 = Double__MINUS_(0.0, _27);
+    double* _32 = Quaternion_w(q);
+    double _33 = Double_copy(_32);
+    Quaternion _34 = Quaternion_init(_12, _20, _28, _33);
+    return _34;
+}
+
+Quaternion Quaternion_copy(Quaternion* pRef) {
+    Quaternion copy = *pRef;
+    /* Ignore non-managed member 'x' : Double */
+    /* Ignore non-managed member 'y' : Double */
+    /* Ignore non-managed member 'z' : Double */
+    /* Ignore non-managed member 'w' : Double */
+    return copy;
+}
+
+void Quaternion_delete(Quaternion p) {
+    /* Ignore non-managed member 'x' : Double */
+    /* Ignore non-managed member 'y' : Double */
+    /* Ignore non-managed member 'z' : Double */
+    /* Ignore non-managed member 'w' : Double */
+}
+
+Quaternion Quaternion_from_MINUS_axis_MINUS_angle(Vector3__double axis, double angle) {
+    Quaternion _58;
+    /* let */ {
+        double _11 = Double__MUL_(angle, 0.5);
+        double _12 = Double_sin(_11);
+        double s = _12;
+        double _18 = Double__MUL_(angle, 0.5);
+        double _19 = Double_cos(_18);
+        double c = _19;
+        Vector3__double* _29 = &axis; // ref
+        double* _30 = Vector3_x__double(_29);
+        double _31 = Double_copy(_30);
+        double _33 = Double__MUL_(_31, s);
+        Vector3__double* _39 = &axis; // ref
+        double* _40 = Vector3_y__double(_39);
+        double _41 = Double_copy(_40);
+        double _43 = Double__MUL_(_41, s);
+        Vector3__double* _49 = &axis; // ref
+        double* _50 = Vector3_z__double(_49);
+        double _51 = Double_copy(_50);
+        double _53 = Double__MUL_(_51, s);
+        Quaternion _55 = Quaternion_init(_33, _43, _53, c);
+        Quaternion* _56 = &_55; // ref
+        Quaternion _57 = Quaternion_normalize(_56);
+        _58 = _57;
+        Quaternion_delete(_55);
+    }
+    Vector3_delete__double(axis);
+    return _58;
+}
+
+Quaternion Quaternion_from_MINUS_euler(double yaw, double pitch, double roll) {
+    Quaternion _128;
+    /* let */ {
+        double _12 = Double__MUL_(yaw, 0.5);
+        double _13 = Double_cos(_12);
+        double cy = _13;
+        double _19 = Double__MUL_(yaw, 0.5);
+        double _20 = Double_sin(_19);
+        double sy = _20;
+        double _26 = Double__MUL_(pitch, 0.5);
+        double _27 = Double_cos(_26);
+        double cp = _27;
+        double _33 = Double__MUL_(pitch, 0.5);
+        double _34 = Double_sin(_33);
+        double sp = _34;
+        double _40 = Double__MUL_(roll, 0.5);
+        double _41 = Double_cos(_40);
+        double cr = _41;
+        double _47 = Double__MUL_(roll, 0.5);
+        double _48 = Double_sin(_47);
+        double sr = _48;
+        double _55 = Double__MUL_(cy, sp);
+        double _57 = Double__MUL_(_55, cr);
+        double _62 = Double__MUL_(sy, cp);
+        double _64 = Double__MUL_(_62, sr);
+        double _65 = Double__PLUS_(_57, _64);
+        double qx = _65;
+        double _72 = Double__MUL_(sy, cp);
+        double _74 = Double__MUL_(_72, cr);
+        double _79 = Double__MUL_(cy, sp);
+        double _81 = Double__MUL_(_79, sr);
+        double _82 = Double__MINUS_(_74, _81);
+        double qy = _82;
+        double _89 = Double__MUL_(cy, cp);
+        double _91 = Double__MUL_(_89, sr);
+        double _96 = Double__MUL_(sy, sp);
+        double _98 = Double__MUL_(_96, cr);
+        double _99 = Double__PLUS_(_91, _98);
+        double qz = _99;
+        double _106 = Double__MUL_(cy, cp);
+        double _108 = Double__MUL_(_106, cr);
+        double _113 = Double__MUL_(sy, sp);
+        double _115 = Double__MUL_(_113, sr);
+        double _116 = Double__MINUS_(_108, _115);
+        double qw = _116;
+        Quaternion _125 = Quaternion_init(qx, qy, qz, qw);
+        Quaternion* _126 = &_125; // ref
+        Quaternion _127 = Quaternion_normalize(_126);
+        _128 = _127;
+        Quaternion_delete(_125);
+    }
+    return _128;
+}
+
+Quaternion Quaternion_identity() {
+    Quaternion _8 = Quaternion_init(0.0, 0.0, 0.0, 1.0);
+    return _8;
+}
+
+Quaternion Quaternion_init(double x, double y, double z, double w) {
+    Quaternion instance;
+    instance.x = x;
+    instance.y = y;
+    instance.z = z;
+    instance.w = w;
+    return instance;
+}
+
+Quaternion Quaternion_inverse(Quaternion* q) {
+    Quaternion _6 = Quaternion_conjugate(q);
+    return _6;
+}
+
+Quaternion Quaternion_mul(Quaternion* a, Quaternion* b) {
+    Quaternion _10 = Quaternion_mul_MINUS_raw(a, b);
+    Quaternion* _11 = &_10; // ref
+    Quaternion _12 = Quaternion_normalize(_11);
+    Quaternion_delete(_10);
+    return _12;
+}
+
+Quaternion Quaternion_mul_MINUS_raw(Quaternion* a, Quaternion* b) {
+    Quaternion _145;
+    /* let */ {
+        double* _10 = Quaternion_w(a);
+        double _11 = Double_copy(_10);
+        double aw = _11;
+        double* _16 = Quaternion_x(a);
+        double _17 = Double_copy(_16);
+        double ax = _17;
+        double* _22 = Quaternion_y(a);
+        double _23 = Double_copy(_22);
+        double ay = _23;
+        double* _28 = Quaternion_z(a);
+        double _29 = Double_copy(_28);
+        double az = _29;
+        double* _34 = Quaternion_w(b);
+        double _35 = Double_copy(_34);
+        double bw = _35;
+        double* _40 = Quaternion_x(b);
+        double _41 = Double_copy(_40);
+        double bx = _41;
+        double* _46 = Quaternion_y(b);
+        double _47 = Double_copy(_46);
+        double by = _47;
+        double* _52 = Quaternion_z(b);
+        double _53 = Double_copy(_52);
+        double bz = _53;
+        double _62 = Double__MUL_(aw, bx);
+        double _66 = Double__MUL_(az, by);
+        double _67 = Double__MINUS_(_62, _66);
+        double _71 = Double__MUL_(ay, bz);
+        double _72 = Double__PLUS_(_67, _71);
+        double _76 = Double__MUL_(ax, bw);
+        double _77 = Double__PLUS_(_72, _76);
+        double _84 = Double__MUL_(aw, by);
+        double _88 = Double__MUL_(ax, bz);
+        double _89 = Double__MINUS_(_84, _88);
+        double _93 = Double__MUL_(az, bx);
+        double _94 = Double__PLUS_(_89, _93);
+        double _98 = Double__MUL_(ay, bw);
+        double _99 = Double__PLUS_(_94, _98);
+        double _106 = Double__MUL_(aw, bz);
+        double _110 = Double__MUL_(ay, bx);
+        double _111 = Double__MINUS_(_106, _110);
+        double _115 = Double__MUL_(ax, by);
+        double _116 = Double__PLUS_(_111, _115);
+        double _120 = Double__MUL_(az, bw);
+        double _121 = Double__PLUS_(_116, _120);
+        double _128 = Double__MUL_(aw, bw);
+        double _132 = Double__MUL_(ax, bx);
+        double _133 = Double__MINUS_(_128, _132);
+        double _137 = Double__MUL_(ay, by);
+        double _138 = Double__MINUS_(_133, _137);
+        double _142 = Double__MUL_(az, bz);
+        double _143 = Double__MINUS_(_138, _142);
+        Quaternion _144 = Quaternion_init(_77, _99, _121, _143);
+        _145 = _144;
+    }
+    return _145;
+}
+
+Quaternion Quaternion_new(double x, double y, double z, double w) {
+    Quaternion _12 = Quaternion_init(x, y, z, w);
+    return _12;
+}
+
+Quaternion Quaternion_normalize(Quaternion* q) {
+    Quaternion _85;
+    /* let */ {
+        double* _9 = Quaternion_x(q);
+        double _10 = Double_copy(_9);
+        double qx = _10;
+        double* _15 = Quaternion_y(q);
+        double _16 = Double_copy(_15);
+        double qy = _16;
+        double* _21 = Quaternion_z(q);
+        double _22 = Double_copy(_21);
+        double qz = _22;
+        double* _27 = Quaternion_w(q);
+        double _28 = Double_copy(_27);
+        double qw = _28;
+        double _37 = Double__MUL_(qx, qx);
+        double _41 = Double__MUL_(qy, qy);
+        double _42 = Double__PLUS_(_37, _41);
+        double _46 = Double__MUL_(qz, qz);
+        double _47 = Double__PLUS_(_42, _46);
+        double _51 = Double__MUL_(qw, qw);
+        double _52 = Double__PLUS_(_47, _51);
+        double _53 = Double_sqrt(_52);
+        double mag = _53;
+        Quaternion _84;
+        bool _59 = Double__GT_(mag, 0.0);
+        if (_59) {
+            double _65 = Double__DIV_(qx, mag);
+            double _69 = Double__DIV_(qy, mag);
+            double _73 = Double__DIV_(qz, mag);
+            double _77 = Double__DIV_(qw, mag);
+            Quaternion _78 = Quaternion_init(_65, _69, _73, _77);
+            Quaternion _79 = _78;
+            _84 = _79;
+        } else {
+            Quaternion _82 = Quaternion_identity();
+            Quaternion _83 = _82;
+            _84 = _83;
+        }
+        _85 = _84;
+    }
+    return _85;
+}
+
+String Quaternion_prn(Quaternion *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "Quaternion");
+  temp = Double_prn(p->x); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->y); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->z); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->w); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Quaternion");
+  temp = Double_prn(p->x);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->y);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->z);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->w);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+Vector3__double Quaternion_rotate(Quaternion* q, Vector3__double* v) {
+    Vector3__double _72;
+    /* let */ {
+        double* _11 = Vector3_x__double(v);
+        double _12 = Double_copy(_11);
+        double* _16 = Vector3_y__double(v);
+        double _17 = Double_copy(_16);
+        double* _21 = Vector3_z__double(v);
+        double _22 = Double_copy(_21);
+        Quaternion _24 = Quaternion_init(_12, _17, _22, 0.0);
+        Quaternion q_MINUS_v = _24;
+        Quaternion _28 = Quaternion_inverse(q);
+        Quaternion q_MINUS_inv = _28;
+        Quaternion* _40 = &q_MINUS_v; // ref
+        Quaternion _41 = Quaternion_mul_MINUS_raw(q, _40);
+        Quaternion* _42 = &_41; // ref
+        Quaternion* _43 = _42; // From the 'the' function.
+        Quaternion* _46 = &q_MINUS_inv; // ref
+        Quaternion _47 = Quaternion_mul_MINUS_raw(_43, _46);
+        Quaternion res = _47;
+        Quaternion* _54 = &res; // ref
+        double* _55 = Quaternion_x(_54);
+        double _56 = Double_copy(_55);
+        Quaternion* _61 = &res; // ref
+        double* _62 = Quaternion_y(_61);
+        double _63 = Double_copy(_62);
+        Quaternion* _68 = &res; // ref
+        double* _69 = Quaternion_z(_68);
+        double _70 = Double_copy(_69);
+        Vector3__double _71 = Vector3_init__double(_56, _63, _70);
+        _72 = _71;
+        Quaternion_delete(_41);
+        Quaternion_delete(q_MINUS_inv);
+        Quaternion_delete(q_MINUS_v);
+        Quaternion_delete(res);
+    }
+    return _72;
+}
+
+Quaternion Quaternion_scale(Quaternion* q, double s) {
+    double* _10 = Quaternion_x(q);
+    double _11 = Double_copy(_10);
+    double _13 = Double__MUL_(_11, s);
+    double* _18 = Quaternion_y(q);
+    double _19 = Double_copy(_18);
+    double _21 = Double__MUL_(_19, s);
+    double* _26 = Quaternion_z(q);
+    double _27 = Double_copy(_26);
+    double _29 = Double__MUL_(_27, s);
+    double* _34 = Quaternion_w(q);
+    double _35 = Double_copy(_34);
+    double _37 = Double__MUL_(_35, s);
+    Quaternion _38 = Quaternion_init(_13, _21, _29, _37);
+    return _38;
+}
+
+Quaternion Quaternion_set_MINUS_w(Quaternion p, double newValue) {
+    /* Ignore non-managed member 'w' : Double */
+    p.w = newValue;
+    return p;
+}
+
+
+void Quaternion_set_MINUS_w_BANG_(Quaternion* pRef, double newValue) {
+    /* Ignore non-managed member 'w' : Double */
+    pRef->w = newValue;
+}
+
+
+Quaternion Quaternion_set_MINUS_x(Quaternion p, double newValue) {
+    /* Ignore non-managed member 'x' : Double */
+    p.x = newValue;
+    return p;
+}
+
+
+void Quaternion_set_MINUS_x_BANG_(Quaternion* pRef, double newValue) {
+    /* Ignore non-managed member 'x' : Double */
+    pRef->x = newValue;
+}
+
+
+Quaternion Quaternion_set_MINUS_y(Quaternion p, double newValue) {
+    /* Ignore non-managed member 'y' : Double */
+    p.y = newValue;
+    return p;
+}
+
+
+void Quaternion_set_MINUS_y_BANG_(Quaternion* pRef, double newValue) {
+    /* Ignore non-managed member 'y' : Double */
+    pRef->y = newValue;
+}
+
+
+Quaternion Quaternion_set_MINUS_z(Quaternion p, double newValue) {
+    /* Ignore non-managed member 'z' : Double */
+    p.z = newValue;
+    return p;
+}
+
+
+void Quaternion_set_MINUS_z_BANG_(Quaternion* pRef, double newValue) {
+    /* Ignore non-managed member 'z' : Double */
+    pRef->z = newValue;
+}
+
+
+String Quaternion_str(Quaternion *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "Quaternion");
+  temp = Double_prn(p->x); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->y); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->z); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->w); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Quaternion");
+  temp = Double_prn(p->x);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->y);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->z);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->w);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+Vector3__double Quaternion_to_MINUS_euler(Quaternion* q) {
+    Vector3__double _149;
+    /* let */ {
+        double* _9 = Quaternion_x(q);
+        double _10 = Double_copy(_9);
+        double qx = _10;
+        double* _15 = Quaternion_y(q);
+        double _16 = Double_copy(_15);
+        double qy = _16;
+        double* _21 = Quaternion_z(q);
+        double _22 = Double_copy(_21);
+        double qz = _22;
+        double* _27 = Quaternion_w(q);
+        double _28 = Double_copy(_27);
+        double qw = _28;
+        double _36 = Double__MUL_(qw, qy);
+        double _40 = Double__MUL_(qz, qx);
+        double _41 = Double__MINUS_(_36, _40);
+        double _42 = Double__MUL_(2.0, _41);
+        double sinp = _42;
+        double _70;
+        double _48 = Double_abs(sinp);
+        bool _50 = _GT__EQ___double(_48, 1.0);
+        if (_50) {
+            double _57 = Double_abs(sinp);
+            double _58 = Double__DIV_(sinp, _57);
+            double _62 = Double__DIV_(3.1415926535, 2.0);
+            double _63 = Double__MUL_(_58, _62);
+            double _64 = _63;
+            _70 = _64;
+        } else {
+            double _68 = Double_asin(sinp);
+            double _69 = _68;
+            _70 = _69;
+        }
+        double pitch = _70;
+        double _78 = Double__MUL_(qw, qz);
+        double _82 = Double__MUL_(qx, qy);
+        double _83 = Double__PLUS_(_78, _82);
+        double _84 = Double__MUL_(2.0, _83);
+        double siny_cosp = _84;
+        double _94 = Double__MUL_(qy, qy);
+        double _98 = Double__MUL_(qz, qz);
+        double _99 = Double__PLUS_(_94, _98);
+        double _100 = Double__MUL_(2.0, _99);
+        double _101 = Double__MINUS_(1.0, _100);
+        double cosy_cosp = _101;
+        double _106 = Double_atan2(siny_cosp, cosy_cosp);
+        double yaw = _106;
+        double _114 = Double__MUL_(qw, qx);
+        double _118 = Double__MUL_(qy, qz);
+        double _119 = Double__PLUS_(_114, _118);
+        double _120 = Double__MUL_(2.0, _119);
+        double sinr_cosp = _120;
+        double _130 = Double__MUL_(qx, qx);
+        double _134 = Double__MUL_(qy, qy);
+        double _135 = Double__PLUS_(_130, _134);
+        double _136 = Double__MUL_(2.0, _135);
+        double _137 = Double__MINUS_(1.0, _136);
+        double cosr_cosp = _137;
+        double _142 = Double_atan2(sinr_cosp, cosr_cosp);
+        double roll = _142;
+        Vector3__double _148 = Vector3_init__double(yaw, pitch, roll);
+        _149 = _148;
+    }
+    return _149;
+}
+
+Quaternion Quaternion_update_MINUS_w(Quaternion p, Lambda *updater) {
+    p.w = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.w) : ((Fn__double_double)(*updater).callback)(p.w);
+    return p;
+}
+
+
+Quaternion Quaternion_update_MINUS_x(Quaternion p, Lambda *updater) {
+    p.x = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.x) : ((Fn__double_double)(*updater).callback)(p.x);
+    return p;
+}
+
+
+Quaternion Quaternion_update_MINUS_y(Quaternion p, Lambda *updater) {
+    p.y = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.y) : ((Fn__double_double)(*updater).callback)(p.y);
+    return p;
+}
+
+
+Quaternion Quaternion_update_MINUS_z(Quaternion p, Lambda *updater) {
+    p.z = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.z) : ((Fn__double_double)(*updater).callback)(p.z);
+    return p;
+}
+
+
+double* Quaternion_w(Quaternion* p) { return (&(p->w)); }
+
+double* Quaternion_x(Quaternion* p) { return (&(p->x)); }
+
+double* Quaternion_y(Quaternion* p) { return (&(p->y)); }
+
+double* Quaternion_z(Quaternion* p) { return (&(p->z)); }
+
 bool Random_gen_MINUS_seed_MINUS_at_MINUS_startup_QMARK_() {
     return Random__;
 }
@@ -25351,6 +31262,306 @@ void Random_seed() {
 void Random_seed_MINUS_from(double new_MINUS_seed) {
     Random_s = new_MINUS_seed;  // Double = Double
 }
+
+Ray Ray_copy(Ray* pRef) {
+    Ray copy = *pRef;
+    copy.origin = Vector3_copy__double(&(pRef->origin));
+    copy.direction = Vector3_copy__double(&(pRef->direction));
+    return copy;
+}
+
+void Ray_delete(Ray p) {
+    Vector3_delete__double(p.origin);
+    Vector3_delete__double(p.direction);
+}
+
+Vector3__double* Ray_direction(Ray* p) { return (&(p->direction)); }
+
+Ray Ray_init(Vector3__double origin, Vector3__double direction) {
+    Ray instance;
+    instance.origin = origin;
+    instance.direction = direction;
+    return instance;
+}
+
+Vector3__double* Ray_origin(Ray* p) { return (&(p->origin)); }
+
+String Ray_prn(Ray *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "Ray");
+  temp = Vector3_prn__double(&p->origin); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->direction); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Ray");
+  temp = Vector3_prn__double(&p->origin);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->direction);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+Ray Ray_set_MINUS_direction(Ray p, Vector3__double newValue) {
+    Vector3_delete__double(p.direction);
+    p.direction = newValue;
+    return p;
+}
+
+
+void Ray_set_MINUS_direction_BANG_(Ray* pRef, Vector3__double newValue) {
+    Vector3_delete__double(pRef->direction);
+    pRef->direction = newValue;
+}
+
+
+Ray Ray_set_MINUS_origin(Ray p, Vector3__double newValue) {
+    Vector3_delete__double(p.origin);
+    p.origin = newValue;
+    return p;
+}
+
+
+void Ray_set_MINUS_origin_BANG_(Ray* pRef, Vector3__double newValue) {
+    Vector3_delete__double(pRef->origin);
+    pRef->origin = newValue;
+}
+
+
+String Ray_str(Ray *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "Ray");
+  temp = Vector3_prn__double(&p->origin); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->direction); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Ray");
+  temp = Vector3_prn__double(&p->origin);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->direction);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+Ray Ray_update_MINUS_direction(Ray p, Lambda *updater) {
+    p.direction = (*updater).env ? ((Fn__LambdaEnv_Vector3__double_Vector3__double)(*updater).callback)((*updater).env, p.direction) : ((Fn__Vector3__double_Vector3__double)(*updater).callback)(p.direction);
+    return p;
+}
+
+
+Ray Ray_update_MINUS_origin(Ray p, Lambda *updater) {
+    p.origin = (*updater).env ? ((Fn__LambdaEnv_Vector3__double_Vector3__double)(*updater).callback)((*updater).env, p.origin) : ((Fn__Vector3__double_Vector3__double)(*updater).callback)(p.origin);
+    return p;
+}
+
+
+RayHit RayHit_copy(RayHit* pRef) {
+    RayHit copy = *pRef;
+    /* Ignore non-managed member 't' : Double */
+    copy.point = Vector3_copy__double(&(pRef->point));
+    copy.normal = Vector3_copy__double(&(pRef->normal));
+    return copy;
+}
+
+void RayHit_delete(RayHit p) {
+    /* Ignore non-managed member 't' : Double */
+    Vector3_delete__double(p.point);
+    Vector3_delete__double(p.normal);
+}
+
+RayHit RayHit_init(double t, Vector3__double point, Vector3__double normal) {
+    RayHit instance;
+    instance.t = t;
+    instance.point = point;
+    instance.normal = normal;
+    return instance;
+}
+
+Vector3__double* RayHit_normal(RayHit* p) { return (&(p->normal)); }
+
+Vector3__double* RayHit_point(RayHit* p) { return (&(p->point)); }
+
+String RayHit_prn(RayHit *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "RayHit");
+  temp = Double_prn(p->t); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->point); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->normal); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "RayHit");
+  temp = Double_prn(p->t);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->point);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->normal);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+RayHit RayHit_set_MINUS_normal(RayHit p, Vector3__double newValue) {
+    Vector3_delete__double(p.normal);
+    p.normal = newValue;
+    return p;
+}
+
+
+void RayHit_set_MINUS_normal_BANG_(RayHit* pRef, Vector3__double newValue) {
+    Vector3_delete__double(pRef->normal);
+    pRef->normal = newValue;
+}
+
+
+RayHit RayHit_set_MINUS_point(RayHit p, Vector3__double newValue) {
+    Vector3_delete__double(p.point);
+    p.point = newValue;
+    return p;
+}
+
+
+void RayHit_set_MINUS_point_BANG_(RayHit* pRef, Vector3__double newValue) {
+    Vector3_delete__double(pRef->point);
+    pRef->point = newValue;
+}
+
+
+RayHit RayHit_set_MINUS_t(RayHit p, double newValue) {
+    /* Ignore non-managed member 't' : Double */
+    p.t = newValue;
+    return p;
+}
+
+
+void RayHit_set_MINUS_t_BANG_(RayHit* pRef, double newValue) {
+    /* Ignore non-managed member 't' : Double */
+    pRef->t = newValue;
+}
+
+
+String RayHit_str(RayHit *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "RayHit");
+  temp = Double_prn(p->t); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->point); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->normal); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "RayHit");
+  temp = Double_prn(p->t);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->point);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->normal);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+double* RayHit_t(RayHit* p) { return (&(p->t)); }
+
+RayHit RayHit_update_MINUS_normal(RayHit p, Lambda *updater) {
+    p.normal = (*updater).env ? ((Fn__LambdaEnv_Vector3__double_Vector3__double)(*updater).callback)((*updater).env, p.normal) : ((Fn__Vector3__double_Vector3__double)(*updater).callback)(p.normal);
+    return p;
+}
+
+
+RayHit RayHit_update_MINUS_point(RayHit p, Lambda *updater) {
+    p.point = (*updater).env ? ((Fn__LambdaEnv_Vector3__double_Vector3__double)(*updater).callback)((*updater).env, p.point) : ((Fn__Vector3__double_Vector3__double)(*updater).callback)(p.point);
+    return p;
+}
+
+
+RayHit RayHit_update_MINUS_t(RayHit p, Lambda *updater) {
+    p.t = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.t) : ((Fn__double_double)(*updater).callback)(p.t);
+    return p;
+}
+
 
 bool RefBool__EQ_(bool* a, bool* b) {
     bool _8 = Bool_copy(a);
@@ -29354,6 +35565,1092 @@ Uint64 Result_unwrap_MINUS_or_MINUS_zero__Uint64_Array__uint8_t(Result__Uint64_A
     return _15;
 }
 
+void SDF_add_MINUS_crater_BANG_(SDF* sdf, LocalCrater c) {
+    Array__LocalCrater* _8 = SDF_craters(sdf);
+    Array_push_MINUS_back_BANG___LocalCrater(_8, c);
+}
+
+void SDF_add_MINUS_csg_MINUS_node_BANG_(SDF* sdf, CsgNode node) {
+    Array__CsgNode* _8 = SDF_csg_MINUS_nodes(sdf);
+    Array_push_MINUS_back_BANG___CsgNode(_8, node);
+}
+
+double SDF_apply_MINUS_craters(SDF* sdf, Vector3__double* p, double base_MINUS_d) {
+    double _71;
+    /* let */ {
+        Array__LocalCrater* _10 = SDF_craters(sdf);
+        Array__LocalCrater* craters = _10;
+        double d = base_MINUS_d;
+        /* let */ {
+            int i = 0;
+            int _24 = Array_length__LocalCrater(craters);
+            bool _1000008 = Int__LT_(i, _24);
+            bool _1000006 = _1000008;
+            while (_1000006) {
+                /* let */ {
+                    LocalCrater* _32 = Array_unsafe_MINUS_nth__LocalCrater(craters, i);
+                    LocalCrater* crater = _32;
+                    Vector3__double* _39 = LocalCrater_pos(crater);
+                    double _40 = Vector3_dist__double(p, _39);
+                    double* _44 = LocalCrater_radius(crater);
+                    double _45 = Double_copy(_44);
+                    double _46 = Double__MINUS_(_40, _45);
+                    double c_MINUS_dist = _46;
+                    double _55 = Double__MINUS_(0.0, c_MINUS_dist);
+                    double _56 = max__double(d, _55);
+                    d = _56;  // Double = Double
+                }
+                int _1000015 = Int__PLUS_(i, 1);
+                i = _1000015;  // Int = Int
+                int _24 = Array_length__LocalCrater(craters);
+                bool _1000008 = Int__LT_(i, _24);
+                _1000006 = _1000008;
+            }
+        }
+        double _70 = d;
+        _71 = _70;
+    }
+    return _71;
+}
+
+BaseShape* SDF_base(SDF* p) { return (&(p->base)); }
+
+SDF SDF_copy(SDF* pRef) {
+    SDF copy = *pRef;
+    copy.base = BaseShape_copy(&(pRef->base));
+    copy.craters = Array_copy__LocalCrater(&(pRef->craters));
+    copy.position = Vector3_copy__double(&(pRef->position));
+    copy.rotation = Quaternion_copy(&(pRef->rotation));
+    /* Ignore non-managed member 'scale' : Double */
+    copy.csg_MINUS_nodes = Array_copy__CsgNode(&(pRef->csg_MINUS_nodes));
+    return copy;
+}
+
+Array__LocalCrater* SDF_craters(SDF* p) { return (&(p->craters)); }
+
+Array__CsgNode* SDF_csg_MINUS_nodes(SDF* p) { return (&(p->csg_MINUS_nodes)); }
+
+void SDF_delete(SDF p) {
+    BaseShape_delete(p.base);
+    Array_delete__LocalCrater(p.craters);
+    Vector3_delete__double(p.position);
+    Quaternion_delete(p.rotation);
+    /* Ignore non-managed member 'scale' : Double */
+    Array_delete__CsgNode(p.csg_MINUS_nodes);
+}
+
+double SDF_distance(SDF* sdf, Vector3__double* p_MINUS_world) {
+    double _8 = SDF_distance_MINUS_world(sdf, p_MINUS_world);
+    return _8;
+}
+
+double SDF_distance_MINUS_local(SDF* sdf, Vector3__double* p) {
+    double _619;
+    /* let */ {
+        double* _10 = SDF_scale(sdf);
+        double _11 = Double_copy(_10);
+        double scale = _11;
+        double _16 = Double__DIV_(1.0, scale);
+        double inv_MINUS_scale = _16;
+        Vector3__double _21 = Vector3_mul__double(p, inv_MINUS_scale);
+        Vector3__double local_MINUS_p = _21;
+        BaseShape* _27 = SDF_base(sdf);
+        BaseShape _28 = BaseShape_copy(_27);
+        double _402;
+        if(_28._tag == BaseShape_Ball_tag) {
+            BaseShape _28_temp = _28;
+            double ball_MINUS_r = _28_temp.u.Ball.member0;
+            // Case expr:
+            Vector3__double* _36 = &local_MINUS_p; // ref
+            double _37 = Vector3_mag__double(_36);
+            double _39 = Double__MINUS_(_37, ball_MINUS_r);
+            _402 = _39;
+        }
+        else if(_28._tag == BaseShape_Surface_tag) {
+            BaseShape _28_temp = _28;
+            Plane surf_MINUS_pl = _28_temp.u.Surface.member0;
+            // Case expr:
+            Plane* _46 = &surf_MINUS_pl; // ref
+            Vector3__double* _49 = &local_MINUS_p; // ref
+            double _50 = Plane_distance_MINUS_to_MINUS_point(_46, _49);
+            _402 = _50;
+            Plane_delete(surf_MINUS_pl);
+        }
+        else if(_28._tag == BaseShape_Box_tag) {
+            BaseShape _28_temp = _28;
+            Vector3__double e = _28_temp.u.Box.member0;
+            // Case expr:
+            double _157;
+            /* let */ {
+                Vector3__double* _61 = &local_MINUS_p; // ref
+                double* _62 = Vector3_x__double(_61);
+                double _63 = Double_copy(_62);
+                double _64 = Double_abs(_63);
+                double px = _64;
+                Vector3__double* _71 = &local_MINUS_p; // ref
+                double* _72 = Vector3_y__double(_71);
+                double _73 = Double_copy(_72);
+                double _74 = Double_abs(_73);
+                double py = _74;
+                Vector3__double* _81 = &local_MINUS_p; // ref
+                double* _82 = Vector3_z__double(_81);
+                double _83 = Double_copy(_82);
+                double _84 = Double_abs(_83);
+                double pz = _84;
+                Vector3__double* _92 = &e; // ref
+                double* _93 = Vector3_x__double(_92);
+                double _94 = Double_copy(_93);
+                double _95 = Double__MINUS_(px, _94);
+                double qx = _95;
+                Vector3__double* _103 = &e; // ref
+                double* _104 = Vector3_y__double(_103);
+                double _105 = Double_copy(_104);
+                double _106 = Double__MINUS_(py, _105);
+                double qy = _106;
+                Vector3__double* _114 = &e; // ref
+                double* _115 = Vector3_z__double(_114);
+                double _116 = Double_copy(_115);
+                double _117 = Double__MINUS_(pz, _116);
+                double qz = _117;
+                double _124 = max__double(qy, qz);
+                double _125 = max__double(qx, _124);
+                double max_MINUS_q = _125;
+                double _131 = max__double(qx, 0.0);
+                double _135 = max__double(qy, 0.0);
+                double _139 = max__double(qz, 0.0);
+                Vector3__double _140 = Vector3_init__double(_131, _135, _139);
+                Vector3__double outside = _140;
+                Vector3__double* _145 = &outside; // ref
+                double _146 = Vector3_mag__double(_145);
+                double dist_MINUS_outside = _146;
+                double _151 = min__double(max_MINUS_q, 0.0);
+                double dist_MINUS_inside = _151;
+                double _156 = Double__PLUS_(dist_MINUS_outside, dist_MINUS_inside);
+                _157 = _156;
+                Vector3_delete__double(outside);
+            }
+            _402 = _157;
+            Vector3_delete__double(e);
+        }
+        else if(_28._tag == BaseShape_Cylinder_tag) {
+            BaseShape _28_temp = _28;
+            double r = _28_temp.u.Cylinder.member0;
+            double h = _28_temp.u.Cylinder.member1;
+            // Case expr:
+            double _252;
+            /* let */ {
+                Vector3__double* _172 = &local_MINUS_p; // ref
+                double* _173 = Vector3_x__double(_172);
+                double _174 = Double_copy(_173);
+                Vector3__double* _179 = &local_MINUS_p; // ref
+                double* _180 = Vector3_x__double(_179);
+                double _181 = Double_copy(_180);
+                double _182 = Double__MUL_(_174, _181);
+                Vector3__double* _188 = &local_MINUS_p; // ref
+                double* _189 = Vector3_z__double(_188);
+                double _190 = Double_copy(_189);
+                Vector3__double* _195 = &local_MINUS_p; // ref
+                double* _196 = Vector3_z__double(_195);
+                double _197 = Double_copy(_196);
+                double _198 = Double__MUL_(_190, _197);
+                double _199 = Double__PLUS_(_182, _198);
+                double _200 = Double_sqrt(_199);
+                double _202 = Double__MINUS_(_200, r);
+                double rad_MINUS_dist = _202;
+                Vector3__double* _210 = &local_MINUS_p; // ref
+                double* _211 = Vector3_y__double(_210);
+                double _212 = Double_copy(_211);
+                double _213 = Double_abs(_212);
+                double _215 = Double__MINUS_(_213, h);
+                double ax_MINUS_dist = _215;
+                double _220 = max__double(rad_MINUS_dist, 0.0);
+                double dx = _220;
+                double _225 = max__double(ax_MINUS_dist, 0.0);
+                double dy = _225;
+                double _232 = Double__MUL_(dx, dx);
+                double _236 = Double__MUL_(dy, dy);
+                double _237 = Double__PLUS_(_232, _236);
+                double _238 = Double_sqrt(_237);
+                double dist_MINUS_outside = _238;
+                double _244 = max__double(rad_MINUS_dist, ax_MINUS_dist);
+                double _246 = min__double(_244, 0.0);
+                double dist_MINUS_inside = _246;
+                double _251 = Double__PLUS_(dist_MINUS_outside, dist_MINUS_inside);
+                _252 = _251;
+            }
+            _402 = _252;
+        }
+        else if(_28._tag == BaseShape_Capsule_tag) {
+            BaseShape _28_temp = _28;
+            double r = _28_temp.u.Capsule.member0;
+            double h = _28_temp.u.Capsule.member1;
+            // Case expr:
+            double _291;
+            /* let */ {
+                double _263 = Double__MINUS_(0.0, h);
+                Vector3__double* _269 = &local_MINUS_p; // ref
+                double* _270 = Vector3_y__double(_269);
+                double _271 = Double_copy(_270);
+                double _272 = clamp__double(_263, h, _271);
+                double py = _272;
+                Vector3__double _278 = Vector3_init__double(0.0, py, 0.0);
+                Vector3__double seg_MINUS_pt = _278;
+                Vector3__double* _284 = &local_MINUS_p; // ref
+                Vector3__double* _287 = &seg_MINUS_pt; // ref
+                double _288 = Vector3_dist__double(_284, _287);
+                double _290 = Double__MINUS_(_288, r);
+                _291 = _290;
+                Vector3_delete__double(seg_MINUS_pt);
+            }
+            _402 = _291;
+        }
+        else if(_28._tag == BaseShape_Torus_tag) {
+            BaseShape _28_temp = _28;
+            double rad_MINUS_maj = _28_temp.u.Torus.member0;
+            double rad_MINUS_min = _28_temp.u.Torus.member1;
+            // Case expr:
+            double _361;
+            /* let */ {
+                Vector3__double* _306 = &local_MINUS_p; // ref
+                double* _307 = Vector3_x__double(_306);
+                double _308 = Double_copy(_307);
+                Vector3__double* _313 = &local_MINUS_p; // ref
+                double* _314 = Vector3_x__double(_313);
+                double _315 = Double_copy(_314);
+                double _316 = Double__MUL_(_308, _315);
+                Vector3__double* _322 = &local_MINUS_p; // ref
+                double* _323 = Vector3_z__double(_322);
+                double _324 = Double_copy(_323);
+                Vector3__double* _329 = &local_MINUS_p; // ref
+                double* _330 = Vector3_z__double(_329);
+                double _331 = Double_copy(_330);
+                double _332 = Double__MUL_(_324, _331);
+                double _333 = Double__PLUS_(_316, _332);
+                double _334 = Double_sqrt(_333);
+                double _336 = Double__MINUS_(_334, rad_MINUS_maj);
+                double qx = _336;
+                Vector3__double* _342 = &local_MINUS_p; // ref
+                double* _343 = Vector3_y__double(_342);
+                double _344 = Double_copy(_343);
+                double qy = _344;
+                double _352 = Double__MUL_(qx, qx);
+                double _356 = Double__MUL_(qy, qy);
+                double _357 = Double__PLUS_(_352, _356);
+                double _358 = Double_sqrt(_357);
+                double _360 = Double__MINUS_(_358, rad_MINUS_min);
+                _361 = _360;
+            }
+            _402 = _361;
+        }
+        else if(_28._tag == BaseShape_Octahedron_tag) {
+            BaseShape _28_temp = _28;
+            double s = _28_temp.u.Octahedron.member0;
+            // Case expr:
+            Vector3__double* _373 = &local_MINUS_p; // ref
+            double* _374 = Vector3_x__double(_373);
+            double _375 = Double_copy(_374);
+            double _376 = Double_abs(_375);
+            Vector3__double* _383 = &local_MINUS_p; // ref
+            double* _384 = Vector3_y__double(_383);
+            double _385 = Double_copy(_384);
+            double _386 = Double_abs(_385);
+            Vector3__double* _392 = &local_MINUS_p; // ref
+            double* _393 = Vector3_z__double(_392);
+            double _394 = Double_copy(_393);
+            double _395 = Double_abs(_394);
+            double _396 = Double__PLUS_(_386, _395);
+            double _397 = Double__PLUS_(_376, _396);
+            double _399 = Double__MINUS_(_397, s);
+            double _401 = Double__MUL_(_399, 0.57735027);
+            _402 = _401;
+        }
+        else UNHANDLED("geometry.carp", 154);
+        double base_MINUS_d = _402;
+        Vector3__double* _409 = &local_MINUS_p; // ref
+        double _411 = SDF_apply_MINUS_craters(sdf, _409, base_MINUS_d);
+        double _413 = Double__MUL_(_411, scale);
+        double d = _413;
+        Array__CsgNode* _417 = SDF_csg_MINUS_nodes(sdf);
+        Array__CsgNode* nodes = _417;
+        /* let */ {
+            int i = 0;
+            int _429 = Array_length__CsgNode(nodes);
+            bool _1000013 = Int__LT_(i, _429);
+            bool _1000011 = _1000013;
+            while (_1000011) {
+                /* let */ {
+                    CsgNode* _437 = Array_unsafe_MINUS_nth__CsgNode(nodes, i);
+                    CsgNode* node = _437;
+                    int* _442 = CsgNode_op(node);
+                    int _443 = Int_copy(_442);
+                    int node_MINUS_op = _443;
+                    SDF** _448 = CsgNode_shape(node);
+                    SDF* _449 = Box_peek__SDF(_448);
+                    SDF* child_MINUS_sdf = _449;
+                    Vector3__double* _453 = SDF_position(child_MINUS_sdf);
+                    Vector3__double* child_MINUS_pos = _453;
+                    Vector3__double _458 = Vector3_sub__double(p, child_MINUS_pos);
+                    Vector3__double diff = _458;
+                    Vector3__double* _463 = &diff; // ref
+                    double _464 = Vector3_mag_MINUS_sq__double(_463);
+                    double dist_MINUS_sq = _464;
+                    bool _470 = Int__EQ_(node_MINUS_op, 0);
+                    if (_470) {
+                        /* let */ {
+                            BaseShape* _478 = SDF_base(child_MINUS_sdf);
+                            BaseShape _479 = BaseShape_copy(_478);
+                            double _494;
+                            if(_479._tag == BaseShape_Ball_tag) {
+                                BaseShape _479_temp = _479;
+                                double r = _479_temp.u.Ball.member0;
+                                // Case expr:
+                                double _486 = Double_sqrt(dist_MINUS_sq);
+                                double _488 = Double__MINUS_(_486, r);
+                                _494 = _488;
+                            }
+                            else if(true) {
+                                BaseShape _479_temp = _479;
+                                BaseShape wildcard_489 = _479_temp;
+                                double _493 = SDF_distance_MINUS_world(child_MINUS_sdf, p);
+                                _494 = _493;
+                                BaseShape_delete(wildcard_489);
+                            }
+                            else UNHANDLED("geometry.carp", 200);
+                            double d_MINUS_right = _494;
+                            double _501 = min__double(d, d_MINUS_right);
+                            d = _501;  // Double = Double
+                        }
+                    } else {
+                        bool _510 = Int__EQ_(node_MINUS_op, 1);
+                        if (_510) {
+                            bool _516 = Double__LT_(dist_MINUS_sq, 9.0);
+                            if (_516) {
+                                /* let */ {
+                                    BaseShape* _524 = SDF_base(child_MINUS_sdf);
+                                    BaseShape _525 = BaseShape_copy(_524);
+                                    double _540;
+                                    if(_525._tag == BaseShape_Ball_tag) {
+                                        BaseShape _525_temp = _525;
+                                        double r = _525_temp.u.Ball.member0;
+                                        // Case expr:
+                                        double _532 = Double_sqrt(dist_MINUS_sq);
+                                        double _534 = Double__MINUS_(_532, r);
+                                        _540 = _534;
+                                    }
+                                    else if(true) {
+                                        BaseShape _525_temp = _525;
+                                        BaseShape wildcard_535 = _525_temp;
+                                        double _539 = SDF_distance_MINUS_world(child_MINUS_sdf, p);
+                                        _540 = _539;
+                                        BaseShape_delete(wildcard_535);
+                                    }
+                                    else UNHANDLED("geometry.carp", 206);
+                                    double d_MINUS_right = _540;
+                                    double _548 = Double_neg(d_MINUS_right);
+                                    double _549 = max__double(d, _548);
+                                    d = _549;  // Double = Double
+                                }
+                            } else {
+                                /* () */
+                            }
+                        } else {
+                            bool _563 = Int__EQ_(node_MINUS_op, 2);
+                            if (_563) {
+                                /* let */ {
+                                    BaseShape* _571 = SDF_base(child_MINUS_sdf);
+                                    BaseShape _572 = BaseShape_copy(_571);
+                                    double _587;
+                                    if(_572._tag == BaseShape_Ball_tag) {
+                                        BaseShape _572_temp = _572;
+                                        double r = _572_temp.u.Ball.member0;
+                                        // Case expr:
+                                        double _579 = Double_sqrt(dist_MINUS_sq);
+                                        double _581 = Double__MINUS_(_579, r);
+                                        _587 = _581;
+                                    }
+                                    else if(true) {
+                                        BaseShape _572_temp = _572;
+                                        BaseShape wildcard_582 = _572_temp;
+                                        double _586 = SDF_distance_MINUS_world(child_MINUS_sdf, p);
+                                        _587 = _586;
+                                        BaseShape_delete(wildcard_582);
+                                    }
+                                    else UNHANDLED("geometry.carp", 211);
+                                    double d_MINUS_right = _587;
+                                    double _594 = max__double(d, d_MINUS_right);
+                                    d = _594;  // Double = Double
+                                }
+                            } else {
+                                /* () */
+                            }
+                        }
+                    }
+                    Vector3_delete__double(diff);
+                }
+                int _1000040 = Int__PLUS_(i, 1);
+                i = _1000040;  // Int = Int
+                int _429 = Array_length__CsgNode(nodes);
+                bool _1000013 = Int__LT_(i, _429);
+                _1000011 = _1000013;
+            }
+        }
+        double _618 = d;
+        _619 = _618;
+        Vector3_delete__double(local_MINUS_p);
+    }
+    return _619;
+}
+
+double SDF_distance_MINUS_world(SDF* sdf, Vector3__double* p_MINUS_world) {
+    BaseShape* _9 = SDF_base(sdf);
+    BaseShape _10 = BaseShape_copy(_9);
+    double _50;
+    if(_10._tag == BaseShape_Surface_tag) {
+        BaseShape _10_temp = _10;
+        Plane pl = _10_temp.u.Surface.member0;
+        // Case expr:
+        double _17 = SDF_distance_MINUS_local(sdf, p_MINUS_world);
+        _50 = _17;
+        Plane_delete(pl);
+    }
+    else if(true) {
+        BaseShape _10_temp = _10;
+        BaseShape wildcard_18 = _10_temp;
+        double _49;
+        /* let */ {
+            Vector3__double* _23 = SDF_position(sdf);
+            Vector3__double* pos = _23;
+            Quaternion* _27 = SDF_rotation(sdf);
+            Quaternion* rot = _27;
+            Quaternion _33 = Quaternion_inverse(rot);
+            Quaternion* _34 = &_33; // ref
+            Vector3__double _39 = Vector3_sub__double(p_MINUS_world, pos);
+            Vector3__double* _40 = &_39; // ref
+            Vector3__double _41 = Quaternion_rotate(_34, _40);
+            Vector3__double local_MINUS_p = _41;
+            Vector3__double* _47 = &local_MINUS_p; // ref
+            double _48 = SDF_distance_MINUS_local(sdf, _47);
+            _49 = _48;
+            Quaternion_delete(_33);
+            Vector3_delete__double(_39);
+            Vector3_delete__double(local_MINUS_p);
+        }
+        _50 = _49;
+        BaseShape_delete(wildcard_18);
+    }
+    else UNHANDLED("geometry.carp", 219);
+    return _50;
+}
+
+double SDF_evaluate_MINUS_noise(Vector3__double* p) {
+    double _98;
+    /* let */ {
+        double* _9 = Vector3_x__double(p);
+        double _10 = Double_copy(_9);
+        double x = _10;
+        double* _15 = Vector3_y__double(p);
+        double _16 = Double_copy(_15);
+        double y = _16;
+        double* _21 = Vector3_z__double(p);
+        double _22 = Double_copy(_21);
+        double z = _22;
+        double _29 = Double__MUL_(x, 3.5);
+        double _30 = Double_sin(_29);
+        double _36 = Double__MUL_(y, 3.5);
+        double _37 = Double_cos(_36);
+        double _42 = Double__MUL_(z, 3.5);
+        double _43 = Double_sin(_42);
+        double _44 = Double__MUL_(_37, _43);
+        double _45 = Double__MUL_(_30, _44);
+        double n1 = _45;
+        double _53 = Double__MUL_(x, 7.0);
+        double _57 = Double__MUL_(n1, 2.0);
+        double _58 = Double__PLUS_(_53, _57);
+        double _59 = Double_sin(_58);
+        double _66 = Double__MUL_(y, 7.0);
+        double _70 = Double__MUL_(n1, 2.0);
+        double _71 = Double__PLUS_(_66, _70);
+        double _72 = Double_cos(_71);
+        double _78 = Double__MUL_(z, 7.0);
+        double _82 = Double__MUL_(n1, 2.0);
+        double _83 = Double__PLUS_(_78, _82);
+        double _84 = Double_sin(_83);
+        double _85 = Double__MUL_(_72, _84);
+        double _86 = Double__MUL_(_59, _85);
+        double n2 = _86;
+        double _92 = Double__MUL_(n1, 0.12);
+        double _96 = Double__MUL_(n2, 6.0e-2);
+        double _97 = Double__PLUS_(_92, _96);
+        _98 = _97;
+    }
+    return _98;
+}
+
+SDF SDF_init(BaseShape base, Array__LocalCrater craters, Vector3__double position, Quaternion rotation, double scale, Array__CsgNode csg_MINUS_nodes) {
+    SDF instance;
+    instance.base = base;
+    instance.craters = craters;
+    instance.position = position;
+    instance.rotation = rotation;
+    instance.scale = scale;
+    instance.csg_MINUS_nodes = csg_MINUS_nodes;
+    return instance;
+}
+
+SDF SDF_init_MINUS_box(Vector3__double e, Vector3__double pos, Quaternion rot) {
+    BaseShape _9 = BaseShape_Box(e);
+    Array _10 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(LocalCrater) * 0) };
+    Array _14 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(CsgNode) * 0) };
+    SDF _15 = SDF_init(_9, _10, pos, rot, 1.0, _14);
+    return _15;
+}
+
+SDF SDF_init_MINUS_capsule(double r, double h, Vector3__double pos, Quaternion rot) {
+    BaseShape _11 = BaseShape_Capsule(r, h);
+    Array _12 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(LocalCrater) * 0) };
+    Array _16 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(CsgNode) * 0) };
+    SDF _17 = SDF_init(_11, _12, pos, rot, 1.0, _16);
+    return _17;
+}
+
+SDF SDF_init_MINUS_cylinder(double r, double h, Vector3__double pos, Quaternion rot) {
+    BaseShape _11 = BaseShape_Cylinder(r, h);
+    Array _12 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(LocalCrater) * 0) };
+    Array _16 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(CsgNode) * 0) };
+    SDF _17 = SDF_init(_11, _12, pos, rot, 1.0, _16);
+    return _17;
+}
+
+SDF SDF_init_MINUS_octahedron(double s, Vector3__double pos, Quaternion rot) {
+    BaseShape _9 = BaseShape_Octahedron(s);
+    Array _10 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(LocalCrater) * 0) };
+    Array _14 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(CsgNode) * 0) };
+    SDF _15 = SDF_init(_9, _10, pos, rot, 1.0, _14);
+    return _15;
+}
+
+SDF SDF_init_MINUS_plane(Plane pl, Vector3__double pos, Quaternion rot) {
+    BaseShape _9 = BaseShape_Surface(pl);
+    Array _10 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(LocalCrater) * 0) };
+    Array _14 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(CsgNode) * 0) };
+    SDF _15 = SDF_init(_9, _10, pos, rot, 1.0, _14);
+    return _15;
+}
+
+SDF SDF_init_MINUS_sphere(double r, Vector3__double pos, Quaternion rot) {
+    BaseShape _9 = BaseShape_Ball(r);
+    Array _10 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(LocalCrater) * 0) };
+    Array _14 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(CsgNode) * 0) };
+    SDF _15 = SDF_init(_9, _10, pos, rot, 1.0, _14);
+    return _15;
+}
+
+SDF SDF_init_MINUS_torus(double R, double r, Vector3__double pos, Quaternion rot) {
+    BaseShape _11 = BaseShape_Torus(R, r);
+    Array _12 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(LocalCrater) * 0) };
+    Array _16 = { .len = 0, .capacity = 0, .data = CARP_MALLOC(sizeof(CsgNode) * 0) };
+    SDF _17 = SDF_init(_11, _12, pos, rot, 1.0, _16);
+    return _17;
+}
+
+Vector3__double SDF_normal_MINUS_at(SDF* sdf, Vector3__double* p_MINUS_world) {
+    Vector3__double _8 = SDF_normal_MINUS_world(sdf, p_MINUS_world);
+    return _8;
+}
+
+Vector3__double SDF_normal_MINUS_local(SDF* sdf, Vector3__double* p) {
+    Vector3__double _113;
+    /* let */ {
+        double eps = 1.0e-4;
+        Vector3__double _13 = Vector3_init__double(eps, 0.0, 0.0);
+        Vector3__double eps_MINUS_x = _13;
+        Vector3__double _19 = Vector3_init__double(0.0, eps, 0.0);
+        Vector3__double eps_MINUS_y = _19;
+        Vector3__double _25 = Vector3_init__double(0.0, 0.0, eps);
+        Vector3__double eps_MINUS_z = _25;
+        Vector3__double* _35 = &eps_MINUS_x; // ref
+        Vector3__double _36 = Vector3_add__double(p, _35);
+        Vector3__double* _37 = &_36; // ref
+        double _38 = SDF_distance_MINUS_local(sdf, _37);
+        Vector3__double* _46 = &eps_MINUS_x; // ref
+        Vector3__double _47 = Vector3_sub__double(p, _46);
+        Vector3__double* _48 = &_47; // ref
+        double _49 = SDF_distance_MINUS_local(sdf, _48);
+        double _50 = Double__MINUS_(_38, _49);
+        double dx = _50;
+        Vector3__double* _60 = &eps_MINUS_y; // ref
+        Vector3__double _61 = Vector3_add__double(p, _60);
+        Vector3__double* _62 = &_61; // ref
+        double _63 = SDF_distance_MINUS_local(sdf, _62);
+        Vector3__double* _71 = &eps_MINUS_y; // ref
+        Vector3__double _72 = Vector3_sub__double(p, _71);
+        Vector3__double* _73 = &_72; // ref
+        double _74 = SDF_distance_MINUS_local(sdf, _73);
+        double _75 = Double__MINUS_(_63, _74);
+        double dy = _75;
+        Vector3__double* _85 = &eps_MINUS_z; // ref
+        Vector3__double _86 = Vector3_add__double(p, _85);
+        Vector3__double* _87 = &_86; // ref
+        double _88 = SDF_distance_MINUS_local(sdf, _87);
+        Vector3__double* _96 = &eps_MINUS_z; // ref
+        Vector3__double _97 = Vector3_sub__double(p, _96);
+        Vector3__double* _98 = &_97; // ref
+        double _99 = SDF_distance_MINUS_local(sdf, _98);
+        double _100 = Double__MINUS_(_88, _99);
+        double dz = _100;
+        Vector3__double _106 = Vector3_init__double(dx, dy, dz);
+        Vector3__double grad = _106;
+        Vector3__double* _111 = &grad; // ref
+        Vector3__double _112 = Vector3_normalize__double(_111);
+        _113 = _112;
+        Vector3_delete__double(_36);
+        Vector3_delete__double(_47);
+        Vector3_delete__double(_61);
+        Vector3_delete__double(_72);
+        Vector3_delete__double(_86);
+        Vector3_delete__double(_97);
+        Vector3_delete__double(eps_MINUS_x);
+        Vector3_delete__double(eps_MINUS_y);
+        Vector3_delete__double(eps_MINUS_z);
+        Vector3_delete__double(grad);
+    }
+    return _113;
+}
+
+Vector3__double SDF_normal_MINUS_world(SDF* sdf, Vector3__double* p_MINUS_world) {
+    BaseShape* _9 = SDF_base(sdf);
+    BaseShape _10 = BaseShape_copy(_9);
+    Vector3__double _57;
+    if(_10._tag == BaseShape_Surface_tag) {
+        BaseShape _10_temp = _10;
+        Plane pl = _10_temp.u.Surface.member0;
+        // Case expr:
+        Vector3__double _17 = SDF_normal_MINUS_local(sdf, p_MINUS_world);
+        _57 = _17;
+        Plane_delete(pl);
+    }
+    else if(true) {
+        BaseShape _10_temp = _10;
+        BaseShape wildcard_18 = _10_temp;
+        Vector3__double _56;
+        /* let */ {
+            Vector3__double* _23 = SDF_position(sdf);
+            Vector3__double* pos = _23;
+            Quaternion* _27 = SDF_rotation(sdf);
+            Quaternion* rot = _27;
+            Quaternion _33 = Quaternion_inverse(rot);
+            Quaternion* _34 = &_33; // ref
+            Vector3__double _39 = Vector3_sub__double(p_MINUS_world, pos);
+            Vector3__double* _40 = &_39; // ref
+            Vector3__double _41 = Quaternion_rotate(_34, _40);
+            Vector3__double local_MINUS_p = _41;
+            Vector3__double* _47 = &local_MINUS_p; // ref
+            Vector3__double _48 = SDF_normal_MINUS_local(sdf, _47);
+            Vector3__double local_MINUS_n = _48;
+            Vector3__double* _54 = &local_MINUS_n; // ref
+            Vector3__double _55 = Quaternion_rotate(rot, _54);
+            _56 = _55;
+            Quaternion_delete(_33);
+            Vector3_delete__double(_39);
+            Vector3_delete__double(local_MINUS_n);
+            Vector3_delete__double(local_MINUS_p);
+        }
+        _57 = _56;
+        BaseShape_delete(wildcard_18);
+    }
+    else UNHANDLED("geometry.carp", 243);
+    return _57;
+}
+
+Vector3__double* SDF_position(SDF* p) { return (&(p->position)); }
+
+String SDF_prn(SDF *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "SDF");
+  temp = BaseShape_prn(&p->base); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__LocalCrater(&p->craters); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->position); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Quaternion_prn(&p->rotation); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->scale); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__CsgNode(&p->csg_MINUS_nodes); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "SDF");
+  temp = BaseShape_prn(&p->base);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__LocalCrater(&p->craters);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->position);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Quaternion_prn(&p->rotation);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->scale);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__CsgNode(&p->csg_MINUS_nodes);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+Quaternion* SDF_rotation(SDF* p) { return (&(p->rotation)); }
+
+double* SDF_scale(SDF* p) { return (&(p->scale)); }
+
+SDF SDF_set_MINUS_base(SDF p, BaseShape newValue) {
+    BaseShape_delete(p.base);
+    p.base = newValue;
+    return p;
+}
+
+
+void SDF_set_MINUS_base_BANG_(SDF* pRef, BaseShape newValue) {
+    BaseShape_delete(pRef->base);
+    pRef->base = newValue;
+}
+
+
+SDF SDF_set_MINUS_craters(SDF p, Array__LocalCrater newValue) {
+    Array_delete__LocalCrater(p.craters);
+    p.craters = newValue;
+    return p;
+}
+
+
+void SDF_set_MINUS_craters_BANG_(SDF* pRef, Array__LocalCrater newValue) {
+    Array_delete__LocalCrater(pRef->craters);
+    pRef->craters = newValue;
+}
+
+
+SDF SDF_set_MINUS_csg_MINUS_nodes(SDF p, Array__CsgNode newValue) {
+    Array_delete__CsgNode(p.csg_MINUS_nodes);
+    p.csg_MINUS_nodes = newValue;
+    return p;
+}
+
+
+void SDF_set_MINUS_csg_MINUS_nodes_BANG_(SDF* pRef, Array__CsgNode newValue) {
+    Array_delete__CsgNode(pRef->csg_MINUS_nodes);
+    pRef->csg_MINUS_nodes = newValue;
+}
+
+
+SDF SDF_set_MINUS_position(SDF p, Vector3__double newValue) {
+    Vector3_delete__double(p.position);
+    p.position = newValue;
+    return p;
+}
+
+
+void SDF_set_MINUS_position_BANG_(SDF* pRef, Vector3__double newValue) {
+    Vector3_delete__double(pRef->position);
+    pRef->position = newValue;
+}
+
+
+SDF SDF_set_MINUS_rotation(SDF p, Quaternion newValue) {
+    Quaternion_delete(p.rotation);
+    p.rotation = newValue;
+    return p;
+}
+
+
+void SDF_set_MINUS_rotation_BANG_(SDF* pRef, Quaternion newValue) {
+    Quaternion_delete(pRef->rotation);
+    pRef->rotation = newValue;
+}
+
+
+SDF SDF_set_MINUS_scale(SDF p, double newValue) {
+    /* Ignore non-managed member 'scale' : Double */
+    p.scale = newValue;
+    return p;
+}
+
+
+void SDF_set_MINUS_scale_BANG_(SDF* pRef, double newValue) {
+    /* Ignore non-managed member 'scale' : Double */
+    pRef->scale = newValue;
+}
+
+
+String SDF_str(SDF *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "SDF");
+  temp = BaseShape_prn(&p->base); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__LocalCrater(&p->craters); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->position); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Quaternion_prn(&p->rotation); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->scale); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__CsgNode(&p->csg_MINUS_nodes); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "SDF");
+  temp = BaseShape_prn(&p->base);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__LocalCrater(&p->craters);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->position);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Quaternion_prn(&p->rotation);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->scale);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Array_prn__CsgNode(&p->csg_MINUS_nodes);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+SDF SDF_update_MINUS_base(SDF p, Lambda *updater) {
+    p.base = (*updater).env ? ((Fn__LambdaEnv_BaseShape_BaseShape)(*updater).callback)((*updater).env, p.base) : ((Fn__BaseShape_BaseShape)(*updater).callback)(p.base);
+    return p;
+}
+
+
+SDF SDF_update_MINUS_craters(SDF p, Lambda *updater) {
+    p.craters = (*updater).env ? ((Fn__LambdaEnv_Array__LocalCrater_Array__LocalCrater)(*updater).callback)((*updater).env, p.craters) : ((Fn__Array__LocalCrater_Array__LocalCrater)(*updater).callback)(p.craters);
+    return p;
+}
+
+
+SDF SDF_update_MINUS_csg_MINUS_nodes(SDF p, Lambda *updater) {
+    p.csg_MINUS_nodes = (*updater).env ? ((Fn__LambdaEnv_Array__CsgNode_Array__CsgNode)(*updater).callback)((*updater).env, p.csg_MINUS_nodes) : ((Fn__Array__CsgNode_Array__CsgNode)(*updater).callback)(p.csg_MINUS_nodes);
+    return p;
+}
+
+
+SDF SDF_update_MINUS_position(SDF p, Lambda *updater) {
+    p.position = (*updater).env ? ((Fn__LambdaEnv_Vector3__double_Vector3__double)(*updater).callback)((*updater).env, p.position) : ((Fn__Vector3__double_Vector3__double)(*updater).callback)(p.position);
+    return p;
+}
+
+
+SDF SDF_update_MINUS_rotation(SDF p, Lambda *updater) {
+    p.rotation = (*updater).env ? ((Fn__LambdaEnv_Quaternion_Quaternion)(*updater).callback)((*updater).env, p.rotation) : ((Fn__Quaternion_Quaternion)(*updater).callback)(p.rotation);
+    return p;
+}
+
+
+SDF SDF_update_MINUS_scale(SDF p, Lambda *updater) {
+    p.scale = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.scale) : ((Fn__double_double)(*updater).callback)(p.scale);
+    return p;
+}
+
+
+Segment Segment_copy(Segment* pRef) {
+    Segment copy = *pRef;
+    copy.start = Vector3_copy__double(&(pRef->start));
+    copy.end = Vector3_copy__double(&(pRef->end));
+    return copy;
+}
+
+void Segment_delete(Segment p) {
+    Vector3_delete__double(p.start);
+    Vector3_delete__double(p.end);
+}
+
+Vector3__double* Segment_end(Segment* p) { return (&(p->end)); }
+
+Segment Segment_init(Vector3__double start, Vector3__double end) {
+    Segment instance;
+    instance.start = start;
+    instance.end = end;
+    return instance;
+}
+
+String Segment_prn(Segment *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "Segment");
+  temp = Vector3_prn__double(&p->start); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->end); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Segment");
+  temp = Vector3_prn__double(&p->start);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->end);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+Segment Segment_set_MINUS_end(Segment p, Vector3__double newValue) {
+    Vector3_delete__double(p.end);
+    p.end = newValue;
+    return p;
+}
+
+
+void Segment_set_MINUS_end_BANG_(Segment* pRef, Vector3__double newValue) {
+    Vector3_delete__double(pRef->end);
+    pRef->end = newValue;
+}
+
+
+Segment Segment_set_MINUS_start(Segment p, Vector3__double newValue) {
+    Vector3_delete__double(p.start);
+    p.start = newValue;
+    return p;
+}
+
+
+void Segment_set_MINUS_start_BANG_(Segment* pRef, Vector3__double newValue) {
+    Vector3_delete__double(pRef->start);
+    pRef->start = newValue;
+}
+
+
+Vector3__double* Segment_start(Segment* p) { return (&(p->start)); }
+
+String Segment_str(Segment *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "Segment");
+  temp = Vector3_prn__double(&p->start); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->end); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Segment");
+  temp = Vector3_prn__double(&p->start);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->end);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+Segment Segment_update_MINUS_end(Segment p, Lambda *updater) {
+    p.end = (*updater).env ? ((Fn__LambdaEnv_Vector3__double_Vector3__double)(*updater).callback)((*updater).env, p.end) : ((Fn__Vector3__double_Vector3__double)(*updater).callback)(p.end);
+    return p;
+}
+
+
+Segment Segment_update_MINUS_start(Segment p, Lambda *updater) {
+    p.start = (*updater).env ? ((Fn__LambdaEnv_Vector3__double_Vector3__double)(*updater).callback)((*updater).env, p.start) : ((Fn__Vector3__double_Vector3__double)(*updater).callback)(p.start);
+    return p;
+}
+
+
 simd_float Simd_abs(simd_float val) { return simd_abs(val); }
 simd_float Simd_add(simd_float a, simd_float b) { return simd_add(a, b); }
 SimdFloat Simd_add_MINUS_scalar(SimdFloat v, float s) {
@@ -29546,6 +36843,135 @@ String SimdInt_str(const simd_int *val) {
         snprintf(buf + offset, sizeof(buf) - offset, "]");
         return Carp_allocate_string(buf);
     }
+Vector3__double* Sphere_center(Sphere* p) { return (&(p->center)); }
+
+Sphere Sphere_copy(Sphere* pRef) {
+    Sphere copy = *pRef;
+    copy.center = Vector3_copy__double(&(pRef->center));
+    /* Ignore non-managed member 'radius' : Double */
+    return copy;
+}
+
+void Sphere_delete(Sphere p) {
+    Vector3_delete__double(p.center);
+    /* Ignore non-managed member 'radius' : Double */
+}
+
+Sphere Sphere_init(Vector3__double center, double radius) {
+    Sphere instance;
+    instance.center = center;
+    instance.radius = radius;
+    return instance;
+}
+
+String Sphere_prn(Sphere *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "Sphere");
+  temp = Vector3_prn__double(&p->center); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->radius); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Sphere");
+  temp = Vector3_prn__double(&p->center);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->radius);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+double* Sphere_radius(Sphere* p) { return (&(p->radius)); }
+
+Sphere Sphere_set_MINUS_center(Sphere p, Vector3__double newValue) {
+    Vector3_delete__double(p.center);
+    p.center = newValue;
+    return p;
+}
+
+
+void Sphere_set_MINUS_center_BANG_(Sphere* pRef, Vector3__double newValue) {
+    Vector3_delete__double(pRef->center);
+    pRef->center = newValue;
+}
+
+
+Sphere Sphere_set_MINUS_radius(Sphere p, double newValue) {
+    /* Ignore non-managed member 'radius' : Double */
+    p.radius = newValue;
+    return p;
+}
+
+
+void Sphere_set_MINUS_radius_BANG_(Sphere* pRef, double newValue) {
+    /* Ignore non-managed member 'radius' : Double */
+    pRef->radius = newValue;
+}
+
+
+String Sphere_str(Sphere *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "Sphere");
+  temp = Vector3_prn__double(&p->center); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->radius); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Sphere");
+  temp = Vector3_prn__double(&p->center);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Double_prn(p->radius);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+Sphere Sphere_update_MINUS_center(Sphere p, Lambda *updater) {
+    p.center = (*updater).env ? ((Fn__LambdaEnv_Vector3__double_Vector3__double)(*updater).callback)((*updater).env, p.center) : ((Fn__Vector3__double_Vector3__double)(*updater).callback)(p.center);
+    return p;
+}
+
+
+Sphere Sphere_update_MINUS_radius(Sphere p, Lambda *updater) {
+    p.radius = (*updater).env ? ((Fn__LambdaEnv_double_double)(*updater).callback)((*updater).env, p.radius) : ((Fn__double_double)(*updater).callback)(p.radius);
+    return p;
+}
+
+
 uint8_t String__Lambda_ascii_MINUS_to_MINUS_lower_14_env(uint8_t c) {
     uint8_t _13 = tolower(c);
     return _13;
@@ -30468,6 +37894,855 @@ void Terrain_generate_BANG_(NoiseState* noise_MINUS_state, int qx, int qy, int q
     }
 }
 
+Transform Transform_copy(Transform* pRef) {
+    Transform copy = *pRef;
+    copy.position = Vector3_copy__double(&(pRef->position));
+    copy.rotation = Quaternion_copy(&(pRef->rotation));
+    copy.scale = Vector3_copy__double(&(pRef->scale));
+    return copy;
+}
+
+void Transform_delete(Transform p) {
+    Vector3_delete__double(p.position);
+    Quaternion_delete(p.rotation);
+    Vector3_delete__double(p.scale);
+}
+
+Vector3__double Transform_forward(Transform* t) {
+    TransformMat4 _8 = Transform_to_MINUS_matrix(t);
+    TransformMat4* _9 = &_8; // ref
+    Vector3__double _11 = TransformMat4_get_MINUS_column(_9, 2);
+    TransformMat4_delete(_8);
+    return _11;
+}
+
+Vector3__double Transform_forward_MINUS_quat(Quaternion* q) {
+    Vector3__double _12 = Vector3_init__double(0.0, 0.0, 0.0);
+    Vector3__double* _13 = &_12; // ref
+    Vector3__double _20 = Vector3_init__double(1.0, 1.0, 1.0);
+    Vector3__double* _21 = &_20; // ref
+    TransformMat4 _22 = TransformMat4_from_MINUS_trs(_13, q, _21);
+    TransformMat4* _23 = &_22; // ref
+    Vector3__double _25 = TransformMat4_get_MINUS_column(_23, 2);
+    TransformMat4_delete(_22);
+    Vector3_delete__double(_12);
+    Vector3_delete__double(_20);
+    return _25;
+}
+
+Transform Transform_identity() {
+    Vector3__double _8 = Vector3_init__double(0.0, 0.0, 0.0);
+    Quaternion _10 = Quaternion_identity();
+    Vector3__double _15 = Vector3_init__double(1.0, 1.0, 1.0);
+    Transform _16 = Transform_init(_8, _10, _15);
+    return _16;
+}
+
+Transform Transform_init(Vector3__double position, Quaternion rotation, Vector3__double scale) {
+    Transform instance;
+    instance.position = position;
+    instance.rotation = rotation;
+    instance.scale = scale;
+    return instance;
+}
+
+Transform Transform_new(Vector3__double p, Quaternion r, Vector3__double s) {
+    Transform _10 = Transform_init(p, r, s);
+    return _10;
+}
+
+Vector3__double* Transform_position(Transform* p) { return (&(p->position)); }
+
+String Transform_prn(Transform *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "Transform");
+  temp = Vector3_prn__double(&p->position); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Quaternion_prn(&p->rotation); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->scale); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Transform");
+  temp = Vector3_prn__double(&p->position);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Quaternion_prn(&p->rotation);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->scale);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+Vector3__double Transform_right(Transform* t) {
+    TransformMat4 _8 = Transform_to_MINUS_matrix(t);
+    TransformMat4* _9 = &_8; // ref
+    Vector3__double _11 = TransformMat4_get_MINUS_column(_9, 0);
+    TransformMat4_delete(_8);
+    return _11;
+}
+
+Vector3__double Transform_right_MINUS_quat(Quaternion* q) {
+    Vector3__double _12 = Vector3_init__double(0.0, 0.0, 0.0);
+    Vector3__double* _13 = &_12; // ref
+    Vector3__double _20 = Vector3_init__double(1.0, 1.0, 1.0);
+    Vector3__double* _21 = &_20; // ref
+    TransformMat4 _22 = TransformMat4_from_MINUS_trs(_13, q, _21);
+    TransformMat4* _23 = &_22; // ref
+    Vector3__double _25 = TransformMat4_get_MINUS_column(_23, 0);
+    TransformMat4_delete(_22);
+    Vector3_delete__double(_12);
+    Vector3_delete__double(_20);
+    return _25;
+}
+
+Quaternion* Transform_rotation(Transform* p) { return (&(p->rotation)); }
+
+Vector3__double* Transform_scale(Transform* p) { return (&(p->scale)); }
+
+Transform Transform_set_MINUS_position(Transform p, Vector3__double newValue) {
+    Vector3_delete__double(p.position);
+    p.position = newValue;
+    return p;
+}
+
+
+void Transform_set_MINUS_position_BANG_(Transform* pRef, Vector3__double newValue) {
+    Vector3_delete__double(pRef->position);
+    pRef->position = newValue;
+}
+
+
+Transform Transform_set_MINUS_rotation(Transform p, Quaternion newValue) {
+    Quaternion_delete(p.rotation);
+    p.rotation = newValue;
+    return p;
+}
+
+
+void Transform_set_MINUS_rotation_BANG_(Transform* pRef, Quaternion newValue) {
+    Quaternion_delete(pRef->rotation);
+    pRef->rotation = newValue;
+}
+
+
+Transform Transform_set_MINUS_rotation_MINUS_val_BANG_(Transform t, Quaternion r) {
+    Transform _8 = Transform_set_MINUS_rotation(t, r);
+    return _8;
+}
+
+Transform Transform_set_MINUS_scale(Transform p, Vector3__double newValue) {
+    Vector3_delete__double(p.scale);
+    p.scale = newValue;
+    return p;
+}
+
+
+void Transform_set_MINUS_scale_BANG_(Transform* pRef, Vector3__double newValue) {
+    Vector3_delete__double(pRef->scale);
+    pRef->scale = newValue;
+}
+
+
+String Transform_str(Transform *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "Transform");
+  temp = Vector3_prn__double(&p->position); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Quaternion_prn(&p->rotation); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->scale); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "Transform");
+  temp = Vector3_prn__double(&p->position);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Quaternion_prn(&p->rotation);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  temp = Vector3_prn__double(&p->scale);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+TransformMat4 Transform_to_MINUS_inverse_MINUS_matrix(Transform* t) {
+    TransformMat4 _671;
+    /* let */ {
+        Vector3__double* _8 = Transform_position(t);
+        Vector3__double* p = _8;
+        Quaternion* _12 = Transform_rotation(t);
+        Quaternion* q = _12;
+        Vector3__double* _16 = Transform_scale(t);
+        Vector3__double* s = _16;
+        double eps = 1.0e-4;
+        double _56;
+        /* let */ {
+            double* _25 = Vector3_x__double(s);
+            double _26 = Double_copy(_25);
+            double val = _26;
+            double _55;
+            double _32 = Double_abs(val);
+            bool _34 = Double__LT_(_32, eps);
+            if (_34) {
+                double _50;
+                bool _40 = Double__LT_(val, 0.0);
+                if (_40) {
+                    double _45 = Double__MINUS_(0.0, eps);
+                    double _46 = _45;
+                    _50 = _46;
+                } else {
+                    double _49 = eps;
+                    _50 = _49;
+                }
+                double _51 = _50;
+                _55 = _51;
+            } else {
+                double _54 = val;
+                _55 = _54;
+            }
+            _56 = _55;
+        }
+        double sx = _56;
+        double _94;
+        /* let */ {
+            double* _63 = Vector3_y__double(s);
+            double _64 = Double_copy(_63);
+            double val = _64;
+            double _93;
+            double _70 = Double_abs(val);
+            bool _72 = Double__LT_(_70, eps);
+            if (_72) {
+                double _88;
+                bool _78 = Double__LT_(val, 0.0);
+                if (_78) {
+                    double _83 = Double__MINUS_(0.0, eps);
+                    double _84 = _83;
+                    _88 = _84;
+                } else {
+                    double _87 = eps;
+                    _88 = _87;
+                }
+                double _89 = _88;
+                _93 = _89;
+            } else {
+                double _92 = val;
+                _93 = _92;
+            }
+            _94 = _93;
+        }
+        double sy = _94;
+        double _132;
+        /* let */ {
+            double* _101 = Vector3_z__double(s);
+            double _102 = Double_copy(_101);
+            double val = _102;
+            double _131;
+            double _108 = Double_abs(val);
+            bool _110 = Double__LT_(_108, eps);
+            if (_110) {
+                double _126;
+                bool _116 = Double__LT_(val, 0.0);
+                if (_116) {
+                    double _121 = Double__MINUS_(0.0, eps);
+                    double _122 = _121;
+                    _126 = _122;
+                } else {
+                    double _125 = eps;
+                    _126 = _125;
+                }
+                double _127 = _126;
+                _131 = _127;
+            } else {
+                double _130 = val;
+                _131 = _130;
+            }
+            _132 = _131;
+        }
+        double sz = _132;
+        double _138 = Double__DIV_(1.0, sx);
+        double _142 = Double__DIV_(1.0, sy);
+        double _146 = Double__DIV_(1.0, sz);
+        Vector3__double _147 = Vector3_init__double(_138, _142, _146);
+        Vector3__double inv_MINUS_s = _147;
+        Quaternion _151 = Quaternion_conjugate(q);
+        Quaternion inv_MINUS_q = _151;
+        static float _157_lit = 0.0f;
+        float* _157 = &_157_lit; // ref
+        Array__float _158 = Array_replicate__float(16, _157);
+        Array__float m = _158;
+        Quaternion* _164 = &inv_MINUS_q; // ref
+        double* _165 = Quaternion_x(_164);
+        double _166 = Double_copy(_165);
+        double qx = _166;
+        Quaternion* _172 = &inv_MINUS_q; // ref
+        double* _173 = Quaternion_y(_172);
+        double _174 = Double_copy(_173);
+        double qy = _174;
+        Quaternion* _180 = &inv_MINUS_q; // ref
+        double* _181 = Quaternion_z(_180);
+        double _182 = Double_copy(_181);
+        double qz = _182;
+        Quaternion* _188 = &inv_MINUS_q; // ref
+        double* _189 = Quaternion_w(_188);
+        double _190 = Double_copy(_189);
+        double qw = _190;
+        Vector3__double* _199 = &inv_MINUS_s; // ref
+        double* _200 = Vector3_x__double(_199);
+        double _201 = Double_copy(_200);
+        float _202 = Double_to_MINUS_float(_201);
+        float _203 = _202; // From the 'the' function.
+        float isx = _203;
+        Vector3__double* _212 = &inv_MINUS_s; // ref
+        double* _213 = Vector3_y__double(_212);
+        double _214 = Double_copy(_213);
+        float _215 = Double_to_MINUS_float(_214);
+        float _216 = _215; // From the 'the' function.
+        float isy = _216;
+        Vector3__double* _225 = &inv_MINUS_s; // ref
+        double* _226 = Vector3_z__double(_225);
+        double _227 = Double_copy(_226);
+        float _228 = Double_to_MINUS_float(_227);
+        float _229 = _228; // From the 'the' function.
+        float isz = _229;
+        Array__float* _235 = &m; // ref
+        double _250 = Double__MUL_(qy, qy);
+        double _254 = Double__MUL_(qz, qz);
+        double _255 = Double__PLUS_(_250, _254);
+        double _256 = Double__MUL_(2.0, _255);
+        double _257 = Double__MINUS_(1.0, _256);
+        float _258 = Double_to_MINUS_float(_257);
+        float _259 = _258; // From the 'the' function.
+        float _260 = Float__MUL_(isx, _259);
+        Array_aset_BANG___float(_235, 0, _260);
+        Array__float* _265 = &m; // ref
+        double _278 = Double__MUL_(qx, qy);
+        double _282 = Double__MUL_(qz, qw);
+        double _283 = Double__PLUS_(_278, _282);
+        double _284 = Double__MUL_(2.0, _283);
+        float _285 = Double_to_MINUS_float(_284);
+        float _286 = _285; // From the 'the' function.
+        float _287 = Float__MUL_(isx, _286);
+        Array_aset_BANG___float(_265, 4, _287);
+        Array__float* _292 = &m; // ref
+        double _305 = Double__MUL_(qx, qz);
+        double _309 = Double__MUL_(qy, qw);
+        double _310 = Double__MINUS_(_305, _309);
+        double _311 = Double__MUL_(2.0, _310);
+        float _312 = Double_to_MINUS_float(_311);
+        float _313 = _312; // From the 'the' function.
+        float _314 = Float__MUL_(isx, _313);
+        Array_aset_BANG___float(_292, 8, _314);
+        Array__float* _319 = &m; // ref
+        double _332 = Double__MUL_(qx, qy);
+        double _336 = Double__MUL_(qz, qw);
+        double _337 = Double__MINUS_(_332, _336);
+        double _338 = Double__MUL_(2.0, _337);
+        float _339 = Double_to_MINUS_float(_338);
+        float _340 = _339; // From the 'the' function.
+        float _341 = Float__MUL_(isy, _340);
+        Array_aset_BANG___float(_319, 1, _341);
+        Array__float* _346 = &m; // ref
+        double _361 = Double__MUL_(qx, qx);
+        double _365 = Double__MUL_(qz, qz);
+        double _366 = Double__PLUS_(_361, _365);
+        double _367 = Double__MUL_(2.0, _366);
+        double _368 = Double__MINUS_(1.0, _367);
+        float _369 = Double_to_MINUS_float(_368);
+        float _370 = _369; // From the 'the' function.
+        float _371 = Float__MUL_(isy, _370);
+        Array_aset_BANG___float(_346, 5, _371);
+        Array__float* _376 = &m; // ref
+        double _389 = Double__MUL_(qy, qz);
+        double _393 = Double__MUL_(qx, qw);
+        double _394 = Double__PLUS_(_389, _393);
+        double _395 = Double__MUL_(2.0, _394);
+        float _396 = Double_to_MINUS_float(_395);
+        float _397 = _396; // From the 'the' function.
+        float _398 = Float__MUL_(isy, _397);
+        Array_aset_BANG___float(_376, 9, _398);
+        Array__float* _403 = &m; // ref
+        double _416 = Double__MUL_(qx, qz);
+        double _420 = Double__MUL_(qy, qw);
+        double _421 = Double__PLUS_(_416, _420);
+        double _422 = Double__MUL_(2.0, _421);
+        float _423 = Double_to_MINUS_float(_422);
+        float _424 = _423; // From the 'the' function.
+        float _425 = Float__MUL_(isz, _424);
+        Array_aset_BANG___float(_403, 2, _425);
+        Array__float* _430 = &m; // ref
+        double _443 = Double__MUL_(qy, qz);
+        double _447 = Double__MUL_(qx, qw);
+        double _448 = Double__MINUS_(_443, _447);
+        double _449 = Double__MUL_(2.0, _448);
+        float _450 = Double_to_MINUS_float(_449);
+        float _451 = _450; // From the 'the' function.
+        float _452 = Float__MUL_(isz, _451);
+        Array_aset_BANG___float(_430, 6, _452);
+        Array__float* _457 = &m; // ref
+        double _472 = Double__MUL_(qx, qx);
+        double _476 = Double__MUL_(qy, qy);
+        double _477 = Double__PLUS_(_472, _476);
+        double _478 = Double__MUL_(2.0, _477);
+        double _479 = Double__MINUS_(1.0, _478);
+        float _480 = Double_to_MINUS_float(_479);
+        float _481 = _480; // From the 'the' function.
+        float _482 = Float__MUL_(isz, _481);
+        Array_aset_BANG___float(_457, 10, _482);
+        /* let */ {
+            double* _492 = Vector3_x__double(p);
+            double _493 = Double_copy(_492);
+            float _494 = Double_to_MINUS_float(_493);
+            float _495 = _494; // From the 'the' function.
+            float rx = _495;
+            double* _503 = Vector3_y__double(p);
+            double _504 = Double_copy(_503);
+            float _505 = Double_to_MINUS_float(_504);
+            float _506 = _505; // From the 'the' function.
+            float ry = _506;
+            double* _514 = Vector3_z__double(p);
+            double _515 = Double_copy(_514);
+            float _516 = Double_to_MINUS_float(_515);
+            float _517 = _516; // From the 'the' function.
+            float rz = _517;
+            Array__float* _523 = &m; // ref
+            Array__float* _533 = &m; // ref
+            float* _535 = Array_unsafe_MINUS_nth__float(_533, 0);
+            float _536 = Float_copy(_535);
+            float _538 = Float__MUL_(_536, rx);
+            Array__float* _545 = &m; // ref
+            float* _547 = Array_unsafe_MINUS_nth__float(_545, 4);
+            float _548 = Float_copy(_547);
+            float _550 = Float__MUL_(_548, ry);
+            Array__float* _556 = &m; // ref
+            float* _558 = Array_unsafe_MINUS_nth__float(_556, 8);
+            float _559 = Float_copy(_558);
+            float _561 = Float__MUL_(_559, rz);
+            float _562 = Float__PLUS_(_550, _561);
+            float _563 = Float__PLUS_(_538, _562);
+            float _564 = Float__MINUS_(0.0f, _563);
+            Array_aset_BANG___float(_523, 12, _564);
+            Array__float* _569 = &m; // ref
+            Array__float* _579 = &m; // ref
+            float* _581 = Array_unsafe_MINUS_nth__float(_579, 1);
+            float _582 = Float_copy(_581);
+            float _584 = Float__MUL_(_582, rx);
+            Array__float* _591 = &m; // ref
+            float* _593 = Array_unsafe_MINUS_nth__float(_591, 5);
+            float _594 = Float_copy(_593);
+            float _596 = Float__MUL_(_594, ry);
+            Array__float* _602 = &m; // ref
+            float* _604 = Array_unsafe_MINUS_nth__float(_602, 9);
+            float _605 = Float_copy(_604);
+            float _607 = Float__MUL_(_605, rz);
+            float _608 = Float__PLUS_(_596, _607);
+            float _609 = Float__PLUS_(_584, _608);
+            float _610 = Float__MINUS_(0.0f, _609);
+            Array_aset_BANG___float(_569, 13, _610);
+            Array__float* _615 = &m; // ref
+            Array__float* _625 = &m; // ref
+            float* _627 = Array_unsafe_MINUS_nth__float(_625, 2);
+            float _628 = Float_copy(_627);
+            float _630 = Float__MUL_(_628, rx);
+            Array__float* _637 = &m; // ref
+            float* _639 = Array_unsafe_MINUS_nth__float(_637, 6);
+            float _640 = Float_copy(_639);
+            float _642 = Float__MUL_(_640, ry);
+            Array__float* _648 = &m; // ref
+            float* _650 = Array_unsafe_MINUS_nth__float(_648, 10);
+            float _651 = Float_copy(_650);
+            float _653 = Float__MUL_(_651, rz);
+            float _654 = Float__PLUS_(_642, _653);
+            float _655 = Float__PLUS_(_630, _654);
+            float _656 = Float__MINUS_(0.0f, _655);
+            Array_aset_BANG___float(_615, 14, _656);
+            Array__float* _661 = &m; // ref
+            Array_aset_BANG___float(_661, 15, 1.0f);
+        }
+        TransformMat4 _669 = TransformMat4_init(m);
+        TransformMat4 _670 = _669;
+        _671 = _670;
+        Quaternion_delete(inv_MINUS_q);
+        Vector3_delete__double(inv_MINUS_s);
+    }
+    return _671;
+}
+
+TransformMat4 Transform_to_MINUS_matrix(Transform* t) {
+    Vector3__double* _7 = Transform_position(t);
+    Quaternion* _10 = Transform_rotation(t);
+    Vector3__double* _13 = Transform_scale(t);
+    TransformMat4 _14 = TransformMat4_from_MINUS_trs(_7, _10, _13);
+    return _14;
+}
+
+Vector3__double Transform_up(Transform* t) {
+    TransformMat4 _8 = Transform_to_MINUS_matrix(t);
+    TransformMat4* _9 = &_8; // ref
+    Vector3__double _11 = TransformMat4_get_MINUS_column(_9, 1);
+    TransformMat4_delete(_8);
+    return _11;
+}
+
+Vector3__double Transform_up_MINUS_quat(Quaternion* q) {
+    Vector3__double _12 = Vector3_init__double(0.0, 0.0, 0.0);
+    Vector3__double* _13 = &_12; // ref
+    Vector3__double _20 = Vector3_init__double(1.0, 1.0, 1.0);
+    Vector3__double* _21 = &_20; // ref
+    TransformMat4 _22 = TransformMat4_from_MINUS_trs(_13, q, _21);
+    TransformMat4* _23 = &_22; // ref
+    Vector3__double _25 = TransformMat4_get_MINUS_column(_23, 1);
+    TransformMat4_delete(_22);
+    Vector3_delete__double(_12);
+    Vector3_delete__double(_20);
+    return _25;
+}
+
+Transform Transform_update_MINUS_position(Transform p, Lambda *updater) {
+    p.position = (*updater).env ? ((Fn__LambdaEnv_Vector3__double_Vector3__double)(*updater).callback)((*updater).env, p.position) : ((Fn__Vector3__double_Vector3__double)(*updater).callback)(p.position);
+    return p;
+}
+
+
+Transform Transform_update_MINUS_rotation(Transform p, Lambda *updater) {
+    p.rotation = (*updater).env ? ((Fn__LambdaEnv_Quaternion_Quaternion)(*updater).callback)((*updater).env, p.rotation) : ((Fn__Quaternion_Quaternion)(*updater).callback)(p.rotation);
+    return p;
+}
+
+
+Transform Transform_update_MINUS_scale(Transform p, Lambda *updater) {
+    p.scale = (*updater).env ? ((Fn__LambdaEnv_Vector3__double_Vector3__double)(*updater).callback)((*updater).env, p.scale) : ((Fn__Vector3__double_Vector3__double)(*updater).callback)(p.scale);
+    return p;
+}
+
+
+TransformMat4 TransformMat4_copy(TransformMat4* pRef) {
+    TransformMat4 copy = *pRef;
+    copy.data = Array_copy__float(&(pRef->data));
+    return copy;
+}
+
+Array__float* TransformMat4_data(TransformMat4* p) { return (&(p->data)); }
+
+void TransformMat4_delete(TransformMat4 p) {
+    Array_delete__float(p.data);
+}
+
+TransformMat4 TransformMat4_from_MINUS_trs(Vector3__double* pos, Quaternion* rot, Vector3__double* scale) {
+    TransformMat4 _390;
+    /* let */ {
+        static float _12_lit = 0.0f;
+        float* _12 = &_12_lit; // ref
+        Array__float _13 = Array_replicate__float(16, _12);
+        Array__float m = _13;
+        double* _18 = Quaternion_x(rot);
+        double _19 = Double_copy(_18);
+        double qx = _19;
+        double* _24 = Quaternion_y(rot);
+        double _25 = Double_copy(_24);
+        double qy = _25;
+        double* _30 = Quaternion_z(rot);
+        double _31 = Double_copy(_30);
+        double qz = _31;
+        double* _36 = Quaternion_w(rot);
+        double _37 = Double_copy(_36);
+        double qw = _37;
+        double* _45 = Vector3_x__double(scale);
+        double _46 = Double_copy(_45);
+        float _47 = Double_to_MINUS_float(_46);
+        float _48 = _47; // From the 'the' function.
+        float sx = _48;
+        double* _56 = Vector3_y__double(scale);
+        double _57 = Double_copy(_56);
+        float _58 = Double_to_MINUS_float(_57);
+        float _59 = _58; // From the 'the' function.
+        float sy = _59;
+        double* _67 = Vector3_z__double(scale);
+        double _68 = Double_copy(_67);
+        float _69 = Double_to_MINUS_float(_68);
+        float _70 = _69; // From the 'the' function.
+        float sz = _70;
+        double* _78 = Vector3_x__double(pos);
+        double _79 = Double_copy(_78);
+        float _80 = Double_to_MINUS_float(_79);
+        float _81 = _80; // From the 'the' function.
+        float tx = _81;
+        double* _89 = Vector3_y__double(pos);
+        double _90 = Double_copy(_89);
+        float _91 = Double_to_MINUS_float(_90);
+        float _92 = _91; // From the 'the' function.
+        float ty = _92;
+        double* _100 = Vector3_z__double(pos);
+        double _101 = Double_copy(_100);
+        float _102 = Double_to_MINUS_float(_101);
+        float _103 = _102; // From the 'the' function.
+        float tz = _103;
+        Array__float* _109 = &m; // ref
+        double _124 = Double__MUL_(qy, qy);
+        double _128 = Double__MUL_(qz, qz);
+        double _129 = Double__PLUS_(_124, _128);
+        double _130 = Double__MUL_(2.0, _129);
+        double _131 = Double__MINUS_(1.0, _130);
+        float _132 = Double_to_MINUS_float(_131);
+        float _133 = _132; // From the 'the' function.
+        float _134 = Float__MUL_(sx, _133);
+        Array_aset_BANG___float(_109, 0, _134);
+        Array__float* _139 = &m; // ref
+        double _152 = Double__MUL_(qx, qy);
+        double _156 = Double__MUL_(qz, qw);
+        double _157 = Double__PLUS_(_152, _156);
+        double _158 = Double__MUL_(2.0, _157);
+        float _159 = Double_to_MINUS_float(_158);
+        float _160 = _159; // From the 'the' function.
+        float _161 = Float__MUL_(sx, _160);
+        Array_aset_BANG___float(_139, 1, _161);
+        Array__float* _166 = &m; // ref
+        double _179 = Double__MUL_(qx, qz);
+        double _183 = Double__MUL_(qy, qw);
+        double _184 = Double__MINUS_(_179, _183);
+        double _185 = Double__MUL_(2.0, _184);
+        float _186 = Double_to_MINUS_float(_185);
+        float _187 = _186; // From the 'the' function.
+        float _188 = Float__MUL_(sx, _187);
+        Array_aset_BANG___float(_166, 2, _188);
+        Array__float* _193 = &m; // ref
+        double _206 = Double__MUL_(qx, qy);
+        double _210 = Double__MUL_(qz, qw);
+        double _211 = Double__MINUS_(_206, _210);
+        double _212 = Double__MUL_(2.0, _211);
+        float _213 = Double_to_MINUS_float(_212);
+        float _214 = _213; // From the 'the' function.
+        float _215 = Float__MUL_(sy, _214);
+        Array_aset_BANG___float(_193, 4, _215);
+        Array__float* _220 = &m; // ref
+        double _235 = Double__MUL_(qx, qx);
+        double _239 = Double__MUL_(qz, qz);
+        double _240 = Double__PLUS_(_235, _239);
+        double _241 = Double__MUL_(2.0, _240);
+        double _242 = Double__MINUS_(1.0, _241);
+        float _243 = Double_to_MINUS_float(_242);
+        float _244 = _243; // From the 'the' function.
+        float _245 = Float__MUL_(sy, _244);
+        Array_aset_BANG___float(_220, 5, _245);
+        Array__float* _250 = &m; // ref
+        double _263 = Double__MUL_(qy, qz);
+        double _267 = Double__MUL_(qx, qw);
+        double _268 = Double__PLUS_(_263, _267);
+        double _269 = Double__MUL_(2.0, _268);
+        float _270 = Double_to_MINUS_float(_269);
+        float _271 = _270; // From the 'the' function.
+        float _272 = Float__MUL_(sy, _271);
+        Array_aset_BANG___float(_250, 6, _272);
+        Array__float* _277 = &m; // ref
+        double _290 = Double__MUL_(qx, qz);
+        double _294 = Double__MUL_(qy, qw);
+        double _295 = Double__PLUS_(_290, _294);
+        double _296 = Double__MUL_(2.0, _295);
+        float _297 = Double_to_MINUS_float(_296);
+        float _298 = _297; // From the 'the' function.
+        float _299 = Float__MUL_(sz, _298);
+        Array_aset_BANG___float(_277, 8, _299);
+        Array__float* _304 = &m; // ref
+        double _317 = Double__MUL_(qy, qz);
+        double _321 = Double__MUL_(qx, qw);
+        double _322 = Double__MINUS_(_317, _321);
+        double _323 = Double__MUL_(2.0, _322);
+        float _324 = Double_to_MINUS_float(_323);
+        float _325 = _324; // From the 'the' function.
+        float _326 = Float__MUL_(sz, _325);
+        Array_aset_BANG___float(_304, 9, _326);
+        Array__float* _331 = &m; // ref
+        double _346 = Double__MUL_(qx, qx);
+        double _350 = Double__MUL_(qy, qy);
+        double _351 = Double__PLUS_(_346, _350);
+        double _352 = Double__MUL_(2.0, _351);
+        double _353 = Double__MINUS_(1.0, _352);
+        float _354 = Double_to_MINUS_float(_353);
+        float _355 = _354; // From the 'the' function.
+        float _356 = Float__MUL_(sz, _355);
+        Array_aset_BANG___float(_331, 10, _356);
+        Array__float* _361 = &m; // ref
+        Array_aset_BANG___float(_361, 12, tx);
+        Array__float* _368 = &m; // ref
+        Array_aset_BANG___float(_368, 13, ty);
+        Array__float* _375 = &m; // ref
+        Array_aset_BANG___float(_375, 14, tz);
+        Array__float* _382 = &m; // ref
+        Array_aset_BANG___float(_382, 15, 1.0f);
+        TransformMat4 _388 = TransformMat4_init(m);
+        TransformMat4 _389 = _388;
+        _390 = _389;
+    }
+    return _390;
+}
+
+Vector3__double TransformMat4_get_MINUS_column(TransformMat4* m, int col) {
+    Vector3__double _57;
+    /* let */ {
+        Array__float* _9 = TransformMat4_data(m);
+        Array__float* d = _9;
+        int _14 = Int__MUL_(col, 4);
+        int idx = _14;
+        float* _24 = Array_unsafe_MINUS_nth__float(d, idx);
+        float _25 = Float_copy(_24);
+        double _26 = Double_from_MINUS_float(_25);
+        double _27 = _26; // From the 'the' function.
+        int _37 = Int__PLUS_(idx, 1);
+        float* _38 = Array_unsafe_MINUS_nth__float(d, _37);
+        float _39 = Float_copy(_38);
+        double _40 = Double_from_MINUS_float(_39);
+        double _41 = _40; // From the 'the' function.
+        int _51 = Int__PLUS_(idx, 2);
+        float* _52 = Array_unsafe_MINUS_nth__float(d, _51);
+        float _53 = Float_copy(_52);
+        double _54 = Double_from_MINUS_float(_53);
+        double _55 = _54; // From the 'the' function.
+        Vector3__double _56 = Vector3_init__double(_27, _41, _55);
+        _57 = _56;
+    }
+    return _57;
+}
+
+TransformMat4 TransformMat4_identity() {
+    TransformMat4 _45;
+    /* let */ {
+        static float _9_lit = 0.0f;
+        float* _9 = &_9_lit; // ref
+        Array__float _10 = Array_replicate__float(16, _9);
+        Array__float m = _10;
+        Array__float* _16 = &m; // ref
+        Array_aset_BANG___float(_16, 0, 1.0f);
+        Array__float* _23 = &m; // ref
+        Array_aset_BANG___float(_23, 5, 1.0f);
+        Array__float* _30 = &m; // ref
+        Array_aset_BANG___float(_30, 10, 1.0f);
+        Array__float* _37 = &m; // ref
+        Array_aset_BANG___float(_37, 15, 1.0f);
+        TransformMat4 _43 = TransformMat4_init(m);
+        TransformMat4 _44 = _43;
+        _45 = _44;
+    }
+    return _45;
+}
+
+TransformMat4 TransformMat4_init(Array__float data) {
+    TransformMat4 instance;
+    instance.data = data;
+    return instance;
+}
+
+String TransformMat4_prn(TransformMat4 *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "TransformMat4");
+  temp = Array_prn__float(&p->data); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "TransformMat4");
+  temp = Array_prn__float(&p->data);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+TransformMat4 TransformMat4_set_MINUS_data(TransformMat4 p, Array__float newValue) {
+    Array_delete__float(p.data);
+    p.data = newValue;
+    return p;
+}
+
+
+void TransformMat4_set_MINUS_data_BANG_(TransformMat4* pRef, Array__float newValue) {
+    Array_delete__float(pRef->data);
+    pRef->data = newValue;
+}
+
+
+String TransformMat4_str(TransformMat4 *p) {
+  // convert members to String here:
+  String temp = NULL;
+  int tempsize = 0;
+  (void)tempsize; // that way we remove the occasional unused warning 
+  int size = snprintf(NULL, 0, "(%s )", "TransformMat4");
+  temp = Array_prn__float(&p->data); 
+  size += snprintf(NULL, 0, "%s ", temp);
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+
+  String buffer = CARP_MALLOC(size);
+  String bufferPtr = buffer;
+
+  bufferPtr += snprintf(bufferPtr, size - (bufferPtr - buffer), "(%s ", "TransformMat4");
+  temp = Array_prn__float(&p->data);
+  tempsize = snprintf(bufferPtr, size - (bufferPtr - buffer), "%s ", temp);
+  bufferPtr += tempsize;
+  if(temp) { CARP_FREE(temp); temp = NULL; }
+
+  bufferPtr--;
+  snprintf(bufferPtr, size - (bufferPtr - buffer), ")");
+  return buffer;
+}
+
+TransformMat4 TransformMat4_update_MINUS_data(TransformMat4 p, Lambda *updater) {
+    p.data = (*updater).env ? ((Fn__LambdaEnv_Array__float_Array__float)(*updater).callback)((*updater).env, p.data) : ((Fn__Array__float_Array__float)(*updater).callback)(p.data);
+    return p;
+}
+
+
 Uint16 Uint16_blit(Uint16 x) {
     Uint16 _7 = x; // From the 'the' function.
     return _7;
@@ -30942,6 +39217,19 @@ void Vector3_delete__double(Vector3__double p) {
     /* Ignore non-managed member 'x' : Double */
     /* Ignore non-managed member 'y' : Double */
     /* Ignore non-managed member 'z' : Double */
+}
+
+double Vector3_dist__double(Vector3__double* a, Vector3__double* b) {
+    double _17;
+    /* let */ {
+        Vector3__double _10 = Vector3_sub__double(b, a);
+        Vector3__double s = _10;
+        Vector3__double* _15 = &s; // ref
+        double _16 = Vector3_mag__double(_15);
+        _17 = _16;
+        Vector3_delete__double(s);
+    }
+    return _17;
 }
 
 Vector3__double Vector3_div__double(Vector3__double* v, double n) {
@@ -32438,7 +40726,7 @@ String World_prn(World *p) {
 }
 
 Maybe__Vector3__double World_raycast(World* world, Vector3__double* ro, Vector3__double* rd, double max_MINUS_dist) {
-    Maybe__Vector3__double _104;
+    Maybe__Vector3__double _119;
     /* let */ {
         double t = 0.0;
         Maybe__Vector3__double _12 = Maybe_Nothing__Vector3__double();
@@ -32464,8 +40752,8 @@ Maybe__Vector3__double World_raycast(World* world, Vector3__double* ro, Vector3_
             bool _43 = false;
             _44 = _43;
         }
-        bool _101 = _44;
-        while (_101) {
+        bool _116 = _44;
+        while (_116) {
             /* let */ {
                 Vector3__double _53 = Vector3_mul__double(rd, t);
                 Vector3__double* _54 = &_53; // ref
@@ -32480,14 +40768,26 @@ Maybe__Vector3__double World_raycast(World* world, Vector3__double* ro, Vector3_
                     Maybe_delete__Vector3__double(hit);
                     hit = _75;  // (Maybe (Vector3 Double)) = (Maybe (Vector3 Double))
                 } else {
-                    double _87 = Double_from_MINUS_float(dist);
-                    double _88 = max__double(5.0e-2, _87);
-                    double _89 = Double__PLUS_(t, _88);
-                    t = _89;  // Double = Double
+                    /* let */ {
+                        double _83 = Double_from_MINUS_float(dist);
+                        double d = _83;
+                        double _96;
+                        bool _89 = Double__GT_(d, 5.0e-2);
+                        if (_89) {
+                            double _92 = d;
+                            _96 = _92;
+                        } else {
+                            double _95 = 5.0e-2;
+                            _96 = _95;
+                        }
+                        double step = _96;
+                        double _103 = Double__PLUS_(t, step);
+                        t = _103;  // Double = Double
+                    }
                     Vector3_delete__double(p);
                 }
-                int _97 = Int_inc(steps);
-                steps = _97;  // Int = Int
+                int _112 = Int_inc(steps);
+                steps = _112;  // Int = Int
                 Vector3_delete__double(_53);
             }
             bool _44;
@@ -32510,12 +40810,12 @@ Maybe__Vector3__double World_raycast(World* world, Vector3__double* ro, Vector3_
                 bool _43 = false;
                 _44 = _43;
             }
-            _101 = _44;
+            _116 = _44;
         }
-        Maybe__Vector3__double _103 = hit;
-        _104 = _103;
+        Maybe__Vector3__double _118 = hit;
+        _119 = _118;
     }
-    return _104;
+    return _119;
 }
 
 float World_sample_MINUS_sdf_MINUS_nearest(World* world, Vector3__double* p) {
@@ -33123,6 +41423,28 @@ ZoneStats ZoneStats_update_MINUS_sum_MINUS_sq_MINUS_ms(ZoneStats p, Lambda *upda
     return p;
 }
 
+
+double clamp__double(double min, double max, double val) {
+    double _28;
+    bool _10 = Double__GT_(val, max);
+    if (_10) {
+        double _13 = max;
+        _28 = _13;
+    } else {
+        double _26;
+        bool _19 = Double__LT_(val, min);
+        if (_19) {
+            double _22 = min;
+            _26 = _22;
+        } else {
+            double _25 = val;
+            _26 = _25;
+        }
+        double _27 = _26;
+        _28 = _27;
+    }
+    return _28;
+}
 
 WGPUBindGroup create_MINUS_voxel_MINUS_scaffold_MINUS_bind_MINUS_group(WGPUContext* ctx, WGPURenderPipelineWrapper* pipe, WGPURenderTexture* solid_tex, WGPURenderTexture* liquid_tex, WGPURenderTexture* gas_tex, WGPURenderTexture* light_tex, WGPUSampler sampler, WGPUUniformBufferWrapper* ub) {
       if (!ctx || !pipe || !solid_tex || !liquid_tex || !gas_tex || !light_tex || !sampler || !ub) {

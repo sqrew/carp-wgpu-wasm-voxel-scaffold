@@ -79,7 +79,9 @@
             (do
               (if (< dist 0.05f)
                   (set! hit (Maybe.Just p))
-                  (set! t (+ t (Double.max 0.05 (Double.from-float dist)))))
+                  (let [d (Double.from-float dist)
+                        step (if (> d 0.05) d 0.05)]
+                    (set! t (+ t step))))
               (set! steps (inc steps)))))
         hit)))
 
