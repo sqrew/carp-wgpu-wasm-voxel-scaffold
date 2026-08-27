@@ -10,6 +10,11 @@
 (use Collision)
 
 (deftype CompBody [rb RigidBody])
+(deftype CompGrounded [grounded Bool])
+(defmodule CompGrounded
+  (defn zero [] (CompGrounded.init false)))
+(implements zero CompGrounded.zero)
+
 (deftype CompVolume [vol Volume])
 (deftype CompColor [col (Vector3 Double)])
 
@@ -36,5 +41,5 @@
   (defn zero [] (CompPlayer.init))
   (implements zero CompPlayer.zero))
 
-(ECS.defworld GameWorld CompBody CompVolume CompColor CompLifetime CompPlayer)
+(ECS.defworld GameWorld CompBody CompVolume CompColor CompLifetime CompPlayer CompGrounded)
 

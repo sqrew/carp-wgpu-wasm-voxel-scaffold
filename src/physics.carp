@@ -370,7 +370,12 @@
                       (let [depth (Physics.dmin 0.4 (- rad d))
                             normal (Physics.estimate-sdf-normal world pos)
                             contact-pt (Vector3.sub pos &(Vector3.mul &normal rad))]
-                        (Array.push-back! &contacts (Contact.init depth contact-pt normal)))))
+                        (do
+                          (when (> @(Vector3.y &normal) 0.5)
+                            (let [ent (ECS.Entity.init (Handle.init (Uint64.from-long (the Long (Long.from-int i))) (Uint32.from-long 1l)))]
+                              (when (has-component? game-world &ent CompGrounded)
+                                (ECS.add-component! game-world &ent (CompGrounded.init true)))))
+                          (Array.push-back! &contacts (Contact.init depth contact-pt normal))))))
                 _ ())
               
               (when (not (Array.empty? &contacts))
