@@ -157,27 +157,4 @@
         (Camera.update-input win cam dt @(Player.flying player))
         (Camera.update-look win cam first-mouse-ptr last-x-ptr last-y-ptr))))
 
-  (defn update-physics! [player world dt prev-pos]
-    (let [cam (Player.camera player)]
-      (do
-        ;; Apply gravity if not flying
-        (when (not @(Player.flying player))
-          (let [p-vel-y (ref-to-ptr (Player.vel-y player))
-                curr-vel-y (Pointer.to-value p-vel-y)
-                p-pos (ref-to-ptr (Camera.pos cam))
-                curr-pos (Pointer.to-value p-pos)]
-            (do
-              (Pointer.set p-vel-y (- curr-vel-y (* 35.0 dt)))
-              (let [new-y (+ @(Vector3.y &curr-pos) (* (Pointer.to-value p-vel-y) dt))]
-                (Pointer.set p-pos (Vector3.init @(Vector3.x &curr-pos) new-y @(Vector3.z &curr-pos)))))))
-        
-        ;; Resolve collisions
-        (Physics.resolve-camera-collision! world cam prev-pos (ref-to-ptr (Player.vel-y player)) (ref-to-ptr (Player.on-ground player))))))
-
-  (defn handle-jump! [player win]
-    (when (and (not @(Player.flying player)) @(Player.on-ground player))
-      (when (= (GLFW.get-key win GLFW.Keycode.SPACE) GLFW.PRESS)
-        (do
-          (Pointer.set (ref-to-ptr (Player.vel-y player)) 12.0)
-          (Pointer.set (ref-to-ptr (Player.on-ground player)) false)))))
-)
+  )

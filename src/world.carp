@@ -38,18 +38,24 @@
               (Array.push-back! &world-chunks (Chunk.create &noise-state x y z)))))
         (World.init world-chunks 32 noise-state))))
 
+  (defn positive-mod [n m]
+    (let [r (Int.mod n m)]
+      (if (< r 0) (+ r m) r)))
+
   (defn find-chunk [world qx qy qz]
     (let [chunks (World.chunks world)
-          len (Array.length chunks)
-          found (Maybe.Nothing)]
-      (do
-        (for [i 0 len]
-          (let [chunk (Array.unsafe-nth chunks i)]
-            (when (and (= qx @(Chunk.coord-x chunk))
-                       (and (= qy @(Chunk.coord-y chunk))
-                            (= qz @(Chunk.coord-z chunk))))
-              (set! found (Maybe.Just @chunk)))))
-        found)))
+          tx (World.positive-mod qx 5)
+          ty (World.positive-mod qy 5)
+          tz (World.positive-mod qz 5)
+          slot-idx (+ tx (+ (* ty 5) (* tz 25)))]
+      (if (< slot-idx (Array.length chunks))
+        (let [chunk (Array.unsafe-nth chunks slot-idx)]
+          (if (and (= qx @(Chunk.coord-x chunk))
+                   (and (= qy @(Chunk.coord-y chunk))
+                        (= qz @(Chunk.coord-z chunk))))
+            (Maybe.Just @chunk)
+            (Maybe.Nothing)))
+        (Maybe.Nothing))))
 
   (defn sample-sdf-nearest [world p]
     (let [x (Vector3.x p)

@@ -20,6 +20,9 @@
   hit-active Float
   liquid-spawn Float
   gas-spawn Float
+  ecs-world GameWorld
+  player-ent-id Int
+  grid (SpatialGrid Int)
 ])
 
 (defmodule EngineState
@@ -34,7 +37,9 @@
             (let [world (World.create)
                   player (Player.create (Vector3.init 32.0 45.0 32.0))
                   uniforms (Array.allocate 32)
-                  diag (Diagnostics.new @"diagnostics.log")]
+                  diag (Diagnostics.new @"diagnostics.log")
+                  ecs-world (GameWorld.new)
+                  grid (SpatialGrid.new 5.0 20 20 20)]
               (do
                 ; Upload all chunks to world texture
                 (let [chunks (World.chunks &world)
@@ -44,7 +49,15 @@
                       (Renderer.update-chunk-texture &platform-eng &ren @(Chunk.coord-x chunk) @(Chunk.coord-y chunk) @(Chunk.coord-z chunk) (Chunk.voxel-data chunk)))))
                 (Camera.update-basis! (Player.camera &player))
                 
-                (Result.Success (EngineState.init platform-eng ren world player uniforms diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f)))))))
+                (let [player-ent (GameWorld.create-entity! &ecs-world)
+                      p-pos (Camera.pos (Player.camera &player))
+                      rb (RigidBody.new @p-pos (Quaternion.identity) 1.0 0.0 0.8 0.9 0.9 0.9)
+                      vol (Volume.Ball (Sphere.init @p-pos 0.5))]
+                  (do
+                    (ECS.add-component! &ecs-world &player-ent (CompBody.init rb))
+                    (ECS.add-component! &ecs-world &player-ent (CompVolume.init vol))
+                    (ECS.add-component! &ecs-world &player-ent (CompPlayer.init))
+                    (Result.Success (EngineState.init platform-eng ren world player uniforms diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid)))))))))
 
   (defn draw-bounds-wireframe! [ren min-x min-y min-z max-x max-y max-z color]
     (let [w0 (Vector3.init min-x min-y min-z)
@@ -124,9 +137,69 @@
       (do
         ;; 1. Handle player inputs (movement, look, flying, radius presets, cycling)
         (Diagnostics.with-zone diag "Player Physics & Input"
-          (Player.handle-input! player win dt first-mouse-ptr last-x-ptr last-y-ptr)
-          (Player.handle-jump! player win)
-          (Player.update-physics! player world dt &prev-pos))
+          (let [p-ent-id (EngineState.player-ent-id state)
+                p-ent (ECS.Entity.init (Handle.init (Uint64.from-long (the Long (Long.from-int @p-ent-id))) (Uint32.from-long 1l)))
+                cb-opt (get-component (EngineState.ecs-world state) &p-ent)]
+            (match cb-opt
+              (Maybe.Just cb)
+                (let [rb (CompBody.rb &cb)
+                      body (RigidBody.body rb)
+                      old-pos @(Camera.pos cam)]
+                  (do
+                    ;; Sync camera to physics before input
+                    (Pointer.set (ref-to-ptr (Camera.pos cam)) (Vector3.add (RigidBody.position rb) &(Vector3.init 0.0 1.2 0.0)))
+                    (set! old-pos @(Camera.pos cam))
+                    
+                    (Player.handle-input! player win dt first-mouse-ptr last-x-ptr last-y-ptr)
+                    
+                    ;; Calculate desired movement velocity from WASD
+                    (let [new-pos @(Camera.pos cam)
+                          delta (Vector3.sub &new-pos &old-pos)
+                          desired-vel (Vector3.mul &delta (/ 1.0 dt))
+                          curr-vel @(Body.velocity body)]
+                      (do
+                        (if @(Player.flying player)
+                          (do
+                            (Body.set-body-type! body (BodyType.Kinematic))
+                            (Body.set-velocity! body (Vector3.init 0.0 0.0 0.0))
+                            (let [t (RigidBody.transform rb)
+                                  eye-offset (Vector3.init 0.0 1.2 0.0)
+                                  phys-pos (Vector3.sub &new-pos &eye-offset)]
+                              (do
+                                (Transform.set-position! t phys-pos)
+                                (RigidBody.set-transform! rb @t))))
+                          (do
+                            (Body.set-body-type! body (BodyType.Dynamic))
+                            ;; Jumping
+                            (when (and (= (GLFW.get-key win GLFW.Keycode.SPACE) GLFW.PRESS) (< (Double.abs @(Vector3.y &curr-vel)) 0.1))
+                              (set! desired-vel (Vector3.init @(Vector3.x &desired-vel) 12.0 @(Vector3.z &desired-vel))))
+                            
+                            (Body.set-velocity! body (Vector3.init @(Vector3.x &desired-vel) (if (> @(Vector3.y &desired-vel) 0.0) @(Vector3.y &desired-vel) @(Vector3.y &curr-vel)) @(Vector3.z &desired-vel)))))
+                        
+                        (RigidBody.set-body! rb @body)
+                        (ECS.add-component! (EngineState.ecs-world state) &p-ent (CompBody.init @rb))
+                        
+                        ;; Move camera back to physics pos for this frame rendering
+                        (Pointer.set (ref-to-ptr (Camera.pos cam)) old-pos)))))
+              (Maybe.Nothing) ())))
+
+        (when (= (GLFW.get-key win GLFW.Keycode.R) GLFW.PRESS)
+          (let [pos (Camera.pos cam)
+                dir (Camera.front cam)
+                vel (Vector3.mul dir 15.0)
+                color (Vector3.init 0.8 0.2 0.2)
+                ecs (EngineState.ecs-world state)
+                e (GameWorld.create-entity! ecs)
+                rb (RigidBody.new @pos (Quaternion.identity) 1.0 0.6 0.4 0.1 0.1 0.1)
+                vol (Volume.Ball (Sphere.init @pos 0.5))]
+            (do
+              (Body.set-velocity! (RigidBody.body &rb) vel)
+              (add-component! ecs &e (CompBody.init rb))
+              (add-component! ecs &e (CompVolume.init vol))
+              (add-component! ecs &e (CompColor.init color)))))
+
+        (Diagnostics.with-zone diag "Physics Solver"
+          (Physics.step-physics-entities! world (EngineState.ecs-world state) (EngineState.grid state) dt))
         
         ;; 2. Stream chunks centered on player
         (Diagnostics.with-zone diag "Chunk Streaming"
@@ -265,7 +338,6 @@
           cam (Player.camera (EngineState.player state))
           diag (EngineState.diag state)]
       (do
-        ;; Draw world boundary box (red)
         (let [cx (Double.to-int (Double.floor (/ @(Vector3.x (Camera.pos cam)) 32.0)))
               cy (Double.to-int (Double.floor (/ @(Vector3.y (Camera.pos cam)) 32.0)))
               cz (Double.to-int (Double.floor (/ @(Vector3.z (Camera.pos cam)) 32.0)))
@@ -274,6 +346,21 @@
               bz (Double.from-int (* (- cz 2) 32))
               red-color (Vector3.init 1.0 0.1 0.1)]
           (EngineState.draw-bounds-wireframe! ren bx by bz (+ bx 160.0) (+ by 160.0) (+ bz 160.0) &red-color))
+        
+        ;; Draw active physics entities
+        (let [ecs (EngineState.ecs-world state)]
+          (query ecs (e (cv CompVolume) (cc CompColor))
+            (let [vol (CompVolume.vol cv)
+                  aabb (Collision.get-aabb vol)
+                  color (CompColor.col cc)]
+              (EngineState.draw-bounds-wireframe! ren 
+                @(Vector3.x (AABB.min &aabb))
+                @(Vector3.y (AABB.min &aabb))
+                @(Vector3.z (AABB.min &aabb))
+                @(Vector3.x (AABB.max &aabb))
+                @(Vector3.y (AABB.max &aabb))
+                @(Vector3.z (AABB.max &aabb))
+                color))))
         
         (Engine.handle-resize platform-eng)
         (Diagnostics.start-zone! diag "Renderer & Draw")

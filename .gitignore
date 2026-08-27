@@ -1,0 +1,8 @@
+*.py
+*.c
+*.o
+index.js
+index.wasm
+src/components.carp
+src/physics_integration.carp
+src/temp_test.carp

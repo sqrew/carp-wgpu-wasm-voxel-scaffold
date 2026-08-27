@@ -1,0 +1,40 @@
+(load "../../carp-ecs-lite/src/ecs.carp")
+(load "Vector.carp")
+(load "../../carp-physics-3d/rigidbody.carp")
+(load "../../carp-physics-3d/collision.carp")
+
+(use ECS)
+(use Vector3)
+(use Double)
+(use RigidBody)
+(use Collision)
+
+(deftype CompBody [rb RigidBody])
+(deftype CompVolume [vol Volume])
+(deftype CompColor [col (Vector3 Double)])
+
+
+(defmodule CompBody
+  (defn zero [] (CompBody.init (RigidBody.static (Vector3.init 0.0 0.0 0.0) (Quaternion.identity) 0.5 0.5)))
+  (implements zero CompBody.zero))
+
+(defmodule CompVolume
+  (defn zero [] (CompVolume.init (Volume.Ball (Sphere.init (Vector3.init 0.0 0.0 0.0) 0.0))))
+  (implements zero CompVolume.zero))
+
+(defmodule CompColor
+  (defn zero [] (CompColor.init (Vector3.init 0.0 0.0 0.0)))
+  (implements zero CompColor.zero))
+
+(deftype CompLifetime [ttl Double])
+(defmodule CompLifetime
+  (defn zero [] (CompLifetime.init 0.0))
+  (implements zero CompLifetime.zero))
+
+(deftype CompPlayer [])
+(defmodule CompPlayer
+  (defn zero [] (CompPlayer.init))
+  (implements zero CompPlayer.zero))
+
+(ECS.defworld GameWorld CompBody CompVolume CompColor CompLifetime CompPlayer)
+

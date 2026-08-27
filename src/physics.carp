@@ -1,3 +1,4 @@
+(load "ecs_world.carp")
 (load "world.carp")
 (load "camera.carp")
 (load "../../carp-physics-3d/geometry.carp")
@@ -10,18 +11,27 @@
   (defn is-solid-at? [world gx gy gz]
     (let [qx (Double.to-int (Double.floor (/ (Double.from-int gx) 32.0)))
           qy (Double.to-int (Double.floor (/ (Double.from-int gy) 32.0)))
-          qz (Double.to-int (Double.floor (/ (Double.from-int gz) 32.0)))]
-      (match (World.find-chunk world qx qy qz)
-        (Maybe.Nothing) false
-        (Maybe.Just chunk)
-          (let [lx (Physics.clamp 0 31 (- gx (* qx 32)))
-                ly (Physics.clamp 0 31 (- gy (* qy 32)))
-                lz (Physics.clamp 0 31 (- gz (* qz 32)))
-                idx (+ (* lz 1024) (+ (* ly 32) lx))
-                offset (* idx 4)
-                mat-id @(Array.unsafe-nth (Chunk.voxel-data &chunk) offset)
-                sdf @(Array.unsafe-nth (Chunk.voxel-data &chunk) (+ offset 1))]
-            (and (>= mat-id 1.0f) (<= sdf 0.05f))))))
+          qz (Double.to-int (Double.floor (/ (Double.from-int gz) 32.0)))
+          chunks (World.chunks world)
+          tx (World.positive-mod qx 5)
+          ty (World.positive-mod qy 5)
+          tz (World.positive-mod qz 5)
+          slot-idx (+ tx (+ (* ty 5) (* tz 25)))]
+      (if (< slot-idx (Array.length chunks))
+        (let [chunk (Array.unsafe-nth chunks slot-idx)]
+          (if (and (= qx @(Chunk.coord-x chunk))
+                   (and (= qy @(Chunk.coord-y chunk))
+                        (= qz @(Chunk.coord-z chunk))))
+            (let [lx (Physics.clamp 0 31 (- gx (* qx 32)))
+                  ly (Physics.clamp 0 31 (- gy (* qy 32)))
+                  lz (Physics.clamp 0 31 (- gz (* qz 32)))
+                  idx (+ (* lz 1024) (+ (* ly 32) lx))
+                  offset (* idx 4)
+                  mat-id @(Array.unsafe-nth (Chunk.voxel-data chunk) offset)
+                  sdf @(Array.unsafe-nth (Chunk.voxel-data chunk) (+ offset 1))]
+              (and (>= mat-id 1.0f) (<= sdf 0.05f)))
+            false))
+        false)))
 
 
   (defn sample-sdf-at [world gx gy gz]
@@ -276,4 +286,156 @@
                         (set! p-aabb (Physics.get-player-aabb-shrunk &(Vector3.init res-x res-y res-z) 0.02 0.0 0.02))))))))))
         
         (Pointer.set p-pos (Vector3.init res-x res-y res-z)))))
+)
+
+;; --- CARP-PHYSICS-3D INTEGRATION ---
+(load "../../carp-physics-3d/dynamics.carp")
+(load "../../carp-physics-3d/rigidbody.carp")
+(load "../../carp-physics-3d/collision.carp")
+(load "../../carp-physics-3d/grid.carp")
+(load "../../carp-physics-3d/solver.carp")
+
+(use Body)
+(use RigidBody)
+(use Collision)
+(use SpatialGrid)
+(use Solver)
+
+(defmodule Volume
+  (defn copy [v]
+    (match-ref v
+      (Volume.Box b) (Volume.Box @b)
+      (Volume.Ball s) (Volume.Ball @s)
+      (Volume.Surface p) (Volume.Surface @p)
+      (Volume.Sdf s) (Volume.Sdf @s)))
+)
+(implements copy Volume.copy)
+
+
+
+(defmodule Physics
+  (sig step-physics-entities! (Fn [(Ref World) (Ref GameWorld) (Ref (SpatialGrid Int)) Double] ()))
+      (defn step-physics-entities! [world game-world grid dt]
+    (let [manifolds (the (Array Collision) [])
+          fixed-dt dt
+          iterations 8
+          dummy-static (RigidBody.static (Vector3.init 0.0 0.0 0.0) (Quaternion.identity) 0.5 0.5)]
+      (do
+        ;; 1. Step active bodies
+        (query game-world (e (cb CompBody))
+          (let [rb (CompBody.rb cb)]
+            (do
+              (let [b (RigidBody.body rb)]
+                (do
+                  (Body.apply-force! b &(Vector3.init 0.0 -25.0 0.0))
+                  (RigidBody.set-body! rb @b)))
+              (RigidBody.step-custom! rb fixed-dt fixed-dt)
+              (ECS.add-component! game-world &e (CompBody.init @rb)))))
+        
+        ;; 2. Rebuild Spatial Grid
+        (SpatialGrid.clear! grid)
+        (query game-world (e (cb CompBody) (cv CompVolume))
+          (let [rb (CompBody.rb cb)
+                pos (RigidBody.position rb)
+                vol (CompVolume.vol cv)]
+            (do
+              (match-ref vol
+                (Volume.Ball s) (Sphere.set-center! s @pos)
+                (Volume.Box b)
+                  (let [half-extents (Vector3.mul &(Vector3.sub (AABB.max b) (AABB.min b)) 0.5)]
+                    (do
+                      (AABB.set-min! b (Vector3.sub pos &half-extents))
+                      (AABB.set-max! b (Vector3.add pos &half-extents))))
+                _ ())
+              (let [aabb (Collision.get-aabb vol)
+                    ent-id (Long.to-int (Uint64.to-long (ECS.Entity.index &e)))]
+                (SpatialGrid.insert! grid &aabb ent-id)))))
+
+        ;; 3. Detect Collisions
+        (query game-world (e (cb CompBody) (cv CompVolume))
+          (let [rb (CompBody.rb cb)
+                pos (RigidBody.position rb)
+                vol (CompVolume.vol cv)
+                aabb (Collision.get-aabb vol)
+                candidates (SpatialGrid.query-unique grid &aabb)
+                contacts (the (Array Contact) [])
+                i (Long.to-int (Uint64.to-long (ECS.Entity.index &e)))]
+            (do
+              ;; 3a. SDF Collision
+              (match-ref vol
+                (Volume.Ball s)
+                  (let [rad @(Sphere.radius s)
+                        d (Double.from-float (Physics.sample-sdf-trilinear world pos))]
+                    (when (< d rad)
+                      (let [depth (Physics.dmin 0.4 (- rad d))
+                            normal (Physics.estimate-sdf-normal world pos)
+                            contact-pt (Vector3.sub pos &(Vector3.mul &normal rad))]
+                        (Array.push-back! &contacts (Contact.init depth contact-pt normal)))))
+                _ ())
+              
+              (when (not (Array.empty? &contacts))
+                (let [c-set (ContactSet.init (the (Handle ()) (Handle.init (Uint64.from-long (the Long (Long.from-int i))) (Uint32.from-long 1l)))
+                                              (the (Handle ()) (Handle.init (Uint64.from-long 0l) (Uint32.from-long 1l)))
+                                              @&contacts)
+                      m (Collision.init c-set)]
+                  (Array.push-back! &manifolds m)))
+              
+              ;; 3b. Entity Collision
+              (let [c 0
+                    cand-len (Array.length &candidates)]
+                (while (< c cand-len)
+                  (do
+                    (let [other-idx @(Array.unsafe-nth &candidates c)]
+                      (when (and (/= i other-idx) (< i other-idx))
+                        (let [other-ent (ECS.Entity.init (Handle.init (Uint64.from-long (the Long (Long.from-int other-idx))) (Uint32.from-long 1l)))
+                              other-cv-opt (get-component game-world &other-ent)]
+                          (match other-cv-opt
+                            (Maybe.Just other-cv)
+                              (let [col1 (Collidable.init (the (Handle ()) (Handle.init (Uint64.from-long (the Long (Long.from-int i))) (Uint32.from-long 1l))) @vol (Uint32.from-long 1l) (Uint32.from-long 1l) false)
+                                    col2 (Collidable.init (the (Handle ()) (Handle.init (Uint64.from-long (the Long (Long.from-int other-idx))) (Uint32.from-long 1l))) @(CompVolume.vol &other-cv) (Uint32.from-long 1l) (Uint32.from-long 1l) false)
+                                    res (CollisionChecker.check-pair &col1 &col2)]
+                                (match res
+                                  (Maybe.Just (CollisionResult.Physical actual-col))
+                                    (Array.push-back! &manifolds actual-col)
+                                  _ ()))
+                            (Maybe.Nothing) ()))))
+                    (set! c (+ c 1))))))))
+
+        ;; 4. Solve Constraints
+        (let [iter 0]
+          (while (< iter iterations)
+            (do
+              (let [m-idx 0
+                    m-len (Array.length &manifolds)]
+                (while (< m-idx m-len)
+                  (do
+                    (let [col (Array.unsafe-nth &manifolds m-idx)
+                          m (Collision.contact-set col)
+                          h-a (ContactSet.a m)
+                          h-b (ContactSet.b m)
+                          idx-a (Long.to-int (Uint64.to-long (Handle.index h-a)))
+                          idx-b (Long.to-int (Uint64.to-long (Handle.index h-b)))
+                          ent-a (ECS.Entity.init (Handle.init (Uint64.from-long (the Long (Long.from-int idx-a))) (Uint32.from-long 1l)))
+                          cb-a-opt (get-component game-world &ent-a)]
+                      (match cb-a-opt
+                        (Maybe.Just cb-a)
+                          (let [rb-a (CompBody.rb &cb-a)]
+                            (if (= idx-b 0)
+                              (do
+                                (Solver.solve! rb-a &dummy-static m fixed-dt)
+                                (ECS.add-component! game-world &ent-a @&cb-a))
+                              (let [ent-b (ECS.Entity.init (Handle.init (Uint64.from-long (the Long (Long.from-int idx-b))) (Uint32.from-long 1l)))
+                                    cb-b-opt (get-component game-world &ent-b)]
+                                (match cb-b-opt
+                                  (Maybe.Just cb-b)
+                                    (let [rb-b (CompBody.rb &cb-b)]
+                                      (do
+                                        (Solver.solve! rb-a rb-b m fixed-dt)
+                                        (ECS.add-component! game-world &ent-a @&cb-a)
+                                        (ECS.add-component! game-world &ent-b @&cb-b)))
+                                  (Maybe.Nothing) ()))))
+                        (Maybe.Nothing) ()))
+                    (set! m-idx (+ m-idx 1)))))
+              (set! iter (+ iter 1))))))))
+
 )
