@@ -126,158 +126,42 @@
         (Diagnostics.start-zone! diag "Total Frame Time")
         (Diagnostics.start-zone! diag "Input & Camera"))))
 
+  )
+
+(load "systems/player.carp")
+(load "systems/spawning.carp")
+(load "systems/editing.carp")
+
+(defmodule EngineState
+
 
   (defn update! [state win dt first-mouse-ptr last-x-ptr last-y-ptr]
     (let [platform-eng (EngineState.eng state)
           ren (EngineState.renderer state)
+          world (EngineState.world state)
           player (EngineState.player state)
           cam (Player.camera player)
-          world (EngineState.world state)
-          prev-pos @(Camera.pos cam)
           diag (EngineState.diag state)]
       (do
-        ;; 1. Handle player inputs (movement, look, flying, radius presets, cycling)
         (Diagnostics.with-zone diag "Player Physics & Input"
-          (let [p-ent-id (EngineState.player-ent-id state)
-                p-ent (ECS.Entity.init (Handle.init (Uint64.from-long (the Long (Long.from-int @p-ent-id))) (Uint32.from-long 1l)))
-                cb-opt (get-component (EngineState.ecs-world state) &p-ent)]
-            (match cb-opt
-              (Maybe.Just cb)
-                (let [rb (CompBody.rb &cb)
-                      body (RigidBody.body rb)
-                      old-pos @(Camera.pos cam)]
-                  (do
-                    ;; Sync camera to physics before input
-                    (Pointer.set (ref-to-ptr (Camera.pos cam)) (Vector3.add (RigidBody.position rb) &(Vector3.init 0.0 1.2 0.0)))
-                    (set! old-pos @(Camera.pos cam))
-                    
-                    (Player.handle-input! player win dt first-mouse-ptr last-x-ptr last-y-ptr)
-                    
-                    ;; Calculate desired movement velocity from WASD
-                    (let [new-pos @(Camera.pos cam)
-                          delta (Vector3.sub &new-pos &old-pos)
-                          desired-vel (Vector3.mul &delta (/ 1.0 dt))
-                          curr-vel @(Body.velocity body)]
-                      (do
-                        (if @(Player.flying player)
-                          (do
-                            (Body.set-body-type! body (BodyType.Kinematic))
-                            (Body.set-velocity! body (Vector3.init 0.0 0.0 0.0))
-                            (let [t (RigidBody.transform rb)
-                                  eye-offset (Vector3.init 0.0 1.2 0.0)
-                                  phys-pos (Vector3.sub &new-pos &eye-offset)]
-                              (do
-                                (Transform.set-position! t phys-pos)
-                                (RigidBody.set-transform! rb @t))))
-                          (do
-                            (Body.set-body-type! body (BodyType.Dynamic))
-                            ;; Jumping
-                            (let [cg-opt (get-component (EngineState.ecs-world state) &p-ent)
-                                  is-grounded (match cg-opt
-                                                (Maybe.Just cg) @(CompGrounded.grounded &cg)
-                                                (Maybe.Nothing) false)]
-                              (when (and (= (GLFW.get-key win GLFW.Keycode.SPACE) GLFW.PRESS) is-grounded)
-                                (set! desired-vel (Vector3.init @(Vector3.x &desired-vel) 12.0 @(Vector3.z &desired-vel)))))
-                            
-                            (Body.set-velocity! body (Vector3.init @(Vector3.x &desired-vel) (if (> @(Vector3.y &desired-vel) 0.0) @(Vector3.y &desired-vel) @(Vector3.y &curr-vel)) @(Vector3.z &desired-vel)))))
-                        
-                        (RigidBody.set-body! rb @body)
-                        (ECS.add-component! (EngineState.ecs-world state) &p-ent (CompBody.init @rb))
-                        
-                        ;; Move camera back to physics pos for this frame rendering
-                        (Pointer.set (ref-to-ptr (Camera.pos cam)) old-pos)))))
-              (Maybe.Nothing) ())))
-
-        (when (= (GLFW.get-key win GLFW.Keycode.R) GLFW.PRESS)
-          (let [pos (Camera.pos cam)
-                dir (Camera.front cam)
-                vel (Vector3.mul dir 15.0)
-                color (Vector3.init 0.8 0.2 0.2)
-                ecs (EngineState.ecs-world state)
-                e (GameWorld.create-entity! ecs)
-                rb (RigidBody.new @pos (Quaternion.identity) 1.0 0.6 0.4 0.1 0.1 0.1)
-                vol (Volume.Ball (Sphere.init @pos 0.5))]
-            (do
-              (Body.set-velocity! (RigidBody.body &rb) vel)
-              (add-component! ecs &e (CompBody.init rb))
-              (add-component! ecs &e (CompVolume.init vol))
-              (add-component! ecs &e (CompColor.init color)))))
+          (PlayerSystem.update! state win dt first-mouse-ptr last-x-ptr last-y-ptr))
+          
+        (Diagnostics.with-zone diag "Spawning"
+          (SpawningSystem.update! state win))
 
         (Diagnostics.with-zone diag "Physics Solver"
           (Physics.step-physics-entities! world (EngineState.ecs-world state) (EngineState.grid state) dt))
         
-        ;; 2. Stream chunks centered on player
         (Diagnostics.with-zone diag "Chunk Streaming"
           (EngineState.stream-chunks! world platform-eng ren (Camera.pos cam)))
         
-        ;; 3. Raycast & Voxel Editing (carve/splat)
         (Diagnostics.with-zone diag "Voxel Editing & Raycast"
-          (let [ro (Camera.pos cam)
-                rd (Camera.front cam)
-                hit-opt (World.raycast world ro rd 80.0)]
-            (match hit-opt
-              (Maybe.Nothing)
-                (do
-                  (Pointer.set (ref-to-ptr (EngineState.hit-active state)) 0.0f)
-                  (Pointer.set (ref-to-ptr (EngineState.liquid-spawn state)) 0.0f)
-                  (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) 0.0f))
-              (Maybe.Just hit-pos)
-                (do
-                  ;; Target highlight box (yellow)
-                  (let [yellow (Vector3.init 1.0 1.0 0.0)
-                        hx @(Vector3.x &hit-pos)
-                        hy @(Vector3.y &hit-pos)
-                        hz @(Vector3.z &hit-pos)]
-                    (EngineState.draw-bounds-wireframe! ren (- hx 0.5) (- hy 0.5) (- hz 0.5) (+ hx 0.5) (+ hy 0.5) (+ hz 0.5) &yellow))
-                  
-                   ;; Click to edit and cycle types
-                   (let [left-pressed (= (GLFW.get-mouse-button win 0) GLFW.PRESS)
-                         right-pressed (= (GLFW.get-mouse-button win 1) GLFW.PRESS)
-                         f-held (= (GLFW.get-key win GLFW.Keycode.F) GLFW.PRESS)
-                         h-held (= (GLFW.get-key win GLFW.Keycode.H) GLFW.PRESS)
-                         g-held (= (GLFW.get-key win GLFW.Keycode.G) GLFW.PRESS)]
-                     (do
-                       ;; Set hit-active and spawn values
-                       (Pointer.set (ref-to-ptr (EngineState.hit-x state)) (Double.to-float @(Vector3.x &hit-pos)))
-                       (Pointer.set (ref-to-ptr (EngineState.hit-y state)) (Double.to-float @(Vector3.y &hit-pos)))
-                       (Pointer.set (ref-to-ptr (EngineState.hit-z state)) (Double.to-float @(Vector3.z &hit-pos)))
-                       
-                       (if (or left-pressed right-pressed)
-                         (do
-                           (Pointer.set (ref-to-ptr (EngineState.hit-active state)) 1.0f)
-                           (if h-held
-                             (Pointer.set (ref-to-ptr (EngineState.liquid-spawn state)) @(Player.current-liq player))
-                             (Pointer.set (ref-to-ptr (EngineState.liquid-spawn state)) 0.0f))
-                           (if g-held
-                             (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) @(Player.current-gas player))
-                             (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) 0.0f)))
-                         (do
-                           (Pointer.set (ref-to-ptr (EngineState.hit-active state)) 0.0f)
-                           (Pointer.set (ref-to-ptr (EngineState.liquid-spawn state)) 0.0f)
-                           (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) 0.0f)))
-                       
-                       ;; Edit solid terrain if F is held
-                       (when (and (or left-pressed right-pressed) f-held)
-                         (let [radius @(Player.edit-radius player)
-                               mat-id @(Player.current-mat player)
-                               carve? left-pressed
-                               modified-coords (World.edit-sdf! world &hit-pos radius mat-id carve?)]
-                           (do
-                             (for [j 0 (Array.length &modified-coords)]
-                               (let [coord (Array.unsafe-nth &modified-coords j)
-                                     qx @(ChunkCoord.x coord)
-                                     qy @(ChunkCoord.y coord)
-                                     qz @(ChunkCoord.z coord)
-                                     chunk-opt (World.find-chunk world qx qy qz)]
-                                 (match chunk-opt
-                                   (Maybe.Nothing) ()
-                                    (Maybe.Just chunk)
-                                       (Renderer.update-chunk-texture platform-eng ren qx qy qz (Chunk.voxel-data &chunk)))))))))))))))))
+          (EditingSystem.update! state win)))))
 
   (defn post-update! [state]
     (Diagnostics.end-zone! (EngineState.diag state) "Input & Camera"))
 
-   (defn update-gpu-uniforms [state]
+  (defn update-gpu-uniforms [state]
     (let [eng (EngineState.eng state)
           ren (EngineState.renderer state)
           player (EngineState.player state)

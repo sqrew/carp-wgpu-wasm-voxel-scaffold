@@ -1,0 +1,54 @@
+(defmodule PlayerSystem
+  (defn update! [state win dt first-mouse-ptr last-x-ptr last-y-ptr]
+    (let [player (EngineState.player state)
+          cam (Player.camera player)
+          p-ent-id (EngineState.player-ent-id state)
+          p-ent (ECS.Entity.init (Handle.init (Uint64.from-long (the Long (Long.from-int @p-ent-id))) (Uint32.from-long 1l)))
+          cb-opt (get-component (EngineState.ecs-world state) &p-ent)]
+      (match cb-opt
+        (Maybe.Just cb)
+          (let [rb (CompBody.rb &cb)
+                body (RigidBody.body rb)
+                old-pos @(Camera.pos cam)]
+            (do
+              ;; Sync camera to physics before input
+              (Pointer.set (ref-to-ptr (Camera.pos cam)) (Vector3.add (RigidBody.position rb) &(Vector3.init 0.0 1.2 0.0)))
+              (set! old-pos @(Camera.pos cam))
+              
+              (Player.handle-input! player win dt first-mouse-ptr last-x-ptr last-y-ptr)
+              
+              ;; Calculate desired movement velocity from WASD
+              (let [new-pos @(Camera.pos cam)
+                    delta (Vector3.sub &new-pos &old-pos)
+                    desired-vel (Vector3.mul &delta (/ 1.0 dt))
+                    curr-vel @(Body.velocity body)]
+                (do
+                  (if @(Player.flying player)
+                    (do
+                      (Body.set-body-type! body (BodyType.Kinematic))
+                      (Body.set-velocity! body (Vector3.init 0.0 0.0 0.0))
+                      (let [t (RigidBody.transform rb)
+                            eye-offset (Vector3.init 0.0 1.2 0.0)
+                            phys-pos (Vector3.sub &new-pos &eye-offset)]
+                        (do
+                          (Transform.set-position! t phys-pos)
+                          (RigidBody.set-transform! rb @t))))
+                    (do
+                      (Body.set-body-type! body (BodyType.Dynamic))
+                      ;; Jumping
+                      (let [cg-opt (get-component (EngineState.ecs-world state) &p-ent)
+                            is-grounded (match cg-opt
+                                          (Maybe.Just cg) @(CompGrounded.grounded &cg)
+                                          (Maybe.Nothing) false)]
+                        (when (and (= (GLFW.get-key win GLFW.Keycode.SPACE) GLFW.PRESS) is-grounded)
+                          (set! desired-vel (Vector3.init @(Vector3.x &desired-vel) 12.0 @(Vector3.z &desired-vel)))))
+                      
+                      (Body.set-velocity! body (Vector3.init @(Vector3.x &desired-vel) (if (> @(Vector3.y &desired-vel) 0.0) @(Vector3.y &desired-vel) @(Vector3.y &curr-vel)) @(Vector3.z &desired-vel)))))
+                  
+                  (RigidBody.set-body! rb @body)
+                  (ECS.add-component! (EngineState.ecs-world state) &p-ent (CompBody.init @rb))
+                  
+                  ;; Move camera back to physics pos for this frame rendering
+                  (Pointer.set (ref-to-ptr (Camera.pos cam)) old-pos)))))
+        (Maybe.Nothing) ())))
+)
