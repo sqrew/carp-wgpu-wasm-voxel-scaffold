@@ -18,7 +18,8 @@
     (match (EngineState.create "Carp WebGPU WASM Voxel Scaffold" win-width win-height)
       (Result.Error e) (do (println* "Engine failed: " &e) -1)
       (Result.Success state)
-        (let [win @(Engine.win (EngineState.eng &state))
+        (let [_ (EngineState.register-handlers! &state)
+              win @(Engine.win (EngineState.eng &state))
               last-time (GLFW.get-time)
               first-mouse true
               last-x 640.0

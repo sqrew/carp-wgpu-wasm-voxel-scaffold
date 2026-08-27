@@ -15,5 +15,10 @@
             (Body.set-velocity! (RigidBody.body &rb) vel)
             (add-component! ecs &e (CompBody.init rb))
             (add-component! ecs &e (CompVolume.init vol))
-            (add-component! ecs &e (CompColor.init color)))))))
+            (add-component! ecs &e (CompColor.init color))
+            (let [id-long (Uint64.to-long (ECS.Entity.index &e))
+                  id-uint id-long]
+              (do
+                (let [_ (Coordinator.schedule! (EngineState.coord state) (AppEvent.DespawnEntity id-uint) 5000l)] ())
+                ())))))))
 )

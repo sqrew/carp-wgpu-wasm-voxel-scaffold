@@ -3,6 +3,11 @@
 (load "world.carp")
 (load "renderer.carp")
 (load "../carp-diagnostics/diagnostics.carp")
+(load "../carp-coordinator/dispatch.carp")
+(use Coordinator)
+(use Dispatcher)
+(use Scheduler)
+(load "events.carp")
 
 
 
@@ -23,6 +28,7 @@
   ecs-world GameWorld
   player-ent-id Int
   grid (SpatialGrid Int)
+  coord (Coordinator AppEvent)
 ])
 
 (defmodule EngineState
@@ -58,7 +64,7 @@
                     (ECS.add-component! &ecs-world &player-ent (CompVolume.init vol))
                     (ECS.add-component! &ecs-world &player-ent (CompPlayer.init))
                     (ECS.add-component! &ecs-world &player-ent (CompGrounded.init false))
-                    (Result.Success (EngineState.init platform-eng ren world player uniforms diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid)))))))))
+                    (Result.Success (EngineState.init platform-eng ren world player uniforms diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid (Coordinator.new))))))))))
 
   (defn draw-bounds-wireframe! [ren min-x min-y min-z max-x max-y max-z color]
     (let [w0 (Vector3.init min-x min-y min-z)
@@ -135,6 +141,16 @@
 (defmodule EngineState
 
 
+  (defn register-handlers! [state]
+    (Coordinator.subscribe! (EngineState.coord state)
+      &(fn [ev]
+        (match-ref ev
+          (AppEvent.DespawnEntity id)
+            (let [ent (ECS.Entity.init (Handle.init (Uint64.from-long @id) (Uint32.from-long 1l)))]
+              (do
+                (GameWorld.destroy-entity! (EngineState.ecs-world state) &ent)
+                (Result.Success ())))))))
+
   (defn update! [state win dt first-mouse-ptr last-x-ptr last-y-ptr]
     (let [platform-eng (EngineState.eng state)
           ren (EngineState.renderer state)
@@ -143,6 +159,10 @@
           cam (Player.camera player)
           diag (EngineState.diag state)]
       (do
+        (Diagnostics.start-zone! diag "Event Coordinator")
+        (let [_ (Coordinator.tick! (EngineState.coord state))] ())
+        (Diagnostics.end-zone! diag "Event Coordinator")
+        
         (Diagnostics.with-zone diag "Player Physics & Input"
           (PlayerSystem.update! state win dt first-mouse-ptr last-x-ptr last-y-ptr))
           
