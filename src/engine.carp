@@ -36,7 +36,7 @@
           (Result.Success ren)
             (let [world (World.create)
                   player (Player.create (Vector3.init 32.0 45.0 32.0))
-                  uniforms (Array.allocate 32)
+                  uniforms (Array.allocate 416)
                   diag (Diagnostics.new @"diagnostics.log")
                   ecs-world (GameWorld.new)
                   grid (SpatialGrid.new 5.0 20 20 20)]
@@ -335,7 +335,57 @@
         (Array.aset! uniforms 30 @(EngineState.gas-spawn state))
         (Array.aset! uniforms 31 0.5f)
         
-        (Engine.update-uniform-buffer eng @(Renderer.uniform-buffer ren) uniforms))))
+        (let [ecs (EngineState.ecs-world state)
+              count-idx 32
+              start-idx 36
+              num-entities 0]
+          (do
+            (query ecs (e (cv CompVolume) (cc CompColor))
+              (when (< num-entities 31)
+                (let [idx (+ start-idx (* num-entities 12))
+                      vol (CompVolume.vol cv)
+                      color (CompColor.col cc)]
+                  (do
+                    (Array.aset! uniforms (+ idx 8) (Double.to-float @(Vector3.x color)))
+                    (Array.aset! uniforms (+ idx 9) (Double.to-float @(Vector3.y color)))
+                    (Array.aset! uniforms (+ idx 10) (Double.to-float @(Vector3.z color)))
+                    (Array.aset! uniforms (+ idx 11) 1.0f)
+                    (match-ref vol
+                      (Volume.Ball s)
+                        (do
+                          (Array.aset! uniforms (+ idx 0) (Double.to-float @(Vector3.x (Sphere.center s))))
+                          (Array.aset! uniforms (+ idx 1) (Double.to-float @(Vector3.y (Sphere.center s))))
+                          (Array.aset! uniforms (+ idx 2) (Double.to-float @(Vector3.z (Sphere.center s))))
+                          (Array.aset! uniforms (+ idx 3) 0.0f)
+                          (Array.aset! uniforms (+ idx 4) 0.0f)
+                          (Array.aset! uniforms (+ idx 5) 0.0f)
+                          (Array.aset! uniforms (+ idx 6) 0.0f)
+                          (Array.aset! uniforms (+ idx 7) (Double.to-float @(Sphere.radius s))))
+                      (Volume.Box aabb)
+                        (let [vmin (AABB.min aabb)
+                              vmax (AABB.max aabb)
+                              cx (/ (+ @(Vector3.x vmin) @(Vector3.x vmax)) 2.0)
+                              cy (/ (+ @(Vector3.y vmin) @(Vector3.y vmax)) 2.0)
+                              cz (/ (+ @(Vector3.z vmin) @(Vector3.z vmax)) 2.0)
+                              ex (/ (- @(Vector3.x vmax) @(Vector3.x vmin)) 2.0)
+                              ey (/ (- @(Vector3.y vmax) @(Vector3.y vmin)) 2.0)
+                              ez (/ (- @(Vector3.z vmax) @(Vector3.z vmin)) 2.0)]
+                          (do
+                            (Array.aset! uniforms (+ idx 0) (Double.to-float cx))
+                            (Array.aset! uniforms (+ idx 1) (Double.to-float cy))
+                            (Array.aset! uniforms (+ idx 2) (Double.to-float cz))
+                            (Array.aset! uniforms (+ idx 3) 1.0f)
+                            (Array.aset! uniforms (+ idx 4) (Double.to-float ex))
+                            (Array.aset! uniforms (+ idx 5) (Double.to-float ey))
+                            (Array.aset! uniforms (+ idx 6) (Double.to-float ez))
+                            (Array.aset! uniforms (+ idx 7) 0.0f))))
+                    (set! num-entities (+ num-entities 1))))))
+            (Array.aset! uniforms count-idx (Float.from-int num-entities))
+            (Array.aset! uniforms (+ count-idx 1) 0.0f)
+            (Array.aset! uniforms (+ count-idx 2) 0.0f)
+            (Array.aset! uniforms (+ count-idx 3) 0.0f)
+            
+            (Engine.update-uniform-buffer eng @(Renderer.uniform-buffer ren) uniforms))))))
 
   (defn pre-render! [state]
     (let [platform-eng (EngineState.eng state)
@@ -351,21 +401,6 @@
               bz (Double.from-int (* (- cz 2) 32))
               red-color (Vector3.init 1.0 0.1 0.1)]
           (EngineState.draw-bounds-wireframe! ren bx by bz (+ bx 160.0) (+ by 160.0) (+ bz 160.0) &red-color))
-        
-        ;; Draw active physics entities
-        (let [ecs (EngineState.ecs-world state)]
-          (query ecs (e (cv CompVolume) (cc CompColor))
-            (let [vol (CompVolume.vol cv)
-                  aabb (Collision.get-aabb vol)
-                  color (CompColor.col cc)]
-              (EngineState.draw-bounds-wireframe! ren 
-                @(Vector3.x (AABB.min &aabb))
-                @(Vector3.y (AABB.min &aabb))
-                @(Vector3.z (AABB.min &aabb))
-                @(Vector3.x (AABB.max &aabb))
-                @(Vector3.y (AABB.max &aabb))
-                @(Vector3.z (AABB.max &aabb))
-                color))))
         
         (Engine.handle-resize platform-eng)
         (Diagnostics.start-zone! diag "Renderer & Draw")

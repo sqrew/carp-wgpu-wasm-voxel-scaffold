@@ -1,5 +1,11 @@
 (def voxel-wgsl
-  "struct Uniforms {
+  "struct Entity {
+    pos_type: vec4<f32>,
+    extents_rad: vec4<f32>,
+    color: vec4<f32>,
+}
+
+struct Uniforms {
     time: f32,
     width: f32,
     height: f32,
@@ -11,6 +17,11 @@
     sun_dir: vec4<f32>,
     hit_pos: vec4<f32>,
     edit_params: vec4<f32>,
+    entity_count: f32,
+    pad1: f32,
+    pad2: f32,
+    pad3: f32,
+    entities: array<Entity, 31>,
 }
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -85,6 +96,29 @@ fn getAO(p: vec3<f32>, n: vec3<f32>) -> f32 {
         sca *= 0.95;
     }
     return clamp(1.0 - occ * 4.0, 0.0, 1.0);
+}
+
+fn map_entities(p: vec3<f32>, out_color: ptr<function, vec3<f32>>) -> f32 {
+    var min_d = 10000.0;
+    let count = u32(u.entity_count);
+    for (var i: u32 = 0u; i < count; i = i + 1u) {
+        let e = u.entities[i];
+        let p_local = p - e.pos_type.xyz;
+        var d = 10000.0;
+        if (e.pos_type.w < 0.5) {
+            // Sphere
+            d = length(p_local) - e.extents_rad.w;
+        } else {
+            // Box
+            let q = abs(p_local) - e.extents_rad.xyz;
+            d = length(max(q, vec3<f32>(0.0))) + min(max(q.x, max(q.y, q.z)), 0.0);
+        }
+        if (d < min_d) {
+            min_d = d;
+            *out_color = e.color.rgb;
+        }
+    }
+    return min_d;
 }
 
 @fragment
@@ -167,7 +201,32 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             
             // Sample SDF value from green channel (G) and scale by 0.5 (Lipschitz constant bound for Simplex noise)
             let val = textureSampleLevel(solid_texture, voxel_sampler, uvw, 0.0);
-            let dist = val.g * 0.5;
+            let dist_vox = val.g * 0.5;
+            var ent_color = vec3<f32>(0.0);
+            let dist_ent = map_entities(p, &ent_color);
+            let dist = min(dist_vox, dist_ent);
+            
+            if (dist_ent < 0.008 && dist_ent < dist_vox) {
+                let eps = 0.01;
+                var dummy = vec3<f32>(0.0);
+                let n = vec3<f32>(
+                    map_entities(p + vec3<f32>(eps, 0.0, 0.0), &dummy) - map_entities(p - vec3<f32>(eps, 0.0, 0.0), &dummy),
+                    map_entities(p + vec3<f32>(0.0, eps, 0.0), &dummy) - map_entities(p - vec3<f32>(0.0, eps, 0.0), &dummy),
+                    map_entities(p + vec3<f32>(0.0, 0.0, eps), &dummy) - map_entities(p - vec3<f32>(0.0, 0.0, eps), &dummy)
+                );
+                let normal = normalize(n);
+                let light_dir = normalize(u.sun_dir.xyz);
+                let sun_intensity = clamp(u.sun_dir.y * 4.0, 0.0, 1.0);
+                let diffuse = max(dot(normal, light_dir), 0.0);
+                let sha = getShadow(p + normal * 0.05, light_dir, 0.05, 40.0, 16.0);
+                let ao = getAO(p, normal);
+                let ambient = vec3<f32>(0.2, 0.25, 0.35) * ao;
+                let direct = vec3<f32>(1.0, 0.95, 0.85) * diffuse * sha * sun_intensity;
+                let solid_col = ent_color * (direct + ambient);
+                hit_color = mix(solid_col, accum_color, accum_alpha);
+                hit = true;
+                break;
+            }
             
             // Accumulate Fluids and Gases
             let ip_cell = vec3<i32>(clamp(wrapped_p, vec3<f32>(0.0), vec3<f32>(159.0)));

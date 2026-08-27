@@ -69,7 +69,7 @@
                                          (WGPURender.free-render-texture gas-tex) (WGPURender.free-render-texture light-tex)
                                          (Result.Error (str* "Sampler failed: " e)))
                     (Result.Success voxel-sampler)
-                      (match (WGPURender.create-uniform-buffer ctx 128)
+                      (match (WGPURender.create-uniform-buffer ctx 1664)
                         (Result.Error e) (do (WGPURender.free-sampler voxel-sampler)
                                              (WGPURender.free-render-texture voxel-tex)
                                              (WGPURender.free-render-texture liquid-tex)
