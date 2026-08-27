@@ -1,6 +1,7 @@
 (load "scaffold.carp")
 (load "camera.carp")
 (load "line_pass.carp")
+(load "../../carp-diagnostics/diagnostics.carp")
 
 ;; WGSL shaders are loaded from shaders.carp
 
@@ -296,11 +297,11 @@
                                        160 160 160)
         (GPUBatcher.end-batch ctx batch-encoder))))
 
-  (defn draw [eng ren cam]
+  (defn draw [eng ren cam diag]
     (do
-      (Renderer.handle-resize! eng ren)
-      (Renderer.run-simulation-passes! eng ren)
-      (Renderer.pack-buffers-to-textures! eng ren)
+      (Diagnostics.with-zone diag "Resize Check" (Renderer.handle-resize! eng ren))
+      (Diagnostics.with-zone diag "Compute Sim Passes" (Renderer.run-simulation-passes! eng ren))
+      (Diagnostics.with-zone diag "Pack Buffers to Textures" (Renderer.pack-buffers-to-textures! eng ren))
       (match (Engine.begin-frame eng)
         (Maybe.Nothing) ()
         (Maybe.Just frame)
@@ -311,16 +312,19 @@
                 depth @(Renderer.depth-texture ren)]
             (do
               ;; 1. Voxel pass (raymarching render)
-              (WGPURender.run-pass frame @(Renderer.pipeline ren) @(Renderer.bind-group ren) (Maybe.Nothing))
+              (Diagnostics.with-zone diag "WGPU Voxel Raymarch"
+                (WGPURender.run-pass frame @(Renderer.pipeline ren) @(Renderer.bind-group ren) (Maybe.Nothing)))
               
               ;; 2. Line pass (drawn on top)
-              (LinePass.render frame ctx (Renderer.line-pass ren) line-count depth (Maybe.Nothing))
+              (Diagnostics.with-zone diag "WGPU Line Pass"
+                (LinePass.render frame ctx (Renderer.line-pass ren) line-count depth (Maybe.Nothing)))
               
               ;; 3. Clear lines
               (Renderer.clear-lines! ren)
               
               ;; 4. Present
-              (Engine.end-frame eng frame))))))
+              (Diagnostics.with-zone diag "Present Frame"
+                (Engine.end-frame eng frame)))))))
 
 
   (defn cleanup [eng ren]

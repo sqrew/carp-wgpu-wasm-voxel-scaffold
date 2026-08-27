@@ -37,7 +37,7 @@
 #include "/home/sqrew/Desktop/Carp-fork/core/wgpu_render_helpers.h"
 #include "/home/sqrew/Desktop/carp-wgpu-wasm-voxel-scaffold/src/gpu_batcher.h"
 #include "/home/sqrew/Desktop/carp-job-system/jobs.h"
-#include "/home/sqrew/Desktop/carp-simd/simd.h"
+#include "/home/sqrew/Desktop/carp-math/simd.h"
 
 
 
@@ -3650,9 +3650,6 @@ typedef Handle__void*(*Fn__ContactSet_MUL__Handle__void_MUL_)(ContactSet*);
 typedef String(*Fn__ContactSet_MUL__String)(ContactSet*);
 
 // Depth 108
-typedef void(*Fn__Engine_MUL__Renderer_MUL__Camera_MUL__void)(Engine*, Renderer*, Camera*);
-
-// Depth 108
 typedef void(*Fn__Engine_MUL__Renderer_MUL__int_int_int_Array__float_MUL__void)(Engine*, Renderer*, int, int, int, Array__float*);
 
 // Depth 108
@@ -3995,6 +3992,9 @@ typedef void(*Fn__Diagnostics_MUL__int_void)(Diagnostics*, int);
 
 // Depth 111
 typedef void(*Fn__Diagnostics_MUL__void)(Diagnostics*);
+
+// Depth 111
+typedef void(*Fn__Engine_MUL__Renderer_MUL__Camera_MUL__Diagnostics_MUL__void)(Engine*, Renderer*, Camera*, Diagnostics*);
 
 // Depth 111
 typedef Diagnostics(*Fn__String_Diagnostics)(String);
@@ -8549,7 +8549,7 @@ void Renderer_delete(Renderer p);
 WGPUDepthTexture** Renderer_depth_MINUS_texture(Renderer* p);
 
 // Depth 500
-void Renderer_draw(Engine* eng, Renderer* ren, Camera* cam);
+void Renderer_draw(Engine* eng, Renderer* ren, Camera* cam, Diagnostics* diag);
 
 // Depth 500
 void Renderer_draw_MINUS_line_BANG_(Renderer* ren, Vector3__double* start, Vector3__double* end, Vector3__double* color);
@@ -10770,14 +10770,14 @@ void carp_init_globals(int argc, char** argv) {
 
     // Depth 0
     {
-        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    brush_radius: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n    sun_dir: vec4<f32>,\n    hit_pos: vec4<f32>,\n    edit_params: vec4<f32>,\n}\n\nstruct LiquidProps {\n    density: f32,\n    g_rate: f32,\n    l_rate: f32,\n}\n\nfn get_liq_props(id: f32) -> LiquidProps {\n    let LIQ_LUT = array<LiquidProps, 5>(\n        LiquidProps(0.0, 0.0, 0.0),\n        LiquidProps(1.0, 0.3, 0.08),\n        LiquidProps(2.0, 0.05, 0.02),\n        LiquidProps(1.2, 0.15, 0.05),\n        LiquidProps(0.8, 0.2, 0.06)\n    );\n    let idx = clamp(i32(round(id)), 0, 4);\n    return LIQ_LUT[idx];\n}\n\n@group(0) @binding(0) var<storage, read>       input_buffer: array<vec4<f32>>;\n@group(0) @binding(1) var<storage, read_write> output_buffer: array<vec4<f32>>;\n@group(0) @binding(2) var<uniform>             u: Uniforms;\n@group(0) @binding(3) var<storage, read_write> solid_buffer: array<vec4<f32>>;\n@group(0) @binding(4) var<storage, read>       chunk_lookup: array<vec4<f32>>;\n@group(0) @binding(5) var solid_texture:       texture_3d<f32>;\n@group(0) @binding(6) var liquid_texture:      texture_3d<f32>;\n@group(0) @binding(7) var gas_texture:         texture_3d<f32>;\n\nfn get_solid(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(solid_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\nfn is_solid(p: vec3<i32>) -> bool {\n    let sol = get_solid(p);\n    return sol.y * 0.5 < 0.008;\n}\n\nfn get_liquid(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(liquid_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\nfn get_gas(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(gas_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\nfn is_explosion_center(p: vec3<i32>) -> bool {\n    let g = get_gas(p);\n    if (g.x == 2.0 && g.y > 0.1) {\n        let dirs = array<vec3<i32>, 6>(\n            vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),\n            vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),\n            vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)\n        );\n        for (var i = 0; i < 6; i = i + 1) {\n            let np = p + dirs[i];\n            let n_gas = get_gas(np);\n            if (n_gas.x == 3.0 && n_gas.y > 0.1) {\n                return true;\n            }\n            let n_liq = get_liquid(np);\n            if (n_liq.x == 2.0 && n_liq.y > 0.1) {\n                return true;\n            }\n        }\n    }\n    return false;\n}\n\nfn positive_mod(n: i32, m: i32) -> i32 {\n    let r = n % m;\n    if (r < 0) {\n        return r + m;\n    }\n    return r;\n}\n\nfn get_world_pos(ip: vec3<i32>, cam_pos: vec3<f32>) -> vec3<f32> {\n    let cx = i32(floor(cam_pos.x / 32.0));\n    let cy = i32(floor(cam_pos.y / 32.0));\n    let cz = i32(floor(cam_pos.z / 32.0));\n    \n    let offset_cx = cx - 2;\n    let offset_cy = cy - 2;\n    let offset_cz = cz - 2;\n    \n    let slot_x = ip.x / 32;\n    let slot_y = ip.y / 32;\n    let slot_z = ip.z / 32;\n    \n    let lx = ip.x % 32;\n    let ly = ip.y % 32;\n    let lz = ip.z % 32;\n    \n    let qx = offset_cx + positive_mod(slot_x - positive_mod(offset_cx, 5), 5);\n    let qy = offset_cy + positive_mod(slot_y - positive_mod(offset_cy, 5), 5);\n    let qz = offset_cz + positive_mod(slot_z - positive_mod(offset_cz, 5), 5);\n    \n    let gx = qx * 32 + lx;\n    let gy = qy * 32 + ly;\n    let gz = qz * 32 + lz;\n    \n    return vec3<f32>(f32(gx), f32(gy), f32(gz));\n}\n\n@compute @workgroup_size(64)\nfn main(@builtin(global_invocation_id) global_id: vec3<u32>) {\n    let idx = global_id.x;\n    if (idx >= 4096000u) { return; }\n\n    // Dummy reads to prevent compiler from optimizing out unused bindings\n    let dummy_val = input_buffer[0] + solid_buffer[0] + chunk_lookup[0];\n    if (dummy_val.x > 999999.0) {\n        output_buffer[idx] = textureLoad(gas_texture, vec3<i32>(0), 0);\n    }\n\n    let x = idx % 160u;\n    let y = (idx / 160u) % 160u;\n    let z = idx / 25600u;\n    let ip = vec3<i32>(i32(x), i32(y), i32(z));\n\n    // --- 0. Explosion Carving (runs only at the center of explosions) ---\n    if (is_explosion_center(ip)) {\n        for (var dx = -3; dx <= 3; dx = dx + 1) {\n            for (var dy = -3; dy <= 3; dy = dy + 1) {\n                for (var dz = -3; dz <= 3; dz = dz + 1) {\n                    let tp = ip + vec3<i32>(dx, dy, dz);\n                    let d = distance(vec3<f32>(ip), vec3<f32>(tp));\n                    if (d <= 3.5) {\n                        let wrapped = (tp + vec3<i32>(160)) % 160;\n                        let s_idx = u32(wrapped.x) + u32(wrapped.y) * 160u + u32(wrapped.z) * 25600u;\n                        solid_buffer[s_idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0); // Clear solid block!\n                    }\n                }\n            }\n        }\n    }\n\n    let sol_val = get_solid(ip);\n    let sol_id = sol_val.x;\n    let is_sol_block = sol_val.y * 0.5 < 0.008;\n    if (is_sol_block) {\n        // Wood (3.0) or Coal (4.0) catches fire and burns away\n        if (sol_id == 3.0 || sol_id == 4.0) {\n            var touches_fire = false;\n            let dirs = array<vec3<i32>, 6>(\n                vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),\n                vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),\n                vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)\n            );\n            for (var i = 0; i < 6; i = i + 1) {\n                let np = ip + dirs[i];\n                let g = get_gas(np);\n                if (g.x == 3.0 && g.y > 0.1) { touches_fire = true; break; }\n                let l = get_liquid(np);\n                if (l.x == 2.0 && l.y > 0.1) { touches_fire = true; break; }\n            }\n            if (touches_fire) {\n                let rand_val = fract(sin(dot(vec3<f32>(ip) + vec3<f32>(u.time), vec3<f32>(12.9898, 78.233, 45.164))) * 43758.5453);\n                var burn_chance = 0.01; // Wood (1% chance per frame = ~1.6 seconds average)\n                if (sol_id == 4.0) {\n                    burn_chance = 0.002; // Coal (0.2% chance per frame = ~8.3 seconds average)\n                }\n                if (rand_val < burn_chance) {\n                    solid_buffer[idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0);\n                }\n            }\n        }\n        output_buffer[idx] = vec4<f32>(0.0);\n        return;\n    }\n\n    let self_liq = get_liquid(ip);\n    let self_vol = self_liq.y;\n    var next_id = self_liq.x;\n    var next_vol = self_vol;\n\n    let self_props = get_liq_props(self_liq.x);\n\n    let below_p = ip + vec3<i32>(0, -1, 0);\n    let above_p = ip + vec3<i32>(0, 1, 0);\n\n    let neighbors = array<vec3<i32>, 4>(\n        vec3<i32>(-1, 0, 0),\n        vec3<i32>(1, 0, 0),\n        vec3<i32>(0, 0, -1),\n        vec3<i32>(0, 0, 1)\n    );\n\n    // --- 1. Density Buoyancy Swapping (1-to-1 parity matching) ---\n    var swapped = false;\n    let frame_step = i32(u.time) % 2;\n    let is_even_pair = (ip.y % 2) == frame_step;\n\n    if (self_vol > 0.05) {\n        if (is_even_pair) {\n            // Look down\n            if (ip.y > 0 && !is_solid(below_p)) {\n                let below = get_liquid(below_p);\n                let below_props = get_liq_props(below.x);\n                if (below.y > 0.05 && self_props.density > below_props.density) {\n                    next_id = below.x;\n                    next_vol = below.y;\n                    swapped = true;\n                }\n            }\n        } else {\n            // Look up\n            if (ip.y < 159 && !is_solid(above_p)) {\n                let above = get_liquid(above_p);\n                let above_props = get_liq_props(above.x);\n                if (above.y > 0.05 && above_props.density > self_props.density) {\n                    next_id = above.x;\n                    next_vol = above.y;\n                    swapped = true;\n                }\n            }\n        }\n    }\n\n    // --- 2. Gravity & Lateral Flow (only calculated if not swapped) ---\n    var net_flow = 0.0;\n    var max_inflow = 0.0;\n\n    if (!swapped) {\n        let g_rate = self_props.g_rate;\n        let l_rate = self_props.l_rate;\n\n        // Downward gravity flow\n        if (!is_solid(below_p)) {\n            let below = get_liquid(below_p);\n            let below_props = get_liq_props(below.x);\n            if (below.y <= 0.05 || self_props.density >= below_props.density) {\n                let flow_out = min(self_vol, max(0.0, 1.0 - below.y)) * g_rate;\n                net_flow -= flow_out;\n            }\n        }\n        if (!is_solid(above_p)) {\n            let above = get_liquid(above_p);\n            let above_props = get_liq_props(above.x);\n            if (self_vol <= 0.05 || above_props.density >= self_props.density) {\n                let flow_in = min(above.y, max(0.0, 1.0 - self_vol)) * above_props.g_rate;\n                net_flow += flow_in;\n                if (flow_in > max_inflow) {\n                    max_inflow = flow_in;\n                    next_id = above.x;\n                }\n            }\n        }\n\n        // Lateral flow\n        for (var i = 0; i < 4; i = i + 1) {\n            let np = ip + neighbors[i];\n            if (!is_solid(np)) {\n                let n_liq = get_liquid(np);\n                let n_props = get_liq_props(n_liq.x);\n                if (self_vol > n_liq.y && (n_liq.y <= 0.05 || self_props.density >= n_props.density)) {\n                    let flow_out = (self_vol - n_liq.y) * l_rate;\n                    net_flow -= flow_out;\n                }\n                if (n_liq.y > self_vol && (self_vol <= 0.05 || n_props.density >= self_props.density)) {\n                    let flow_in = (n_liq.y - self_vol) * n_props.l_rate;\n                    net_flow += flow_in;\n                    if (flow_in > max_inflow) {\n                        max_inflow = flow_in;\n                        next_id = n_liq.x;\n                    }\n                }\n            }\n        }\n\n        next_vol = next_vol + net_flow;\n    }\n\n    // --- 3. Spawn liquid if click is active ---\n    if (u.hit_pos.w > 0.5) {\n        let world_pos = get_world_pos(ip, u.cam_pos.xyz);\n        let dist = distance(world_pos, u.hit_pos.xyz);\n        if (dist <= u.brush_radius && u.edit_params.x > 0.5) {\n            next_id = u.edit_params.x;\n            next_vol = min(1.0, next_vol + u.edit_params.y);\n        }\n    }\n\n    // --- 4. Multi-Phase Reactions ---\n    var react_empty = false;\n    let below_liq = get_liquid(below_p);\n    let above_liq = get_liquid(above_p);\n    if (next_vol > 0.05) {\n        if (next_id == 1.0) { // Water\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 2.0) { react_empty = true; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 2.0) { react_empty = true; }\n            if (above_liq.y > 0.05 && above_liq.x == 2.0) { react_empty = true; }\n        } else if (next_id == 2.0) { // Lava\n            // React with Water\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 1.0) { react_empty = true; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 1.0) { react_empty = true; }\n            if (above_liq.y > 0.05 && above_liq.x == 1.0) { react_empty = true; }\n\n            // React with Oil\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 4.0) { react_empty = true; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 4.0) { react_empty = true; }\n            if (above_liq.y > 0.05 && above_liq.x == 4.0) { react_empty = true; }\n        } else if (next_id == 3.0) { // Acid\n            var touches_water = false;\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 1.0) { touches_water = true; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 1.0) { touches_water = true; }\n            if (above_liq.y > 0.05 && above_liq.x == 1.0) { touches_water = true; }\n\n            if (touches_water) {\n                next_id = 1.0; // Dilutes to Water\n            } else {\n                var dissolved_solid = false;\n                let dirs = array<vec3<i32>, 6>(\n                    vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),\n                    vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),\n                    vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)\n                );\n                for (var i = 0; i < 6; i = i + 1) {\n                    let sp = ip + dirs[i];\n                    if (sp.x >= 0 && sp.x < 160 && sp.y >= 0 && sp.y < 160 && sp.z >= 0 && sp.z < 160) {\n                        let sol = get_solid(sp);\n                        let is_sol_block = sol.y * 0.5 < 0.008;\n                        let sol_id = sol.x;\n                        if (is_sol_block) {\n                            if (sol_id == 2.0 || sol_id == 3.0) { // Grass/Wood\n                                dissolved_solid = true;\n                                let s_idx = u32(sp.x) + u32(sp.y) * 160u + u32(sp.z) * 25600u;\n                                solid_buffer[s_idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0);\n                                break;\n                            } else if (sol_id == 1.0) { // Stone\n                                let rand_val = fract(sin(dot(vec3<f32>(ip) + vec3<f32>(u.time), vec3<f32>(12.9898, 78.233, 45.164))) * 43758.5453);\n                                if (rand_val < 0.02) { // 2% chance\n                                    dissolved_solid = true;\n                                    let s_idx = u32(sp.x) + u32(sp.y) * 160u + u32(sp.z) * 25600u;\n                                    solid_buffer[s_idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0);\n                                    break;\n                                }\n                            }\n                        }\n                    }\n                }\n                if (dissolved_solid) {\n                    react_empty = true;\n                }\n            }\n        } else if (next_id == 4.0) { // Oil\n            // Burned by Lava\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 2.0) { react_empty = true; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 2.0) { react_empty = true; }\n            if (above_liq.y > 0.05 && above_liq.x == 2.0) { react_empty = true; }\n        }\n    }\n\n    // Vaporize liquid if next to an explosion\n    var adjacent_to_explosion = false;\n    if (is_explosion_center(ip)) {\n        adjacent_to_explosion = true;\n    } else {\n        for (var i = 0; i < 4; i = i + 1) {\n            if (is_explosion_center(ip + neighbors[i])) { adjacent_to_explosion = true; break; }\n        }\n        if (is_explosion_center(below_p) || is_explosion_center(above_p)) {\n            adjacent_to_explosion = true;\n        }\n    }\n    if (adjacent_to_explosion) {\n        react_empty = true;\n    }\n\n    if (react_empty) {\n        next_vol = 0.0;\n        next_id = 0.0;\n        // Turn into Solid Stone if it was a Lava/Water collision (and NOT an explosion!)\n        if (!adjacent_to_explosion && (self_liq.x == 1.0 || self_liq.x == 2.0)) {\n            solid_buffer[idx] = vec4<f32>(1.0, -1.0, 0.0, 0.0);\n        }\n    }\n\n    // --- 5. Evaporate and clamp ---\n    if (next_vol < 0.01) {\n        next_vol = 0.0;\n        next_id = 0.0;\n    }\n    \n    next_vol = clamp(next_vol, 0.0, 1.0);\n    if (next_vol == 0.0) {\n        next_id = 0.0;\n    }\n\n    output_buffer[idx] = vec4<f32>(next_id, next_vol, 0.0, 0.0);\n}\n";
+        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    brush_radius: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n    sun_dir: vec4<f32>,\n    hit_pos: vec4<f32>,\n    edit_params: vec4<f32>,\n}\n\nstruct LiquidProps {\n    density: f32,\n    g_rate: f32,\n    l_rate: f32,\n}\n\nfn get_liq_props(id: f32) -> LiquidProps {\n    let LIQ_LUT = array<LiquidProps, 5>(\n        LiquidProps(0.0, 0.0, 0.0),\n        LiquidProps(1.0, 0.3, 0.08),\n        LiquidProps(2.0, 0.05, 0.02),\n        LiquidProps(1.2, 0.15, 0.05),\n        LiquidProps(0.8, 0.2, 0.06)\n    );\n    let idx = clamp(i32(round(id)), 0, 4);\n    return LIQ_LUT[idx];\n}\n\n@group(0) @binding(0) var<storage, read>       input_buffer: array<vec4<f32>>;\n@group(0) @binding(1) var<storage, read_write> output_buffer: array<vec4<f32>>;\n@group(0) @binding(2) var<uniform>             u: Uniforms;\n@group(0) @binding(3) var<storage, read_write> solid_buffer: array<vec4<f32>>;\n@group(0) @binding(4) var<storage, read>       chunk_lookup: array<vec4<f32>>;\n@group(0) @binding(5) var solid_texture:       texture_3d<f32>;\n@group(0) @binding(6) var liquid_texture:      texture_3d<f32>;\n@group(0) @binding(7) var gas_texture:         texture_3d<f32>;\n\nfn get_solid(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(solid_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\nfn is_solid(p: vec3<i32>) -> bool {\n    let sol = get_solid(p);\n    return sol.y * 0.5 < 0.008;\n}\n\nfn get_liquid(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(liquid_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\nfn get_gas(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(gas_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\nfn is_explosion_center(p: vec3<i32>) -> bool {\n    let g = get_gas(p);\n    if (g.x == 2.0 && g.y > 0.1) {\n        let dirs = array<vec3<i32>, 6>(\n            vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),\n            vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),\n            vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)\n        );\n        for (var i = 0; i < 6; i = i + 1) {\n            let np = p + dirs[i];\n            let n_gas = get_gas(np);\n            if (n_gas.x == 3.0 && n_gas.y > 0.1) {\n                return true;\n            }\n            let n_liq = get_liquid(np);\n            if (n_liq.x == 2.0 && n_liq.y > 0.1) {\n                return true;\n            }\n        }\n    }\n    return false;\n}\n\nfn positive_mod(n: i32, m: i32) -> i32 {\n    let r = n % m;\n    if (r < 0) {\n        return r + m;\n    }\n    return r;\n}\n\nfn get_world_pos(ip: vec3<i32>, cam_pos: vec3<f32>) -> vec3<f32> {\n    let cx = i32(floor(cam_pos.x / 32.0));\n    let cy = i32(floor(cam_pos.y / 32.0));\n    let cz = i32(floor(cam_pos.z / 32.0));\n    \n    let offset_cx = cx - 2;\n    let offset_cy = cy - 2;\n    let offset_cz = cz - 2;\n    \n    let slot_x = ip.x / 32;\n    let slot_y = ip.y / 32;\n    let slot_z = ip.z / 32;\n    \n    let lx = ip.x % 32;\n    let ly = ip.y % 32;\n    let lz = ip.z % 32;\n    \n    let qx = offset_cx + positive_mod(slot_x - positive_mod(offset_cx, 5), 5);\n    let qy = offset_cy + positive_mod(slot_y - positive_mod(offset_cy, 5), 5);\n    let qz = offset_cz + positive_mod(slot_z - positive_mod(offset_cz, 5), 5);\n    \n    let gx = qx * 32 + lx;\n    let gy = qy * 32 + ly;\n    let gz = qz * 32 + lz;\n    \n    return vec3<f32>(f32(gx), f32(gy), f32(gz));\n}\n\n@compute @workgroup_size(64)\nfn main(@builtin(global_invocation_id) global_id: vec3<u32>) {\n    let idx = global_id.x;\n    if (idx >= 4096000u) { return; }\n\n    // Dummy reads to prevent compiler from optimizing out unused bindings\n    let dummy_val = input_buffer[0] + solid_buffer[0] + chunk_lookup[0];\n    if (dummy_val.x > 999999.0) {\n        output_buffer[idx] = textureLoad(gas_texture, vec3<i32>(0), 0);\n    }\n\n    let x = idx % 160u;\n    let y = (idx / 160u) % 160u;\n    let z = idx / 25600u;\n    let ip = vec3<i32>(i32(x), i32(y), i32(z));\n\n    // --- 0. Explosion Carving (runs only at the center of explosions) ---\n    if (is_explosion_center(ip)) {\n        for (var dx = -3; dx <= 3; dx = dx + 1) {\n            for (var dy = -3; dy <= 3; dy = dy + 1) {\n                for (var dz = -3; dz <= 3; dz = dz + 1) {\n                    let tp = ip + vec3<i32>(dx, dy, dz);\n                    let d = distance(vec3<f32>(ip), vec3<f32>(tp));\n                    if (d <= 3.5) {\n                        let wrapped = (tp + vec3<i32>(160)) % 160;\n                        let s_idx = u32(wrapped.x) + u32(wrapped.y) * 160u + u32(wrapped.z) * 25600u;\n                        solid_buffer[s_idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0); // Clear solid block!\n                    }\n                }\n            }\n        }\n    }\n\n    let sol_val = get_solid(ip);\n    let sol_id = sol_val.x;\n    let is_sol_block = sol_val.y * 0.5 < 0.008;\n    if (is_sol_block) {\n        // Wood (3.0) or Coal (4.0) catches fire and burns away\n        if (sol_id == 3.0 || sol_id == 4.0) {\n            var touches_fire = false;\n            let dirs = array<vec3<i32>, 6>(\n                vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),\n                vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),\n                vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)\n            );\n            for (var i = 0; i < 6; i = i + 1) {\n                let np = ip + dirs[i];\n                let g = get_gas(np);\n                if (g.x == 3.0 && g.y > 0.1) { touches_fire = true; break; }\n                let l = get_liquid(np);\n                if (l.x == 2.0 && l.y > 0.1) { touches_fire = true; break; }\n            }\n            if (touches_fire) {\n                let rand_val = fract(sin(dot(vec3<f32>(ip) + vec3<f32>(u.time), vec3<f32>(12.9898, 78.233, 45.164))) * 43758.5453);\n                var burn_chance = 0.01; // Wood (1% chance per frame = ~1.6 seconds average)\n                if (sol_id == 4.0) {\n                    burn_chance = 0.002; // Coal (0.2% chance per frame = ~8.3 seconds average)\n                }\n                if (rand_val < burn_chance) {\n                    solid_buffer[idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0);\n                }\n            }\n        }\n        output_buffer[idx] = vec4<f32>(0.0);\n        return;\n    }\n\n    let self_liq = get_liquid(ip);\n    let self_vol = self_liq.y;\n    var next_id = self_liq.x;\n    var next_vol = self_vol;\n\n    let self_props = get_liq_props(self_liq.x);\n\n    let below_p = ip + vec3<i32>(0, -1, 0);\n    let above_p = ip + vec3<i32>(0, 1, 0);\n\n    let neighbors = array<vec3<i32>, 4>(\n        vec3<i32>(-1, 0, 0),\n        vec3<i32>(1, 0, 0),\n        vec3<i32>(0, 0, -1),\n        vec3<i32>(0, 0, 1)\n    );\n\n    // --- 1. Density Buoyancy Swapping (1-to-1 parity matching) ---\n    var swapped = false;\n    let frame_step = i32(u.time) % 2;\n    let is_even_pair = (ip.y % 2) == frame_step;\n\n    if (self_vol > 0.05) {\n        if (is_even_pair) {\n            // Look down\n            if (ip.y > 0 && !is_solid(below_p)) {\n                let below = get_liquid(below_p);\n                let below_props = get_liq_props(below.x);\n                if (below.y > 0.05 && self_props.density > below_props.density) {\n                    next_id = below.x;\n                    next_vol = below.y;\n                    swapped = true;\n                }\n            }\n        } else {\n            // Look up\n            if (ip.y < 159 && !is_solid(above_p)) {\n                let above = get_liquid(above_p);\n                let above_props = get_liq_props(above.x);\n                if (above.y > 0.05 && above_props.density > self_props.density) {\n                    next_id = above.x;\n                    next_vol = above.y;\n                    swapped = true;\n                }\n            }\n        }\n    }\n\n    // --- 2. Gravity & Lateral Flow (only calculated if not swapped) ---\n    var net_flow = 0.0;\n    var max_inflow = 0.0;\n\n    if (!swapped) {\n        let g_rate = self_props.g_rate;\n        let l_rate = self_props.l_rate;\n\n        // Downward gravity flow\n        if (!is_solid(below_p)) {\n            let below = get_liquid(below_p);\n            let below_props = get_liq_props(below.x);\n            if (below.y <= 0.05 || self_props.density >= below_props.density) {\n                let flow_out = min(self_vol, max(0.0, 1.0 - below.y)) * g_rate;\n                net_flow -= flow_out;\n            }\n        }\n        if (!is_solid(above_p)) {\n            let above = get_liquid(above_p);\n            let above_props = get_liq_props(above.x);\n            if (self_vol <= 0.05 || above_props.density >= self_props.density) {\n                let flow_in = min(above.y, max(0.0, 1.0 - self_vol)) * above_props.g_rate;\n                net_flow += flow_in;\n                if (flow_in > max_inflow) {\n                    max_inflow = flow_in;\n                    next_id = above.x;\n                }\n            }\n        }\n\n        // Lateral flow\n        for (var i = 0; i < 4; i = i + 1) {\n            let np = ip + neighbors[i];\n            if (!is_solid(np)) {\n                let n_liq = get_liquid(np);\n                let n_props = get_liq_props(n_liq.x);\n                if (self_vol > n_liq.y && (n_liq.y <= 0.05 || self_props.density >= n_props.density)) {\n                    let flow_out = (self_vol - n_liq.y) * l_rate;\n                    net_flow -= flow_out;\n                }\n                if (n_liq.y > self_vol && (self_vol <= 0.05 || n_props.density >= self_props.density)) {\n                    let flow_in = (n_liq.y - self_vol) * n_props.l_rate;\n                    net_flow += flow_in;\n                    if (flow_in > max_inflow) {\n                        max_inflow = flow_in;\n                        next_id = n_liq.x;\n                    }\n                }\n            }\n        }\n\n        next_vol = next_vol + net_flow;\n    }\n\n    // --- 3. Spawn liquid if click is active ---\n    if (u.hit_pos.w > 0.5) {\n        let world_pos = get_world_pos(ip, u.cam_pos.xyz);\n        let dist = distance(world_pos, u.hit_pos.xyz);\n        if (dist <= u.brush_radius && u.edit_params.x > 0.5) {\n            next_id = u.edit_params.x;\n            next_vol = min(1.0, next_vol + u.edit_params.y);\n        }\n    }\n\n    // --- 3.5. Steam condensation ---\n    let my_gas = get_gas(ip);\n    if (my_gas.x == 1.0 && my_gas.y > 0.05) {\n        if (is_solid(above_p)) {\n            if (next_vol <= 0.05 || next_id == 1.0) {\n                next_id = 1.0; // Water\n                next_vol = min(1.0, next_vol + 0.02);\n            }\n        }\n    }\n\n    // --- 4. Multi-Phase Reactions ---\n    var react_empty = false;\n    let below_liq = get_liquid(below_p);\n    let above_liq = get_liquid(above_p);\n    if (next_vol > 0.05) {\n        if (next_id == 1.0) { // Water\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 2.0) { react_empty = true; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 2.0) { react_empty = true; }\n            if (above_liq.y > 0.05 && above_liq.x == 2.0) { react_empty = true; }\n        } else if (next_id == 2.0) { // Lava\n            // React with Water\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 1.0) { react_empty = true; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 1.0) { react_empty = true; }\n            if (above_liq.y > 0.05 && above_liq.x == 1.0) { react_empty = true; }\n\n            // React with Oil\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 4.0) { react_empty = true; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 4.0) { react_empty = true; }\n            if (above_liq.y > 0.05 && above_liq.x == 4.0) { react_empty = true; }\n        } else if (next_id == 3.0) { // Acid\n            var touches_water = false;\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 1.0) { touches_water = true; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 1.0) { touches_water = true; }\n            if (above_liq.y > 0.05 && above_liq.x == 1.0) { touches_water = true; }\n\n            if (touches_water) {\n                next_id = 1.0; // Dilutes to Water\n            } else {\n                var dissolved_solid = false;\n                let dirs = array<vec3<i32>, 6>(\n                    vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),\n                    vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),\n                    vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)\n                );\n                for (var i = 0; i < 6; i = i + 1) {\n                    let sp = ip + dirs[i];\n                    if (sp.x >= 0 && sp.x < 160 && sp.y >= 0 && sp.y < 160 && sp.z >= 0 && sp.z < 160) {\n                        let sol = get_solid(sp);\n                        let is_sol_block = sol.y * 0.5 < 0.008;\n                        let sol_id = sol.x;\n                        if (is_sol_block) {\n                            if (sol_id == 2.0 || sol_id == 3.0) { // Grass/Wood\n                                dissolved_solid = true;\n                                let s_idx = u32(sp.x) + u32(sp.y) * 160u + u32(sp.z) * 25600u;\n                                solid_buffer[s_idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0);\n                                break;\n                            } else if (sol_id == 1.0) { // Stone\n                                let rand_val = fract(sin(dot(vec3<f32>(ip) + vec3<f32>(u.time), vec3<f32>(12.9898, 78.233, 45.164))) * 43758.5453);\n                                if (rand_val < 0.02) { // 2% chance\n                                    dissolved_solid = true;\n                                    let s_idx = u32(sp.x) + u32(sp.y) * 160u + u32(sp.z) * 25600u;\n                                    solid_buffer[s_idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0);\n                                    break;\n                                }\n                            }\n                        }\n                    }\n                }\n                if (dissolved_solid) {\n                    react_empty = true;\n                }\n            }\n        } else if (next_id == 4.0) { // Oil\n            // Burned by Lava\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 2.0) { react_empty = true; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 2.0) { react_empty = true; }\n            if (above_liq.y > 0.05 && above_liq.x == 2.0) { react_empty = true; }\n        }\n    }\n\n    // Vaporize liquid if next to an explosion\n    var adjacent_to_explosion = false;\n    if (is_explosion_center(ip)) {\n        adjacent_to_explosion = true;\n    } else {\n        for (var i = 0; i < 4; i = i + 1) {\n            if (is_explosion_center(ip + neighbors[i])) { adjacent_to_explosion = true; break; }\n        }\n        if (is_explosion_center(below_p) || is_explosion_center(above_p)) {\n            adjacent_to_explosion = true;\n        }\n    }\n    if (adjacent_to_explosion) {\n        react_empty = true;\n    }\n\n    if (react_empty) {\n        next_vol = 0.0;\n        next_id = 0.0;\n        // Turn into Solid Stone if it was a Lava/Water collision (and NOT an explosion!)\n        if (!adjacent_to_explosion && (self_liq.x == 1.0 || self_liq.x == 2.0)) {\n            solid_buffer[idx] = vec4<f32>(1.0, -1.0, 0.0, 0.0);\n        }\n    }\n\n    // --- 5. Evaporate and clamp ---\n    if (next_vol < 0.01) {\n        next_vol = 0.0;\n        next_id = 0.0;\n    }\n    \n    next_vol = clamp(next_vol, 0.0, 1.0);\n    if (next_vol == 0.0) {\n        next_id = 0.0;\n    }\n\n    output_buffer[idx] = vec4<f32>(next_id, next_vol, 0.0, 0.0);\n}\n";
         String *_2_ref = &_2;
         liquid_MINUS_sim_MINUS_wgsl = _2_ref;
     }
 
     // Depth 0
     {
-        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    brush_radius: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n    sun_dir: vec4<f32>,\n    hit_pos: vec4<f32>,\n    edit_params: vec4<f32>,\n}\n\nstruct GasProps {\n    g_rate: f32,\n    l_rate: f32,\n    decay: f32,\n}\n\nfn get_gas_props(id: f32) -> GasProps {\n    let GAS_LUT = array<GasProps, 5>(\n        GasProps(0.0, 0.0, 0.0),\n        GasProps(0.4, 0.1, 0.01),\n        GasProps(0.15, 0.05, 0.01),\n        GasProps(0.25, 0.08, 0.08),\n        GasProps(0.2, 0.04, 0.008)\n    );\n    let idx = clamp(i32(round(id)), 0, 4);\n    return GAS_LUT[idx];\n}\n\n@group(0) @binding(0) var<storage, read>       input_buffer: array<vec4<f32>>;\n@group(0) @binding(1) var<storage, read_write> output_buffer: array<vec4<f32>>;\n@group(0) @binding(2) var<uniform>             u: Uniforms;\n@group(0) @binding(3) var<storage, read>       chunk_info: array<vec4<f32>>;\n@group(0) @binding(4) var<storage, read>       chunk_lookup: array<vec4<f32>>;\n@group(0) @binding(5) var solid_texture:       texture_3d<f32>;\n@group(0) @binding(6) var liquid_texture:      texture_3d<f32>;\n@group(0) @binding(7) var gas_texture:         texture_3d<f32>;\n\nfn get_solid(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(solid_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\nfn is_solid(p: vec3<i32>) -> bool {\n    let sol = get_solid(p);\n    return sol.y * 0.5 < 0.008;\n}\n\nfn get_gas(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(gas_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\nfn get_liquid(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(liquid_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\nfn is_explosion_center(p: vec3<i32>) -> bool {\n    let g = get_gas(p);\n    if (g.x == 2.0 && g.y > 0.1) {\n        let dirs = array<vec3<i32>, 6>(\n            vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),\n            vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),\n            vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)\n        );\n        for (var i = 0; i < 6; i = i + 1) {\n            let np = p + dirs[i];\n            let n_gas = get_gas(np);\n            if (n_gas.x == 3.0 && n_gas.y > 0.1) {\n                return true;\n            }\n            let n_liq = get_liquid(np);\n            if (n_liq.x == 2.0 && n_liq.y > 0.1) {\n                return true;\n            }\n        }\n    }\n    return false;\n}\n\nfn positive_mod(n: i32, m: i32) -> i32 {\n    let r = n % m;\n    if (r < 0) {\n        return r + m;\n    }\n    return r;\n}\n\nfn get_world_pos(ip: vec3<i32>, cam_pos: vec3<f32>) -> vec3<f32> {\n    let cx = i32(floor(cam_pos.x / 32.0));\n    let cy = i32(floor(cam_pos.y / 32.0));\n    let cz = i32(floor(cam_pos.z / 32.0));\n    \n    let offset_cx = cx - 2;\n    let offset_cy = cy - 2;\n    let offset_cz = cz - 2;\n    \n    let slot_x = ip.x / 32;\n    let slot_y = ip.y / 32;\n    let slot_z = ip.z / 32;\n    \n    let lx = ip.x % 32;\n    let ly = ip.y % 32;\n    let lz = ip.z % 32;\n    \n    let qx = offset_cx + positive_mod(slot_x - positive_mod(offset_cx, 5), 5);\n    let qy = offset_cy + positive_mod(slot_y - positive_mod(offset_cy, 5), 5);\n    let qz = offset_cz + positive_mod(slot_z - positive_mod(offset_cz, 5), 5);\n    \n    let gx = qx * 32 + lx;\n    let gy = qy * 32 + ly;\n    let gz = qz * 32 + lz;\n    \n    return vec3<f32>(f32(gx), f32(gy), f32(gz));\n}\n\n@compute @workgroup_size(64)\nfn main(@builtin(global_invocation_id) global_id: vec3<u32>) {\n    let idx = global_id.x;\n    if (idx >= 4096000u) { return; }\n\n    // Dummy reads to prevent compiler from optimizing out unused bindings\n    let dummy_val = input_buffer[0] + chunk_info[0] + chunk_lookup[0];\n    if (dummy_val.x > 999999.0) {\n        output_buffer[idx] = textureLoad(liquid_texture, vec3<i32>(0), 0);\n    }\n\n    let x = idx % 160u;\n    let y = (idx / 160u) % 160u;\n    let z = idx / 25600u;\n    let ip = vec3<i32>(i32(x), i32(y), i32(z));\n\n    if (is_solid(ip)) {\n        output_buffer[idx] = vec4<f32>(0.0);\n        return;\n    }\n\n    let self_gas = get_gas(ip);\n    let self_vol = self_gas.y;\n    var next_id = self_gas.x;\n    var next_vol = self_vol;\n\n    let below_p = ip + vec3<i32>(0, -1, 0);\n    let above_p = ip + vec3<i32>(0, 1, 0);\n\n    let neighbors = array<vec3<i32>, 4>(\n        vec3<i32>(-1, 0, 0),\n        vec3<i32>(1, 0, 0),\n        vec3<i32>(0, 0, -1),\n        vec3<i32>(0, 0, 1)\n    );\n\n    let self_props = get_gas_props(self_gas.x);\n    let g_rate = self_props.g_rate;\n    let l_rate = self_props.l_rate;\n\n    var net_flow = 0.0;\n    var max_inflow = 0.0;\n\n    // --- 1. Upward rising flow ---\n    // Flow out to above\n    if (!is_solid(above_p)) {\n        let above = get_gas(above_p);\n        let flow_out = min(self_vol, max(0.0, 1.0 - above.y)) * g_rate;\n        net_flow -= flow_out;\n    }\n    // Flow in from below\n    if (!is_solid(below_p)) {\n        let below = get_gas(below_p);\n        let below_props = get_gas_props(below.x);\n        let flow_in = min(below.y, max(0.0, 1.0 - self_vol)) * below_props.g_rate;\n        net_flow += flow_in;\n        if (flow_in > max_inflow) {\n            max_inflow = flow_in;\n            next_id = below.x;\n        }\n    }\n\n    // --- 2. Lateral flow ---\n    for (var i = 0; i < 4; i = i + 1) {\n        let np = ip + neighbors[i];\n        if (!is_solid(np)) {\n            let n_gas = get_gas(np);\n            let n_props = get_gas_props(n_gas.x);\n            // Flow out to neighbor if we have more\n            if (self_vol > n_gas.y) {\n                let flow_out = (self_vol - n_gas.y) * l_rate;\n                net_flow -= flow_out;\n            }\n            // Flow in from neighbor if it has more\n            if (n_gas.y > self_vol) {\n                let flow_in = (n_gas.y - self_vol) * n_props.l_rate;\n                net_flow += flow_in;\n                if (flow_in > max_inflow) {\n                    max_inflow = flow_in;\n                    next_id = n_gas.x;\n                }\n            }\n        }\n    }\n\n    next_vol = next_vol + net_flow;\n\n    // --- 3. Spawn gas if click is active ---\n    if (u.hit_pos.w > 0.5) {\n        let world_pos = get_world_pos(ip, u.cam_pos.xyz);\n        let dist = distance(world_pos, u.hit_pos.xyz);\n        if (dist <= u.brush_radius && u.edit_params.z > 0.5) {\n            next_id = u.edit_params.z;\n            next_vol = min(1.0, next_vol + u.edit_params.w);\n        }\n    }\n\n    // --- 4. Multi-Phase Gas Reactions ---\n    var spawn_gas_id = 0.0;\n    var spawn_gas_vol = 0.0;\n\n    let my_liq = get_liquid(ip);\n    let below_liq = get_liquid(below_p);\n    let above_liq = get_liquid(above_p);\n    if (my_liq.y > 0.05) {\n        if (my_liq.x == 1.0) { // Water\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 2.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 2.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; }\n            if (above_liq.y > 0.05 && above_liq.x == 2.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; }\n        } else if (my_liq.x == 2.0) { // Lava\n            // Steam\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 1.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 1.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; }\n            if (above_liq.y > 0.05 && above_liq.x == 1.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; }\n            \n            // Fire/Smoke from Lava + Oil\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 4.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 4.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; }\n            if (above_liq.y > 0.05 && above_liq.x == 4.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; }\n            \n            // Fire/Smoke from Lava + Wood (Solid 3)\n            for (var i = 0; i < 4; i = i + 1) {\n                let sol = get_solid(ip + neighbors[i]);\n                let is_sol_block = sol.y * 0.5 < 0.008;\n                if (is_sol_block && sol.x == 3.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; break; }\n            }\n            let below_sol = get_solid(below_p);\n            if (below_sol.y * 0.5 < 0.008 && below_sol.x == 3.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; }\n            let above_sol = get_solid(above_p);\n            if (above_sol.y * 0.5 < 0.008 && above_sol.x == 3.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; }\n        } else if (my_liq.x == 3.0) { // Acid\n            // Toxic Gas from Acid + Grass/Wood/Stone\n            var acid_react = false;\n            for (var i = 0; i < 4; i = i + 1) {\n                let sol = get_solid(ip + neighbors[i]);\n                if (sol.y * 0.5 < 0.008 && (sol.x == 1.0 || sol.x == 2.0 || sol.x == 3.0)) { acid_react = true; break; }\n            }\n            let below_sol = get_solid(below_p);\n            if (below_sol.y * 0.5 < 0.008 && (below_sol.x == 1.0 || below_sol.x == 2.0 || below_sol.x == 3.0)) { acid_react = true; }\n            let above_sol = get_solid(above_p);\n            if (above_sol.y * 0.5 < 0.008 && (above_sol.x == 1.0 || above_sol.x == 2.0 || above_sol.x == 3.0)) { acid_react = true; }\n            \n            if (acid_react) {\n                spawn_gas_id = 2.0; // Toxic Gas\n                spawn_gas_vol = 1.0;\n            }\n        }\n    }\n\n    // Fire + Water ➔ Steam\n    if (next_id == 3.0 && next_vol > 0.05) {\n        var touches_water = false;\n        if (my_liq.y > 0.05 && my_liq.x == 1.0) { touches_water = true; }\n        for (var i = 0; i < 4; i = i + 1) {\n            let n_liq = get_liquid(ip + neighbors[i]);\n            if (n_liq.y > 0.05 && n_liq.x == 1.0) { touches_water = true; break; }\n        }\n        let below_liq = get_liquid(below_p);\n        if (below_liq.y > 0.05 && below_liq.x == 1.0) { touches_water = true; }\n        let above_liq = get_liquid(above_p);\n        if (above_liq.y > 0.05 && above_liq.x == 1.0) { touches_water = true; }\n        \n        if (touches_water) {\n            next_id = 1.0; // Steam\n            next_vol = 0.5;\n        }\n    }\n\n    // --- 4d. Spawn Steam/Smoke in Air adjacent to reactions ---\n    var reaction_spawn_id = 0.0;\n    var reaction_spawn_vol = 0.0;\n    \n    let dirs6 = array<vec3<i32>, 6>(\n        vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),\n        vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),\n        vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)\n    );\n    \n    for (var i = 0; i < 6; i = i + 1) {\n        let np = ip + dirs6[i];\n        let n_liq = get_liquid(np);\n        if (n_liq.y > 0.05) {\n            if (n_liq.x == 2.0) { // Neighbor has Lava\n                var touches_water = false;\n                var touches_oil = false;\n                for (var j = 0; j < 6; j = j + 1) {\n                    let nnp = np + dirs6[j];\n                    let nn_liq = get_liquid(nnp);\n                    if (nn_liq.y > 0.05) {\n                        if (nn_liq.x == 1.0) { touches_water = true; }\n                        if (nn_liq.x == 4.0) { touches_oil = true; }\n                    }\n                }\n                if (touches_water) {\n                    reaction_spawn_id = 1.0; // Steam\n                    reaction_spawn_vol = 1.0;\n                } else if (touches_oil) {\n                    reaction_spawn_id = 4.0; // Smoke\n                    reaction_spawn_vol = 1.0;\n                }\n            } else if (n_liq.x == 1.0) { // Neighbor has Water\n                var touches_lava = false;\n                for (var j = 0; j < 6; j = j + 1) {\n                    let nnp = np + dirs6[j];\n                    let nn_liq = get_liquid(nnp);\n                    if (nn_liq.y > 0.05 && nn_liq.x == 2.0) { touches_lava = true; }\n                }\n                if (touches_lava) {\n                    reaction_spawn_id = 1.0; // Steam\n                    reaction_spawn_vol = 1.0;\n                }\n            } else if (n_liq.x == 4.0) { // Neighbor has Oil\n                var touches_lava = false;\n                for (var j = 0; j < 6; j = j + 1) {\n                    let nnp = np + dirs6[j];\n                    let nn_liq = get_liquid(nnp);\n                    if (nn_liq.y > 0.05 && nn_liq.x == 2.0) { touches_lava = true; }\n                }\n                if (touches_lava) {\n                    reaction_spawn_id = 4.0; // Smoke\n                    reaction_spawn_vol = 1.0;\n                }\n            }\n        }\n    }\n    \n    if (reaction_spawn_vol > 0.0) {\n        spawn_gas_id = reaction_spawn_id;\n        spawn_gas_vol = reaction_spawn_vol;\n    }\n\n    if (spawn_gas_vol > 0.0) {\n        next_id = spawn_gas_id;\n        next_vol = min(1.0, next_vol + spawn_gas_vol);\n    }\n\n    // --- 4b. Explosion Propagation ---\n    var in_explosion = false;\n    if (is_explosion_center(ip)) {\n        in_explosion = true;\n    } else {\n        for (var i = 0; i < 4; i = i + 1) {\n            if (is_explosion_center(ip + neighbors[i])) { in_explosion = true; break; }\n        }\n        if (is_explosion_center(below_p) || is_explosion_center(above_p)) {\n            in_explosion = true;\n        }\n    }\n    if (in_explosion) {\n        next_id = 3.0; // Fire\n        next_vol = 1.0;\n    }\n\n    // --- 4c. Wood/Coal Burning Spawning Fire/Smoke ---\n    if (next_id == 0.0 || next_id == 4.0) { // Empty or Smoke\n        var spawn_fire = false;\n        let dirs = array<vec3<i32>, 6>(\n            vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),\n            vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),\n            vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)\n        );\n        for (var i = 0; i < 6; i = i + 1) {\n            let np = ip + dirs[i];\n            let sol = get_solid(np);\n            let is_sol_block = sol.y * 0.5 < 0.008;\n            if (is_sol_block && (sol.x == 3.0 || sol.x == 4.0)) { // Wood/Coal\n                // Check if this solid block touches fire or lava\n                for (var j = 0; j < 6; j = j + 1) {\n                    let nnp = np + dirs[j];\n                    let g = get_gas(nnp);\n                    if (g.x == 3.0 && g.y > 0.1) { spawn_fire = true; break; }\n                    let l = get_liquid(nnp);\n                    if (l.x == 2.0 && l.y > 0.1) { spawn_fire = true; break; }\n                }\n            }\n            if (spawn_fire) { break; }\n        }\n        if (spawn_fire) {\n            let rand_val = fract(sin(dot(vec3<f32>(ip) + vec3<f32>(u.time), vec3<f32>(12.9898, 78.233, 45.164))) * 43758.5453);\n            if (rand_val < 0.4) {\n                next_id = 4.0; // Smoke\n                next_vol = 0.8;\n            } else {\n                next_id = 3.0; // Fire\n                next_vol = 1.0;\n            }\n        }\n    }\n\n    // --- 5. Evaporate, decay and clamp ---\n    let next_props = get_gas_props(next_id);\n    next_vol = max(0.0, next_vol - next_props.decay);\n\n    if (next_vol < 0.01) {\n        next_vol = 0.0;\n        next_id = 0.0;\n    }\n    \n    next_vol = clamp(next_vol, 0.0, 1.0);\n    if (next_vol == 0.0) {\n        next_id = 0.0;\n    }\n\n    output_buffer[idx] = vec4<f32>(next_id, next_vol, 0.0, 0.0);\n}\n";
+        static String _2 = "struct Uniforms {\n    time: f32,\n    width: f32,\n    height: f32,\n    brush_radius: f32,\n    cam_pos: vec4<f32>,\n    cam_dir: vec4<f32>,\n    cam_right: vec4<f32>,\n    cam_up: vec4<f32>,\n    sun_dir: vec4<f32>,\n    hit_pos: vec4<f32>,\n    edit_params: vec4<f32>,\n}\n\nstruct GasProps {\n    g_rate: f32,\n    l_rate: f32,\n    decay: f32,\n}\n\nfn get_gas_props(id: f32) -> GasProps {\n    let GAS_LUT = array<GasProps, 5>(\n        GasProps(0.0, 0.0, 0.0),\n        GasProps(0.3, 0.15, 0.015),\n        GasProps(0.15, 0.05, 0.01),\n        GasProps(0.25, 0.08, 0.08),\n        GasProps(0.2, 0.04, 0.008)\n    );\n    let idx = clamp(i32(round(id)), 0, 4);\n    return GAS_LUT[idx];\n}\n\n@group(0) @binding(0) var<storage, read>       input_buffer: array<vec4<f32>>;\n@group(0) @binding(1) var<storage, read_write> output_buffer: array<vec4<f32>>;\n@group(0) @binding(2) var<uniform>             u: Uniforms;\n@group(0) @binding(3) var<storage, read>       chunk_info: array<vec4<f32>>;\n@group(0) @binding(4) var<storage, read>       chunk_lookup: array<vec4<f32>>;\n@group(0) @binding(5) var solid_texture:       texture_3d<f32>;\n@group(0) @binding(6) var liquid_texture:      texture_3d<f32>;\n@group(0) @binding(7) var gas_texture:         texture_3d<f32>;\n\nfn get_solid(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(solid_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\nfn is_solid(p: vec3<i32>) -> bool {\n    let sol = get_solid(p);\n    return sol.y * 0.5 < 0.008;\n}\n\nfn get_gas(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(gas_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\nfn get_liquid(p: vec3<i32>) -> vec2<f32> {\n    let wrapped = (p + vec3<i32>(160)) % 160;\n    let val = textureLoad(liquid_texture, wrapped, 0);\n    return vec2<f32>(val.r, val.g);\n}\n\nfn is_explosion_center(p: vec3<i32>) -> bool {\n    let g = get_gas(p);\n    if (g.x == 2.0 && g.y > 0.1) {\n        let dirs = array<vec3<i32>, 6>(\n            vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),\n            vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),\n            vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)\n        );\n        for (var i = 0; i < 6; i = i + 1) {\n            let np = p + dirs[i];\n            let n_gas = get_gas(np);\n            if (n_gas.x == 3.0 && n_gas.y > 0.1) {\n                return true;\n            }\n            let n_liq = get_liquid(np);\n            if (n_liq.x == 2.0 && n_liq.y > 0.1) {\n                return true;\n            }\n        }\n    }\n    return false;\n}\n\nfn positive_mod(n: i32, m: i32) -> i32 {\n    let r = n % m;\n    if (r < 0) {\n        return r + m;\n    }\n    return r;\n}\n\nfn get_world_pos(ip: vec3<i32>, cam_pos: vec3<f32>) -> vec3<f32> {\n    let cx = i32(floor(cam_pos.x / 32.0));\n    let cy = i32(floor(cam_pos.y / 32.0));\n    let cz = i32(floor(cam_pos.z / 32.0));\n    \n    let offset_cx = cx - 2;\n    let offset_cy = cy - 2;\n    let offset_cz = cz - 2;\n    \n    let slot_x = ip.x / 32;\n    let slot_y = ip.y / 32;\n    let slot_z = ip.z / 32;\n    \n    let lx = ip.x % 32;\n    let ly = ip.y % 32;\n    let lz = ip.z % 32;\n    \n    let qx = offset_cx + positive_mod(slot_x - positive_mod(offset_cx, 5), 5);\n    let qy = offset_cy + positive_mod(slot_y - positive_mod(offset_cy, 5), 5);\n    let qz = offset_cz + positive_mod(slot_z - positive_mod(offset_cz, 5), 5);\n    \n    let gx = qx * 32 + lx;\n    let gy = qy * 32 + ly;\n    let gz = qz * 32 + lz;\n    \n    return vec3<f32>(f32(gx), f32(gy), f32(gz));\n}\n\n@compute @workgroup_size(64)\nfn main(@builtin(global_invocation_id) global_id: vec3<u32>) {\n    let idx = global_id.x;\n    if (idx >= 4096000u) { return; }\n\n    // Dummy reads to prevent compiler from optimizing out unused bindings\n    let dummy_val = input_buffer[0] + chunk_info[0] + chunk_lookup[0];\n    if (dummy_val.x > 999999.0) {\n        output_buffer[idx] = textureLoad(liquid_texture, vec3<i32>(0), 0);\n    }\n\n    let x = idx % 160u;\n    let y = (idx / 160u) % 160u;\n    let z = idx / 25600u;\n    let ip = vec3<i32>(i32(x), i32(y), i32(z));\n\n    if (is_solid(ip)) {\n        output_buffer[idx] = vec4<f32>(0.0);\n        return;\n    }\n\n    let self_gas = get_gas(ip);\n    let self_vol = self_gas.y;\n    var next_id = self_gas.x;\n    var next_vol = self_vol;\n\n    let below_p = ip + vec3<i32>(0, -1, 0);\n    let above_p = ip + vec3<i32>(0, 1, 0);\n\n    let neighbors = array<vec3<i32>, 4>(\n        vec3<i32>(-1, 0, 0),\n        vec3<i32>(1, 0, 0),\n        vec3<i32>(0, 0, -1),\n        vec3<i32>(0, 0, 1)\n    );\n\n    let self_props = get_gas_props(self_gas.x);\n    let g_rate = self_props.g_rate;\n    let l_rate = self_props.l_rate;\n\n    var net_flow = 0.0;\n    var max_inflow = 0.0;\n\n    // --- 1. Upward rising flow ---\n    // Flow out to above\n    if (!is_solid(above_p)) {\n        let above = get_gas(above_p);\n        let flow_out = min(self_vol, max(0.0, 1.0 - above.y)) * g_rate;\n        net_flow -= flow_out;\n    }\n    // Flow in from below\n    if (!is_solid(below_p)) {\n        let below = get_gas(below_p);\n        let below_props = get_gas_props(below.x);\n        let flow_in = min(below.y, max(0.0, 1.0 - self_vol)) * below_props.g_rate;\n        net_flow += flow_in;\n        if (flow_in > max_inflow) {\n            max_inflow = flow_in;\n            next_id = below.x;\n        }\n    }\n\n    // --- 2. Lateral flow ---\n    for (var i = 0; i < 4; i = i + 1) {\n        let np = ip + neighbors[i];\n        if (!is_solid(np)) {\n            let n_gas = get_gas(np);\n            let n_props = get_gas_props(n_gas.x);\n            // Flow out to neighbor if we have more\n            if (self_vol > n_gas.y) {\n                let flow_out = (self_vol - n_gas.y) * l_rate;\n                net_flow -= flow_out;\n            }\n            // Flow in from neighbor if it has more\n            if (n_gas.y > self_vol) {\n                let flow_in = (n_gas.y - self_vol) * n_props.l_rate;\n                net_flow += flow_in;\n                if (flow_in > max_inflow) {\n                    max_inflow = flow_in;\n                    next_id = n_gas.x;\n                }\n            }\n        }\n    }\n\n    next_vol = next_vol + net_flow;\n\n    // --- 3. Spawn gas if click is active ---\n    if (u.hit_pos.w > 0.5) {\n        let world_pos = get_world_pos(ip, u.cam_pos.xyz);\n        let dist = distance(world_pos, u.hit_pos.xyz);\n        if (dist <= u.brush_radius && u.edit_params.z > 0.5) {\n            next_id = u.edit_params.z;\n            next_vol = min(1.0, next_vol + u.edit_params.w);\n        }\n    }\n\n    // --- 4. Multi-Phase Gas Reactions ---\n    var spawn_gas_id = 0.0;\n    var spawn_gas_vol = 0.0;\n\n    let my_liq = get_liquid(ip);\n    let below_liq = get_liquid(below_p);\n    let above_liq = get_liquid(above_p);\n    if (my_liq.y > 0.05) {\n        if (my_liq.x == 1.0) { // Water\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 2.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 2.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; }\n            if (above_liq.y > 0.05 && above_liq.x == 2.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; }\n        } else if (my_liq.x == 2.0) { // Lava\n            // Steam\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 1.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 1.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; }\n            if (above_liq.y > 0.05 && above_liq.x == 1.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; }\n            \n            // Fire/Smoke from Lava + Oil\n            for (var i = 0; i < 4; i = i + 1) {\n                let n_liq = get_liquid(ip + neighbors[i]);\n                if (n_liq.y > 0.05 && n_liq.x == 4.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; break; }\n            }\n            if (below_liq.y > 0.05 && below_liq.x == 4.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; }\n            if (above_liq.y > 0.05 && above_liq.x == 4.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; }\n            \n            // Fire/Smoke from Lava + Wood (Solid 3)\n            for (var i = 0; i < 4; i = i + 1) {\n                let sol = get_solid(ip + neighbors[i]);\n                let is_sol_block = sol.y * 0.5 < 0.008;\n                if (is_sol_block && sol.x == 3.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; break; }\n            }\n            let below_sol = get_solid(below_p);\n            if (below_sol.y * 0.5 < 0.008 && below_sol.x == 3.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; }\n            let above_sol = get_solid(above_p);\n            if (above_sol.y * 0.5 < 0.008 && above_sol.x == 3.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; }\n        } else if (my_liq.x == 3.0) { // Acid\n            // Toxic Gas from Acid + Grass/Wood/Stone\n            var acid_react = false;\n            for (var i = 0; i < 4; i = i + 1) {\n                let sol = get_solid(ip + neighbors[i]);\n                if (sol.y * 0.5 < 0.008 && (sol.x == 1.0 || sol.x == 2.0 || sol.x == 3.0)) { acid_react = true; break; }\n            }\n            let below_sol = get_solid(below_p);\n            if (below_sol.y * 0.5 < 0.008 && (below_sol.x == 1.0 || below_sol.x == 2.0 || below_sol.x == 3.0)) { acid_react = true; }\n            let above_sol = get_solid(above_p);\n            if (above_sol.y * 0.5 < 0.008 && (above_sol.x == 1.0 || above_sol.x == 2.0 || above_sol.x == 3.0)) { acid_react = true; }\n            \n            if (acid_react) {\n                spawn_gas_id = 2.0; // Toxic Gas\n                spawn_gas_vol = 1.0;\n            }\n        }\n    }\n\n    // Fire + Water ➔ Steam\n    if (next_id == 3.0 && next_vol > 0.05) {\n        var touches_water = false;\n        if (my_liq.y > 0.05 && my_liq.x == 1.0) { touches_water = true; }\n        for (var i = 0; i < 4; i = i + 1) {\n            let n_liq = get_liquid(ip + neighbors[i]);\n            if (n_liq.y > 0.05 && n_liq.x == 1.0) { touches_water = true; break; }\n        }\n        let below_liq = get_liquid(below_p);\n        if (below_liq.y > 0.05 && below_liq.x == 1.0) { touches_water = true; }\n        let above_liq = get_liquid(above_p);\n        if (above_liq.y > 0.05 && above_liq.x == 1.0) { touches_water = true; }\n        \n        if (touches_water) {\n            next_id = 1.0; // Steam\n            next_vol = 0.5;\n        }\n    }\n\n    // --- 4d. Spawn Steam/Smoke in Air adjacent to reactions ---\n    var reaction_spawn_id = 0.0;\n    var reaction_spawn_vol = 0.0;\n    \n    let dirs6 = array<vec3<i32>, 6>(\n        vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),\n        vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),\n        vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)\n    );\n    \n    for (var i = 0; i < 6; i = i + 1) {\n        let np = ip + dirs6[i];\n        let n_liq = get_liquid(np);\n        if (n_liq.y > 0.05) {\n            if (n_liq.x == 2.0) { // Neighbor has Lava\n                var touches_water = false;\n                var touches_oil = false;\n                for (var j = 0; j < 6; j = j + 1) {\n                    let nnp = np + dirs6[j];\n                    let nn_liq = get_liquid(nnp);\n                    if (nn_liq.y > 0.05) {\n                        if (nn_liq.x == 1.0) { touches_water = true; }\n                        if (nn_liq.x == 4.0) { touches_oil = true; }\n                    }\n                }\n                if (touches_water) {\n                    reaction_spawn_id = 1.0; // Steam\n                    reaction_spawn_vol = 1.0;\n                } else if (touches_oil) {\n                    reaction_spawn_id = 4.0; // Smoke\n                    reaction_spawn_vol = 1.0;\n                }\n            } else if (n_liq.x == 1.0) { // Neighbor has Water\n                var touches_lava = false;\n                for (var j = 0; j < 6; j = j + 1) {\n                    let nnp = np + dirs6[j];\n                    let nn_liq = get_liquid(nnp);\n                    if (nn_liq.y > 0.05 && nn_liq.x == 2.0) { touches_lava = true; }\n                }\n                if (touches_lava) {\n                    reaction_spawn_id = 1.0; // Steam\n                    reaction_spawn_vol = 1.0;\n                }\n            } else if (n_liq.x == 4.0) { // Neighbor has Oil\n                var touches_lava = false;\n                for (var j = 0; j < 6; j = j + 1) {\n                    let nnp = np + dirs6[j];\n                    let nn_liq = get_liquid(nnp);\n                    if (nn_liq.y > 0.05 && nn_liq.x == 2.0) { touches_lava = true; }\n                }\n                if (touches_lava) {\n                    reaction_spawn_id = 4.0; // Smoke\n                    reaction_spawn_vol = 1.0;\n                }\n            }\n        }\n    }\n    \n    if (reaction_spawn_vol > 0.0) {\n        spawn_gas_id = reaction_spawn_id;\n        spawn_gas_vol = reaction_spawn_vol;\n    }\n\n    if (spawn_gas_vol > 0.0) {\n        next_id = spawn_gas_id;\n        next_vol = min(1.0, next_vol + spawn_gas_vol);\n    }\n\n    // --- 4b. Explosion Propagation ---\n    var in_explosion = false;\n    if (is_explosion_center(ip)) {\n        in_explosion = true;\n    } else {\n        for (var i = 0; i < 4; i = i + 1) {\n            if (is_explosion_center(ip + neighbors[i])) { in_explosion = true; break; }\n        }\n        if (is_explosion_center(below_p) || is_explosion_center(above_p)) {\n            in_explosion = true;\n        }\n    }\n    if (in_explosion) {\n        next_id = 3.0; // Fire\n        next_vol = 1.0;\n    }\n\n    // --- 4c. Wood/Coal Burning Spawning Fire/Smoke ---\n    if (next_id == 0.0 || next_id == 4.0) { // Empty or Smoke\n        var spawn_fire = false;\n        let dirs = array<vec3<i32>, 6>(\n            vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),\n            vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),\n            vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)\n        );\n        for (var i = 0; i < 6; i = i + 1) {\n            let np = ip + dirs[i];\n            let sol = get_solid(np);\n            let is_sol_block = sol.y * 0.5 < 0.008;\n            if (is_sol_block && (sol.x == 3.0 || sol.x == 4.0)) { // Wood/Coal\n                // Check if this solid block touches fire or lava\n                for (var j = 0; j < 6; j = j + 1) {\n                    let nnp = np + dirs[j];\n                    let g = get_gas(nnp);\n                    if (g.x == 3.0 && g.y > 0.1) { spawn_fire = true; break; }\n                    let l = get_liquid(nnp);\n                    if (l.x == 2.0 && l.y > 0.1) { spawn_fire = true; break; }\n                }\n            }\n            if (spawn_fire) { break; }\n        }\n        if (spawn_fire) {\n            let rand_val = fract(sin(dot(vec3<f32>(ip) + vec3<f32>(u.time), vec3<f32>(12.9898, 78.233, 45.164))) * 43758.5453);\n            if (rand_val < 0.4) {\n                next_id = 4.0; // Smoke\n                next_vol = 0.8;\n            } else {\n                next_id = 3.0; // Fire\n                next_vol = 1.0;\n            }\n        }\n    }\n\n    // Steam condensation on ceiling\n    if (next_id == 1.0 && next_vol > 0.05) {\n        if (is_solid(above_p)) {\n            next_vol = max(0.0, next_vol - 0.02);\n        }\n    }\n\n    // --- 5. Evaporate, decay and clamp ---\n    let next_props = get_gas_props(next_id);\n    next_vol = max(0.0, next_vol - next_props.decay);\n\n    if (next_vol < 0.01) {\n        next_vol = 0.0;\n        next_id = 0.0;\n    }\n    \n    next_vol = clamp(next_vol, 0.0, 1.0);\n    if (next_vol == 0.0) {\n        next_id = 0.0;\n    }\n\n    output_buffer[idx] = vec4<f32>(next_id, next_vol, 0.0, 0.0);\n}\n";
         String *_2_ref = &_2;
         gas_MINUS_sim_MINUS_wgsl = _2_ref;
     }
@@ -21070,7 +21070,9 @@ void EngineState_render_BANG_(EngineState* state) {
         Player* _17 = EngineState_player(state);
         Camera* _18 = Player_camera(_17);
         Camera* cam = _18;
-        Renderer_draw(platform_MINUS_eng, ren, cam);
+        Diagnostics* _22 = EngineState_diag(state);
+        Diagnostics* diag = _22;
+        Renderer_draw(platform_MINUS_eng, ren, cam, diag);
     }
 }
 
@@ -21532,215 +21534,232 @@ void EngineState_update_BANG_(EngineState* state, GLFWwindow* win, double dt, bo
         Vector3__double* _34 = Camera_pos(cam);
         Vector3__double _35 = Vector3_copy__double(_34);
         Vector3__double prev_MINUS_pos = _35;
+        Diagnostics* _39 = EngineState_diag(state);
+        Diagnostics* diag = _39;
+        static String _45 = "Player Physics & Input";
+        String *_45_ref = &_45;
+        Diagnostics_start_MINUS_zone_BANG_(diag, _45_ref);
         Player_handle_MINUS_input_BANG_(player, win, dt, first_MINUS_mouse_MINUS_ptr, last_MINUS_x_MINUS_ptr, last_MINUS_y_MINUS_ptr);
         Player_handle_MINUS_jump_BANG_(player, win);
-        Vector3__double* _56 = &prev_MINUS_pos; // ref
-        Player_update_MINUS_physics_BANG_(player, world, dt, _56);
-        Vector3__double* _64 = Camera_pos(cam);
-        EngineState_stream_MINUS_chunks_BANG_(world, platform_MINUS_eng, ren, _64);
+        Vector3__double* _66 = &prev_MINUS_pos; // ref
+        Player_update_MINUS_physics_BANG_(player, world, dt, _66);
+        static String _71 = "Player Physics & Input";
+        String *_71_ref = &_71;
+        Diagnostics_end_MINUS_zone_BANG_(diag, _71_ref);
+        static String _77 = "Chunk Streaming";
+        String *_77_ref = &_77;
+        Diagnostics_start_MINUS_zone_BANG_(diag, _77_ref);
+        Vector3__double* _86 = Camera_pos(cam);
+        EngineState_stream_MINUS_chunks_BANG_(world, platform_MINUS_eng, ren, _86);
+        static String _91 = "Chunk Streaming";
+        String *_91_ref = &_91;
+        Diagnostics_end_MINUS_zone_BANG_(diag, _91_ref);
+        static String _97 = "Voxel Editing & Raycast";
+        String *_97_ref = &_97;
+        Diagnostics_start_MINUS_zone_BANG_(diag, _97_ref);
         /* let */ {
-            Vector3__double* _70 = Camera_pos(cam);
-            Vector3__double* ro = _70;
-            Vector3__double* _74 = Camera_front(cam);
-            Vector3__double* rd = _74;
-            Maybe__Vector3__double _81 = World_raycast(world, ro, rd, 80.0);
-            Maybe__Vector3__double hit_MINUS_opt = _81;
+            Vector3__double* _104 = Camera_pos(cam);
+            Vector3__double* ro = _104;
+            Vector3__double* _108 = Camera_front(cam);
+            Vector3__double* rd = _108;
+            Maybe__Vector3__double _115 = World_raycast(world, ro, rd, 80.0);
+            Maybe__Vector3__double hit_MINUS_opt = _115;
             if(hit_MINUS_opt._tag == Maybe__Vector3__double_Nothing_tag) {
-                Maybe__Vector3__double _84_temp = hit_MINUS_opt;
+                Maybe__Vector3__double _118_temp = hit_MINUS_opt;
                 // Case expr:
-                float* _92 = EngineState_hit_MINUS_active(state);
-                float* _93 = ref_MINUS_to_MINUS_ptr__float(_92);
-                Pointer_set__float(_93, 0.0f);
-                float* _100 = EngineState_liquid_MINUS_spawn(state);
-                float* _101 = ref_MINUS_to_MINUS_ptr__float(_100);
-                Pointer_set__float(_101, 0.0f);
-                float* _108 = EngineState_gas_MINUS_spawn(state);
-                float* _109 = ref_MINUS_to_MINUS_ptr__float(_108);
-                Pointer_set__float(_109, 0.0f);
+                float* _126 = EngineState_hit_MINUS_active(state);
+                float* _127 = ref_MINUS_to_MINUS_ptr__float(_126);
+                Pointer_set__float(_127, 0.0f);
+                float* _134 = EngineState_liquid_MINUS_spawn(state);
+                float* _135 = ref_MINUS_to_MINUS_ptr__float(_134);
+                Pointer_set__float(_135, 0.0f);
+                float* _142 = EngineState_gas_MINUS_spawn(state);
+                float* _143 = ref_MINUS_to_MINUS_ptr__float(_142);
+                Pointer_set__float(_143, 0.0f);
             }
             else if(hit_MINUS_opt._tag == Maybe__Vector3__double_Just_tag) {
-                Maybe__Vector3__double _84_temp = hit_MINUS_opt;
-                Vector3__double hit_MINUS_pos = _84_temp.u.Just.member0;
+                Maybe__Vector3__double _118_temp = hit_MINUS_opt;
+                Vector3__double hit_MINUS_pos = _118_temp.u.Just.member0;
                 // Case expr:
                 /* let */ {
-                    Vector3__double _123 = Vector3_init__double(1.0, 1.0, 0.0);
-                    Vector3__double yellow = _123;
-                    Vector3__double* _129 = &hit_MINUS_pos; // ref
-                    double* _130 = Vector3_x__double(_129);
-                    double _131 = Double_copy(_130);
-                    double hx = _131;
-                    Vector3__double* _137 = &hit_MINUS_pos; // ref
-                    double* _138 = Vector3_y__double(_137);
-                    double _139 = Double_copy(_138);
-                    double hy = _139;
-                    Vector3__double* _145 = &hit_MINUS_pos; // ref
-                    double* _146 = Vector3_z__double(_145);
-                    double _147 = Double_copy(_146);
-                    double hz = _147;
-                    double _154 = Double__MINUS_(hx, 0.5);
-                    double _158 = Double__MINUS_(hy, 0.5);
-                    double _162 = Double__MINUS_(hz, 0.5);
-                    double _166 = Double__PLUS_(hx, 0.5);
-                    double _170 = Double__PLUS_(hy, 0.5);
-                    double _174 = Double__PLUS_(hz, 0.5);
-                    Vector3__double* _177 = &yellow; // ref
-                    EngineState_draw_MINUS_bounds_MINUS_wireframe_BANG_(ren, _154, _158, _162, _166, _170, _174, _177);
+                    Vector3__double _157 = Vector3_init__double(1.0, 1.0, 0.0);
+                    Vector3__double yellow = _157;
+                    Vector3__double* _163 = &hit_MINUS_pos; // ref
+                    double* _164 = Vector3_x__double(_163);
+                    double _165 = Double_copy(_164);
+                    double hx = _165;
+                    Vector3__double* _171 = &hit_MINUS_pos; // ref
+                    double* _172 = Vector3_y__double(_171);
+                    double _173 = Double_copy(_172);
+                    double hy = _173;
+                    Vector3__double* _179 = &hit_MINUS_pos; // ref
+                    double* _180 = Vector3_z__double(_179);
+                    double _181 = Double_copy(_180);
+                    double hz = _181;
+                    double _188 = Double__MINUS_(hx, 0.5);
+                    double _192 = Double__MINUS_(hy, 0.5);
+                    double _196 = Double__MINUS_(hz, 0.5);
+                    double _200 = Double__PLUS_(hx, 0.5);
+                    double _204 = Double__PLUS_(hy, 0.5);
+                    double _208 = Double__PLUS_(hz, 0.5);
+                    Vector3__double* _211 = &yellow; // ref
+                    EngineState_draw_MINUS_bounds_MINUS_wireframe_BANG_(ren, _188, _192, _196, _200, _204, _208, _211);
                     Vector3_delete__double(yellow);
                 }
                 /* let */ {
-                    int _186 = glfwGetMouseButton(win, 0);
-                    bool _188 = Int__EQ_(_186, GLFW_PRESS);
-                    bool left_MINUS_pressed = _188;
-                    int _194 = glfwGetMouseButton(win, 1);
-                    bool _196 = Int__EQ_(_194, GLFW_PRESS);
-                    bool right_MINUS_pressed = _196;
-                    int _202 = glfwGetKey(win, GLFW_KEY_F);
-                    bool _204 = Int__EQ_(_202, GLFW_PRESS);
-                    bool f_MINUS_held = _204;
-                    int _210 = glfwGetKey(win, GLFW_KEY_H);
-                    bool _212 = Int__EQ_(_210, GLFW_PRESS);
-                    bool h_MINUS_held = _212;
-                    int _218 = glfwGetKey(win, GLFW_KEY_G);
-                    bool _220 = Int__EQ_(_218, GLFW_PRESS);
-                    bool g_MINUS_held = _220;
-                    float* _227 = EngineState_hit_MINUS_x(state);
-                    float* _228 = ref_MINUS_to_MINUS_ptr__float(_227);
-                    Vector3__double* _234 = &hit_MINUS_pos; // ref
-                    double* _235 = Vector3_x__double(_234);
-                    double _236 = Double_copy(_235);
-                    float _237 = Double_to_MINUS_float(_236);
-                    Pointer_set__float(_228, _237);
-                    float* _243 = EngineState_hit_MINUS_y(state);
-                    float* _244 = ref_MINUS_to_MINUS_ptr__float(_243);
-                    Vector3__double* _250 = &hit_MINUS_pos; // ref
-                    double* _251 = Vector3_y__double(_250);
-                    double _252 = Double_copy(_251);
-                    float _253 = Double_to_MINUS_float(_252);
-                    Pointer_set__float(_244, _253);
-                    float* _259 = EngineState_hit_MINUS_z(state);
-                    float* _260 = ref_MINUS_to_MINUS_ptr__float(_259);
-                    Vector3__double* _266 = &hit_MINUS_pos; // ref
-                    double* _267 = Vector3_z__double(_266);
-                    double _268 = Double_copy(_267);
-                    float _269 = Double_to_MINUS_float(_268);
-                    Pointer_set__float(_260, _269);
-                    bool _280;
+                    int _220 = glfwGetMouseButton(win, 0);
+                    bool _222 = Int__EQ_(_220, GLFW_PRESS);
+                    bool left_MINUS_pressed = _222;
+                    int _228 = glfwGetMouseButton(win, 1);
+                    bool _230 = Int__EQ_(_228, GLFW_PRESS);
+                    bool right_MINUS_pressed = _230;
+                    int _236 = glfwGetKey(win, GLFW_KEY_F);
+                    bool _238 = Int__EQ_(_236, GLFW_PRESS);
+                    bool f_MINUS_held = _238;
+                    int _244 = glfwGetKey(win, GLFW_KEY_H);
+                    bool _246 = Int__EQ_(_244, GLFW_PRESS);
+                    bool h_MINUS_held = _246;
+                    int _252 = glfwGetKey(win, GLFW_KEY_G);
+                    bool _254 = Int__EQ_(_252, GLFW_PRESS);
+                    bool g_MINUS_held = _254;
+                    float* _261 = EngineState_hit_MINUS_x(state);
+                    float* _262 = ref_MINUS_to_MINUS_ptr__float(_261);
+                    Vector3__double* _268 = &hit_MINUS_pos; // ref
+                    double* _269 = Vector3_x__double(_268);
+                    double _270 = Double_copy(_269);
+                    float _271 = Double_to_MINUS_float(_270);
+                    Pointer_set__float(_262, _271);
+                    float* _277 = EngineState_hit_MINUS_y(state);
+                    float* _278 = ref_MINUS_to_MINUS_ptr__float(_277);
+                    Vector3__double* _284 = &hit_MINUS_pos; // ref
+                    double* _285 = Vector3_y__double(_284);
+                    double _286 = Double_copy(_285);
+                    float _287 = Double_to_MINUS_float(_286);
+                    Pointer_set__float(_278, _287);
+                    float* _293 = EngineState_hit_MINUS_z(state);
+                    float* _294 = ref_MINUS_to_MINUS_ptr__float(_293);
+                    Vector3__double* _300 = &hit_MINUS_pos; // ref
+                    double* _301 = Vector3_z__double(_300);
+                    double _302 = Double_copy(_301);
+                    float _303 = Double_to_MINUS_float(_302);
+                    Pointer_set__float(_294, _303);
+                    bool _314;
                     if (left_MINUS_pressed) {
-                        bool _276 = true;
-                        _280 = _276;
+                        bool _310 = true;
+                        _314 = _310;
                     } else {
-                        bool _279 = right_MINUS_pressed;
-                        _280 = _279;
+                        bool _313 = right_MINUS_pressed;
+                        _314 = _313;
                     }
-                    if (_280) {
-                        float* _286 = EngineState_hit_MINUS_active(state);
-                        float* _287 = ref_MINUS_to_MINUS_ptr__float(_286);
-                        Pointer_set__float(_287, 1.0f);
+                    if (_314) {
+                        float* _320 = EngineState_hit_MINUS_active(state);
+                        float* _321 = ref_MINUS_to_MINUS_ptr__float(_320);
+                        Pointer_set__float(_321, 1.0f);
                         if (h_MINUS_held) {
-                            float* _297 = EngineState_liquid_MINUS_spawn(state);
-                            float* _298 = ref_MINUS_to_MINUS_ptr__float(_297);
-                            float* _302 = Player_current_MINUS_liq(player);
-                            float _303 = Float_copy(_302);
-                            Pointer_set__float(_298, _303);
+                            float* _331 = EngineState_liquid_MINUS_spawn(state);
+                            float* _332 = ref_MINUS_to_MINUS_ptr__float(_331);
+                            float* _336 = Player_current_MINUS_liq(player);
+                            float _337 = Float_copy(_336);
+                            Pointer_set__float(_332, _337);
                         } else {
-                            float* _311 = EngineState_liquid_MINUS_spawn(state);
-                            float* _312 = ref_MINUS_to_MINUS_ptr__float(_311);
-                            Pointer_set__float(_312, 0.0f);
+                            float* _345 = EngineState_liquid_MINUS_spawn(state);
+                            float* _346 = ref_MINUS_to_MINUS_ptr__float(_345);
+                            Pointer_set__float(_346, 0.0f);
                         }
                         if (g_MINUS_held) {
-                            float* _324 = EngineState_gas_MINUS_spawn(state);
-                            float* _325 = ref_MINUS_to_MINUS_ptr__float(_324);
-                            float* _329 = Player_current_MINUS_gas(player);
-                            float _330 = Float_copy(_329);
-                            Pointer_set__float(_325, _330);
+                            float* _358 = EngineState_gas_MINUS_spawn(state);
+                            float* _359 = ref_MINUS_to_MINUS_ptr__float(_358);
+                            float* _363 = Player_current_MINUS_gas(player);
+                            float _364 = Float_copy(_363);
+                            Pointer_set__float(_359, _364);
                         } else {
-                            float* _338 = EngineState_gas_MINUS_spawn(state);
-                            float* _339 = ref_MINUS_to_MINUS_ptr__float(_338);
-                            Pointer_set__float(_339, 0.0f);
+                            float* _372 = EngineState_gas_MINUS_spawn(state);
+                            float* _373 = ref_MINUS_to_MINUS_ptr__float(_372);
+                            Pointer_set__float(_373, 0.0f);
                         }
                     } else {
-                        float* _350 = EngineState_hit_MINUS_active(state);
-                        float* _351 = ref_MINUS_to_MINUS_ptr__float(_350);
-                        Pointer_set__float(_351, 0.0f);
-                        float* _358 = EngineState_liquid_MINUS_spawn(state);
-                        float* _359 = ref_MINUS_to_MINUS_ptr__float(_358);
-                        Pointer_set__float(_359, 0.0f);
-                        float* _366 = EngineState_gas_MINUS_spawn(state);
-                        float* _367 = ref_MINUS_to_MINUS_ptr__float(_366);
-                        Pointer_set__float(_367, 0.0f);
+                        float* _384 = EngineState_hit_MINUS_active(state);
+                        float* _385 = ref_MINUS_to_MINUS_ptr__float(_384);
+                        Pointer_set__float(_385, 0.0f);
+                        float* _392 = EngineState_liquid_MINUS_spawn(state);
+                        float* _393 = ref_MINUS_to_MINUS_ptr__float(_392);
+                        Pointer_set__float(_393, 0.0f);
+                        float* _400 = EngineState_gas_MINUS_spawn(state);
+                        float* _401 = ref_MINUS_to_MINUS_ptr__float(_400);
+                        Pointer_set__float(_401, 0.0f);
                     }
-                    bool _389;
-                    bool _382;
+                    bool _423;
+                    bool _416;
                     if (left_MINUS_pressed) {
-                        bool _378 = true;
-                        _382 = _378;
+                        bool _412 = true;
+                        _416 = _412;
                     } else {
-                        bool _381 = right_MINUS_pressed;
-                        _382 = _381;
+                        bool _415 = right_MINUS_pressed;
+                        _416 = _415;
                     }
-                    if (_382) {
-                        bool _385 = f_MINUS_held;
-                        _389 = _385;
+                    if (_416) {
+                        bool _419 = f_MINUS_held;
+                        _423 = _419;
                     } else {
-                        bool _388 = false;
-                        _389 = _388;
+                        bool _422 = false;
+                        _423 = _422;
                     }
-                    if (_389) {
+                    if (_423) {
                         /* let */ {
-                            double* _396 = Player_edit_MINUS_radius(player);
-                            double _397 = Double_copy(_396);
-                            double radius = _397;
-                            float* _402 = Player_current_MINUS_mat(player);
-                            float _403 = Float_copy(_402);
-                            float mat_MINUS_id = _403;
+                            double* _430 = Player_edit_MINUS_radius(player);
+                            double _431 = Double_copy(_430);
+                            double radius = _431;
+                            float* _436 = Player_current_MINUS_mat(player);
+                            float _437 = Float_copy(_436);
+                            float mat_MINUS_id = _437;
                             bool carve_QMARK_ = left_MINUS_pressed;
-                            Vector3__double* _411 = &hit_MINUS_pos; // ref
-                            Array__ChunkCoord _415 = World_edit_MINUS_sdf_BANG_(world, _411, radius, mat_MINUS_id, carve_QMARK_);
-                            Array__ChunkCoord modified_MINUS_coords = _415;
+                            Vector3__double* _445 = &hit_MINUS_pos; // ref
+                            Array__ChunkCoord _449 = World_edit_MINUS_sdf_BANG_(world, _445, radius, mat_MINUS_id, carve_QMARK_);
+                            Array__ChunkCoord modified_MINUS_coords = _449;
                             /* let */ {
                                 int j = 0;
-                                Array__ChunkCoord* _428 = &modified_MINUS_coords; // ref
-                                int _429 = Array_length__ChunkCoord(_428);
-                                bool _1000037 = Int__LT_(j, _429);
-                                bool _1000035 = _1000037;
-                                while (_1000035) {
+                                Array__ChunkCoord* _462 = &modified_MINUS_coords; // ref
+                                int _463 = Array_length__ChunkCoord(_462);
+                                bool _1000043 = Int__LT_(j, _463);
+                                bool _1000041 = _1000043;
+                                while (_1000041) {
                                     /* let */ {
-                                        Array__ChunkCoord* _437 = &modified_MINUS_coords; // ref
-                                        ChunkCoord* _439 = Array_unsafe_MINUS_nth__ChunkCoord(_437, j);
-                                        ChunkCoord* coord = _439;
-                                        int* _444 = ChunkCoord_x(coord);
-                                        int _445 = Int_copy(_444);
-                                        int qx = _445;
-                                        int* _450 = ChunkCoord_y(coord);
-                                        int _451 = Int_copy(_450);
-                                        int qy = _451;
-                                        int* _456 = ChunkCoord_z(coord);
-                                        int _457 = Int_copy(_456);
-                                        int qz = _457;
-                                        Maybe__Chunk _464 = World_find_MINUS_chunk(world, qx, qy, qz);
-                                        Maybe__Chunk chunk_MINUS_opt = _464;
+                                        Array__ChunkCoord* _471 = &modified_MINUS_coords; // ref
+                                        ChunkCoord* _473 = Array_unsafe_MINUS_nth__ChunkCoord(_471, j);
+                                        ChunkCoord* coord = _473;
+                                        int* _478 = ChunkCoord_x(coord);
+                                        int _479 = Int_copy(_478);
+                                        int qx = _479;
+                                        int* _484 = ChunkCoord_y(coord);
+                                        int _485 = Int_copy(_484);
+                                        int qy = _485;
+                                        int* _490 = ChunkCoord_z(coord);
+                                        int _491 = Int_copy(_490);
+                                        int qz = _491;
+                                        Maybe__Chunk _498 = World_find_MINUS_chunk(world, qx, qy, qz);
+                                        Maybe__Chunk chunk_MINUS_opt = _498;
                                         if(chunk_MINUS_opt._tag == Maybe__Chunk_Nothing_tag) {
-                                            Maybe__Chunk _467_temp = chunk_MINUS_opt;
+                                            Maybe__Chunk _501_temp = chunk_MINUS_opt;
                                             // Case expr:
                                             /* () */
                                         }
                                         else if(chunk_MINUS_opt._tag == Maybe__Chunk_Just_tag) {
-                                            Maybe__Chunk _467_temp = chunk_MINUS_opt;
-                                            Chunk chunk = _467_temp.u.Just.member0;
+                                            Maybe__Chunk _501_temp = chunk_MINUS_opt;
+                                            Chunk chunk = _501_temp.u.Just.member0;
                                             // Case expr:
-                                            Chunk* _483 = &chunk; // ref
-                                            Array__float* _484 = Chunk_voxel_MINUS_data(_483);
-                                            Renderer_update_MINUS_chunk_MINUS_texture(platform_MINUS_eng, ren, qx, qy, qz, _484);
+                                            Chunk* _517 = &chunk; // ref
+                                            Array__float* _518 = Chunk_voxel_MINUS_data(_517);
+                                            Renderer_update_MINUS_chunk_MINUS_texture(platform_MINUS_eng, ren, qx, qy, qz, _518);
                                             Chunk_delete(chunk);
                                         }
-                                        else UNHANDLED("engine.carp", 190);
+                                        else UNHANDLED("engine.carp", 194);
                                     }
-                                    int _1000044 = Int__PLUS_(j, 1);
-                                    j = _1000044;  // Int = Int
-                                    Array__ChunkCoord* _428 = &modified_MINUS_coords; // ref
-                                    int _429 = Array_length__ChunkCoord(_428);
-                                    bool _1000037 = Int__LT_(j, _429);
-                                    _1000035 = _1000037;
+                                    int _1000050 = Int__PLUS_(j, 1);
+                                    j = _1000050;  // Int = Int
+                                    Array__ChunkCoord* _462 = &modified_MINUS_coords; // ref
+                                    int _463 = Array_length__ChunkCoord(_462);
+                                    bool _1000043 = Int__LT_(j, _463);
+                                    _1000041 = _1000043;
                                 }
                             }
                             Array_delete__ChunkCoord(modified_MINUS_coords);
@@ -21751,8 +21770,11 @@ void EngineState_update_BANG_(EngineState* state, GLFWwindow* win, double dt, bo
                 }
                 Vector3_delete__double(hit_MINUS_pos);
             }
-            else UNHANDLED("engine.carp", 136);
+            else UNHANDLED("engine.carp", 140);
         }
+        static String _547 = "Voxel Editing & Raycast";
+        String *_547_ref = &_547;
+        Diagnostics_end_MINUS_zone_BANG_(diag, _547_ref);
         Vector3_delete__double(prev_MINUS_pos);
     }
 }
@@ -23295,7 +23317,7 @@ Maybe__RayHit Geometry_Segment_intersect_MINUS_aabb(Segment* s, AABB* aabb) {
             }
             _62 = _61;
         }
-        else UNHANDLED("geometry.carp", 511);
+        else UNHANDLED("geometry.carp", 568);
         _63 = _62;
         Ray_delete(ray);
     }
@@ -23446,7 +23468,7 @@ Maybe__RayHit Geometry_Segment_intersect_MINUS_sphere(Segment* s, Sphere* sphere
             }
             _62 = _61;
         }
-        else UNHANDLED("geometry.carp", 501);
+        else UNHANDLED("geometry.carp", 557);
         _63 = _62;
         Ray_delete(ray);
     }
@@ -25768,7 +25790,7 @@ String* LogLevel_to_MINUS_string(LogLevel level) {
         String *_20_ref = &_20;
         _21 = _20_ref;
     }
-    else UNHANDLED("diagnostics.carp", 18);
+    else UNHANDLED("diagnostics.carp", 12);
     return _21;
 }
 
@@ -32982,56 +33004,56 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                                                                                                         Result__Renderer_String _2370 = Result_Success__Renderer_String(_2369);
                                                                                                                                                         _2371 = _2370;
                                                                                                                                                     }
-                                                                                                                                                    else UNHANDLED("renderer.carp", 188);
+                                                                                                                                                    else UNHANDLED("renderer.carp", 189);
                                                                                                                                                     _2372 = _2371;
                                                                                                                                                     String_delete(format);
                                                                                                                                                 }
                                                                                                                                                 _2373 = _2372;
                                                                                                                                             }
-                                                                                                                                            else UNHANDLED("renderer.carp", 184);
+                                                                                                                                            else UNHANDLED("renderer.carp", 185);
                                                                                                                                             _2374 = _2373;
                                                                                                                                         }
                                                                                                                                         _2375 = _2374;
                                                                                                                                     }
-                                                                                                                                    else UNHANDLED("renderer.carp", 179);
+                                                                                                                                    else UNHANDLED("renderer.carp", 180);
                                                                                                                                     _2376 = _2375;
                                                                                                                                 }
-                                                                                                                                else UNHANDLED("renderer.carp", 176);
+                                                                                                                                else UNHANDLED("renderer.carp", 177);
                                                                                                                                 _2377 = _2376;
                                                                                                                             }
                                                                                                                             _2378 = _2377;
                                                                                                                         }
-                                                                                                                        else UNHANDLED("renderer.carp", 169);
+                                                                                                                        else UNHANDLED("renderer.carp", 170);
                                                                                                                         _2379 = _2378;
                                                                                                                     }
-                                                                                                                    else UNHANDLED("renderer.carp", 166);
+                                                                                                                    else UNHANDLED("renderer.carp", 167);
                                                                                                                     _2380 = _2379;
                                                                                                                 }
-                                                                                                                else UNHANDLED("renderer.carp", 163);
+                                                                                                                else UNHANDLED("renderer.carp", 164);
                                                                                                                 _2381 = _2380;
                                                                                                                 Array_delete__WGPUBuffer(copy_MINUS_bufs);
                                                                                                             }
                                                                                                             _2382 = _2381;
                                                                                                         }
-                                                                                                        else UNHANDLED("renderer.carp", 155);
+                                                                                                        else UNHANDLED("renderer.carp", 156);
                                                                                                         _2383 = _2382;
                                                                                                     }
-                                                                                                    else UNHANDLED("renderer.carp", 152);
+                                                                                                    else UNHANDLED("renderer.carp", 153);
                                                                                                     _2384 = _2383;
                                                                                                     Array_delete__float(staging_MINUS_initial);
                                                                                                 }
                                                                                                 _2385 = _2384;
                                                                                             }
-                                                                                            else UNHANDLED("renderer.carp", 147);
+                                                                                            else UNHANDLED("renderer.carp", 148);
                                                                                             _2386 = _2385;
                                                                                         }
-                                                                                        else UNHANDLED("renderer.carp", 144);
+                                                                                        else UNHANDLED("renderer.carp", 145);
                                                                                         _2387 = _2386;
                                                                                     }
-                                                                                    else UNHANDLED("renderer.carp", 141);
+                                                                                    else UNHANDLED("renderer.carp", 142);
                                                                                     _2388 = _2387;
                                                                                 }
-                                                                                else UNHANDLED("renderer.carp", 138);
+                                                                                else UNHANDLED("renderer.carp", 139);
                                                                                 _2389 = _2388;
                                                                                 Array_delete__WGPUBuffer(bufs);
                                                                                 Array_delete__WGPUBuffer(gas_MINUS_bufs);
@@ -33039,56 +33061,56 @@ Result__Renderer_String Renderer_create(Engine* eng) {
                                                                             }
                                                                             _2390 = _2389;
                                                                         }
-                                                                        else UNHANDLED("renderer.carp", 126);
+                                                                        else UNHANDLED("renderer.carp", 127);
                                                                         _2391 = _2390;
                                                                     }
-                                                                    else UNHANDLED("renderer.carp", 123);
+                                                                    else UNHANDLED("renderer.carp", 124);
                                                                     _2392 = _2391;
                                                                 }
-                                                                else UNHANDLED("renderer.carp", 120);
+                                                                else UNHANDLED("renderer.carp", 121);
                                                                 _2393 = _2392;
                                                             }
-                                                            else UNHANDLED("renderer.carp", 117);
+                                                            else UNHANDLED("renderer.carp", 118);
                                                             _2394 = _2393;
                                                         }
-                                                        else UNHANDLED("renderer.carp", 114);
+                                                        else UNHANDLED("renderer.carp", 115);
                                                         _2395 = _2394;
                                                     }
-                                                    else UNHANDLED("renderer.carp", 111);
+                                                    else UNHANDLED("renderer.carp", 112);
                                                     _2396 = _2395;
                                                 }
-                                                else UNHANDLED("renderer.carp", 108);
+                                                else UNHANDLED("renderer.carp", 109);
                                                 _2397 = _2396;
                                                 Array_delete__float(initial_MINUS_data_MINUS_half);
                                                 Array_delete__float(initial_MINUS_data_MINUS_read);
                                             }
                                             _2398 = _2397;
                                         }
-                                        else UNHANDLED("renderer.carp", 95);
+                                        else UNHANDLED("renderer.carp", 96);
                                         _2399 = _2398;
                                     }
-                                    else UNHANDLED("renderer.carp", 86);
+                                    else UNHANDLED("renderer.carp", 87);
                                     _2400 = _2399;
                                 }
-                                else UNHANDLED("renderer.carp", 78);
+                                else UNHANDLED("renderer.carp", 79);
                                 _2401 = _2400;
                             }
-                            else UNHANDLED("renderer.carp", 71);
+                            else UNHANDLED("renderer.carp", 72);
                             _2402 = _2401;
                         }
-                        else UNHANDLED("renderer.carp", 65);
+                        else UNHANDLED("renderer.carp", 66);
                         _2403 = _2402;
                     }
-                    else UNHANDLED("renderer.carp", 59);
+                    else UNHANDLED("renderer.carp", 60);
                     _2404 = _2403;
                 }
-                else UNHANDLED("renderer.carp", 54);
+                else UNHANDLED("renderer.carp", 55);
                 _2405 = _2404;
             }
-            else UNHANDLED("renderer.carp", 50);
+            else UNHANDLED("renderer.carp", 51);
             _2406 = _2405;
         }
-        else UNHANDLED("renderer.carp", 47);
+        else UNHANDLED("renderer.carp", 48);
         _2407 = _2406;
     }
     return _2407;
@@ -33131,51 +33153,87 @@ void Renderer_delete(Renderer p) {
 
 WGPUDepthTexture** Renderer_depth_MINUS_texture(Renderer* p) { return (&(p->depth_MINUS_texture)); }
 
-void Renderer_draw(Engine* eng, Renderer* ren, Camera* cam) {
+void Renderer_draw(Engine* eng, Renderer* ren, Camera* cam, Diagnostics* diag) {
+    static String _11 = "Resize Check";
+    String *_11_ref = &_11;
+    Diagnostics_start_MINUS_zone_BANG_(diag, _11_ref);
     Renderer_handle_MINUS_resize_BANG_(eng, ren);
+    static String _21 = "Resize Check";
+    String *_21_ref = &_21;
+    Diagnostics_end_MINUS_zone_BANG_(diag, _21_ref);
+    static String _27 = "Compute Sim Passes";
+    String *_27_ref = &_27;
+    Diagnostics_start_MINUS_zone_BANG_(diag, _27_ref);
     Renderer_run_MINUS_simulation_MINUS_passes_BANG_(eng, ren);
+    static String _37 = "Compute Sim Passes";
+    String *_37_ref = &_37;
+    Diagnostics_end_MINUS_zone_BANG_(diag, _37_ref);
+    static String _43 = "Pack Buffers to Textures";
+    String *_43_ref = &_43;
+    Diagnostics_start_MINUS_zone_BANG_(diag, _43_ref);
     Renderer_pack_MINUS_buffers_MINUS_to_MINUS_textures_BANG_(eng, ren);
-    Maybe__WGPUFrameState_MUL_ _22 = Engine_begin_MINUS_frame(eng);
-    if(_22._tag == Maybe__WGPUFrameState_MUL__Nothing_tag) {
-        Maybe__WGPUFrameState_MUL_ _22_temp = _22;
+    static String _53 = "Pack Buffers to Textures";
+    String *_53_ref = &_53;
+    Diagnostics_end_MINUS_zone_BANG_(diag, _53_ref);
+    Maybe__WGPUFrameState_MUL_ _59 = Engine_begin_MINUS_frame(eng);
+    if(_59._tag == Maybe__WGPUFrameState_MUL__Nothing_tag) {
+        Maybe__WGPUFrameState_MUL_ _59_temp = _59;
         // Case expr:
         /* () */
     }
-    else if(_22._tag == Maybe__WGPUFrameState_MUL__Just_tag) {
-        Maybe__WGPUFrameState_MUL_ _22_temp = _22;
-        WGPUFrameState* frame = _22_temp.u.Just.member0;
+    else if(_59._tag == Maybe__WGPUFrameState_MUL__Just_tag) {
+        Maybe__WGPUFrameState_MUL_ _59_temp = _59;
+        WGPUFrameState* frame = _59_temp.u.Just.member0;
         // Case expr:
         /* let */ {
-            CameraMat4 _33 = Camera_view_MINUS_projection(cam);
-            CameraMat4 vp = _33;
-            CameraMat4* _38 = &vp; // ref
-            Array__float* _39 = CameraMat4_data(_38);
-            Array__float* vp_MINUS_data = _39;
-            WGPUContext** _44 = Engine_ctx(eng);
-            WGPUContext* _45 = Pointer_copy__WGPUContext(_44);
-            WGPUContext* ctx = _45;
-            LinePassRenderer* _51 = Renderer_line_MINUS_pass(ren);
-            Array__Line* _55 = Renderer_lines(ren);
-            int _56 = LinePass_update_BANG_(ctx, _51, vp_MINUS_data, _55);
-            int line_MINUS_count = _56;
-            WGPUDepthTexture** _61 = Renderer_depth_MINUS_texture(ren);
-            WGPUDepthTexture* _62 = Pointer_copy__WGPUDepthTexture(_61);
-            WGPUDepthTexture* depth = _62;
-            WGPURenderPipelineWrapper** _70 = Renderer_pipeline(ren);
-            WGPURenderPipelineWrapper* _71 = Pointer_copy__WGPURenderPipelineWrapper(_70);
-            WGPUBindGroup* _75 = Renderer_bind_MINUS_group(ren);
-            WGPUBindGroup _76 = WGPUBindGroup_copy(_75);
-            Maybe__WGPURenderTexture_MUL_ _78 = Maybe_Nothing__WGPURenderTexture_MUL_();
-            WGPURender_run_MINUS_pass(frame, _71, _76, _78);
-            LinePassRenderer* _85 = Renderer_line_MINUS_pass(ren);
-            Maybe__WGPURenderTexture_MUL_ _89 = Maybe_Nothing__WGPURenderTexture_MUL_();
-            LinePass_render__WGPUContext_MUL_(frame, ctx, _85, line_MINUS_count, depth, _89);
+            CameraMat4 _70 = Camera_view_MINUS_projection(cam);
+            CameraMat4 vp = _70;
+            CameraMat4* _75 = &vp; // ref
+            Array__float* _76 = CameraMat4_data(_75);
+            Array__float* vp_MINUS_data = _76;
+            WGPUContext** _81 = Engine_ctx(eng);
+            WGPUContext* _82 = Pointer_copy__WGPUContext(_81);
+            WGPUContext* ctx = _82;
+            LinePassRenderer* _88 = Renderer_line_MINUS_pass(ren);
+            Array__Line* _92 = Renderer_lines(ren);
+            int _93 = LinePass_update_BANG_(ctx, _88, vp_MINUS_data, _92);
+            int line_MINUS_count = _93;
+            WGPUDepthTexture** _98 = Renderer_depth_MINUS_texture(ren);
+            WGPUDepthTexture* _99 = Pointer_copy__WGPUDepthTexture(_98);
+            WGPUDepthTexture* depth = _99;
+            static String _105 = "WGPU Voxel Raymarch";
+            String *_105_ref = &_105;
+            Diagnostics_start_MINUS_zone_BANG_(diag, _105_ref);
+            WGPURenderPipelineWrapper** _113 = Renderer_pipeline(ren);
+            WGPURenderPipelineWrapper* _114 = Pointer_copy__WGPURenderPipelineWrapper(_113);
+            WGPUBindGroup* _118 = Renderer_bind_MINUS_group(ren);
+            WGPUBindGroup _119 = WGPUBindGroup_copy(_118);
+            Maybe__WGPURenderTexture_MUL_ _121 = Maybe_Nothing__WGPURenderTexture_MUL_();
+            WGPURender_run_MINUS_pass(frame, _114, _119, _121);
+            static String _126 = "WGPU Voxel Raymarch";
+            String *_126_ref = &_126;
+            Diagnostics_end_MINUS_zone_BANG_(diag, _126_ref);
+            static String _132 = "WGPU Line Pass";
+            String *_132_ref = &_132;
+            Diagnostics_start_MINUS_zone_BANG_(diag, _132_ref);
+            LinePassRenderer* _140 = Renderer_line_MINUS_pass(ren);
+            Maybe__WGPURenderTexture_MUL_ _144 = Maybe_Nothing__WGPURenderTexture_MUL_();
+            LinePass_render__WGPUContext_MUL_(frame, ctx, _140, line_MINUS_count, depth, _144);
+            static String _149 = "WGPU Line Pass";
+            String *_149_ref = &_149;
+            Diagnostics_end_MINUS_zone_BANG_(diag, _149_ref);
             Renderer_clear_MINUS_lines_BANG_(ren);
+            static String _158 = "Present Frame";
+            String *_158_ref = &_158;
+            Diagnostics_start_MINUS_zone_BANG_(diag, _158_ref);
             Engine_end_MINUS_frame(eng, frame);
+            static String _168 = "Present Frame";
+            String *_168_ref = &_168;
+            Diagnostics_end_MINUS_zone_BANG_(diag, _168_ref);
             CameraMat4_delete(vp);
         }
     }
-    else UNHANDLED("renderer.carp", 304);
+    else UNHANDLED("renderer.carp", 305);
 }
 
 void Renderer_draw_MINUS_line_BANG_(Renderer* ren, Vector3__double* start, Vector3__double* end, Vector3__double* color) {
@@ -33261,7 +33319,7 @@ void Renderer_handle_MINUS_resize_BANG_(Engine* eng, Renderer* ren) {
                     Renderer_set_MINUS_width_BANG_(ren, curr_MINUS_w);
                     Renderer_set_MINUS_height_BANG_(ren, curr_MINUS_h);
                 }
-                else UNHANDLED("renderer.carp", 246);
+                else UNHANDLED("renderer.carp", 247);
             }
         } else {
             /* () */
@@ -35864,7 +35922,7 @@ double SDF_distance_MINUS_local(SDF* sdf, Vector3__double* p) {
             double _401 = Double__MUL_(_399, 0.57735027);
             _402 = _401;
         }
-        else UNHANDLED("geometry.carp", 154);
+        else UNHANDLED("geometry.carp", 150);
         double base_MINUS_d = _402;
         Vector3__double* _409 = &local_MINUS_p; // ref
         double _411 = SDF_apply_MINUS_craters(sdf, _409, base_MINUS_d);
@@ -35915,7 +35973,7 @@ double SDF_distance_MINUS_local(SDF* sdf, Vector3__double* p) {
                                 _494 = _493;
                                 BaseShape_delete(wildcard_489);
                             }
-                            else UNHANDLED("geometry.carp", 200);
+                            else UNHANDLED("geometry.carp", 210);
                             double d_MINUS_right = _494;
                             double _501 = min__double(d, d_MINUS_right);
                             d = _501;  // Double = Double
@@ -35944,7 +36002,7 @@ double SDF_distance_MINUS_local(SDF* sdf, Vector3__double* p) {
                                         _540 = _539;
                                         BaseShape_delete(wildcard_535);
                                     }
-                                    else UNHANDLED("geometry.carp", 206);
+                                    else UNHANDLED("geometry.carp", 216);
                                     double d_MINUS_right = _540;
                                     double _548 = Double_neg(d_MINUS_right);
                                     double _549 = max__double(d, _548);
@@ -35975,7 +36033,7 @@ double SDF_distance_MINUS_local(SDF* sdf, Vector3__double* p) {
                                         _587 = _586;
                                         BaseShape_delete(wildcard_582);
                                     }
-                                    else UNHANDLED("geometry.carp", 211);
+                                    else UNHANDLED("geometry.carp", 221);
                                     double d_MINUS_right = _587;
                                     double _594 = max__double(d, d_MINUS_right);
                                     d = _594;  // Double = Double
@@ -36038,7 +36096,7 @@ double SDF_distance_MINUS_world(SDF* sdf, Vector3__double* p_MINUS_world) {
         _50 = _49;
         BaseShape_delete(wildcard_18);
     }
-    else UNHANDLED("geometry.carp", 219);
+    else UNHANDLED("geometry.carp", 229);
     return _50;
 }
 
@@ -36258,7 +36316,7 @@ Vector3__double SDF_normal_MINUS_world(SDF* sdf, Vector3__double* p_MINUS_world)
         _57 = _56;
         BaseShape_delete(wildcard_18);
     }
-    else UNHANDLED("geometry.carp", 243);
+    else UNHANDLED("geometry.carp", 258);
     return _57;
 }
 

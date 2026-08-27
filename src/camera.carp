@@ -1,4 +1,4 @@
-(load "../carp-gamecam/camera.carp")
+(load "../../carp-gamecam/camera.carp")
 (load "scaffold.carp")
 
 (defmodule Camera

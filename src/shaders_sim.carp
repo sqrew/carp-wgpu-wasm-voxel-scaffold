@@ -356,6 +356,17 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
     }
 
+    // --- 3.5. Steam condensation ---
+    let my_gas = get_gas(ip);
+    if (my_gas.x == 1.0 && my_gas.y > 0.05) {
+        if (is_solid(above_p)) {
+            if (next_vol <= 0.05 || next_id == 1.0) {
+                next_id = 1.0; // Water
+                next_vol = min(1.0, next_vol + 0.02);
+            }
+        }
+    }
+
     // --- 4. Multi-Phase Reactions ---
     var react_empty = false;
     let below_liq = get_liquid(below_p);
@@ -505,7 +516,7 @@ struct GasProps {
 fn get_gas_props(id: f32) -> GasProps {
     let GAS_LUT = array<GasProps, 5>(
         GasProps(0.0, 0.0, 0.0),
-        GasProps(0.4, 0.1, 0.01),
+        GasProps(0.3, 0.15, 0.015),
         GasProps(0.15, 0.05, 0.01),
         GasProps(0.25, 0.08, 0.08),
         GasProps(0.2, 0.04, 0.008)
@@ -900,6 +911,13 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 next_id = 3.0; // Fire
                 next_vol = 1.0;
             }
+        }
+    }
+
+    // Steam condensation on ceiling
+    if (next_id == 1.0 && next_vol > 0.05) {
+        if (is_solid(above_p)) {
+            next_vol = max(0.0, next_vol - 0.02);
         }
     }
 

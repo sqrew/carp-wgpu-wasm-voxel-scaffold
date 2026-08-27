@@ -1,6 +1,6 @@
 (load "world.carp")
 (load "camera.carp")
-(load "../../carp-geometry/geometry.carp")
+(load "../../carp-physics-3d/geometry.carp")
 (use Geometry)
 
 (defmodule Physics

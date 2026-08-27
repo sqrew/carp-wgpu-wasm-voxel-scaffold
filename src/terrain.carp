@@ -1,4 +1,4 @@
-(load "../carp-noise/noise.carp")
+(load "../../carp-math/noise.carp")
 
 (defmodule Terrain
   (defn generate! [noise-state qx qy qz p-data]

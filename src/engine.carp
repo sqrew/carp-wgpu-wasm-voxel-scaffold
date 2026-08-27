@@ -119,78 +119,82 @@
           player (EngineState.player state)
           cam (Player.camera player)
           world (EngineState.world state)
-          prev-pos @(Camera.pos cam)]
+          prev-pos @(Camera.pos cam)
+          diag (EngineState.diag state)]
       (do
         ;; 1. Handle player inputs (movement, look, flying, radius presets, cycling)
-        (Player.handle-input! player win dt first-mouse-ptr last-x-ptr last-y-ptr)
-        (Player.handle-jump! player win)
-        (Player.update-physics! player world dt &prev-pos)
+        (Diagnostics.with-zone diag "Player Physics & Input"
+          (Player.handle-input! player win dt first-mouse-ptr last-x-ptr last-y-ptr)
+          (Player.handle-jump! player win)
+          (Player.update-physics! player world dt &prev-pos))
         
         ;; 2. Stream chunks centered on player
-        (EngineState.stream-chunks! world platform-eng ren (Camera.pos cam))
+        (Diagnostics.with-zone diag "Chunk Streaming"
+          (EngineState.stream-chunks! world platform-eng ren (Camera.pos cam)))
         
         ;; 3. Raycast & Voxel Editing (carve/splat)
-        (let [ro (Camera.pos cam)
-              rd (Camera.front cam)
-              hit-opt (World.raycast world ro rd 80.0)]
-          (match hit-opt
-            (Maybe.Nothing)
-              (do
-                (Pointer.set (ref-to-ptr (EngineState.hit-active state)) 0.0f)
-                (Pointer.set (ref-to-ptr (EngineState.liquid-spawn state)) 0.0f)
-                (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) 0.0f))
-            (Maybe.Just hit-pos)
-              (do
-                ;; Target highlight box (yellow)
-                (let [yellow (Vector3.init 1.0 1.0 0.0)
-                      hx @(Vector3.x &hit-pos)
-                      hy @(Vector3.y &hit-pos)
-                      hz @(Vector3.z &hit-pos)]
-                  (EngineState.draw-bounds-wireframe! ren (- hx 0.5) (- hy 0.5) (- hz 0.5) (+ hx 0.5) (+ hy 0.5) (+ hz 0.5) &yellow))
-                
-                 ;; Click to edit and cycle types
-                 (let [left-pressed (= (GLFW.get-mouse-button win 0) GLFW.PRESS)
-                       right-pressed (= (GLFW.get-mouse-button win 1) GLFW.PRESS)
-                       f-held (= (GLFW.get-key win GLFW.Keycode.F) GLFW.PRESS)
-                       h-held (= (GLFW.get-key win GLFW.Keycode.H) GLFW.PRESS)
-                       g-held (= (GLFW.get-key win GLFW.Keycode.G) GLFW.PRESS)]
-                   (do
-                     ;; Set hit-active and spawn values
-                     (Pointer.set (ref-to-ptr (EngineState.hit-x state)) (Double.to-float @(Vector3.x &hit-pos)))
-                     (Pointer.set (ref-to-ptr (EngineState.hit-y state)) (Double.to-float @(Vector3.y &hit-pos)))
-                     (Pointer.set (ref-to-ptr (EngineState.hit-z state)) (Double.to-float @(Vector3.z &hit-pos)))
-                     
-                     (if (or left-pressed right-pressed)
-                       (do
-                         (Pointer.set (ref-to-ptr (EngineState.hit-active state)) 1.0f)
-                         (if h-held
-                           (Pointer.set (ref-to-ptr (EngineState.liquid-spawn state)) @(Player.current-liq player))
-                           (Pointer.set (ref-to-ptr (EngineState.liquid-spawn state)) 0.0f))
-                         (if g-held
-                           (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) @(Player.current-gas player))
-                           (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) 0.0f)))
-                       (do
-                         (Pointer.set (ref-to-ptr (EngineState.hit-active state)) 0.0f)
-                         (Pointer.set (ref-to-ptr (EngineState.liquid-spawn state)) 0.0f)
-                         (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) 0.0f)))
-                     
-                     ;; Edit solid terrain if F is held
-                     (when (and (or left-pressed right-pressed) f-held)
-                       (let [radius @(Player.edit-radius player)
-                             mat-id @(Player.current-mat player)
-                             carve? left-pressed
-                             modified-coords (World.edit-sdf! world &hit-pos radius mat-id carve?)]
+        (Diagnostics.with-zone diag "Voxel Editing & Raycast"
+          (let [ro (Camera.pos cam)
+                rd (Camera.front cam)
+                hit-opt (World.raycast world ro rd 80.0)]
+            (match hit-opt
+              (Maybe.Nothing)
+                (do
+                  (Pointer.set (ref-to-ptr (EngineState.hit-active state)) 0.0f)
+                  (Pointer.set (ref-to-ptr (EngineState.liquid-spawn state)) 0.0f)
+                  (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) 0.0f))
+              (Maybe.Just hit-pos)
+                (do
+                  ;; Target highlight box (yellow)
+                  (let [yellow (Vector3.init 1.0 1.0 0.0)
+                        hx @(Vector3.x &hit-pos)
+                        hy @(Vector3.y &hit-pos)
+                        hz @(Vector3.z &hit-pos)]
+                    (EngineState.draw-bounds-wireframe! ren (- hx 0.5) (- hy 0.5) (- hz 0.5) (+ hx 0.5) (+ hy 0.5) (+ hz 0.5) &yellow))
+                  
+                   ;; Click to edit and cycle types
+                   (let [left-pressed (= (GLFW.get-mouse-button win 0) GLFW.PRESS)
+                         right-pressed (= (GLFW.get-mouse-button win 1) GLFW.PRESS)
+                         f-held (= (GLFW.get-key win GLFW.Keycode.F) GLFW.PRESS)
+                         h-held (= (GLFW.get-key win GLFW.Keycode.H) GLFW.PRESS)
+                         g-held (= (GLFW.get-key win GLFW.Keycode.G) GLFW.PRESS)]
+                     (do
+                       ;; Set hit-active and spawn values
+                       (Pointer.set (ref-to-ptr (EngineState.hit-x state)) (Double.to-float @(Vector3.x &hit-pos)))
+                       (Pointer.set (ref-to-ptr (EngineState.hit-y state)) (Double.to-float @(Vector3.y &hit-pos)))
+                       (Pointer.set (ref-to-ptr (EngineState.hit-z state)) (Double.to-float @(Vector3.z &hit-pos)))
+                       
+                       (if (or left-pressed right-pressed)
                          (do
-                           (for [j 0 (Array.length &modified-coords)]
-                             (let [coord (Array.unsafe-nth &modified-coords j)
-                                   qx @(ChunkCoord.x coord)
-                                   qy @(ChunkCoord.y coord)
-                                   qz @(ChunkCoord.z coord)
-                                   chunk-opt (World.find-chunk world qx qy qz)]
-                               (match chunk-opt
-                                 (Maybe.Nothing) ()
-                                 (Maybe.Just chunk)
-                                    (Renderer.update-chunk-texture platform-eng ren qx qy qz (Chunk.voxel-data &chunk))))))))))))))))
+                           (Pointer.set (ref-to-ptr (EngineState.hit-active state)) 1.0f)
+                           (if h-held
+                             (Pointer.set (ref-to-ptr (EngineState.liquid-spawn state)) @(Player.current-liq player))
+                             (Pointer.set (ref-to-ptr (EngineState.liquid-spawn state)) 0.0f))
+                           (if g-held
+                             (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) @(Player.current-gas player))
+                             (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) 0.0f)))
+                         (do
+                           (Pointer.set (ref-to-ptr (EngineState.hit-active state)) 0.0f)
+                           (Pointer.set (ref-to-ptr (EngineState.liquid-spawn state)) 0.0f)
+                           (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) 0.0f)))
+                       
+                       ;; Edit solid terrain if F is held
+                       (when (and (or left-pressed right-pressed) f-held)
+                         (let [radius @(Player.edit-radius player)
+                               mat-id @(Player.current-mat player)
+                               carve? left-pressed
+                               modified-coords (World.edit-sdf! world &hit-pos radius mat-id carve?)]
+                           (do
+                             (for [j 0 (Array.length &modified-coords)]
+                               (let [coord (Array.unsafe-nth &modified-coords j)
+                                     qx @(ChunkCoord.x coord)
+                                     qy @(ChunkCoord.y coord)
+                                     qz @(ChunkCoord.z coord)
+                                     chunk-opt (World.find-chunk world qx qy qz)]
+                                 (match chunk-opt
+                                   (Maybe.Nothing) ()
+                                    (Maybe.Just chunk)
+                                       (Renderer.update-chunk-texture platform-eng ren qx qy qz (Chunk.voxel-data &chunk)))))))))))))))))
 
   (defn post-update! [state]
     (Diagnostics.end-zone! (EngineState.diag state) "Input & Camera"))
@@ -278,8 +282,9 @@
   (defn render! [state]
     (let [platform-eng (EngineState.eng state)
           ren (EngineState.renderer state)
-          cam (Player.camera (EngineState.player state))]
-      (Renderer.draw platform-eng ren cam)))
+          cam (Player.camera (EngineState.player state))
+          diag (EngineState.diag state)]
+      (Renderer.draw platform-eng ren cam diag)))
 
   (defn post-render! [state]
     (let [platform-eng (EngineState.eng state)
