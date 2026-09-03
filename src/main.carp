@@ -1,4 +1,6 @@
 (load "Vector.carp")
+(load "input.carp")
+(load "glfw_backend.carp")
 (load "scaffold.carp")
 (load "camera.carp")
 (load "world.carp")
@@ -19,11 +21,10 @@
       (Result.Error e) (do (println* "Engine failed: " &e) -1)
       (Result.Success state)
         (let [_ (EngineState.register-handlers! &state)
+              _2 (EngineState.register-inputs! &state)
               win @(M-GLFWWindow.p (Engine.win (EngineState.eng &state)))
               last-time (GLFW.get-time)
-              first-mouse true
-              last-x 640.0
-              last-y 360.0]
+               ]
           (do
             ; Enable camera capture (mouse lock)
             (GLFW.set-input-mode win GLFW.CURSOR GLFW.CURSOR_DISABLED)
@@ -33,7 +34,7 @@
                     dt (- curr-time last-time)]
                 (do
                   (set! last-time curr-time)
-                  (EngineState.tick &state win dt (ref-to-ptr &first-mouse) (ref-to-ptr &last-x) (ref-to-ptr &last-y))
+                  (EngineState.tick &state win dt)
                   (emscripten-sleep 16))))
             
             0)))))

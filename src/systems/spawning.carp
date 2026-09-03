@@ -1,8 +1,8 @@
 (defmodule SpawningSystem
-  (defn update! [state win]
+  (defn update! [state input]
     (let [player (EngineState.player state)
           cam (Player.camera player)]
-      (when (= (GLFW.get-key win GLFW.Keycode.R) GLFW.PRESS)
+      (when (InputManager.action-pressed? input "spawn-entity")
         (let [pos (Camera.pos cam)
               dir (Camera.front cam)
               vel (Vector3.mul dir 15.0)

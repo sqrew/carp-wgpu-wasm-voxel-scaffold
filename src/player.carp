@@ -34,7 +34,7 @@
         (js-globals-setup)
         (Player.init 0.0 cam false true 2.0f 1.0f 1.0f 3.0 false false false false false false true false))))
 
-  (defn handle-input! [player win dt first-mouse-ptr last-x-ptr last-y-ptr]
+  (defn handle-input! [player input dt]
     (let [prev-rad @(Player.edit-radius player)
           prev-mat @(Player.current-mat player)
           prev-liq @(Player.current-liq player)
@@ -42,13 +42,13 @@
           prev-fly @(Player.flying player)
           prev-light @(Player.flashlight-on player)
 
-          c-pressed (= (GLFW.get-key win GLFW.Keycode.C) GLFW.PRESS)
-          lbr-pressed (= (GLFW.get-key win GLFW.Keycode.LEFT_BRACKET) GLFW.PRESS)
-          rbr-pressed (= (GLFW.get-key win GLFW.Keycode.RIGHT_BRACKET) GLFW.PRESS)
-          v-pressed (= (GLFW.get-key win GLFW.Keycode.V) GLFW.PRESS)
-          b-pressed (= (GLFW.get-key win GLFW.Keycode.B) GLFW.PRESS)
-          n-pressed (= (GLFW.get-key win GLFW.Keycode.N) GLFW.PRESS)
-          l-pressed (= (GLFW.get-key win GLFW.Keycode.L) GLFW.PRESS)
+          c-pressed (InputManager.action-digital? input "toggle-flying")
+          lbr-pressed (InputManager.action-digital? input "brush-dec")
+          rbr-pressed (InputManager.action-digital? input "brush-inc")
+          v-pressed (InputManager.action-digital? input "cycle-solid")
+          b-pressed (InputManager.action-digital? input "cycle-gas")
+          n-pressed (InputManager.action-digital? input "cycle-liquid")
+          l-pressed (InputManager.action-digital? input "toggle-flashlight")
           cam (Player.camera player)]
       (do
         ;; 1. Read latest UI changes from HTML/JS via C globals
@@ -90,11 +90,11 @@
         (Pointer.set (ref-to-ptr (Player.rbracket-last player)) rbr-pressed)
 
         ;; Quick presets for radius
-        (when (= (GLFW.get-key win GLFW.Keycode.NUM_1) GLFW.PRESS)
+        (when (InputManager.action-digital? input "mat-solid")
           (Pointer.set (ref-to-ptr (Player.edit-radius player)) 1.5))
-        (when (= (GLFW.get-key win GLFW.Keycode.NUM_2) GLFW.PRESS)
+        (when (InputManager.action-digital? input "mat-liquid")
           (Pointer.set (ref-to-ptr (Player.edit-radius player)) 3.0))
-        (when (= (GLFW.get-key win GLFW.Keycode.NUM_3) GLFW.PRESS)
+        (when (InputManager.action-digital? input "mat-gas")
           (Pointer.set (ref-to-ptr (Player.edit-radius player)) 6.0))
 
         ;; 5. Cycle solid type (V key)
@@ -154,7 +154,7 @@
                 (if curr-light 1.0f 0.0f)))))
 
         ;; 9. Handle camera movement & look inputs
-        (Camera.update-input win cam dt @(Player.flying player))
-        (Camera.update-look win cam first-mouse-ptr last-x-ptr last-y-ptr))))
+        (Camera.update-input input cam dt @(Player.flying player))
+        (Camera.update-look input cam))))
 
   )

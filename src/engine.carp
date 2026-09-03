@@ -4,8 +4,6 @@
 (load "renderer.carp")
 (load "../carp-diagnostics/diagnostics.carp")
 (load "../carp-coordinator/dispatch.carp")
-(load "input.carp")
-(load "glfw_backend.carp")
 (use Coordinator)
 (use Dispatcher)
 (use Scheduler)
@@ -133,11 +131,49 @@
 
 
 
+  
+  (defn register-inputs! [state]
+    (let [input (EngineState.input state)]
+      (do
+        (InputManager.add-binding! input "forward" (InputSource.Key GLFW.Keycode.W) 1.0)
+        (InputManager.add-binding! input "backward" (InputSource.Key GLFW.Keycode.S) 1.0)
+        (InputManager.add-binding! input "left" (InputSource.Key GLFW.Keycode.A) 1.0)
+        (InputManager.add-binding! input "right" (InputSource.Key GLFW.Keycode.D) 1.0)
+        (InputManager.add-binding! input "up" (InputSource.Key GLFW.Keycode.E) 1.0)
+        (InputManager.add-binding! input "down" (InputSource.Key GLFW.Keycode.Q) 1.0)
+        (InputManager.add-binding! input "jump" (InputSource.Key GLFW.Keycode.SPACE) 1.0)
+        
+        (InputManager.add-binding! input "toggle-flying" (InputSource.Key GLFW.Keycode.C) 1.0)
+        (InputManager.add-binding! input "toggle-flashlight" (InputSource.Key GLFW.Keycode.L) 1.0)
+        
+        (InputManager.add-binding! input "brush-dec" (InputSource.Key GLFW.Keycode.LEFT_BRACKET) 1.0)
+        (InputManager.add-binding! input "brush-inc" (InputSource.Key GLFW.Keycode.RIGHT_BRACKET) 1.0)
+        
+        (InputManager.add-binding! input "cycle-solid" (InputSource.Key GLFW.Keycode.V) 1.0)
+        (InputManager.add-binding! input "cycle-liquid" (InputSource.Key GLFW.Keycode.N) 1.0)
+        (InputManager.add-binding! input "cycle-gas" (InputSource.Key GLFW.Keycode.B) 1.0)
+        
+        (InputManager.add-binding! input "mat-solid" (InputSource.Key GLFW.Keycode.NUM_1) 1.0)
+        (InputManager.add-binding! input "mat-liquid" (InputSource.Key GLFW.Keycode.NUM_2) 1.0)
+        (InputManager.add-binding! input "mat-gas" (InputSource.Key GLFW.Keycode.NUM_3) 1.0)
+        
+        (InputManager.add-binding! input "edit-add" (InputSource.Key GLFW.Keycode.F) 1.0)
+        (InputManager.add-binding! input "edit-remove" (InputSource.Key GLFW.Keycode.H) 1.0)
+        (InputManager.add-binding! input "edit-paint" (InputSource.Key GLFW.Keycode.G) 1.0)
+        
+        (InputManager.add-binding! input "spawn-entity" (InputSource.Key GLFW.Keycode.R) 1.0)
+        
+        (InputManager.add-binding! input "look-x" (InputSource.MouseDeltaX) 1.0)
+        (InputManager.add-binding! input "click-left" (InputSource.MouseButton 0) 1.0)
+        (InputManager.add-binding! input "click-right" (InputSource.MouseButton 1) 1.0)
+        (InputManager.add-binding! input "look-y" (InputSource.MouseDeltaY) 1.0))))
+
   (defn pre-update! [state win]
     (let [diag (EngineState.diag state)]
       (do
         (Diagnostics.start-zone! diag "Total Frame Time")
-        (Diagnostics.start-zone! diag "Input & Camera"))))
+        (Diagnostics.start-zone! diag "Input & Camera")
+        (InputManager.update! (EngineState.input state)))))
 
   )
 
@@ -158,7 +194,7 @@
                 (GameWorld.destroy-entity! (EngineState.ecs-world state) &ent)
                 (Result.Success ())))))))
 
-  (defn update! [state win dt first-mouse-ptr last-x-ptr last-y-ptr]
+  (defn update! [state input dt]
     (let [platform-eng (EngineState.eng state)
           ren (EngineState.renderer state)
           world (EngineState.world state)
@@ -171,10 +207,10 @@
         (Diagnostics.end-zone! diag "Event Coordinator")
         
         (Diagnostics.with-zone diag "Player Physics & Input"
-          (PlayerSystem.update! state win dt first-mouse-ptr last-x-ptr last-y-ptr))
+          (PlayerSystem.update! state input dt))
           
         (Diagnostics.with-zone diag "Spawning"
-          (SpawningSystem.update! state win))
+          (SpawningSystem.update! state input))
 
         (Diagnostics.with-zone diag "Physics Solver"
           (Physics.step-physics-entities! world (EngineState.ecs-world state) (EngineState.grid state) dt))
@@ -183,7 +219,7 @@
           (EngineState.stream-chunks! world platform-eng ren (Camera.pos cam)))
         
         (Diagnostics.with-zone diag "Voxel Editing & Raycast"
-          (EditingSystem.update! state win)))))
+          (EditingSystem.update! state input)))))
 
   (defn post-update! [state]
     (Diagnostics.end-zone! (EngineState.diag state) "Input & Camera"))
@@ -338,10 +374,10 @@
         (when (= (Int.mod next-frames 300) 0)
           (Diagnostics.print-stats! diag)))))
 
-  (defn tick [state win dt first-mouse-ptr last-x-ptr last-y-ptr]
+  (defn tick [state win dt]
     (do
       (EngineState.pre-update! state win)
-      (EngineState.update! state win dt first-mouse-ptr last-x-ptr last-y-ptr)
+      (let [input (EngineState.input state)] (EngineState.update! state input dt))
       (EngineState.post-update! state)
       (EngineState.pre-render! state)
       (EngineState.render! state)

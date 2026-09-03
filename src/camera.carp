@@ -2,18 +2,18 @@
 (load "scaffold.carp")
 
 (defmodule Camera
-  (defn update-input [win cam dt flying]
+  (defn update-input [input cam dt flying]
     (let [speed (* 15.0 dt)]
       (do
         (if flying
             (do
-              (when (= (GLFW.get-key win GLFW.Keycode.W) GLFW.PRESS)
+              (when (InputManager.action-digital? input "forward")
                 (Camera.move-forward! cam speed))
-              (when (= (GLFW.get-key win GLFW.Keycode.S) GLFW.PRESS)
+              (when (InputManager.action-digital? input "backward")
                 (Camera.move-forward! cam (- 0.0 speed)))
-              (when (= (GLFW.get-key win GLFW.Keycode.E) GLFW.PRESS)
+              (when (InputManager.action-digital? input "up")
                 (Camera.move-up! cam speed))
-              (when (= (GLFW.get-key win GLFW.Keycode.Q) GLFW.PRESS)
+              (when (InputManager.action-digital? input "down")
                 (Camera.move-up! cam (- 0.0 speed))))
             (do
               ;; Walking mode: project forward vector onto X-Z plane
@@ -25,37 +25,30 @@
                                (Vector3.init (/ fx flen) 0.0 (/ fz flen))
                                (Vector3.init 0.0 0.0 0.0))]
                 (do
-                  (when (= (GLFW.get-key win GLFW.Keycode.W) GLFW.PRESS)
+                  (when (InputManager.action-digital? input "forward")
                     (let [p-pos (ref-to-ptr (Camera.pos cam))
                           curr-pos (Pointer.to-value p-pos)]
                       (Pointer.set p-pos (Vector3.add &curr-pos &(Vector3.mul &proj-f speed)))))
-                  (when (= (GLFW.get-key win GLFW.Keycode.S) GLFW.PRESS)
+                  (when (InputManager.action-digital? input "backward")
                     (let [p-pos (ref-to-ptr (Camera.pos cam))
                           curr-pos (Pointer.to-value p-pos)]
                       (Pointer.set p-pos (Vector3.sub &curr-pos &(Vector3.mul &proj-f speed)))))))))
-        (when (= (GLFW.get-key win GLFW.Keycode.A) GLFW.PRESS)
+        (when (InputManager.action-digital? input "left")
           (Camera.move-right! cam (- 0.0 speed)))
-        (when (= (GLFW.get-key win GLFW.Keycode.D) GLFW.PRESS)
+        (when (InputManager.action-digital? input "right")
           (Camera.move-right! cam speed)))))
 
-  (defn update-look [win cam first-mouse-ptr last-x-ptr last-y-ptr]
-    (let [xpos 0.0
-          ypos 0.0]
+  (defn update-look [input cam]
+    (let [dx (InputManager.action-analog input "look-x")
+          dy (InputManager.action-analog input "look-y")
+          sensitivity 0.1
+          yaw (+ @(Camera.yaw cam) (* dx sensitivity))
+          ;; Notice in original, pitch dy was: (- last-y ypos) which is -dy.
+          ;; InputManager dx/dy is (curr - last). So dy is inverted compared to original.
+          ;; Original dy = last-y - ypos = - (ypos - last-y) = - InputManager.dy.
+          ;; So we use (- @pitch (* dy sensitivity)) here to maintain the same sign.
+          pitch (- @(Camera.pitch cam) (* dy sensitivity))]
       (do
-        (GLFW.get-cursor-pos win (ref-to-ptr &xpos) (ref-to-ptr &ypos))
-        (if (Pointer.to-value first-mouse-ptr)
-          (do
-            (Pointer.set first-mouse-ptr false)
-            (Pointer.set last-x-ptr xpos)
-            (Pointer.set last-y-ptr ypos))
-          (let [dx (- xpos (Pointer.to-value last-x-ptr))
-                dy (- (Pointer.to-value last-y-ptr) ypos)
-                sensitivity 0.1
-                yaw (+ @(Camera.yaw cam) (* dx sensitivity))
-                pitch (+ @(Camera.pitch cam) (* dy sensitivity))]
-            (do
-              (Pointer.set last-x-ptr xpos)
-              (Pointer.set last-y-ptr ypos)
-              (Camera.update-yaw! cam yaw)
-              (Camera.update-pitch! cam pitch)))))))
+        (Camera.update-yaw! cam yaw)
+        (Camera.update-pitch! cam pitch))))
 )

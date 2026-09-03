@@ -1,5 +1,5 @@
 (defmodule PlayerSystem
-  (defn update! [state win dt first-mouse-ptr last-x-ptr last-y-ptr]
+  (defn update! [state input dt]
     (let [player (EngineState.player state)
           cam (Player.camera player)
           p-ent-id (EngineState.player-ent-id state)
@@ -15,7 +15,7 @@
               (Pointer.set (ref-to-ptr (Camera.pos cam)) (Vector3.add (RigidBody.position rb) &(Vector3.init 0.0 1.2 0.0)))
               (set! old-pos @(Camera.pos cam))
               
-              (Player.handle-input! player win dt first-mouse-ptr last-x-ptr last-y-ptr)
+              (Player.handle-input! player input dt)
               
               ;; Calculate desired movement velocity from WASD
               (let [new-pos @(Camera.pos cam)
@@ -40,7 +40,7 @@
                             is-grounded (match cg-opt
                                           (Maybe.Just cg) @(CompGrounded.grounded &cg)
                                           (Maybe.Nothing) false)]
-                        (when (and (= (GLFW.get-key win GLFW.Keycode.SPACE) GLFW.PRESS) is-grounded)
+                        (when (and (InputManager.action-digital? input "jump") is-grounded)
                           (set! desired-vel (Vector3.init @(Vector3.x &desired-vel) 12.0 @(Vector3.z &desired-vel)))))
                       
                       (Body.set-velocity! body (Vector3.init @(Vector3.x &desired-vel) (if (> @(Vector3.y &desired-vel) 0.0) @(Vector3.y &desired-vel) @(Vector3.y &curr-vel)) @(Vector3.z &desired-vel)))))
