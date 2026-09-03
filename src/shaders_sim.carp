@@ -1169,7 +1169,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         
         if (u.solid_params.x > 998.0) { // Carving (Intersection)
             if (dist <= u.brush_radius + 4.0) {
-                let carve_val = dist - u.brush_radius;
+                let carve_val = u.brush_radius - dist;
                 if (carve_val > next_vol) {
                     next_vol = carve_val;
                     if (next_vol > 0.0) {
