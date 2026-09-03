@@ -10,6 +10,8 @@
 (load "shaders.carp")
 (load "renderer.carp")
 (load "engine.carp")
+(load "../../carp-gametime/gametime.carp")
+(use Clock)
 (load "../../carp-job-system/rayon.carp")
 (use Vector3)
 (use Double)
@@ -29,12 +31,18 @@
             ; Enable camera capture (mouse lock)
             (GLFW.set-input-mode win GLFW.CURSOR GLFW.CURSOR_DISABLED)
             
-            (while (= (GLFW.window-should-close win) GLFW.FALSE)
-              (let [curr-time (GLFW.get-time)
-                    dt (- curr-time last-time)]
+            (let [clock (Clock.new)
+                  fixed-dt (/ 1.0 60.0)
+                  accumulator 0.0]
+              (while (= (GLFW.window-should-close win) GLFW.FALSE)
                 (do
-                  (set! last-time curr-time)
-                  (EngineState.tick &state win dt)
+                  (Clock.tick! &clock)
+                  (set! accumulator (+ accumulator (Clock.clamped-dt &clock)))
+                  (while (>= accumulator fixed-dt)
+                    (do
+                      (EngineState.tick-update! &state win fixed-dt)
+                      (set! accumulator (- accumulator fixed-dt))))
+                  (EngineState.tick-render! &state win)
                   (emscripten-sleep 16))))
             
             0)))))

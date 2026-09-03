@@ -375,11 +375,14 @@
         (when (= (Int.mod next-frames 300) 0)
           (Diagnostics.print-stats! diag)))))
 
-  (defn tick [state win dt]
+  (defn tick-update! [state win dt]
     (do
       (EngineState.pre-update! state win)
       (let [input (EngineState.input state)] (EngineState.update! state input dt))
-      (EngineState.post-update! state)
+      (EngineState.post-update! state)))
+
+  (defn tick-render! [state win]
+    (do
       (EngineState.pre-render! state)
       (EngineState.render! state)
       (EngineState.post-render! state)))
