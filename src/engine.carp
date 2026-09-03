@@ -4,9 +4,12 @@
 (load "renderer.carp")
 (load "../carp-diagnostics/diagnostics.carp")
 (load "../carp-coordinator/dispatch.carp")
+(load "input.carp")
+(load "glfw_backend.carp")
 (use Coordinator)
 (use Dispatcher)
 (use Scheduler)
+(use InputManager)
 (load "events.carp")
 
 
@@ -29,6 +32,7 @@
   player-ent-id Int
   grid (SpatialGrid Int)
   coord (Coordinator AppEvent)
+  input InputManager
 ])
 
 (defmodule EngineState
@@ -64,7 +68,10 @@
                     (ECS.add-component! &ecs-world &player-ent (CompVolume.init vol))
                     (ECS.add-component! &ecs-world &player-ent (CompPlayer.init))
                     (ECS.add-component! &ecs-world &player-ent (CompGrounded.init false))
-                    (Result.Success (EngineState.init platform-eng ren world player uniforms diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid (Coordinator.new))))))))))
+                    (let [backend (GLFWBackend.init)
+                            ctx (glfw-window->voidptr @(M-GLFWWindow.p (Engine.win &platform-eng)))
+                            input (InputManager.create ctx backend)]
+                        (Result.Success (EngineState.init platform-eng ren world player uniforms diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid (Coordinator.new) input))))))))))
 
   (defn draw-bounds-wireframe! [ren min-x min-y min-z max-x max-y max-z color]
     (let [w0 (Vector3.init min-x min-y min-z)
