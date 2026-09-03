@@ -173,7 +173,8 @@
       (do
         (Diagnostics.start-zone! diag "Total Frame Time")
         (Diagnostics.start-zone! diag "Input & Camera")
-        (InputManager.update! (EngineState.input state)))))
+        (InputManager.update! (EngineState.input state))
+        (Diagnostics.end-zone! diag "Input & Camera"))))
 
   )
 
@@ -222,7 +223,7 @@
           (EditingSystem.update! state input)))))
 
   (defn post-update! [state]
-    (Diagnostics.end-zone! (EngineState.diag state) "Input & Camera"))
+    ())
 
   (defn update-gpu-uniforms [state]
     (let [eng (EngineState.eng state)

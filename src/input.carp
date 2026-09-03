@@ -1,7 +1,4 @@
-(load "Map.carp")
 (load "Vector.carp")
-
-(use Map)
 
 (doc InputSource "represents a raw input device component.")
 (deftype InputSource
@@ -34,19 +31,41 @@
   [context (Ptr ())
    backend InputBackend
    bindings (Array Binding)
-   states (Map String ActionState)
-   prev-states (Map String ActionState)
+   state-names (Array String)
+   states (Array ActionState)
+   prev-states (Array ActionState)
    last-mouse-x Double
    last-mouse-y Double
    first-mouse Bool])
 
 (defmodule InputManager
   (defn create [ctx backend]
-    (InputManager.init ctx backend [] {} {} 0.0 0.0 true))
+    (InputManager.init ctx backend [] [] [] [] 0.0 0.0 true))
+
+  (defn- find-index [names action]
+    (let [len (Array.length names)
+          idx -1]
+      (do
+        (for [i 0 len]
+          (when (= action (Array.unsafe-nth names i))
+            (set! idx i)))
+        idx)))
 
   (defn add-binding! [mgr action source mult]
-    (Array.push-back! (InputManager.bindings mgr)
-                      (Binding.init @action source mult)))
+    (let [names (InputManager.state-names mgr)
+          idx (InputManager.find-index names action)]
+      (do
+        (when (< idx 0)
+          (let [def-state (match-ref &source
+                            (InputSource.MouseDeltaX) (ActionState.Analog 0.0)
+                            (InputSource.MouseDeltaY) (ActionState.Analog 0.0)
+                            _ (ActionState.Digital false))]
+            (do
+              (Array.push-back! names @action)
+              (Array.push-back! (InputManager.states mgr) @&def-state)
+              (Array.push-back! (InputManager.prev-states mgr) @&def-state))))
+        (Array.push-back! (InputManager.bindings mgr)
+                          (Binding.init @action source mult)))))
 
   (defn- get-source-value [mgr src]
     (let [ctx @(InputManager.context mgr)
@@ -71,81 +90,97 @@
           dy (if @(InputManager.first-mouse mgr)
             0.0
             (- my @(InputManager.last-mouse-y mgr)))
-          bindings (InputManager.bindings mgr)]
+          bindings (InputManager.bindings mgr)
+          names (InputManager.state-names mgr)
+          len (Array.length names)
+          states (InputManager.states mgr)
+          prev-states (InputManager.prev-states mgr)]
       (do
         (InputManager.set-last-mouse-x! mgr mx)
         (InputManager.set-last-mouse-y! mgr my)
         (InputManager.set-first-mouse! mgr false)
 
         ;; Preserve current state as previous state
-        (InputManager.set-prev-states! mgr @(InputManager.states mgr))
-        ;; Clear current states for new aggregation
-        (InputManager.set-states! mgr {})
+        (for [i 0 len]
+          (Array.aset-uninitialized! prev-states i @(Array.unsafe-nth states i)))
 
-        (let [states (InputManager.states mgr)]
-          (for [i 0 (Array.length bindings)]
-            (let [b (Array.unsafe-nth bindings i)
-                  name (Binding.action-name b)
-                  src (Binding.source b)
-                  mult @(Binding.multiplier b)]
+        ;; Clear current states
+        (for [i 0 len]
+          (let [s (Array.unsafe-nth states i)]
+            (match @s
+              (ActionState.Digital _) (Array.aset-uninitialized! states i (ActionState.Digital false))
+              (ActionState.Analog _) (Array.aset-uninitialized! states i (ActionState.Analog 0.0)))))
+
+        (for [i 0 (Array.length bindings)]
+          (let [b (Array.unsafe-nth bindings i)
+                b-name (Binding.action-name b)
+                src (Binding.source b)
+                mult @(Binding.multiplier b)
+                idx (InputManager.find-index names b-name)]
+            (when (>= idx 0)
               (match @src
                 (InputSource.Key _)
                   (let [val (get-source-value mgr src)
-                        prev (match (Map.get-maybe states name)
-                          (Maybe.Just (ActionState.Digital b)) b
-                          _ false)]
-                    (Map.put! states name &(ActionState.Digital (or prev val))))
+                        s @(Array.unsafe-nth states idx)
+                        prev (match s (ActionState.Digital d) d _ false)]
+                    (Array.aset-uninitialized! states idx (ActionState.Digital (or prev val))))
                 (InputSource.MouseButton _)
                   (let [val (get-source-value mgr src)
-                        prev (match (Map.get-maybe states name)
-                          (Maybe.Just (ActionState.Digital b)) b
-                          _ false)]
-                    (Map.put! states name &(ActionState.Digital (or prev val))))
+                        s @(Array.unsafe-nth states idx)
+                        prev (match s (ActionState.Digital d) d _ false)]
+                    (Array.aset-uninitialized! states idx (ActionState.Digital (or prev val))))
                 (InputSource.MouseDeltaX)
-                  (let [prev (match (Map.get-maybe states name)
-                          (Maybe.Just (ActionState.Analog v)) v
-                          _ 0.0)]
-                    (Map.put! states
-                              name
-                              &(ActionState.Analog (+ prev (* dx mult)))))
+                  (let [s @(Array.unsafe-nth states idx)
+                        prev (match s (ActionState.Analog v) v _ 0.0)]
+                    (Array.aset-uninitialized! states idx (ActionState.Analog (+ prev (* dx mult)))))
                 (InputSource.MouseDeltaY)
-                  (let [prev (match (Map.get-maybe states name)
-                          (Maybe.Just (ActionState.Analog v)) v
-                          _ 0.0)]
-                    (Map.put! states
-                              name
-                              &(ActionState.Analog (+ prev (* dy mult)))))
+                  (let [s @(Array.unsafe-nth states idx)
+                        prev (match s (ActionState.Analog v) v _ 0.0)]
+                    (Array.aset-uninitialized! states idx (ActionState.Analog (+ prev (* dy mult)))))
                 _ ())))))))
 
   (doc action-digital?
     "returns true if the action is currently active (pressed).")
   (defn action-digital? [mgr action]
-    (match (Map.get-maybe (InputManager.states mgr) action)
-      (Maybe.Just (ActionState.Digital b)) b
-      _ false))
+    (let [idx (InputManager.find-index (InputManager.state-names mgr) action)]
+      (if (>= idx 0)
+        (match @(Array.unsafe-nth (InputManager.states mgr) idx)
+          (ActionState.Digital b) b
+          _ false)
+        false)))
 
   (doc action-analog "returns the analog value of the action.")
   (defn action-analog [mgr action]
-    (match (Map.get-maybe (InputManager.states mgr) action)
-      (Maybe.Just (ActionState.Analog v)) v
-      _ 0.0))
+    (let [idx (InputManager.find-index (InputManager.state-names mgr) action)]
+      (if (>= idx 0)
+        (match @(Array.unsafe-nth (InputManager.states mgr) idx)
+          (ActionState.Analog v) v
+          _ 0.0)
+        0.0)))
 
   (doc action-pressed? "returns true if the action was pressed this frame.")
   (defn action-pressed? [mgr action]
-    (let [current (match (Map.get-maybe (InputManager.states mgr) action)
-            (Maybe.Just (ActionState.Digital b)) b
-            _ false)
-          prev (match (Map.get-maybe (InputManager.prev-states mgr) action)
-            (Maybe.Just (ActionState.Digital b)) b
-            _ false)]
-      (and current (not prev))))
+    (let [idx (InputManager.find-index (InputManager.state-names mgr) action)]
+      (if (>= idx 0)
+        (let [current (match @(Array.unsafe-nth (InputManager.states mgr) idx)
+                (ActionState.Digital b) b
+                _ false)
+              prev (match @(Array.unsafe-nth (InputManager.prev-states mgr) idx)
+                (ActionState.Digital b) b
+                _ false)]
+          (and current (not prev)))
+        false)))
 
   (doc action-released? "returns true if the action was released this frame.")
   (defn action-released? [mgr action]
-    (let [current (match (Map.get-maybe (InputManager.states mgr) action)
-            (Maybe.Just (ActionState.Digital b)) b
-            _ false)
-          prev (match (Map.get-maybe (InputManager.prev-states mgr) action)
-            (Maybe.Just (ActionState.Digital b)) b
-            _ false)]
-      (and (not current) prev))))
+    (let [idx (InputManager.find-index (InputManager.state-names mgr) action)]
+      (if (>= idx 0)
+        (let [current (match @(Array.unsafe-nth (InputManager.states mgr) idx)
+                (ActionState.Digital b) b
+                _ false)
+              prev (match @(Array.unsafe-nth (InputManager.prev-states mgr) idx)
+                (ActionState.Digital b) b
+                _ false)]
+          (and (not current) prev))
+        false)))
+)
