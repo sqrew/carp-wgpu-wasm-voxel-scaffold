@@ -1161,14 +1161,19 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_age = 0.0;
     }
 
-    // 3. Spawn falling sand on the GPU
+    // 3. Carve and Build natively on the GPU
     if (u.hit_pos.w > 0.5) {
         let world_pos = get_world_pos(ip, u.cam_pos.xyz);
         let dist = distance(world_pos, u.hit_pos.xyz);
-        if (dist <= u.brush_radius && u.solid_params.x < 0.0) {
-            next_id = u.solid_params.x;
-            next_vol = -0.5; 
-            next_sleep = 0.0;
+        if (dist <= u.brush_radius) {
+            if (u.solid_params.x > 998.0) { // Carving (999.0f)
+                next_vol = 20.0; // Air
+                next_id = 0.0;
+            } else if (abs(u.solid_params.x) > 0.0 && u.solid_params.x < 998.0) { // Spawning
+                next_id = u.solid_params.x;
+                next_vol = -0.5; 
+                next_sleep = 0.0;
+            }
         }
     }
 
