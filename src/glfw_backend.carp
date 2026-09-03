@@ -1,0 +1,24 @@
+(load "GLFW.carp")
+(load "input.carp")
+
+(use GLFW)
+
+(defmodule GLFWBackend
+  (doc glfw-ptr->window
+    "helper to cast a generic pointer back to a GLFWwindow pointer.")
+  (deftemplate glfw-ptr->window
+               (Fn [(Ptr ())] (Ptr GLFWwindow))
+               "GLFWwindow* $NAME(void* p)"
+               "$DECL { return (GLFWwindow*)p; }")
+
+  (defn- get-key [ctx keycode]
+    (= (GLFW.get-key (glfw-ptr->window ctx) keycode) GLFW.PRESS))
+
+  (defn- get-mouse-btn [ctx btn]
+    (= (GLFW.get-mouse-button (glfw-ptr->window ctx) btn) GLFW.PRESS))
+
+  (defn- get-cursor-pos [ctx x y]
+    (GLFW.get-cursor-pos (glfw-ptr->window ctx) x y))
+
+  (doc init "returns a fully configured InputBackend for GLFW.")
+  (defn init [] (InputBackend.init get-key get-mouse-btn get-cursor-pos)))

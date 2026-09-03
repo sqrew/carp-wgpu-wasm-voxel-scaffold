@@ -1,0 +1,151 @@
+(load "Map.carp")
+(load "Vector.carp")
+
+(use Map)
+
+(doc InputSource "represents a raw input device component.")
+(deftype InputSource
+  (Key [Int])
+  (MouseButton [Int])
+  (MouseDeltaX [])
+  (MouseDeltaY [])
+  (MouseScrollX [])
+  (MouseScrollY []))
+
+(doc ActionState "represents the current value of a semantic input action.")
+(deftype ActionState
+  (Digital [Bool])
+  (Analog [Double]))
+
+(doc Binding "associates a semantic action name with a raw input source.")
+(deftype Binding [action-name String
+                  source InputSource
+                  multiplier Double])
+
+(doc InputBackend
+  "defines the interface for windowing systems to provide raw input data.")
+(deftype InputBackend
+  [get-key (Fn [(Ptr ()) Int] Bool)
+   get-mouse-btn (Fn [(Ptr ()) Int] Bool)
+   get-cursor-pos (Fn [(Ptr ()) (Ptr Double) (Ptr Double)] ())])
+
+(doc InputManager "tracks input state and maps raw sources to semantic actions.")
+(deftype InputManager
+  [context (Ptr ())
+   backend InputBackend
+   bindings (Array Binding)
+   states (Map String ActionState)
+   prev-states (Map String ActionState)
+   last-mouse-x Double
+   last-mouse-y Double
+   first-mouse Bool])
+
+(defmodule InputManager
+  (defn create [ctx backend]
+    (InputManager.init ctx backend [] {} {} 0.0 0.0 true))
+
+  (defn add-binding! [mgr action source mult]
+    (Array.push-back! (InputManager.bindings mgr)
+                      (Binding.init @action source mult)))
+
+  (defn- get-source-value [mgr src]
+    (let [ctx @(InputManager.context mgr)
+          backend (InputManager.backend mgr)]
+      (match @src
+        (InputSource.Key k) (~(InputBackend.get-key backend) ctx k)
+        (InputSource.MouseButton b)
+          (~(InputBackend.get-mouse-btn backend) ctx b)
+        _ false)))
+
+  (defn update! [mgr]
+    (let [ctx @(InputManager.context mgr)
+          backend (InputManager.backend mgr)
+          mx 0.0
+          my 0.0
+          _ (~(InputBackend.get-cursor-pos backend) ctx
+                                                    (Pointer.address &mx)
+                                                    (Pointer.address &my))
+          dx (if @(InputManager.first-mouse mgr)
+            0.0
+            (- mx @(InputManager.last-mouse-x mgr)))
+          dy (if @(InputManager.first-mouse mgr)
+            0.0
+            (- my @(InputManager.last-mouse-y mgr)))
+          bindings (InputManager.bindings mgr)]
+      (do
+        (InputManager.set-last-mouse-x! mgr mx)
+        (InputManager.set-last-mouse-y! mgr my)
+        (InputManager.set-first-mouse! mgr false)
+
+        ;; Preserve current state as previous state
+        (InputManager.set-prev-states! mgr @(InputManager.states mgr))
+        ;; Clear current states for new aggregation
+        (InputManager.set-states! mgr {})
+
+        (let [states (InputManager.states mgr)]
+          (for [i 0 (Array.length bindings)]
+            (let [b (Array.unsafe-nth bindings i)
+                  name (Binding.action-name b)
+                  src (Binding.source b)
+                  mult @(Binding.multiplier b)]
+              (match @src
+                (InputSource.Key _)
+                  (let [val (get-source-value mgr src)
+                        prev (match (Map.get-maybe states name)
+                          (Maybe.Just (ActionState.Digital b)) b
+                          _ false)]
+                    (Map.put! states name &(ActionState.Digital (or prev val))))
+                (InputSource.MouseButton _)
+                  (let [val (get-source-value mgr src)
+                        prev (match (Map.get-maybe states name)
+                          (Maybe.Just (ActionState.Digital b)) b
+                          _ false)]
+                    (Map.put! states name &(ActionState.Digital (or prev val))))
+                (InputSource.MouseDeltaX)
+                  (let [prev (match (Map.get-maybe states name)
+                          (Maybe.Just (ActionState.Analog v)) v
+                          _ 0.0)]
+                    (Map.put! states
+                              name
+                              &(ActionState.Analog (+ prev (* dx mult)))))
+                (InputSource.MouseDeltaY)
+                  (let [prev (match (Map.get-maybe states name)
+                          (Maybe.Just (ActionState.Analog v)) v
+                          _ 0.0)]
+                    (Map.put! states
+                              name
+                              &(ActionState.Analog (+ prev (* dy mult)))))
+                _ ())))))))
+
+  (doc action-digital?
+    "returns true if the action is currently active (pressed).")
+  (defn action-digital? [mgr action]
+    (match (Map.get-maybe (InputManager.states mgr) action)
+      (Maybe.Just (ActionState.Digital b)) b
+      _ false))
+
+  (doc action-analog "returns the analog value of the action.")
+  (defn action-analog [mgr action]
+    (match (Map.get-maybe (InputManager.states mgr) action)
+      (Maybe.Just (ActionState.Analog v)) v
+      _ 0.0))
+
+  (doc action-pressed? "returns true if the action was pressed this frame.")
+  (defn action-pressed? [mgr action]
+    (let [current (match (Map.get-maybe (InputManager.states mgr) action)
+            (Maybe.Just (ActionState.Digital b)) b
+            _ false)
+          prev (match (Map.get-maybe (InputManager.prev-states mgr) action)
+            (Maybe.Just (ActionState.Digital b)) b
+            _ false)]
+      (and current (not prev))))
+
+  (doc action-released? "returns true if the action was released this frame.")
+  (defn action-released? [mgr action]
+    (let [current (match (Map.get-maybe (InputManager.states mgr) action)
+            (Maybe.Just (ActionState.Digital b)) b
+            _ false)
+          prev (match (Map.get-maybe (InputManager.prev-states mgr) action)
+            (Maybe.Just (ActionState.Digital b)) b
+            _ false)]
+      (and (not current) prev))))
