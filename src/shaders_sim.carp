@@ -95,10 +95,10 @@ fn get_liq_props(id: f32) -> LiquidProps {
 @group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
 
-fn get_solid(p: vec3<i32>) -> vec2<f32> {
+fn get_solid(p: vec3<i32>) -> vec4<f32> {
     let wrapped = (p + vec3<i32>(160)) % 160;
     let val = textureLoad(solid_texture, wrapped, 0);
-    return vec2<f32>(val.r, val.g);
+    return val;
 }
 
 fn is_solid(p: vec3<i32>) -> bool {
@@ -106,16 +106,16 @@ fn is_solid(p: vec3<i32>) -> bool {
     return sol.y * 0.5 < 0.008;
 }
 
-fn get_liquid(p: vec3<i32>) -> vec2<f32> {
+fn get_liquid(p: vec3<i32>) -> vec4<f32> {
     let wrapped = (p + vec3<i32>(160)) % 160;
     let val = textureLoad(liquid_texture, wrapped, 0);
-    return vec2<f32>(val.r, val.g);
+    return val;
 }
 
-fn get_gas(p: vec3<i32>) -> vec2<f32> {
+fn get_gas(p: vec3<i32>) -> vec4<f32> {
     let wrapped = (p + vec3<i32>(160)) % 160;
     let val = textureLoad(gas_texture, wrapped, 0);
-    return vec2<f32>(val.r, val.g);
+    return val;
 }
 
 fn is_explosion_center(p: vec3<i32>) -> bool {
@@ -248,6 +248,22 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let self_vol = self_liq.y;
     var next_id = self_liq.x;
     var next_vol = self_vol;
+    var next_age = self_liq.z;
+    var next_sleep = self_liq.w;
+    
+    if (next_sleep >= 10.0) {
+        let n1 = get_liquid(ip + vec3<i32>(-1,0,0)).w;
+        let n2 = get_liquid(ip + vec3<i32>(1,0,0)).w;
+        let n3 = get_liquid(ip + vec3<i32>(0,-1,0)).w;
+        let n4 = get_liquid(ip + vec3<i32>(0,1,0)).w;
+        let n5 = get_liquid(ip + vec3<i32>(0,0,-1)).w;
+        let n6 = get_liquid(ip + vec3<i32>(0,0,1)).w;
+        let my_gas = get_gas(ip).w;
+        if (n1 >= 10.0 && n2 >= 10.0 && n3 >= 10.0 && n4 >= 10.0 && n5 >= 10.0 && n6 >= 10.0 && my_gas >= 10.0 && u.edit_params.y == 0.0) {
+             output_buffer[idx] = self_liq;
+             return;
+        }
+    }
 
     let self_props = get_liq_props(self_liq.x);
 
@@ -488,7 +504,19 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_id = 0.0;
     }
 
-    output_buffer[idx] = vec4<f32>(next_id, next_vol, 0.0, 0.0);
+    if (abs(next_vol - self_vol) < 0.001) {
+        next_sleep = min(next_sleep + 1.0, 10.0);
+    } else {
+        next_sleep = 0.0;
+    }
+    
+    if (next_vol > 0.0) {
+        next_age = next_age + 1.0;
+    } else {
+        next_age = 0.0;
+    }
+
+    output_buffer[idx] = vec4<f32>(next_id, next_vol, next_age, next_sleep);
 }
 ")
 
@@ -534,10 +562,10 @@ fn get_gas_props(id: f32) -> GasProps {
 @group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
 
-fn get_solid(p: vec3<i32>) -> vec2<f32> {
+fn get_solid(p: vec3<i32>) -> vec4<f32> {
     let wrapped = (p + vec3<i32>(160)) % 160;
     let val = textureLoad(solid_texture, wrapped, 0);
-    return vec2<f32>(val.r, val.g);
+    return val;
 }
 
 fn is_solid(p: vec3<i32>) -> bool {
@@ -545,16 +573,16 @@ fn is_solid(p: vec3<i32>) -> bool {
     return sol.y * 0.5 < 0.008;
 }
 
-fn get_gas(p: vec3<i32>) -> vec2<f32> {
+fn get_gas(p: vec3<i32>) -> vec4<f32> {
     let wrapped = (p + vec3<i32>(160)) % 160;
     let val = textureLoad(gas_texture, wrapped, 0);
-    return vec2<f32>(val.r, val.g);
+    return val;
 }
 
-fn get_liquid(p: vec3<i32>) -> vec2<f32> {
+fn get_liquid(p: vec3<i32>) -> vec4<f32> {
     let wrapped = (p + vec3<i32>(160)) % 160;
     let val = textureLoad(liquid_texture, wrapped, 0);
-    return vec2<f32>(val.r, val.g);
+    return val;
 }
 
 fn is_explosion_center(p: vec3<i32>) -> bool {
@@ -633,7 +661,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let ip = vec3<i32>(i32(x), i32(y), i32(z));
 
     if (is_solid(ip)) {
-        output_buffer[idx] = vec4<f32>(0.0);
+        output_buffer[idx] = vec4<f32>(0.0, 0.0, 0.0, 10.0);
         return;
     }
 
@@ -641,6 +669,22 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let self_vol = self_gas.y;
     var next_id = self_gas.x;
     var next_vol = self_vol;
+    var next_age = self_gas.z;
+    var next_sleep = self_gas.w;
+    
+    if (next_sleep >= 10.0) {
+        let n1 = get_gas(ip + vec3<i32>(-1,0,0)).w;
+        let n2 = get_gas(ip + vec3<i32>(1,0,0)).w;
+        let n3 = get_gas(ip + vec3<i32>(0,-1,0)).w;
+        let n4 = get_gas(ip + vec3<i32>(0,1,0)).w;
+        let n5 = get_gas(ip + vec3<i32>(0,0,-1)).w;
+        let n6 = get_gas(ip + vec3<i32>(0,0,1)).w;
+        let my_liq = get_liquid(ip).w;
+        if (n1 >= 10.0 && n2 >= 10.0 && n3 >= 10.0 && n4 >= 10.0 && n5 >= 10.0 && n6 >= 10.0 && my_liq >= 10.0 && u.edit_params.w == 0.0) {
+             output_buffer[idx] = self_gas;
+             return;
+        }
+    }
 
     let below_p = ip + vec3<i32>(0, -1, 0);
     let above_p = ip + vec3<i32>(0, 1, 0);
@@ -935,6 +979,88 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_id = 0.0;
     }
 
-    output_buffer[idx] = vec4<f32>(next_id, next_vol, 0.0, 0.0);
+    if (abs(next_vol - self_vol) < 0.001) {
+        next_sleep = min(next_sleep + 1.0, 10.0);
+    } else {
+        next_sleep = 0.0;
+    }
+    
+    if (next_vol > 0.0) {
+        next_age = next_age + 1.0;
+    } else {
+        next_age = 0.0;
+    }
+
+    output_buffer[idx] = vec4<f32>(next_id, next_vol, next_age, next_sleep);
 }
 ")
+
+(def solid-sim-wgsl
+  "struct Uniforms {
+    time: f32,
+    width: f32,
+    height: f32,
+    brush_radius: f32,
+    cam_pos: vec4<f32>,
+    cam_dir: vec4<f32>,
+    cam_right: vec4<f32>,
+    cam_up: vec4<f32>,
+    sun_dir: vec4<f32>,
+    hit_pos: vec4<f32>,
+    edit_params: vec4<f32>,
+}
+
+@group(0) @binding(0) var<storage, read>       input_buffer: array<vec4<f32>>;
+@group(0) @binding(1) var<storage, read_write> output_buffer: array<vec4<f32>>;
+@group(0) @binding(2) var<uniform>             u: Uniforms;
+@group(0) @binding(3) var<storage, read_write> solid_buffer: array<vec4<f32>>;
+@group(0) @binding(4) var<storage, read>       chunk_lookup: array<vec4<f32>>;
+@group(0) @binding(5) var solid_texture:       texture_3d<f32>;
+@group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
+@group(0) @binding(7) var gas_texture:         texture_3d<f32>;
+
+fn get_solid(p: vec3<i32>) -> vec4<f32> {
+    let wrapped = (p + vec3<i32>(160)) % 160;
+    let s_idx = u32(wrapped.x) + u32(wrapped.y) * 160u + u32(wrapped.z) * 25600u;
+    return input_buffer[s_idx];
+}
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let idx = global_id.x;
+    if (idx >= 4096000u) { return; }
+
+    let x = idx % 160u;
+    let y = (idx / 160u) % 160u;
+    let z = idx / 25600u;
+    let ip = vec3<i32>(i32(x), i32(y), i32(z));
+
+    let self_sol = get_solid(ip);
+    let self_vol = self_sol.y;
+    var next_id = self_sol.x;
+    var next_vol = self_vol;
+    var next_age = self_sol.z;
+    var next_sleep = self_sol.w;
+
+    let dummy_val = u.time + solid_buffer[0].x + chunk_lookup[0].x + textureLoad(solid_texture, vec3<i32>(0), 0).x + textureLoad(liquid_texture, vec3<i32>(0), 0).x + textureLoad(gas_texture, vec3<i32>(0), 0).x;
+    if (dummy_val < -99999.0) { return; }
+
+    // TODO: Add falling sand physics here!
+
+    if (abs(next_vol - self_vol) < 0.001) {
+        next_sleep = min(next_sleep + 1.0, 10.0);
+    } else {
+        next_sleep = 0.0;
+    }
+    
+    if (next_vol > 0.0) {
+        next_age = next_age + 1.0;
+    } else {
+        next_age = 0.0;
+    }
+
+    // Dummy pass: Just pass through the voxel data.
+    output_buffer[idx] = vec4<f32>(next_id, next_vol, next_age, next_sleep);
+}
+")
+

@@ -66,6 +66,8 @@
   liquid-sim-bind-group WGPUBindGroup
   gas-sim-pipeline WGPUComputePipeline
   gas-sim-bind-group WGPUBindGroup
+  solid-sim-pipeline WGPUComputePipeline
+  solid-sim-bind-group WGPUBindGroup
 ])
 
 
@@ -160,11 +162,13 @@
          
          liquid-sim-pipe (WGPU.create-pipeline ctx liquid-sim-wgsl "main")
          gas-sim-pipe (WGPU.create-pipeline ctx gas-sim-wgsl "main")
+         solid-sim-pipe (WGPU.create-pipeline ctx solid-sim-wgsl "main")
          
          main-ub-raw (Result.Success (WGPURender.uniform-buffer-get-buffer @(M-UniformBuffer.p &ub)))
          
          liquid-sim-bg (WGPURender.create-jit-bind-group-water ctx liquid-sim-pipe @&read-raw @&liquid-raw @&main-ub-raw @&write-raw @&read-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
          gas-sim-bg (WGPURender.create-jit-bind-group-water ctx gas-sim-pipe @&read-raw @&gas-raw @&main-ub-raw @&read-raw @&read-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
+         solid-sim-bg (WGPURender.create-jit-bind-group-water ctx solid-sim-pipe @&read-raw @&write-raw @&main-ub-raw @&staging-raw @&read-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
          
          lp (LinePass.create ctx &format 50000)
          
@@ -172,7 +176,7 @@
                                             read-buf write-buf half-buf pack-pipe pack-bg
                                             staging-buf copy-pipe copy-bg copy-ub
                                             liquid-gpu-buf liquid-half-buf gas-gpu-buf gas-half-buf
-                                            liquid-pack-bg gas-pack-bg liquid-sim-pipe liquid-sim-bg gas-sim-pipe gas-sim-bg))]
+                                            liquid-pack-bg gas-pack-bg liquid-sim-pipe liquid-sim-bg gas-sim-pipe gas-sim-bg solid-sim-pipe solid-sim-bg))]
         (Result.Success ren))))
 
 (defn update-chunk-texture [eng ren qx qy qz chunk-data]
@@ -229,7 +233,16 @@
         (GPUBatcher.batch-dispatch batch-encoder @(Renderer.liquid-sim-pipeline ren) @(Renderer.liquid-sim-bind-group ren) 64000)
         (GPUBatcher.batch-dispatch batch-encoder @(Renderer.gas-sim-pipeline ren) @(Renderer.gas-sim-bind-group ren) 64000)
         
-        ;; 2. Copy updated write-buffer (which simulation wrote to) to read-buffer on the GPU
+        ;; 2. Copy intermediate melted solids (from write-buffer) back into read-buffer
+        (GPUBatcher.batch-copy-buffer batch-encoder
+                                      (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p (Renderer.voxel-gpu-buffer-write ren)))
+                                      (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p (Renderer.voxel-gpu-buffer-read ren)))
+                                      65536000l)
+
+        ;; 3. Run solid sim (which now reads from the updated read-buffer!)
+        (GPUBatcher.batch-dispatch batch-encoder @(Renderer.solid-sim-pipeline ren) @(Renderer.solid-sim-bind-group ren) 64000)
+        
+        ;; 4. Copy final falling-sand solids to read-buffer for the pack pass
         (GPUBatcher.batch-copy-buffer batch-encoder
                                       (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p (Renderer.voxel-gpu-buffer-write ren)))
                                       (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p (Renderer.voxel-gpu-buffer-read ren)))
