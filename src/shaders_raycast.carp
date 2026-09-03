@@ -1,0 +1,106 @@
+(defmodule ShadersRaycast
+(def raycast-wgsl
+  "struct Uniforms {
+    time: f32,
+    width: f32,
+    height: f32,
+    brush_radius: f32,
+    cam_pos: vec4<f32>,
+    cam_dir: vec4<f32>,
+    cam_right: vec4<f32>,
+    cam_up: vec4<f32>,
+    sun_dir: vec4<f32>,
+    hit_pos: vec4<f32>,
+    edit_params: vec4<f32>,
+    solid_params: vec4<f32>,
+}
+
+@group(0) @binding(0) var<storage, read>       dummy0: array<vec4<f32>>;
+@group(0) @binding(1) var<storage, read>       dummy1: array<vec4<f32>>;
+@group(0) @binding(2) var<uniform>             u: Uniforms;
+@group(0) @binding(3) var<storage, read_write> hit_buffer: array<vec4<f32>>;
+@group(0) @binding(4) var<storage, read>       dummy4: array<vec4<f32>>;
+@group(0) @binding(5) var solid_texture:       texture_3d<f32>;
+@group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
+@group(0) @binding(7) var gas_texture:         texture_3d<f32>;
+
+fn get_solid(p: vec3<i32>) -> vec4<f32> {
+    let wrapped = (p + vec3<i32>(160)) % 160;
+    return textureLoad(solid_texture, wrapped, 0);
+}
+
+@compute @workgroup_size(1)
+fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    if (global_id.x > 0u) { return; }
+    let hack0 = dummy0[0];
+    let hack1 = dummy1[0];
+    let hack4 = dummy4[0];
+    let hack6 = textureLoad(liquid_texture, vec3<i32>(0), 0);
+    let hack7 = textureLoad(gas_texture, vec3<i32>(0), 0);
+    if (hack0.x == 9999.9) { hit_buffer[0] = hack1 + hack4 + hack6 + hack7; }
+
+    let ro = u.cam_pos.xyz;
+    let rd = normalize(u.cam_dir.xyz);
+    
+    // We only care about the crosshair (center of screen)
+    // Raymarch exactly like the renderer
+    
+    var t_near: f32 = 0.0;
+    var t_far: f32 = 0.0;
+    
+    let cx = floor(u.cam_pos.x / 32.0);
+    let cy = floor(u.cam_pos.y / 32.0);
+    let cz = floor(u.cam_pos.z / 32.0);
+    let box_min = vec3<f32>(cx - 2.0, cy - 2.0, cz - 2.0) * 32.0;
+    let box_max = box_min + 160.0;
+
+    let inv_rd = 1.0 / rd;
+    let t0 = (box_min - ro) * inv_rd;
+    let t1 = (box_max - ro) * inv_rd;
+    let tmin = min(t0, t1);
+    let tmax = max(t0, t1);
+    
+    t_near = max(max(tmin.x, tmin.y), tmin.z);
+    t_far = min(min(tmax.x, tmax.y), tmax.z);
+    
+    t_near = max(t_near, 0.0);
+    
+    var hit = false;
+    var t = t_near;
+    var p = vec3<f32>(0.0);
+    
+    if (t_near < t_far) {
+        for (var i = 0; i < 200; i = i + 1) {
+            p = ro + rd * t;
+            
+            // Map world pos to texture pos (Toroidal wrap)
+            let wrapped_p = p - floor(p / 160.0) * 160.0;
+            let tp = vec3<i32>(wrapped_p);
+            
+            let sdf_val = get_solid(tp);
+            let d = sdf_val.y * 0.5;
+            
+            if (d < 0.05 || d <= 0.0) {
+                hit = true;
+                break;
+            }
+            if (t > t_far || t > 80.0) {
+                break;
+            }
+            
+            var step_size = max(d, 0.05);
+            if (sdf_val.x < 0.0 || sdf_val.x == 5.0) { // CA blocks
+                step_size = clamp(step_size, 0.005, 0.85);
+            }
+            t = t + step_size;
+        }
+    }
+    
+    if (hit) {
+        hit_buffer[0] = vec4<f32>(p.x, p.y, p.z, 1.0);
+    } else {
+        hit_buffer[0] = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+    }
+}
+")
+)

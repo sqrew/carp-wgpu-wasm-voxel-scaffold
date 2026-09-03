@@ -3,6 +3,16 @@
 (load "line_pass.carp")
 (load "../../carp-diagnostics/diagnostics.carp")
 
+(relative-include "gpu_readback.h")
+(register gpu-readback-create-map-buffer (Fn [(Ptr WGPUContext)] WGPUBuffer) "gpu_readback_create_map_buffer")
+(register gpu-readback-is-mapping (Fn [] Bool) "gpu_readback_is_mapping")
+(register gpu-readback-tick (Fn [(Ptr WGPUContext)] ()) "gpu_readback_tick")
+(register gpu-readback-hit-pos-async (Fn [WGPUBuffer] ()) "gpu_readback_hit_pos_async")
+(register gpu-readback-get-hit-x (Fn [] Float) "gpu_readback_get_hit_x")
+(register gpu-readback-get-hit-y (Fn [] Float) "gpu_readback_get_hit_y")
+(register gpu-readback-get-hit-z (Fn [] Float) "gpu_readback_get_hit_z")
+(register gpu-readback-get-hit-w (Fn [] Float) "gpu_readback_get_hit_w")
+
 ;; WGSL shaders are loaded from shaders.carp
 
 
@@ -68,6 +78,10 @@
   gas-sim-bind-group WGPUBindGroup
   solid-sim-pipeline WGPUComputePipeline
   solid-sim-bind-group WGPUBindGroup
+  hit-buffer M-VertexBuffer
+  map-buffer WGPUBuffer
+  raycast-pipeline WGPUComputePipeline
+  raycast-bind-group WGPUBindGroup
 ])
 
 
@@ -163,12 +177,21 @@
          liquid-sim-pipe (WGPU.create-pipeline ctx liquid-sim-wgsl "main")
          gas-sim-pipe (WGPU.create-pipeline ctx gas-sim-wgsl "main")
          solid-sim-pipe (WGPU.create-pipeline ctx solid-sim-wgsl "main")
+         raycast-pipe (WGPU.create-pipeline ctx ShadersRaycast.raycast-wgsl "main")
          
          main-ub-raw (Result.Success (WGPURender.uniform-buffer-get-buffer @(M-UniformBuffer.p &ub)))
+         
+         hit-data (Result.Success (Array.replicate 4 &0.0f))
+         hit-buf-ptr (WGPURender.create-storage-vertex-buffer ctx &hit-data)
+         hit-buf (Result.Success (M-VertexBuffer.init hit-buf-ptr))
+         hit-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &hit-buf)))
+         map-buf (Result.Success (gpu-readback-create-map-buffer ctx))
          
          liquid-sim-bg (WGPURender.create-jit-bind-group-water ctx liquid-sim-pipe @&read-raw @&liquid-raw @&main-ub-raw @&write-raw @&read-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
          gas-sim-bg (WGPURender.create-jit-bind-group-water ctx gas-sim-pipe @&read-raw @&gas-raw @&main-ub-raw @&read-raw @&read-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
          solid-sim-bg (WGPURender.create-jit-bind-group-water ctx solid-sim-pipe @&read-raw @&write-raw @&main-ub-raw @&staging-raw @&read-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
+         
+         raycast-bg (WGPURender.create-jit-bind-group-water ctx raycast-pipe @&read-raw @&read-raw @&main-ub-raw @&hit-raw @&read-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
          
          lp (LinePass.create ctx &format 50000)
          
@@ -176,7 +199,8 @@
                                             read-buf write-buf half-buf pack-pipe pack-bg
                                             staging-buf copy-pipe copy-bg copy-ub
                                             liquid-gpu-buf liquid-half-buf gas-gpu-buf gas-half-buf
-                                            liquid-pack-bg gas-pack-bg liquid-sim-pipe liquid-sim-bg gas-sim-pipe gas-sim-bg solid-sim-pipe solid-sim-bg))]
+                                            liquid-pack-bg gas-pack-bg liquid-sim-pipe liquid-sim-bg gas-sim-pipe gas-sim-bg solid-sim-pipe solid-sim-bg
+                                            hit-buf map-buf raycast-pipe raycast-bg))]
         (Result.Success ren))))
 
 (defn update-chunk-texture [eng ren qx qy qz chunk-data]
@@ -229,6 +253,7 @@
     (let [ctx @(M-WGPUContext.p (Engine.ctx eng))
           batch-encoder (GPUBatcher.begin-batch ctx)]
       (do
+        (gpu-readback-tick ctx)
         ;; 1. Run simulation passes (reads textures, writes to SSBOs)
         (GPUBatcher.batch-dispatch batch-encoder @(Renderer.liquid-sim-pipeline ren) @(Renderer.liquid-sim-bind-group ren) 64000)
         (GPUBatcher.batch-dispatch batch-encoder @(Renderer.gas-sim-pipeline ren) @(Renderer.gas-sim-bind-group ren) 64000)
@@ -247,12 +272,21 @@
                                       (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p (Renderer.voxel-gpu-buffer-write ren)))
                                       (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p (Renderer.voxel-gpu-buffer-read ren)))
                                       65536000l)
-        (GPUBatcher.end-batch ctx batch-encoder))))
+        (if (gpu-readback-is-mapping)
+          ()
+          (do
+            (GPUBatcher.batch-dispatch batch-encoder @(Renderer.raycast-pipeline ren) @(Renderer.raycast-bind-group ren) 1)
+            (GPUBatcher.batch-copy-buffer batch-encoder (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p (Renderer.hit-buffer ren))) @(Renderer.map-buffer ren) 16l)))
+        (GPUBatcher.end-batch ctx batch-encoder)
+        (if (gpu-readback-is-mapping)
+          ()
+          (gpu-readback-hit-pos-async @(Renderer.map-buffer ren))))))
 
   (defn pack-buffers-to-textures! [eng ren]
     (let [ctx @(M-WGPUContext.p (Engine.ctx eng))
           batch-encoder (GPUBatcher.begin-batch ctx)]
       (do
+        (gpu-readback-tick ctx)
         ;; 1. Run pack passes (packs SSBOs into half buffers)
         (GPUBatcher.batch-dispatch batch-encoder @(Renderer.pack-pipeline ren) @(Renderer.pack-bind-group ren) 64000)
         (GPUBatcher.batch-dispatch batch-encoder @(Renderer.pack-pipeline ren) @(Renderer.liquid-pack-bind-group ren) 64000)

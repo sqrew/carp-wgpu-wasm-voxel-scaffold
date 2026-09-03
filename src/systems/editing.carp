@@ -6,7 +6,11 @@
           cam (Player.camera player)
           ro (Camera.pos cam)
           rd (Camera.front cam)
-          hit-opt (World.raycast world ro rd 80.0)]
+          hx (gpu-readback-get-hit-x)
+          hy (gpu-readback-get-hit-y)
+          hz (gpu-readback-get-hit-z)
+          hw (gpu-readback-get-hit-w)
+          hit-opt (if (> hw 0.5f) (Maybe.Just (Vector3.init (Double.from-float hx) (Double.from-float hy) (Double.from-float hz))) (Maybe.Nothing))]
       (match hit-opt
         (Maybe.Nothing)
           (do
