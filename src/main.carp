@@ -19,7 +19,7 @@
       (Result.Error e) (do (println* "Engine failed: " &e) -1)
       (Result.Success state)
         (let [_ (EngineState.register-handlers! &state)
-              win @(Engine.win (EngineState.eng &state))
+              win @(M-GLFWWindow.p (Engine.win (EngineState.eng &state)))
               last-time (GLFW.get-time)
               first-mouse true
               last-x 640.0
@@ -36,5 +36,4 @@
                   (EngineState.tick &state win dt (ref-to-ptr &first-mouse) (ref-to-ptr &last-x) (ref-to-ptr &last-y))
                   (emscripten-sleep 16))))
             
-            (EngineState.cleanup &state)
             0)))))

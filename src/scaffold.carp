@@ -115,45 +115,57 @@
       return bg;
   }")
 
+(deftype M-WGPUContext [p (Ptr WGPUContext)])
+(defmodule M-WGPUContext
+  (defn delete [x] (WGPU.free-context @(M-WGPUContext.p x))))
+(implements delete M-WGPUContext.delete)
+
+(deftype M-GLFWWindow [p (Ptr GLFWwindow)])
+(defmodule M-GLFWWindow
+  (defn delete [x]
+    (do
+      (GLFW.destroy-window @(M-GLFWWindow.p x))
+      (GLFW.terminate))))
+(implements delete M-GLFWWindow.delete)
+
+(deftype M-WGPUSurface [p (Ptr WGPURenderSurface)])
+(defmodule M-WGPUSurface
+  (defn delete [x] (WGPURender.free-surface @(M-WGPUSurface.p x))))
+(implements delete M-WGPUSurface.delete)
+
 (deftype Engine [
-  ctx (Ptr WGPUContext)
-  win (Ptr GLFWwindow)
-  surf (Ptr WGPURenderSurface)
+  ctx M-WGPUContext
+  win M-GLFWWindow
+  surf M-WGPUSurface
   width Int
   height Int
   start-time Double
 ])
-
 (defmodule Engine
   (defn create [title init-w init-h]
-    (match (WGPU.create-context)
-      (Result.Error e) (Result.Error (str* "GPU context creation failed: " e))
-      (Result.Success ctx)
-        (let [glfw-ok (GLFW.init)]
-          (if (= glfw-ok GLFW.FALSE)
-            (do
-              (WGPU.free-context ctx)
-              (Result.Error @"GLFW init failed"))
-            (do
+    (result-do [
+      c-ptr (match (WGPU.create-context)
+              (Result.Error e) (Result.Error (str* "GPU context creation failed: " e))
+              (Result.Success c) (Result.Success c))
+      ctx (Result.Success (M-WGPUContext.init c-ptr))
+      _ (if (= (GLFW.init) GLFW.FALSE)
+          (Result.Error @"GLFW init failed")
+          (Result.Success ()))
+      w-ptr (do
               (GLFW.window-hint GLFW.CLIENT_API GLFW.NO_API)
-              (let [win (GLFW.create-window init-w init-h (String.cstr title) NULL NULL)]
-                (if (null? win)
-                  (do
-                    (GLFW.terminate)
-                    (WGPU.free-context ctx)
-                    (Result.Error @"Failed to create GLFW window"))
-                  (match (WGPURender.create-surface ctx (glfw-window->voidptr win) init-w init-h)
-                    (Result.Error e)
-                      (do
-                        (GLFW.destroy-window win)
-                        (GLFW.terminate)
-                        (WGPU.free-context ctx)
-                        (Result.Error (str* "Surface failed: " e)))
-                    (Result.Success surf)
-                      (Result.Success (Engine.init ctx win surf init-w init-h (GLFW.get-time)))))))))))
+              (let [w (GLFW.create-window init-w init-h (String.cstr title) NULL NULL)]
+                (if (null? w)
+                  (Result.Error @"Failed to create GLFW window")
+                  (Result.Success w))))
+      win (Result.Success (M-GLFWWindow.init w-ptr))
+      s-ptr (match (WGPURender.create-surface c-ptr (glfw-window->voidptr w-ptr) init-w init-h)
+               (Result.Error e) (Result.Error (str* "Surface failed: " e))
+               (Result.Success s) (Result.Success s))
+      surf (Result.Success (M-WGPUSurface.init s-ptr))]
+      (Result.Success (Engine.init ctx win surf init-w init-h (GLFW.get-time)))))
 
   (defn should-close? [eng]
-    (= (GLFW.window-should-close @(Engine.win eng)) GLFW.TRUE))
+    (= (GLFW.window-should-close @(M-GLFWWindow.p (Engine.win eng))) GLFW.TRUE))
 
   (defn update-time [eng]
     (Double.to-float (- (GLFW.get-time) @(Engine.start-time eng))))
@@ -162,9 +174,9 @@
     (GLFW.poll-events))
 
   (defn handle-resize [eng]
-    (let [win @(Engine.win eng)
-          ctx @(Engine.ctx eng)
-          surf @(Engine.surf eng)
+    (let [win @(M-GLFWWindow.p (Engine.win eng))
+          ctx @(M-WGPUContext.p (Engine.ctx eng))
+          surf @(M-WGPUSurface.p (Engine.surf eng))
           w 0
           h 0]
       (do
@@ -176,33 +188,33 @@
             (Engine.set-height! eng h))))))
 
   (defn begin-frame [eng]
-    (let [surf @(Engine.surf eng)
-          ctx @(Engine.ctx eng)]
+    (let [surf @(M-WGPUSurface.p (Engine.surf eng))
+          ctx @(M-WGPUContext.p (Engine.ctx eng))]
       (match (WGPURender.begin-frame surf ctx)
         (Result.Error _e) (Maybe.Nothing)
         (Result.Success frame) (Maybe.Just frame))))
 
   (defn end-frame [eng frame]
-    (let [surf @(Engine.surf eng)
-          ctx @(Engine.ctx eng)]
+    (let [surf @(M-WGPUSurface.p (Engine.surf eng))
+          ctx @(M-WGPUContext.p (Engine.ctx eng))]
       (do
         (WGPURender.end-frame frame surf ctx)
         (WGPURender.free-frame frame))))
 
   (defn create-pipeline [eng wgsl vs-entry fs-entry]
-    (WGPURender.create-pipeline @(Engine.ctx eng) wgsl vs-entry fs-entry &(WGPURender.surface-format @(Engine.surf eng))))
+    (WGPURender.create-pipeline @(M-WGPUContext.p (Engine.ctx eng)) wgsl vs-entry fs-entry &(WGPURender.surface-format @(M-WGPUSurface.p (Engine.surf eng)))))
 
   (defn create-uniform-buffer [eng size]
-    (WGPURender.create-uniform-buffer @(Engine.ctx eng) size))
+    (WGPURender.create-uniform-buffer @(M-WGPUContext.p (Engine.ctx eng)) size))
 
   (defn update-uniform-buffer [eng ub data]
-    (WGPURender.update-uniform-buffer- @(Engine.ctx eng) ub (WGPU.array->ptr data) (Uint64.from-long (Long.from-int (* (Array.length data) 4)))))
+    (WGPURender.update-uniform-buffer- @(M-WGPUContext.p (Engine.ctx eng)) ub (WGPU.array->ptr data) (Uint64.from-long (Long.from-int (* (Array.length data) 4)))))
 
   (defn create-bind-group [eng pipeline uniform-buffer]
-    (WGPURender.create-render-uniform-bind-group @(Engine.ctx eng) pipeline uniform-buffer))
+    (WGPURender.create-render-uniform-bind-group @(M-WGPUContext.p (Engine.ctx eng)) pipeline uniform-buffer))
 
   (defn create-voxel-bind-group [eng pipeline solid-tex liquid-tex gas-tex light-tex sampler uniforms]
-    (let [bg (create-voxel-scaffold-bind-group @(Engine.ctx eng) pipeline solid-tex liquid-tex gas-tex light-tex sampler uniforms)]
+    (let [bg (create-voxel-scaffold-bind-group @(M-WGPUContext.p (Engine.ctx eng)) pipeline solid-tex liquid-tex gas-tex light-tex sampler uniforms)]
       (if (WGPURender.bindgroup-null?- bg)
         (Result.Error @"Failed to create voxel scaffold bind group")
         (Result.Success bg))))
@@ -216,12 +228,7 @@
   (defn free-uniform-buffer [ub]
     (WGPURender.free-uniform-buffer ub))
 
-  (defn cleanup [eng]
-    (do
-      (WGPURender.free-surface @(Engine.surf &eng))
-      (GLFW.destroy-window @(Engine.win &eng))
-      (GLFW.terminate)
-      (WGPU.free-context @(Engine.ctx &eng))))
+
 )
 
 (defmodule WGPUVertexBufferWrapper

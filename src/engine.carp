@@ -37,7 +37,7 @@
       (Result.Error e) (Result.Error (str* "Engine platform failed: " e))
       (Result.Success platform-eng)
         (match (Renderer.create &platform-eng)
-          (Result.Error e) (do (Engine.cleanup platform-eng)
+          (Result.Error e) (do
                                (Result.Error (str* "Renderer failed: " e)))
           (Result.Success ren)
             (let [world (World.create)
@@ -340,9 +340,4 @@
       (EngineState.render! state)
       (EngineState.post-render! state)))
 
-  (defn cleanup [state]
-    (do
-      
-      (Engine.cleanup @(EngineState.eng state)))
-)
 )

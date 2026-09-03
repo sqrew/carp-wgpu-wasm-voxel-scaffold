@@ -72,7 +72,7 @@
 
 (defmodule Renderer
       (defn create [eng]
-    (let [ctx @(Engine.ctx eng)]
+    (let [ctx @(M-WGPUContext.p (Engine.ctx eng))]
       (result-do
         [voxel-tex-ptr (WGPURender.create-3d-texture ctx 160 160 160 "rgba16float")
          voxel-tex (Result.Success (M-RenderTexture.init voxel-tex-ptr))
@@ -90,7 +90,7 @@
          
          w (Result.Success @(Engine.width eng))
          h (Result.Success @(Engine.height eng))
-         format (Result.Success (WGPURender.surface-format @(Engine.surf eng)))
+         format (Result.Success (WGPURender.surface-format @(M-WGPUSurface.p (Engine.surf eng))))
          depth-tex-ptr (WGPURender.create-depth-texture ctx w h)
          depth-tex (Result.Success (M-DepthTexture.init depth-tex-ptr))
          
@@ -176,7 +176,7 @@
         (Result.Success ren))))
 
 (defn update-chunk-texture [eng ren qx qy qz chunk-data]
-    (let [ctx @(Engine.ctx eng)
+    (let [ctx @(M-WGPUContext.p (Engine.ctx eng))
           tx (Int.positive-mod qx 5)
           ty (Int.positive-mod qy 5)
           tz (Int.positive-mod qz 5)
@@ -212,7 +212,7 @@
           old-h @(Renderer.height ren)]
       (do
         (when (or (/= curr-w old-w) (/= curr-h old-h))
-          (let [ctx @(Engine.ctx eng)]
+          (let [ctx @(M-WGPUContext.p (Engine.ctx eng))]
             (match (WGPURender.create-depth-texture ctx curr-w curr-h)
               (Result.Error e) (IO.println &(str* "Error recreating depth texture: " e))
               (Result.Success new-dt)
@@ -222,7 +222,7 @@
                   (Renderer.set-height! ren curr-h))))))))
 
 (defn run-simulation-passes! [eng ren]
-    (let [ctx @(Engine.ctx eng)
+    (let [ctx @(M-WGPUContext.p (Engine.ctx eng))
           batch-encoder (GPUBatcher.begin-batch ctx)]
       (do
         ;; 1. Run simulation passes (reads textures, writes to SSBOs)
@@ -237,7 +237,7 @@
         (GPUBatcher.end-batch ctx batch-encoder))))
 
   (defn pack-buffers-to-textures! [eng ren]
-    (let [ctx @(Engine.ctx eng)
+    (let [ctx @(M-WGPUContext.p (Engine.ctx eng))
           batch-encoder (GPUBatcher.begin-batch ctx)]
       (do
         ;; 1. Run pack passes (packs SSBOs into half buffers)
@@ -276,7 +276,7 @@
         (Maybe.Just frame)
           (let [vp (Camera.view-projection cam)
                 vp-data (CameraMat4.data &vp)
-                ctx @(Engine.ctx eng)
+                ctx @(M-WGPUContext.p (Engine.ctx eng))
                 line-count (LinePass.update! ctx (Renderer.line-pass ren) vp-data (Renderer.lines ren))
                 depth @(M-DepthTexture.p (Renderer.depth-texture ren))]
             (do
