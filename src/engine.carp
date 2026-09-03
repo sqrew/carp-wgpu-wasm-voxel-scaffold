@@ -289,7 +289,7 @@
             (Array.aset! uniforms (+ count-idx 2) 0.0f)
             (Array.aset! uniforms (+ count-idx 3) 0.0f)
             
-            (Engine.update-uniform-buffer eng @(Renderer.uniform-buffer ren) uniforms))))))
+            (Engine.update-uniform-buffer eng @(M-UniformBuffer.p (Renderer.uniform-buffer ren)) uniforms))))))
 
   (defn pre-render! [state]
     (let [platform-eng (EngineState.eng state)
@@ -342,7 +342,7 @@
 
   (defn cleanup [state]
     (do
-      (Renderer.cleanup (EngineState.eng state) (EngineState.renderer state))
+      
       (Engine.cleanup @(EngineState.eng state)))
 )
 )
