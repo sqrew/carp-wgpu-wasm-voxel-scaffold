@@ -66,6 +66,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     sun_dir: vec4<f32>,
     hit_pos: vec4<f32>,
     edit_params: vec4<f32>,
+    solid_params: vec4<f32>,
 }
 
 struct LiquidProps {
@@ -533,6 +534,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     sun_dir: vec4<f32>,
     hit_pos: vec4<f32>,
     edit_params: vec4<f32>,
+    solid_params: vec4<f32>,
 }
 
 struct GasProps {
@@ -1008,6 +1010,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     sun_dir: vec4<f32>,
     hit_pos: vec4<f32>,
     edit_params: vec4<f32>,
+    solid_params: vec4<f32>,
 }
 
 @group(0) @binding(0) var<storage, read>       input_buffer: array<vec4<f32>>;
@@ -1018,6 +1021,42 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 @group(0) @binding(5) var solid_texture:       texture_3d<f32>;
 @group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
+
+fn positive_mod(n: i32, m: i32) -> i32 {
+    let r = n % m;
+    if (r < 0) {
+        return r + m;
+    }
+    return r;
+}
+
+fn get_world_pos(ip: vec3<i32>, cam_pos: vec3<f32>) -> vec3<f32> {
+    let cx = i32(floor(cam_pos.x / 32.0));
+    let cy = i32(floor(cam_pos.y / 32.0));
+    let cz = i32(floor(cam_pos.z / 32.0));
+    
+    let offset_cx = cx - 2;
+    let offset_cy = cy - 2;
+    let offset_cz = cz - 2;
+    
+    let slot_x = ip.x / 32;
+    let slot_y = ip.y / 32;
+    let slot_z = ip.z / 32;
+    
+    let lx = ip.x % 32;
+    let ly = ip.y % 32;
+    let lz = ip.z % 32;
+    
+    let qx = offset_cx + positive_mod(slot_x - positive_mod(offset_cx, 5), 5);
+    let qy = offset_cy + positive_mod(slot_y - positive_mod(offset_cy, 5), 5);
+    let qz = offset_cz + positive_mod(slot_z - positive_mod(offset_cz, 5), 5);
+    
+    let gx = qx * 32 + lx;
+    let gy = qy * 32 + ly;
+    let gz = qz * 32 + lz;
+    
+    return vec3<f32>(f32(gx), f32(gy), f32(gz));
+}
 
 fn get_solid(p: vec3<i32>) -> vec4<f32> {
     let wrapped = (p + vec3<i32>(160)) % 160;
@@ -1063,12 +1102,12 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let g_dir = vec3<i32>(0, -1, 0); 
 
     // 1. If we are EMPTY (positive SDF), check if sand wants to fall into us
-    if (self_vol > 0.1) {
+    if (self_vol > 0.0) {
         let neighbor_ip = ip - g_dir;
         let neighbor_sol = get_solid(neighbor_ip);
         
         // If there is FALLING sand above us (negative SDF AND negative Material ID)
-        if (neighbor_sol.y < -0.1 && neighbor_sol.x < 0.0) {
+        if (neighbor_sol.y <= 0.0 && neighbor_sol.x < 0.0) {
             next_id = neighbor_sol.x;
             next_vol = neighbor_sol.y; // Become solid (negative)
             next_age = neighbor_sol.z;
@@ -1076,12 +1115,12 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
     } 
     // 2. If we are FALLING SAND (negative SDF AND negative Material ID), check if we should fall
-    else if (self_vol < -0.1 && self_sol.x < 0.0) {
+    else if (self_vol <= 0.0 && self_sol.x < 0.0) {
         let neighbor_ip = ip + g_dir;
         let neighbor_sol = get_solid(neighbor_ip);
         
         // If the space below us is empty (positive SDF)
-        if (neighbor_sol.y > 0.1) {
+        if (neighbor_sol.y > 0.0) {
             next_id = 0.0;
             next_vol = 0.5; // Become empty (positive)
             next_age = 0.0;
@@ -1101,7 +1140,17 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_age = 0.0;
     }
 
-    // Dummy pass: Just pass through the voxel data.
+    // 3. Spawn falling sand on the GPU
+    if (u.hit_pos.w > 0.5) {
+        let world_pos = get_world_pos(ip, u.cam_pos.xyz);
+        let dist = distance(world_pos, u.hit_pos.xyz);
+        if (dist <= u.brush_radius && u.solid_params.x < 0.0) {
+            next_id = u.solid_params.x;
+            next_vol = -0.5; 
+            next_sleep = 0.0;
+        }
+    }
+
     output_buffer[idx] = vec4<f32>(next_id, next_vol, next_age, next_sleep);
 }
 ")

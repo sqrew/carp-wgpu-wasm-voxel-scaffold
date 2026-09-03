@@ -37,24 +37,30 @@
                        (Pointer.set (ref-to-ptr (EngineState.liquid-spawn state)) 0.0f))
                      (if g-held
                        (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) @(Player.current-gas player))
-                       (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) 0.0f)))
+                       (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) 0.0f))
+                     (if (and f-held (and right-pressed (< @(Player.current-mat player) 0.0f)))
+                       (Pointer.set (ref-to-ptr (EngineState.solid-spawn state)) @(Player.current-mat player))
+                       (Pointer.set (ref-to-ptr (EngineState.solid-spawn state)) 0.0f)))
                    (do
                      (Pointer.set (ref-to-ptr (EngineState.hit-active state)) 0.0f)
                      (Pointer.set (ref-to-ptr (EngineState.liquid-spawn state)) 0.0f)
-                     (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) 0.0f)))
+                     (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) 0.0f)
+                     (Pointer.set (ref-to-ptr (EngineState.solid-spawn state)) 0.0f)))
                  (when (and (or left-pressed right-pressed) f-held)
                    (let [radius @(Player.edit-radius player)
                          mat-id @(Player.current-mat player)
-                         carve? left-pressed
-                         modified-coords (World.edit-sdf! world &hit-pos radius mat-id carve?)]
-                     (do
-                       (for [j 0 (Array.length &modified-coords)]
-                         (let [coord (Array.unsafe-nth &modified-coords j)
-                               qx @(ChunkCoord.x coord)
-                               qy @(ChunkCoord.y coord)
-                               qz @(ChunkCoord.z coord)
-                               chunk-opt (World.find-chunk world qx qy qz)]
-                           (match chunk-opt
-                             (Maybe.Nothing) ()
-                             (Maybe.Just chunk)
-                               (Renderer.update-chunk-texture (EngineState.eng state) ren qx qy qz (Chunk.voxel-data &chunk)))))))))))))))
+                         carve? left-pressed]
+                     (when (or carve? (> mat-id 0.0f))
+                       (let [modified-coords (World.edit-sdf! world &hit-pos radius mat-id carve?)]
+                         (do
+                           (for [j 0 (Array.length &modified-coords)]
+                             (let [coord (Array.unsafe-nth &modified-coords j)
+                                   qx @(ChunkCoord.x coord)
+                                   qy @(ChunkCoord.y coord)
+                                   qz @(ChunkCoord.z coord)
+                                   chunk-opt (World.find-chunk world qx qy qz)]
+                               (match chunk-opt
+                                 (Maybe.Nothing) ()
+                                 (Maybe.Just chunk)
+                                   (Renderer.update-chunk-texture (EngineState.eng state) ren qx qy qz (Chunk.voxel-data &chunk))))))))))))))))
+)

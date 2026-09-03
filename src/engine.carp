@@ -26,6 +26,7 @@
   hit-active Float
   liquid-spawn Float
   gas-spawn Float
+  solid-spawn Float
   ecs-world GameWorld
   player-ent-id Int
   grid (SpatialGrid Int)
@@ -69,7 +70,7 @@
                     (let [backend (GLFWBackend.init)
                             ctx (glfw-window->voidptr @(M-GLFWWindow.p (Engine.win &platform-eng)))
                             input (InputManager.create ctx backend)]
-                        (Result.Success (EngineState.init platform-eng ren world player uniforms diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid (Coordinator.new) input))))))))))
+                        (Result.Success (EngineState.init platform-eng ren world player uniforms diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid (Coordinator.new) input))))))))))
 
   (defn draw-bounds-wireframe! [ren min-x min-y min-z max-x max-y max-z color]
     (let [w0 (Vector3.init min-x min-y min-z)
@@ -283,9 +284,14 @@
         (Array.aset! uniforms 30 @(EngineState.gas-spawn state))
         (Array.aset! uniforms 31 0.5f)
         
+        (Array.aset! uniforms 32 @(EngineState.solid-spawn state))
+        (Array.aset! uniforms 33 0.5f)
+        (Array.aset! uniforms 34 0.0f)
+        (Array.aset! uniforms 35 0.0f)
+        
         (let [ecs (EngineState.ecs-world state)
-              count-idx 32
-              start-idx 36
+              count-idx 36
+              start-idx 40
               num-entities 0]
           (do
             (query ecs (e (cv CompVolume) (cc CompColor))

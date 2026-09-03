@@ -17,6 +17,7 @@ struct Uniforms {
     sun_dir: vec4<f32>,
     hit_pos: vec4<f32>,
     edit_params: vec4<f32>,
+    solid_params: vec4<f32>,
     entity_count: f32,
     pad1: f32,
     pad2: f32,
@@ -327,7 +328,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             }
             
             // Step forward by the SDF value, capped to prevent jumping over volumes
-            t = t + clamp(dist, 0.008, 1.2);
+            t = t + clamp(dist, 0.008, 0.85);
         }
         
 
