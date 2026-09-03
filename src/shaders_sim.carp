@@ -37,7 +37,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let ly = (idx / 32u) % 32u;
     let lz = idx / 1024u;
 
-    let val = staging_buffer[idx];
+    let cpu_val = staging_buffer[idx];
 
     let ox = u32(p.offset_x);
     let oy = u32(p.offset_y);
@@ -47,9 +47,18 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let gy = oy + ly;
     let gz = oz + lz;
     let g_idx = gx + gy * 160u + gz * 25600u;
+    
+    let gpu_val = voxel_gpu_buffer_read[g_idx];
+    var final_val = cpu_val;
+    
+    // If the GPU currently has dynamic falling sand (ID < 0 and Solid <= 0), 
+    // PRESERVE IT so the CPU chunk upload doesn't pave over it!
+    if (gpu_val.x < 0.0 && gpu_val.y <= 0.0) {
+        final_val = gpu_val;
+    }
 
-    voxel_gpu_buffer_read[g_idx] = val;
-    voxel_gpu_buffer_write[g_idx] = val;
+    voxel_gpu_buffer_read[g_idx] = final_val;
+    voxel_gpu_buffer_write[g_idx] = final_val;
 }
 ")
 
@@ -509,6 +518,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_sleep = min(next_sleep + 1.0, 10.0);
     } else {
         next_sleep = 0.0;
+    }
+    
+    if (next_vol <= 0.0 && next_id < 0.0 && next_sleep >= 10.0) {
+        next_id = abs(next_id);
     }
     
     if (next_vol > 0.0) {
@@ -987,6 +1000,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_sleep = 0.0;
     }
     
+    if (next_vol <= 0.0 && next_id < 0.0 && next_sleep >= 10.0) {
+        next_id = abs(next_id);
+    }
+    
     if (next_vol > 0.0) {
         next_age = next_age + 1.0;
     } else {
@@ -1132,6 +1149,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_sleep = min(next_sleep + 1.0, 10.0);
     } else {
         next_sleep = 0.0;
+    }
+    
+    if (next_vol <= 0.0 && next_id < 0.0 && next_sleep >= 10.0) {
+        next_id = abs(next_id);
     }
     
     if (next_vol > 0.0) {
