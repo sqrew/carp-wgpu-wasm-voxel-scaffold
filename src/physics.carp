@@ -392,18 +392,16 @@
                   (do
                     (let [other-idx @(Array.unsafe-nth &candidates c)]
                       (when (and (/= i other-idx) (< i other-idx))
-                        (let [other-ent (ECS.Entity.init (Handle.init (Uint64.from-long (the Long (Long.from-int other-idx))) (Uint32.from-long 1l)))
-                              other-cv-opt (get-component game-world &other-ent)]
-                          (match other-cv-opt
-                            (Maybe.Just other-cv)
-                              (let [col1 (Collidable.init (the (Handle ()) (Handle.init (Uint64.from-long (the Long (Long.from-int i))) (Uint32.from-long 1l))) @vol (Uint32.from-long 1l) (Uint32.from-long 1l) false)
-                                    col2 (Collidable.init (the (Handle ()) (Handle.init (Uint64.from-long (the Long (Long.from-int other-idx))) (Uint32.from-long 1l))) @(CompVolume.vol &other-cv) (Uint32.from-long 1l) (Uint32.from-long 1l) false)
-                                    res (CollisionChecker.check-pair &col1 &col2)]
-                                (match res
-                                  (Maybe.Just (CollisionResult.Physical actual-col))
-                                    (Array.push-back! &manifolds actual-col)
-                                  _ ()))
-                            (Maybe.Nothing) ()))))
+                        (let [other-ent (ECS.Entity.init (Handle.init (Uint64.from-long (the Long (Long.from-int other-idx))) (Uint32.from-long 1l)))]
+                          (ignore (maybe-do
+                            [other-cv (get-component game-world &other-ent)
+                             col1 (Maybe.Just (Collidable.init (the (Handle ()) (Handle.init (Uint64.from-long (the Long (Long.from-int i))) (Uint32.from-long 1l))) @vol (Uint32.from-long 1l) (Uint32.from-long 1l) false))
+                             col2 (Maybe.Just (Collidable.init (the (Handle ()) (Handle.init (Uint64.from-long (the Long (Long.from-int other-idx))) (Uint32.from-long 1l))) @(CompVolume.vol &other-cv) (Uint32.from-long 1l) (Uint32.from-long 1l) false))
+                             res (CollisionChecker.check-pair &col1 &col2)]
+                            (match res
+                              (CollisionResult.Physical actual-col)
+                                (do (Array.push-back! &manifolds actual-col) (Maybe.Just ()))
+                              _ (Maybe.Just ())))))))
                     (set! c (+ c 1))))))))
 
         ;; 4. Solve Constraints
