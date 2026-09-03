@@ -520,8 +520,11 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_sleep = 0.0;
     }
     
-    if (next_vol <= 0.0 && next_id < 0.0 && next_sleep >= 10.0) {
-        next_id = abs(next_id);
+    if (next_id == 5.0 && next_sleep >= 10.0 && next_vol > 0.05) {
+        next_id = 0.0;
+        next_vol = 0.0;
+        let s_idx = u32(ip.x) + u32(ip.y) * 160u + u32(ip.z) * 25600u;
+        solid_buffer[s_idx] = vec4<f32>(1.0, -0.5, 0.0, 0.0);
     }
     
     if (next_vol > 0.0) {
@@ -1000,9 +1003,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_sleep = 0.0;
     }
     
-    if (next_vol <= 0.0 && next_id < 0.0 && next_sleep >= 10.0) {
-        next_id = abs(next_id);
-    }
+
     
     if (next_vol > 0.0) {
         next_age = next_age + 1.0;
@@ -1161,17 +1162,35 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_age = 0.0;
     }
 
-    // 3. Carve and Build natively on the GPU
+    // 3. Carve and Build natively on the GPU (Proper SDF Math)
     if (u.hit_pos.w > 0.5) {
         let world_pos = get_world_pos(ip, u.cam_pos.xyz);
         let dist = distance(world_pos, u.hit_pos.xyz);
-        if (dist <= u.brush_radius) {
-            if (u.solid_params.x > 998.0) { // Carving (999.0f)
-                next_vol = 20.0; // Air
-                next_id = 0.0;
-            } else if (abs(u.solid_params.x) > 0.0 && u.solid_params.x < 998.0) { // Spawning
+        
+        if (u.solid_params.x > 998.0) { // Carving (Intersection)
+            if (dist <= u.brush_radius + 4.0) {
+                let carve_val = dist - u.brush_radius;
+                if (carve_val > next_vol) {
+                    next_vol = carve_val;
+                    if (next_vol > 0.0) {
+                        next_id = 0.0;
+                    }
+                }
+            }
+        } else if (u.solid_params.x > 0.0) { // Spawning Rigid (Union)
+            if (dist <= u.brush_radius + 4.0) {
+                let build_val = dist - u.brush_radius;
+                if (build_val < next_vol) {
+                    next_vol = build_val;
+                    if (next_vol <= 0.0) {
+                        next_id = u.solid_params.x;
+                    }
+                }
+            }
+        } else if (u.solid_params.x < 0.0) { // Spawning CA (Discrete)
+            if (dist <= u.brush_radius) {
+                next_vol = -0.5;
                 next_id = u.solid_params.x;
-                next_vol = -0.5; 
                 next_sleep = 0.0;
             }
         }

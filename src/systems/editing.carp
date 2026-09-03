@@ -38,7 +38,7 @@
                      (if g-held
                        (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) @(Player.current-gas player))
                        (Pointer.set (ref-to-ptr (EngineState.gas-spawn state)) 0.0f))
-                     (if left-pressed
+                     (if (and f-held left-pressed)
                        (Pointer.set (ref-to-ptr (EngineState.solid-spawn state)) 999.0f)
                        (if (and f-held right-pressed)
                          (Pointer.set (ref-to-ptr (EngineState.solid-spawn state)) @(Player.current-mat player))
