@@ -15,8 +15,8 @@
 (use Double)
 
 (defn main []
-  (let [win-width 1280
-        win-height 720]
+  (let [win-width 640
+        win-height 360]
     (match (EngineState.create "Carp WebGPU WASM Voxel Scaffold" win-width win-height)
       (Result.Error e) (do (println* "Engine failed: " &e) -1)
       (Result.Success state)
