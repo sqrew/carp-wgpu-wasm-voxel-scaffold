@@ -119,3 +119,7 @@
       (WGPURender.free-uniform-buffer @(LinePassRenderer.u-buffer lp))
       (WGPURender.free-vertex-buffer @(LinePassRenderer.v-buffer lp))))
 )
+
+(defmodule LinePassRenderer
+  (defn delete [lp] (LinePass.cleanup &lp)))
+(implements delete LinePassRenderer.delete)
