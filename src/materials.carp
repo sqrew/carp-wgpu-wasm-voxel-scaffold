@@ -1,18 +1,54 @@
 (load "../carp-collections/bitflags.carp")
 (use BitFlags)
 
+
+
+
+
+
+
+
+
+
+(relative-include "bitcast.h")
+(register int-to-float-bits (Fn [Int] Float) "int_to_float_bits")
+
 (defmodule Materials
 
   ;; Define the Material Tags (which translate to u32 in WGSL)
   (eval (bitflags [
-    FLAMMABLE        ;; Can catch fire
-    CORRODIBLE       ;; Acid will eat it
-    CONDUCTIVE       ;; Electricity travels through it
-    SOLUBLE          ;; Dissolves in water
-    EXPLOSIVE        ;; Explodes when ignited
-    LUMINESCENT      ;; Glows in the dark (light field)
-    FREEZABLE        ;; Turns to ice when cold
-    MELTABLE         ;; Turns to lava/liquid when hot
+    FLAMMABLE        ;; 1: Catches fire and burns away
+    IGNITER          ;; 2: Produces fire / applies heat (Lava, Sparks)
+    EXPLOSIVE        ;; 4: Triggers explosion radius when heated
+    MELTABLE         ;; 8: Turns to liquid when heated
+    FREEZABLE        ;; 16: Turns to solid when cooled
+    EVAPORABLE       ;; 32: Turns to gas when heated
+    CORRODIBLE       ;; 64: Eaten away by acid
+    ACIDIC           ;; 128: Eats CORRODIBLE materials
+    SOLUBLE          ;; 256: Dissolves when touching water
+    CONDUCTIVE       ;; 512: Transfers electrical current
+    SHOCKING         ;; 1024: Generates electrical current
+    GRANULAR         ;; 2048: Falls like sand
+    LIGHT_FLUID      ;; 4096: Floats on top of other fluids
+    HEAVY_GAS        ;; 8192: Sinks to the floor instead of rising
+    BRITTLE          ;; 16384: Shatters from physical impact
+    TOXIC            ;; 32768: Damages player over time
+    HEALING          ;; 65536: Heals player over time
+    RADIOACTIVE      ;; 131072: Glows and mutates/damages in radius
+    SLIPPERY         ;; 262144: Removes player friction
+    STICKY           ;; 524288: Slows player movement
+    BREATHABLE       ;; 1048576: Entities don't drown in this
+    LUMINESCENT      ;; 2097152: Emits block light
+    TRANSPARENT      ;; 4194304: Light passes through it
+    EXTINGUISHER     ;; 8388608: Instantly kills fire and sparks
+    INDESTRUCTIBLE   ;; 16777216: Ignores all destruction/physics
+    ANTI_GRAVITY     ;; 33554432: Falls UP instead of down
+    BOUNCY           ;; 67108864: Elastic physical collisions
+    ABSORBENT        ;; 134217728: Soaks up nearby liquids
+    DISSIPATES       ;; 268435456: Random chance to vanish (smoke/steam)
+    ORGANIC          ;; 536870912: Can grow or rot
+    MAGNETIC         ;; 1073741824: Attracted to electricity/magnets
+    STAINABLE        ;; 2147483648: Takes on properties of liquids
   ]))
 
   ;; The Material struct. We use individual floats so it matches perfectly
@@ -34,38 +70,41 @@
 
     (defn init-registry! []
     (do
-      ;; ====== SOLIDS (0-9) ======
+      ;; ====== SOLIDS (0-255) ======
       (Array.aset! &registry 0 (Material.init 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0))
-      ;; STONE (1)
-      (Array.aset! &registry 1 (Material.init 1.0f 0.55f 0.55f 0.55f 1.0f 10.0f 5.0f 0))
-      ;; GRASS / SOIL (2)
-      (Array.aset! &registry 2 (Material.init 2.0f 0.2f 0.6f 0.25f 1.0f 5.0f 1.0f FLAMMABLE))
-      ;; WOOD (3)
-      (Array.aset! &registry 3 (Material.init 3.0f 0.5f 0.3f 0.15f 1.0f 2.0f 2.0f (bit-or FLAMMABLE CORRODIBLE)))
-      ;; COAL (4)
-      (Array.aset! &registry 4 (Material.init 4.0f 0.1f 0.1f 0.1f 1.0f 8.0f 4.0f FLAMMABLE))
-      ;; GOLD (5)
-      (Array.aset! &registry 5 (Material.init 5.0f 0.95f 0.75f 0.15f 1.0f 15.0f 8.0f CONDUCTIVE))
+      (Array.aset! &registry 1 (Material.init 1.0f 0.55f 0.55f 0.55f 1.0f 10.0f 5.0f 0)) ;; STONE
+      (Array.aset! &registry 2 (Material.init 2.0f 0.2f 0.6f 0.25f 1.0f 5.0f 1.0f (bit-or ORGANIC FLAMMABLE))) ;; SOIL
+      (Array.aset! &registry 3 (Material.init 3.0f 0.5f 0.3f 0.15f 1.0f 2.0f 2.0f (bit-or FLAMMABLE (bit-or CORRODIBLE ORGANIC)))) ;; WOOD
+      (Array.aset! &registry 4 (Material.init 4.0f 0.1f 0.1f 0.1f 1.0f 8.0f 4.0f (bit-or FLAMMABLE CORRODIBLE))) ;; COAL
+      (Array.aset! &registry 5 (Material.init 5.0f 0.95f 0.75f 0.15f 1.0f 15.0f 8.0f (bit-or CONDUCTIVE MELTABLE))) ;; GOLD
+      
+      ;; New Solids
+      (Array.aset! &registry 6 (Material.init 6.0f 0.85f 0.8f 0.6f 1.0f 4.0f 1.0f (bit-or GRANULAR CORRODIBLE))) ;; SAND
+      (Array.aset! &registry 7 (Material.init 7.0f 0.25f 0.25f 0.3f 1.0f 3.0f 1.0f (bit-or GRANULAR EXPLOSIVE))) ;; GUNPOWDER
+      (Array.aset! &registry 8 (Material.init 8.0f 0.6f 0.8f 0.95f 1.0f 2.0f 2.0f (bit-or MELTABLE (bit-or SLIPPERY (bit-or BRITTLE TRANSPARENT))))) ;; ICE
+      (Array.aset! &registry 9 (Material.init 9.0f 0.9f 0.9f 0.95f 1.0f 2.0f 1.0f (bit-or BRITTLE (bit-or TRANSPARENT CORRODIBLE)))) ;; GLASS
+      (Array.aset! &registry 10 (Material.init 10.0f 0.3f 0.9f 0.4f 1.0f 1.5f 1.0f (bit-or STICKY BOUNCY))) ;; SLIME BLOCK
+      (Array.aset! &registry 255 (Material.init 255.0f 0.05f 0.05f 0.05f 1.0f 999.0f 999.0f INDESTRUCTIBLE)) ;; BEDROCK
       
       ;; ====== LIQUIDS (256-511) ======
-      ;; WATER (1) -> 257
-      (Array.aset! &registry 257 (Material.init 1.0f 0.1f 0.4f 0.8f 1.0f 2.0f 1.0f 0))
-      ;; LAVA (2) -> 258
-      (Array.aset! &registry 258 (Material.init 2.0f 1.0f 0.3f 0.0f 1.0f 5.0f 1.0f 0))
-      ;; ACID (3) -> 259
-      (Array.aset! &registry 259 (Material.init 3.0f 0.15f 0.85f 0.25f 1.0f 3.0f 1.0f CORRODIBLE))
-      ;; OIL (4) -> 260
-      (Array.aset! &registry 260 (Material.init 4.0f 0.35f 0.25f 0.1f 1.0f 4.5f 1.0f FLAMMABLE))
+      (Array.aset! &registry 257 (Material.init 1.0f 0.1f 0.4f 0.8f 1.0f 2.0f 1.0f (bit-or EXTINGUISHER CONDUCTIVE))) ;; WATER
+      (Array.aset! &registry 258 (Material.init 2.0f 1.0f 0.3f 0.0f 1.0f 5.0f 1.0f (bit-or IGNITER LUMINESCENT))) ;; LAVA
+      (Array.aset! &registry 259 (Material.init 3.0f 0.15f 0.85f 0.25f 1.0f 3.0f 1.0f ACIDIC)) ;; ACID
+      (Array.aset! &registry 260 (Material.init 4.0f 0.15f 0.15f 0.12f 1.0f 1.5f 1.0f (bit-or FLAMMABLE (bit-or LIGHT_FLUID SLIPPERY)))) ;; OIL
+      
+      ;; New Liquids
+      (Array.aset! &registry 261 (Material.init 5.0f 0.7f 0.05f 0.05f 1.0f 2.2f 1.0f (bit-or SOLUBLE ORGANIC))) ;; BLOOD
+      (Array.aset! &registry 262 (Material.init 6.0f 0.9f 0.8f 0.2f 1.0f 1.0f 1.0f (bit-or HEALING LIGHT_FLUID))) ;; AMBROSIA
       
       ;; ====== GASES (512-767) ======
-      ;; STEAM (1) -> 513
-      (Array.aset! &registry 513 (Material.init 1.0f 0.7f 0.7f 0.75f 1.0f 0.8f 1.0f 0))
-      ;; TOXIC GAS (2) -> 514
-      (Array.aset! &registry 514 (Material.init 2.0f 0.4f 0.9f 0.1f 1.0f 1.2f 1.0f 0))
-      ;; FIRE (3) -> 515
-      (Array.aset! &registry 515 (Material.init 3.0f 1.0f 0.35f 0.0f 1.0f 2.0f 1.0f 0))
-      ;; SMOKE (4) -> 516
-      (Array.aset! &registry 516 (Material.init 4.0f 0.15f 0.15f 0.15f 1.0f 1.8f 1.0f 0))
+      (Array.aset! &registry 513 (Material.init 1.0f 0.7f 0.7f 0.75f 1.0f 0.8f 1.0f DISSIPATES)) ;; STEAM
+      (Array.aset! &registry 514 (Material.init 2.0f 0.4f 0.9f 0.1f 1.0f 1.2f 1.0f (bit-or TOXIC (bit-or HEAVY_GAS DISSIPATES)))) ;; TOXIC GAS
+      (Array.aset! &registry 515 (Material.init 3.0f 1.0f 0.35f 0.0f 1.0f 2.0f 1.0f (bit-or IGNITER (bit-or LUMINESCENT DISSIPATES)))) ;; FIRE
+      (Array.aset! &registry 516 (Material.init 4.0f 0.15f 0.15f 0.15f 1.0f 1.8f 1.0f DISSIPATES)) ;; SMOKE
+      
+      ;; New Gases
+      (Array.aset! &registry 517 (Material.init 5.0f 0.2f 0.8f 0.1f 1.0f 1.3f 1.0f (bit-or ACIDIC (bit-or HEAVY_GAS DISSIPATES)))) ;; ACID VAPOR
+      (Array.aset! &registry 518 (Material.init 6.0f 0.8f 0.7f 0.6f 1.0f 0.5f 1.0f (bit-or EXPLOSIVE FLAMMABLE))) ;; METHANE
     )
   )
 
@@ -84,7 +123,7 @@
               (Array.aset! &arr (+ offset 4) @(Material.a mat))
               (Array.aset! &arr (+ offset 5) @(Material.density mat))
               (Array.aset! &arr (+ offset 6) @(Material.toughness mat))
-              (Array.aset! &arr (+ offset 7) (Float.from-int @(Material.tags mat)))
+              (Array.aset! &arr (+ offset 7) (int-to-float-bits @(Material.tags mat)))
             )))
         arr)))
 )

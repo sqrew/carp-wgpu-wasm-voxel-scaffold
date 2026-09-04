@@ -87,7 +87,7 @@ struct Material {
     a: f32,
     density: f32,
     toughness: f32,
-    tags: f32,
+    tags: u32,
 }
 struct LiquidProps {
     density: f32,
@@ -573,7 +573,7 @@ struct Material {
     a: f32,
     density: f32,
     toughness: f32,
-    tags: f32,
+    tags: u32,
 }
 struct GasProps {
     g_rate: f32,
@@ -1047,7 +1047,7 @@ struct Material {
     a: f32,
     density: f32,
     toughness: f32,
-    tags: f32,
+    tags: u32,
 }
 struct Uniforms {
     time: f32,
