@@ -1,5 +1,16 @@
 (def voxel-wgsl
-  "struct Entity {
+  "
+struct Material {
+    id: f32,
+    r: f32,
+    g: f32,
+    b: f32,
+    a: f32,
+    density: f32,
+    toughness: f32,
+    tags: f32,
+}
+struct Entity {
     pos_type: vec4<f32>,
     extents_rad: vec4<f32>,
     color: vec4<f32>,
@@ -31,6 +42,7 @@ struct Uniforms {
 @group(0) @binding(3) var liquid_texture: texture_3d<f32>;
 @group(0) @binding(4) var gas_texture: texture_3d<f32>;
 @group(0) @binding(5) var light_texture: texture_3d<f32>;
+@group(0) @binding(6) var<storage, read> materials: array<Material>;
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
@@ -209,20 +221,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
             let liq_val = textureSampleLevel(liquid_texture, voxel_sampler, uvw, 0.0);
             if (liq_val.g > 0.05) {
-                var liq_color = vec3<f32>(0.1, 0.4, 0.8); // Default Water
-                var absorb = 2.0;
                 let raw_liq = textureLoad(liquid_texture, ip_cell, 0);
-                let id = round(raw_liq.r);
-                if (id == 2.0) {
-                    liq_color = vec3<f32>(1.0, 0.3, 0.0); // Lava
-                    absorb = 5.0;
-                } else if (id == 3.0) {
-                    liq_color = vec3<f32>(0.15, 0.85, 0.25); // Acid (green)
-                    absorb = 3.0;
-                } else if (id == 4.0) {
-                    liq_color = vec3<f32>(0.35, 0.25, 0.1); // Oil (dark yellow/brown)
-                    absorb = 4.5;
-                }
+                let mat = materials[u32(round(raw_liq.r)) + 256u];
+                let liq_color = vec3<f32>(mat.r, mat.g, mat.b);
+                let absorb = mat.density;
                 let step_size = max(0.008, dist);
                 let alpha = 1.0 - exp(-liq_val.g * step_size * absorb);
                 accum_color = mix(accum_color, liq_color, alpha * (1.0 - accum_alpha));
@@ -231,20 +233,18 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
             let gas_val = textureSampleLevel(gas_texture, voxel_sampler, uvw, 0.0);
             if (gas_val.g > 0.05) {
-                var gas_color = vec3<f32>(0.7, 0.7, 0.75); // Steam
-                var absorb = 0.8;
                 let raw_gas = textureLoad(gas_texture, ip_cell, 0);
-                let id = round(raw_gas.r);
-                if (id == 2.0) {
-                    gas_color = vec3<f32>(0.4, 0.9, 0.1); // Toxic Gas
-                    absorb = 1.2;
-                } else if (id == 3.0) {
+                let mat = materials[u32(round(raw_gas.r)) + 512u];
+                var gas_color = vec3<f32>(mat.r, mat.g, mat.b);
+                var absorb = mat.density;
+                
+                // Keep the fire flicker logic using bitflags!
+                // FLAMMABLE is 1, EXPLOSIVE is 16, let's just check if id == 3.0 for now, or just use mat.a?
+                // For now just keep fire flicker if id == 3
+                if (round(raw_gas.r) == 3.0) {
                     let flicker = sin(u.time * 15.0 + dot(uvw, vec3<f32>(100.0))) * 0.15 + 0.85;
-                    gas_color = vec3<f32>(1.0, 0.35 * flicker, 0.0); // Fire
-                    absorb = 2.0 * flicker;
-                } else if (id == 4.0) {
-                    gas_color = vec3<f32>(0.15, 0.15, 0.15); // Smoke
-                    absorb = 1.8;
+                    gas_color = vec3<f32>(mat.r, mat.g * flicker, mat.b);
+                    absorb = mat.density * flicker;
                 }
                 let step_size = max(0.008, dist);
                 let alpha = (1.0 - exp(-gas_val.g * step_size * absorb)) * 0.4;
@@ -271,19 +271,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 let mat_id = raw_voxel.r;
                 
                 // Color based on material ID
-                var base_color = vec3<f32>(0.3, 0.3, 0.3);
-                let id = round(mat_id);
-                if (id == 1.0) {
-                    base_color = vec3<f32>(0.45, 0.45, 0.45); // Stone
-                } else if (id == 2.0) {
-                    base_color = vec3<f32>(0.2, 0.6, 0.25);   // Grass / Soil
-                } else if (id == 3.0) {
-                    base_color = vec3<f32>(0.5, 0.3, 0.15);   // Wood
-                } else if (id == 4.0) {
-                    base_color = vec3<f32>(0.1, 0.1, 0.1);    // Coal
-                } else if (id == 5.0) {
-                    base_color = vec3<f32>(0.95, 0.75, 0.15);  // Gold
-                }
+                let mat = materials[u32(round(mat_id))];
+                let base_color = vec3<f32>(mat.r, mat.g, mat.b);
                 
                 let light_dir = normalize(u.sun_dir.xyz);
                 let sun_intensity = clamp(u.sun_dir.y * 4.0, 0.0, 1.0);
@@ -306,11 +295,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 let ao = getAO(p, normal);
                 
                 // Blend ambient sunlight and night sky ambient
-                let ambient_intensity = clamp(u.sun_dir.y * 3.0 + 0.3, 0.05, 1.0);
+                let ambient_intensity = clamp(u.sun_dir.y * 3.0 + 0.3, 0.2, 1.0);
                 
                 // Combine Shading with Light Texture
                 let light_val = textureSampleLevel(light_texture, voxel_sampler, uvw, 0.0) + vec4<f32>(0.0, 0.0, 0.0, 1.0);
-                let ambient = vec3<f32>(0.1, 0.12, 0.2) * ao * light_val.a * ambient_intensity;
+                let ambient = vec3<f32>(0.15, 0.18, 0.25) * ao * light_val.a * ambient_intensity;
                 let direct = vec3<f32>(1.0, 0.95, 0.85) * diffuse * sha * light_val.a * sun_intensity;
                 let block_light = light_val.rgb;
                 
@@ -383,7 +372,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             let fog_factor = clamp((t - 40.0) / 40.0, 0.0, 1.0);
             
             // The fog color is the horizon color mixed with the space color
-            let fog_color = mix(space_color, horizon_color, max(0.0, rd.y));
+            // Fade to pitch black when underground so caves contrast against the abyss
+            let depth_fade = clamp(((ro.y + rd.y * t) - 0.0) / 20.0, 0.0, 1.0);
+            let fog_color = mix(space_color, horizon_color, max(0.0, rd.y)) * depth_fade;
+            
             color = mix(hit_color, fog_color, fog_factor);
         } else {
             color = mix(color, accum_color, accum_alpha);

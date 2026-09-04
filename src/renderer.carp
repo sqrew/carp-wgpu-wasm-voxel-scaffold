@@ -91,6 +91,7 @@
   sync-chunk-pipeline WGPUComputePipeline
   sync-chunk-bind-group WGPUBindGroup
   sync-chunk-uniform-buffer M-UniformBuffer
+  materials-buffer M-VertexBuffer
 ])
 
 
@@ -125,7 +126,6 @@
          pipe-ptr (Engine.create-pipeline eng voxel-wgsl "vs_main" "fs_main")
          pipe (Result.Success (M-RenderPipeline.init pipe-ptr))
          
-         bg (Engine.create-voxel-bind-group eng @(M-RenderPipeline.p &pipe) @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex) @(M-RenderTexture.p &light-tex) voxel-sampler @(M-UniformBuffer.p &ub))
          
          initial-data-read (Result.Success (Array.replicate 16384000 &0.0f))
          initial-data-half (Result.Success (Array.replicate 8192000 &0.0f))
@@ -151,8 +151,16 @@
          gas-half-buf-ptr (WGPURender.create-storage-vertex-buffer ctx &initial-data-half)
          gas-half-buf (Result.Success (M-VertexBuffer.init gas-half-buf-ptr))
          
+
          staging-buf-ptr (WGPURender.create-storage-vertex-buffer ctx &initial-data-read)
          staging-buf (Result.Success (M-VertexBuffer.init staging-buf-ptr))
+         
+         _mat_init (Result.Success (Materials.init-registry!))
+         mat-data (Result.Success (Materials.pack-registry))
+         mat-buf-ptr (WGPURender.create-storage-vertex-buffer ctx &mat-data)
+         mat-buf (Result.Success (M-VertexBuffer.init mat-buf-ptr))
+         mat-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &mat-buf)))
+         bg (Engine.create-voxel-bind-group eng @(M-RenderPipeline.p &pipe) @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex) @(M-RenderTexture.p &light-tex) voxel-sampler @(M-UniformBuffer.p &ub) @(M-VertexBuffer.p &mat-buf))
          
          copy-ub-ptr (WGPURender.create-uniform-buffer ctx 16)
          copy-ub (Result.Success (M-UniformBuffer.init copy-ub-ptr))
@@ -196,17 +204,17 @@
          hit-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &hit-buf)))
          map-buf (Result.Success (gpu-readback-create-map-buffer ctx))
          
-         liquid-sim-bg (WGPURender.create-jit-bind-group-water ctx liquid-sim-pipe @&read-raw @&liquid-raw @&main-ub-raw @&write-raw @&read-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
-         gas-sim-bg (WGPURender.create-jit-bind-group-water ctx gas-sim-pipe @&read-raw @&gas-raw @&main-ub-raw @&read-raw @&read-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
-         solid-sim-bg (WGPURender.create-jit-bind-group-water ctx solid-sim-pipe @&read-raw @&write-raw @&main-ub-raw @&staging-raw @&read-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
+         liquid-sim-bg (WGPURender.create-jit-bind-group-water ctx liquid-sim-pipe @&read-raw @&liquid-raw @&main-ub-raw @&write-raw @&mat-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
+         gas-sim-bg (WGPURender.create-jit-bind-group-water ctx gas-sim-pipe @&read-raw @&gas-raw @&main-ub-raw @&read-raw @&mat-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
+         solid-sim-bg (WGPURender.create-jit-bind-group-water ctx solid-sim-pipe @&read-raw @&write-raw @&main-ub-raw @&staging-raw @&mat-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
          
-         raycast-bg (WGPURender.create-jit-bind-group-water ctx raycast-pipe @&read-raw @&read-raw @&main-ub-raw @&hit-raw @&read-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
+         raycast-bg (WGPURender.create-jit-bind-group-water ctx raycast-pipe @&read-raw @&read-raw @&main-ub-raw @&hit-raw @&mat-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
          
          sync-chunk-pipe (WGPU.create-pipeline ctx ShadersSyncChunk.sync-chunk-wgsl "main")
          sync-chunk-ub-ptr (WGPURender.create-uniform-buffer ctx 16)
          sync-chunk-ub (Result.Success (M-UniformBuffer.init sync-chunk-ub-ptr))
          sync-chunk-ub-raw (Result.Success (WGPURender.uniform-buffer-get-buffer @(M-UniformBuffer.p &sync-chunk-ub)))
-         sync-chunk-bg (WGPURender.create-jit-bind-group-water ctx sync-chunk-pipe @&read-raw @&staging-raw @&sync-chunk-ub-raw @&read-raw @&read-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
+         sync-chunk-bg (WGPURender.create-jit-bind-group-water ctx sync-chunk-pipe @&read-raw @&staging-raw @&sync-chunk-ub-raw @&read-raw @&mat-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
          chunk-map-buf (Result.Success (gpu-readback-create-chunk-map-buffer ctx))
          
          lp (LinePass.create ctx &format 50000)
@@ -216,7 +224,7 @@
                                             staging-buf copy-pipe copy-bg copy-ub
                                             liquid-gpu-buf liquid-half-buf gas-gpu-buf gas-half-buf
                                             liquid-pack-bg gas-pack-bg liquid-sim-pipe liquid-sim-bg gas-sim-pipe gas-sim-bg solid-sim-pipe solid-sim-bg
-                                            hit-buf map-buf raycast-pipe raycast-bg chunk-map-buf sync-chunk-pipe sync-chunk-bg sync-chunk-ub))]
+                                            hit-buf map-buf raycast-pipe raycast-bg chunk-map-buf sync-chunk-pipe sync-chunk-bg sync-chunk-ub mat-buf))]
         (Result.Success ren))))
 
 (defn update-chunk-texture [eng ren qx qy qz chunk-data]

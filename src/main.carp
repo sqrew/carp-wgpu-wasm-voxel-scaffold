@@ -3,6 +3,7 @@
 (load "glfw_backend.carp")
 (load "scaffold.carp")
 (load "camera.carp")
+(load "materials.carp")
 (load "world.carp")
 (load "physics.carp")
 (load "ecs_world.carp")

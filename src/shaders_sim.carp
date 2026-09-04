@@ -78,6 +78,17 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     solid_params: vec4<f32>,
 }
 
+
+struct Material {
+    id: f32,
+    r: f32,
+    g: f32,
+    b: f32,
+    a: f32,
+    density: f32,
+    toughness: f32,
+    tags: f32,
+}
 struct LiquidProps {
     density: f32,
     g_rate: f32,
@@ -100,7 +111,7 @@ fn get_liq_props(id: f32) -> LiquidProps {
 @group(0) @binding(1) var<storage, read_write> output_buffer: array<vec4<f32>>;
 @group(0) @binding(2) var<uniform>             u: Uniforms;
 @group(0) @binding(3) var<storage, read_write> solid_buffer: array<vec4<f32>>;
-@group(0) @binding(4) var<storage, read>       chunk_lookup: array<vec4<f32>>;
+@group(0) @binding(4) var<storage, read>       materials: array<Material>;
 @group(0) @binding(5) var solid_texture:       texture_3d<f32>;
 @group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
@@ -193,7 +204,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (idx >= 4096000u) { return; }
 
     // Dummy reads to prevent compiler from optimizing out unused bindings
-    let dummy_val = input_buffer[0] + solid_buffer[0] + chunk_lookup[0];
+    let dummy_val = input_buffer[0] + solid_buffer[0] + vec4<f32>(materials[0].id);
     if (dummy_val.x > 999999.0) {
         output_buffer[idx] = textureLoad(gas_texture, vec3<i32>(0), 0);
     }
@@ -553,6 +564,17 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     solid_params: vec4<f32>,
 }
 
+
+struct Material {
+    id: f32,
+    r: f32,
+    g: f32,
+    b: f32,
+    a: f32,
+    density: f32,
+    toughness: f32,
+    tags: f32,
+}
 struct GasProps {
     g_rate: f32,
     l_rate: f32,
@@ -575,7 +597,7 @@ fn get_gas_props(id: f32) -> GasProps {
 @group(0) @binding(1) var<storage, read_write> output_buffer: array<vec4<f32>>;
 @group(0) @binding(2) var<uniform>             u: Uniforms;
 @group(0) @binding(3) var<storage, read>       chunk_info: array<vec4<f32>>;
-@group(0) @binding(4) var<storage, read>       chunk_lookup: array<vec4<f32>>;
+@group(0) @binding(4) var<storage, read>       materials: array<Material>;
 @group(0) @binding(5) var solid_texture:       texture_3d<f32>;
 @group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
@@ -668,7 +690,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (idx >= 4096000u) { return; }
 
     // Dummy reads to prevent compiler from optimizing out unused bindings
-    let dummy_val = input_buffer[0] + chunk_info[0] + chunk_lookup[0];
+    let dummy_val = input_buffer[0] + chunk_info[0] + vec4<f32>(materials[0].id);
     if (dummy_val.x > 999999.0) {
         output_buffer[idx] = textureLoad(liquid_texture, vec3<i32>(0), 0);
     }
@@ -1016,7 +1038,18 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 ")
 
 (def solid-sim-wgsl
-  "struct Uniforms {
+  "
+struct Material {
+    id: f32,
+    r: f32,
+    g: f32,
+    b: f32,
+    a: f32,
+    density: f32,
+    toughness: f32,
+    tags: f32,
+}
+struct Uniforms {
     time: f32,
     width: f32,
     height: f32,
@@ -1035,7 +1068,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 @group(0) @binding(1) var<storage, read_write> output_buffer: array<vec4<f32>>;
 @group(0) @binding(2) var<uniform>             u: Uniforms;
 @group(0) @binding(3) var<storage, read_write> solid_buffer: array<vec4<f32>>;
-@group(0) @binding(4) var<storage, read>       chunk_lookup: array<vec4<f32>>;
+@group(0) @binding(4) var<storage, read>       materials: array<Material>;
 @group(0) @binding(5) var solid_texture:       texture_3d<f32>;
 @group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
@@ -1099,7 +1132,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     var next_age = self_sol.z;
     var next_sleep = self_sol.w;
 
-    let dummy_val = u.time + solid_buffer[0].x + chunk_lookup[0].x + textureLoad(solid_texture, vec3<i32>(0), 0).x + textureLoad(liquid_texture, vec3<i32>(0), 0).x + textureLoad(gas_texture, vec3<i32>(0), 0).x;
+    let dummy_val = u.time + solid_buffer[0].x + vec4<f32>(materials[0].id).x + textureLoad(solid_texture, vec3<i32>(0), 0).x + textureLoad(liquid_texture, vec3<i32>(0), 0).x + textureLoad(gas_texture, vec3<i32>(0), 0).x;
     if (dummy_val < -99999.0) { return; }
 
     if (next_sleep >= 10.0) {

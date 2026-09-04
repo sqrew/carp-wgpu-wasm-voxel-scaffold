@@ -1,6 +1,17 @@
 (defmodule ShadersRaycast
 (def raycast-wgsl
-  "struct Uniforms {
+  "
+struct Material {
+    id: f32,
+    r: f32,
+    g: f32,
+    b: f32,
+    a: f32,
+    density: f32,
+    toughness: f32,
+    tags: f32,
+}
+struct Uniforms {
     time: f32,
     width: f32,
     height: f32,
@@ -19,7 +30,7 @@
 @group(0) @binding(1) var<storage, read>       dummy1: array<vec4<f32>>;
 @group(0) @binding(2) var<uniform>             u: Uniforms;
 @group(0) @binding(3) var<storage, read_write> hit_buffer: array<vec4<f32>>;
-@group(0) @binding(4) var<storage, read>       dummy4: array<vec4<f32>>;
+@group(0) @binding(4) var<storage, read>       materials: array<Material>;
 @group(0) @binding(5) var solid_texture:       texture_3d<f32>;
 @group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
@@ -34,7 +45,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (global_id.x > 0u) { return; }
     let hack0 = dummy0[0];
     let hack1 = dummy1[0];
-    let hack4 = dummy4[0];
+    let hack4 = vec4<f32>(materials[0].id);
     let hack6 = textureLoad(liquid_texture, vec3<i32>(0), 0);
     let hack7 = textureLoad(gas_texture, vec3<i32>(0), 0);
     if (hack0.x == 9999.9) { hit_buffer[0] = hack1 + hack4 + hack6 + hack7; }
