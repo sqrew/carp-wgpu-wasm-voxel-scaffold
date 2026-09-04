@@ -7,13 +7,13 @@ static float latest_hit_pos[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 static bool is_mapping = false;
 
 static void buffer_map_callback(WGPUMapAsyncStatus status, WGPUStringView message, void* userdata1, void* userdata2) {
-    is_mapping = false; printf("Map callback fired with status: %d\n", status); printf("Map callback fired with status: %d\n", status);
+    is_mapping = false;
     if (status == WGPUMapAsyncStatus_Success) {
         WGPUBuffer buffer = (WGPUBuffer)userdata1;
         const void* mapped = wgpuBufferGetConstMappedRange(buffer, 0, 16);
         if (mapped) {
-            printf("MAPPED OK!\n");
-            memcpy(latest_hit_pos, mapped, 16); printf("Hit callback: %f, %f, %f, %f\n", latest_hit_pos[0], latest_hit_pos[1], latest_hit_pos[2], latest_hit_pos[3]);
+            
+            memcpy(latest_hit_pos, mapped, 16);
         }
         wgpuBufferUnmap(buffer);
     }
