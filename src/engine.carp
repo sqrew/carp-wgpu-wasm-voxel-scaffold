@@ -31,6 +31,9 @@
   player-ent-id Int
   grid (SpatialGrid Int)
   coord (Coordinator AppEvent)
+  sync-qx Int
+  sync-qy Int
+  sync-qz Int
   input InputManager
 ])
 
@@ -70,7 +73,7 @@
                     (let [backend (GLFWBackend.init)
                             ctx (glfw-window->voidptr @(M-GLFWWindow.p (Engine.win &platform-eng)))
                             input (InputManager.create ctx backend)]
-                        (Result.Success (EngineState.init platform-eng ren world player uniforms diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid (Coordinator.new) input))))))))))
+                        (Result.Success (EngineState.init platform-eng ren world player uniforms diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid (Coordinator.new) 0 0 0 input))))))))))
 
   (defn draw-bounds-wireframe! [ren min-x min-y min-z max-x max-y max-z color]
     (let [w0 (Vector3.init min-x min-y min-z)
@@ -221,7 +224,51 @@
           (EngineState.stream-chunks! world platform-eng ren (Camera.pos cam)))
         
         (Diagnostics.with-zone diag "Voxel Editing & Raycast"
-          (EditingSystem.update! state input)))))
+          (EditingSystem.update! state input))
+          
+        (Diagnostics.with-zone diag "Chunk Sync"
+          (do
+            (if (gpu-readback-is-chunk-ready)
+              (let [qx @(EngineState.sync-qx state)
+                    qy @(EngineState.sync-qy state)
+                    qz @(EngineState.sync-qz state)
+                    tx (EngineState.positive-mod qx 5)
+                    ty (EngineState.positive-mod qy 5)
+                    tz (EngineState.positive-mod qz 5)
+                    slot-idx (+ tx (+ (* ty 5) (* tz 25)))
+                    chunks (World.chunks world)]
+                (do
+                  (if (< slot-idx (Array.length chunks))
+                    (let [chunk (Array.unsafe-nth chunks slot-idx)]
+                      (if (and (= qx @(Chunk.coord-x chunk))
+                               (and (= qy @(Chunk.coord-y chunk))
+                                    (= qz @(Chunk.coord-z chunk))))
+                        (let [data (Chunk.voxel-data chunk)
+                              ptr (Array.unsafe-raw data)]
+                          (gpu-readback-consume-chunk ptr))
+                        (let [dummy (Array.replicate 131072 &0.0f)]
+                          (gpu-readback-consume-chunk (Array.unsafe-raw &dummy)))))
+                    (let [dummy (Array.replicate 131072 &0.0f)]
+                      (gpu-readback-consume-chunk (Array.unsafe-raw &dummy))))))
+              ())
+            (if (not (gpu-readback-is-chunk-mapping))
+              (let [p-pos (Camera.pos cam)
+                    px @(Vector3.x p-pos)
+                    py @(Vector3.y p-pos)
+                    pz @(Vector3.z p-pos)
+                    fc @(EngineState.frame-count state)
+                    dx (- (Int.mod fc 3) 1)
+                    dy (- (Int.mod (/ fc 3) 3) 1)
+                    dz (- (Int.mod (/ fc 9) 3) 1)
+                    cx (+ (Double.to-int (Double.floor (/ px 32.0))) dx)
+                    cy (+ (Double.to-int (Double.floor (/ py 32.0))) dy)
+                    cz (+ (Double.to-int (Double.floor (/ pz 32.0))) dz)]
+                (do
+                  (EngineState.set-sync-qx! state cx)
+                  (EngineState.set-sync-qy! state cy)
+                  (EngineState.set-sync-qz! state cz)
+                  (Renderer.sync-chunk-async! platform-eng ren cx cy cz)))
+              ()))))))
 
   (defn post-update! [state]
     ())

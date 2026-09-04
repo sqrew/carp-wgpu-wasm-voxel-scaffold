@@ -11,22 +11,34 @@ struct Uniforms {
 @group(0) @binding(0) var<storage, read> source_buffer: array<vec4<f32>>;
 @group(0) @binding(1) var<storage, read_write> dest_chunk_buffer: array<vec4<f32>>;
 @group(0) @binding(2) var<uniform> u: Uniforms;
+@group(0) @binding(3) var<storage, read> dummy3: array<vec4<f32>>;
+@group(0) @binding(4) var<storage, read> dummy4: array<vec4<f32>>;
+@group(0) @binding(5) var dummy5: texture_3d<f32>;
+@group(0) @binding(6) var dummy6: texture_3d<f32>;
+@group(0) @binding(7) var dummy7: texture_3d<f32>;
 
-@compute @workgroup_size(8, 8, 8)
+@compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    if (global_id.x >= 32u || global_id.y >= 32u || global_id.z >= 32u) {
+    if (global_id.x == 9999999u) {
+        let x = dummy3[0].x + dummy4[0].x + textureLoad(dummy5, vec3<i32>(0), 0).x + textureLoad(dummy6, vec3<i32>(0), 0).x + textureLoad(dummy7, vec3<i32>(0), 0).x;
+        dest_chunk_buffer[0].x = x;
+    }
+
+    let dest_idx = global_id.x;
+    if (dest_idx >= 32768u) {
         return;
     }
     
-    // The dest buffer is just a flat 32x32x32 array
-    let dest_idx = global_id.x + global_id.y * 32u + global_id.z * 32u * 32u;
+    let lx = dest_idx % 32u;
+    let ly = (dest_idx / 32u) % 32u;
+    let lz = dest_idx / 1024u;
     
     // The source buffer is a toroidal 160x160x160 array
-    let gx = (u32(u.chunk_offset_x) + global_id.x) % 160u;
-    let gy = (u32(u.chunk_offset_y) + global_id.y) % 160u;
-    let gz = (u32(u.chunk_offset_z) + global_id.z) % 160u;
+    let gx = (u32(u.chunk_offset_x) + lx) % 160u;
+    let gy = (u32(u.chunk_offset_y) + ly) % 160u;
+    let gz = (u32(u.chunk_offset_z) + lz) % 160u;
     
-    let src_idx = gx + gy * 160u + gz * 160u * 160u;
+    let src_idx = gx + gy * 160u + gz * 25600u;
     
     dest_chunk_buffer[dest_idx] = source_buffer[src_idx];
 }

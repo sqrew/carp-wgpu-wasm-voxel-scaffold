@@ -12,6 +12,11 @@
 (register gpu-readback-get-hit-y (Fn [] Float) "gpu_readback_get_hit_y")
 (register gpu-readback-get-hit-z (Fn [] Float) "gpu_readback_get_hit_z")
 (register gpu-readback-get-hit-w (Fn [] Float) "gpu_readback_get_hit_w")
+(register gpu-readback-create-chunk-map-buffer (Fn [(Ptr WGPUContext)] WGPUBuffer) "gpu_readback_create_chunk_map_buffer")
+(register gpu-readback-is-chunk-mapping (Fn [] Bool) "gpu_readback_is_chunk_mapping")
+(register gpu-readback-is-chunk-ready (Fn [] Bool) "gpu_readback_is_chunk_ready")
+(register gpu-readback-chunk-async (Fn [WGPUBuffer] ()) "gpu_readback_chunk_async")
+(register gpu-readback-consume-chunk (Fn [(Ptr Float)] ()) "gpu_readback_consume_chunk")
 
 ;; WGSL shaders are loaded from shaders.carp
 
@@ -82,6 +87,10 @@
   map-buffer WGPUBuffer
   raycast-pipeline WGPUComputePipeline
   raycast-bind-group WGPUBindGroup
+  chunk-map-buffer WGPUBuffer
+  sync-chunk-pipeline WGPUComputePipeline
+  sync-chunk-bind-group WGPUBindGroup
+  sync-chunk-uniform-buffer M-UniformBuffer
 ])
 
 
@@ -193,6 +202,13 @@
          
          raycast-bg (WGPURender.create-jit-bind-group-water ctx raycast-pipe @&read-raw @&read-raw @&main-ub-raw @&hit-raw @&read-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
          
+         sync-chunk-pipe (WGPU.create-pipeline ctx ShadersSyncChunk.sync-chunk-wgsl "main")
+         sync-chunk-ub-ptr (WGPURender.create-uniform-buffer ctx 16)
+         sync-chunk-ub (Result.Success (M-UniformBuffer.init sync-chunk-ub-ptr))
+         sync-chunk-ub-raw (Result.Success (WGPURender.uniform-buffer-get-buffer @(M-UniformBuffer.p &sync-chunk-ub)))
+         sync-chunk-bg (WGPURender.create-jit-bind-group-water ctx sync-chunk-pipe @&read-raw @&staging-raw @&sync-chunk-ub-raw @&read-raw @&read-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
+         chunk-map-buf (Result.Success (gpu-readback-create-chunk-map-buffer ctx))
+         
          lp (LinePass.create ctx &format 50000)
          
          ren (Result.Success (Renderer.init pipe bg ub voxel-tex liquid-tex gas-tex light-tex voxel-sampler lp [] depth-tex w h
@@ -200,7 +216,7 @@
                                             staging-buf copy-pipe copy-bg copy-ub
                                             liquid-gpu-buf liquid-half-buf gas-gpu-buf gas-half-buf
                                             liquid-pack-bg gas-pack-bg liquid-sim-pipe liquid-sim-bg gas-sim-pipe gas-sim-bg solid-sim-pipe solid-sim-bg
-                                            hit-buf map-buf raycast-pipe raycast-bg))]
+                                            hit-buf map-buf raycast-pipe raycast-bg chunk-map-buf sync-chunk-pipe sync-chunk-bg sync-chunk-ub))]
         (Result.Success ren))))
 
 (defn update-chunk-texture [eng ren qx qy qz chunk-data]
@@ -344,3 +360,25 @@
 
 
   )
+
+  (defn sync-chunk-async! [eng ren qx qy qz]
+    (let [ctx @(M-WGPUContext.p (Engine.ctx eng))
+          is-mapping (gpu-readback-is-chunk-mapping)]
+      (if is-mapping
+        ()
+        (let [tx (Int.positive-mod qx 5)
+              ty (Int.positive-mod qy 5)
+              tz (Int.positive-mod qz 5)
+              offset-x (Float.from-int (* tx 32))
+              offset-y (Float.from-int (* ty 32))
+              offset-z (Float.from-int (* tz 32))
+              sync-ub @(M-UniformBuffer.p (Renderer.sync-chunk-uniform-buffer ren))
+              params-arr [offset-x offset-y offset-z 0.0f]]
+          (do
+            (Engine.update-uniform-buffer eng sync-ub &params-arr)
+            (let [batch-encoder (GPUBatcher.begin-batch ctx)]
+              (do
+                (GPUBatcher.batch-dispatch batch-encoder @(Renderer.sync-chunk-pipeline ren) @(Renderer.sync-chunk-bind-group ren) 512)
+                (GPUBatcher.batch-copy-buffer batch-encoder (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p (Renderer.voxel-staging-buffer ren))) @(Renderer.chunk-map-buffer ren) 524288l)
+                (GPUBatcher.end-batch ctx batch-encoder)))
+            (gpu-readback-chunk-async @(Renderer.chunk-map-buffer ren)))))))
