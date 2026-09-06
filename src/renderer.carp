@@ -191,9 +191,9 @@
          
          copy-bg (WGPU.create-bind-group ctx copy-pipe &copy-bufs)
          
-         liquid-sim-pipe (WGPU.create-pipeline ctx liquid-sim-wgsl "main")
-         gas-sim-pipe (WGPU.create-pipeline ctx gas-sim-wgsl "main")
-         solid-sim-pipe (WGPU.create-pipeline ctx solid-sim-wgsl "main")
+         liquid-sim-pipe (WGPU.create-pipeline ctx &liquid-sim-wgsl "main")
+         gas-sim-pipe (WGPU.create-pipeline ctx &gas-sim-wgsl "main")
+         solid-sim-pipe (WGPU.create-pipeline ctx &solid-sim-wgsl "main")
          raycast-pipe (WGPU.create-pipeline ctx ShadersRaycast.raycast-wgsl "main")
          
          main-ub-raw (Result.Success (WGPURender.uniform-buffer-get-buffer @(M-UniformBuffer.p &ub)))

@@ -109,8 +109,37 @@
   )
 
 
+
+  (defn set-reaction! [arr a b res-a res-b]
+    (let [offset (+ 8192 (* (+ (* a 1024) b) 2))]
+      (do
+        (Array.aset! arr (+ offset 0) res-a)
+        (Array.aset! arr (+ offset 1) res-b)
+        (let [offset-sym (+ 8192 (* (+ (* b 1024) a) 2))]
+          (do
+            (Array.aset! arr (+ offset-sym 0) res-b)
+            (Array.aset! arr (+ offset-sym 1) res-a))))))
+
+  (defn build-reactions [arr]
+    (do
+      (for [a 0 1024]
+        (for [b 0 1024]
+          (let [offset (+ 8192 (* (+ (* a 1024) b) 2))]
+            (do
+              (Array.aset! arr (+ offset 0) (Float.from-int a))
+              (Array.aset! arr (+ offset 1) (Float.from-int b))))))
+      (set-reaction! arr 259 1 514.0f 0.0f)
+      (set-reaction! arr 259 6 514.0f 0.0f)
+      (set-reaction! arr 258 257 4.0f 513.0f)
+      (set-reaction! arr 515 2 515.0f 516.0f)
+      (set-reaction! arr 515 260 515.0f 515.0f)
+      (set-reaction! arr 5 258 257.0f 4.0f)
+      (set-reaction! arr 5 515 257.0f 0.0f)
+      ()
+    ))
+
   (defn pack-registry []
-    (let [arr (Array.replicate 8192 &0.0f)]
+    (let [arr (Array.replicate 2105344 &0.0f)]
       (do
         (for [i 0 1024]
           (let [mat (Array.unsafe-nth &registry i)
@@ -125,5 +154,6 @@
               (Array.aset! &arr (+ offset 6) @(Material.toughness mat))
               (Array.aset! &arr (+ offset 7) (int-to-float-bits @(Material.tags mat)))
             )))
+        (build-reactions &arr)
         arr)))
 )

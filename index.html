@@ -162,39 +162,19 @@ canvas.emscripten { border: 0px none; background-color: black; }
           <input type="range" id="brush-slider" min="0.5" max="15.0" step="0.5" value="3.0" style="width: 100%; cursor: pointer;" oninput="updateBrushRadius(this.value)">
         </div>
 
-        <!-- Solid Material Selector -->
-        <div style="margin-bottom: 12px;">
-          <div style="font-size: 12px; margin-bottom: 5px; color: #aaa;">Solid Block:</div>
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
-            <button class="mat-btn solid-btn" data-id="1.0" onclick="selectSolid(1.0)">Stone</button>
-            <button class="mat-btn solid-btn" data-id="2.0" onclick="selectSolid(2.0)">Grass</button>
-            <button class="mat-btn solid-btn" data-id="3.0" onclick="selectSolid(3.0)">Wood</button>
-            <button class="mat-btn solid-btn" data-id="4.0" onclick="selectSolid(4.0)">Coal</button>
-            <button class="mat-btn solid-btn" data-id="5.0" onclick="selectSolid(5.0)">Gold</button>
-            <button class="mat-btn solid-btn" data-id="-1.0" onclick="selectSolid(-1.0)">Sand</button>
+        <!-- Materials HUD -->
+        <div style="display: flex; flex-direction: column; gap: 10px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; margin-bottom: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 12px; color: #ccc;">Solid <span style="color:#777;">(V)</span></span>
+            <span id="solid-lbl" style="font-size: 14px; font-weight: bold; color: #ddd;">Stone</span>
           </div>
-        </div>
-
-        <!-- Liquid Material Selector -->
-        <div style="margin-bottom: 12px;">
-          <div style="font-size: 12px; margin-bottom: 5px; color: #aaa;">Liquid:</div>
-          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;">
-            <button class="mat-btn liq-btn" data-id="1.0" onclick="selectLiquid(1.0)">Water</button>
-            <button class="mat-btn liq-btn" data-id="2.0" onclick="selectLiquid(2.0)">Lava</button>
-            <button class="mat-btn liq-btn" data-id="3.0" onclick="selectLiquid(3.0)">Acid</button>
-            <button class="mat-btn liq-btn" data-id="4.0" onclick="selectLiquid(4.0)">Oil</button>
-            <button class="mat-btn liq-btn" data-id="5.0" onclick="selectLiquid(5.0)">Liq Sand</button>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 12px; color: #ccc;">Liquid <span style="color:#777;">(N)</span></span>
+            <span id="liq-lbl" style="font-size: 14px; font-weight: bold; color: #55aaff;">Water</span>
           </div>
-        </div>
-
-        <!-- Gas Material Selector -->
-        <div style="margin-bottom: 15px;">
-          <div style="font-size: 12px; margin-bottom: 5px; color: #aaa;">Gas:</div>
-          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;">
-            <button class="mat-btn gas-btn" data-id="1.0" onclick="selectGas(1.0)">Steam</button>
-            <button class="mat-btn gas-btn" data-id="2.0" onclick="selectGas(2.0)">Toxic</button>
-            <button class="mat-btn gas-btn" data-id="3.0" onclick="selectGas(3.0)">Fire</button>
-            <button class="mat-btn gas-btn" data-id="4.0" onclick="selectGas(4.0)">Smoke</button>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 12px; color: #ccc;">Gas <span style="color:#777;">(B)</span></span>
+            <span id="gas-lbl" style="font-size: 14px; font-weight: bold; color: #ffaa55;">Steam</span>
           </div>
         </div>
 
@@ -300,35 +280,93 @@ canvas.emscripten { border: 0px none; background-color: black; }
       window.player_flying = true;
       window.player_flashlight = true;
 
+      const SOLIDS = [
+        {id: 1.0, name: "Stone"},
+        {id: 2.0, name: "Wood"},
+        {id: 3.0, name: "Leaves"},
+        {id: 4.0, name: "Obsidian"},
+        {id: 5.0, name: "Ice"},
+        {id: 6.0, name: "Sand"},
+        {id: 7.0, name: "Dirt"},
+        {id: 8.0, name: "Sponge"},
+        {id: 9.0, name: "Glass"},
+        {id: 10.0, name: "Wax"},
+        {id: 11.0, name: "Gunpowder"},
+        {id: 12.0, name: "C-4"},
+        {id: 13.0, name: "Thermite"},
+        {id: 14.0, name: "Uranium"},
+        {id: 15.0, name: "Bone"},
+        {id: 16.0, name: "Flesh"},
+        {id: 17.0, name: "Brain"},
+        {id: 18.0, name: "Copper"},
+        {id: 19.0, name: "Iron"},
+        {id: 20.0, name: "Gold"}
+      ];
+
+      const LIQUIDS = [
+        {id: 257.0, name: "Water"},
+        {id: 258.0, name: "Lava"},
+        {id: 259.0, name: "Acid"},
+        {id: 260.0, name: "Oil"},
+        {id: 261.0, name: "Blood"},
+        {id: 262.0, name: "Ambrosia"},
+        {id: 263.0, name: "Liquid Wax"},
+        {id: 264.0, name: "Toxic Sludge"}
+      ];
+
+      const GASES = [
+        {id: 513.0, name: "Steam"},
+        {id: 514.0, name: "Toxic Gas"},
+        {id: 515.0, name: "Fire"},
+        {id: 516.0, name: "Smoke"},
+        {id: 517.0, name: "Acid Vapor"},
+        {id: 518.0, name: "Methane"}
+      ];
+
+      let solid_idx = 0;
+      let liq_idx = 0;
+      let gas_idx = 0;
+
+      function updateHUD() {
+         document.getElementById('solid-lbl').innerText = SOLIDS[solid_idx].name;
+         window.player_solid_mat = SOLIDS[solid_idx].id;
+         if (typeof Module !== 'undefined' && Module._set_solid_mat) {
+             Module._set_solid_mat(window.player_solid_mat);
+         }
+
+         document.getElementById('liq-lbl').innerText = LIQUIDS[liq_idx].name;
+         window.player_liq_mat = LIQUIDS[liq_idx].id;
+         if (typeof Module !== 'undefined' && Module._set_liq_mat) {
+             Module._set_liq_mat(window.player_liq_mat);
+         }
+
+         document.getElementById('gas-lbl').innerText = GASES[gas_idx].name;
+         window.player_gas_mat = GASES[gas_idx].id;
+         if (typeof Module !== 'undefined' && Module._set_gas_mat) {
+             Module._set_gas_mat(window.player_gas_mat);
+         }
+      }
+
+      window.addEventListener('keydown', (e) => {
+         if (e.key === 'v' || e.key === 'V') {
+            solid_idx = (solid_idx + 1) % SOLIDS.length;
+            updateHUD();
+         }
+         if (e.key === 'n' || e.key === 'N') {
+            liq_idx = (liq_idx + 1) % LIQUIDS.length;
+            updateHUD();
+         }
+         if (e.key === 'b' || e.key === 'B') {
+            gas_idx = (gas_idx + 1) % GASES.length;
+            updateHUD();
+         }
+      });
+
       function updateBrushRadius(val) {
         window.player_brush_radius = parseFloat(val);
         document.getElementById('brush-val').innerText = window.player_brush_radius.toFixed(1);
         if (typeof Module !== 'undefined' && Module._set_brush_radius) {
           Module._set_brush_radius(window.player_brush_radius);
-        }
-      }
-
-      function selectSolid(id) {
-        window.player_solid_mat = parseFloat(id);
-        updateActiveButtons('solid-btn', id);
-        if (typeof Module !== 'undefined' && Module._set_solid_mat) {
-          Module._set_solid_mat(window.player_solid_mat);
-        }
-      }
-
-      function selectLiquid(id) {
-        window.player_liq_mat = parseFloat(id);
-        updateActiveButtons('liq-btn', id);
-        if (typeof Module !== 'undefined' && Module._set_liq_mat) {
-          Module._set_liq_mat(window.player_liq_mat);
-        }
-      }
-
-      function selectGas(id) {
-        window.player_gas_mat = parseFloat(id);
-        updateActiveButtons('gas-btn', id);
-        if (typeof Module !== 'undefined' && Module._set_gas_mat) {
-          Module._set_gas_mat(window.player_gas_mat);
         }
       }
 
@@ -346,32 +384,14 @@ canvas.emscripten { border: 0px none; background-color: black; }
         }
       }
 
-      function updateActiveButtons(className, activeId) {
-        var buttons = document.getElementsByClassName(className);
-        for (var i = 0; i < buttons.length; i++) {
-          if (Math.abs(parseFloat(buttons[i].getAttribute('data-id')) - parseFloat(activeId)) < 0.1) {
-            buttons[i].classList.add('active');
-          } else {
-            buttons[i].classList.remove('active');
-          }
-        }
-      }
-
-      // Sync function called from WebAssembly
       window.sync_ui = function() {
-        // 1. Update brush radius slider and label
         document.getElementById('brush-slider').value = window.player_brush_radius;
         document.getElementById('brush-val').innerText = window.player_brush_radius.toFixed(1);
-
-        // 2. Update material button actives
-        updateActiveButtons('solid-btn', window.player_solid_mat);
-        updateActiveButtons('liq-btn', window.player_liq_mat);
-        updateActiveButtons('gas-btn', window.player_gas_mat);
-
-        // 3. Update checkboxes
         document.getElementById('fly-chk').checked = window.player_flying;
         document.getElementById('light-chk').checked = window.player_flashlight;
       };
+      
+      updateHUD(); // Initialize HUD labels
 
       // Set focus to canvas on click so pointer lock behaves correctly
       canvasElement.addEventListener('click', () => {

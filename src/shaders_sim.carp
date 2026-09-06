@@ -62,8 +62,65 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 }
 ")
 
+(def wgsl-tag-constants "
+const TAG_FLAMMABLE: u32 = 1u;
+const TAG_IGNITER: u32 = 2u;
+const TAG_EXPLOSIVE: u32 = 4u;
+const TAG_MELTABLE: u32 = 8u;
+const TAG_FREEZABLE: u32 = 16u;
+const TAG_EVAPORABLE: u32 = 32u;
+const TAG_CORRODIBLE: u32 = 64u;
+const TAG_ACIDIC: u32 = 128u;
+const TAG_SOLUBLE: u32 = 256u;
+const TAG_CONDUCTIVE: u32 = 512u;
+const TAG_SHOCKING: u32 = 1024u;
+const TAG_GRANULAR: u32 = 2048u;
+const TAG_LIGHT_FLUID: u32 = 4096u;
+const TAG_HEAVY_GAS: u32 = 8192u;
+const TAG_BRITTLE: u32 = 16384u;
+const TAG_TOXIC: u32 = 32768u;
+const TAG_HEALING: u32 = 65536u;
+const TAG_RADIOACTIVE: u32 = 131072u;
+const TAG_SLIPPERY: u32 = 262144u;
+const TAG_STICKY: u32 = 524288u;
+const TAG_BREATHABLE: u32 = 1048576u;
+const TAG_LUMINESCENT: u32 = 2097152u;
+const TAG_TRANSPARENT: u32 = 4194304u;
+const TAG_EXTINGUISHER: u32 = 8388608u;
+const TAG_INDESTRUCTIBLE: u32 = 16777216u;
+const TAG_ANTI_GRAVITY: u32 = 33554432u;
+const TAG_BOUNCY: u32 = 67108864u;
+const TAG_ABSORBENT: u32 = 134217728u;
+const TAG_DISSIPATES: u32 = 268435456u;
+const TAG_ORGANIC: u32 = 536870912u;
+const TAG_MAGNETIC: u32 = 1073741824u;
+const TAG_STAINABLE: u32 = 2147483648u;
+
+
+fn get_mat_tags(id: f32, cat: u32) -> u32 {
+    if (id < 0.5) { return 0u; }
+    let mat_id = clamp(u32(round(id)), 0u, 255u);
+    let idx = (cat + mat_id) * 8u;
+    return registry_data[idx + 7u];
+}
+
+fn get_reaction(id_A: f32, cat_A: u32, id_B: f32, cat_B: u32) -> vec2<f32> {
+    if (id_A < 0.5 || id_B < 0.5) { return vec2<f32>(0.0, 0.0); }
+    let a = cat_A + clamp(u32(round(id_A)), 0u, 255u);
+    let b = cat_B + clamp(u32(round(id_B)), 0u, 255u);
+    
+    let offset = 8192u;
+    let idx = offset + (a * 1024u + b) * 2u;
+    
+    let res_a = bitcast<f32>(registry_data[idx]);
+    let res_b = bitcast<f32>(registry_data[idx + 1u]);
+    return vec2<f32>(res_a, res_b);
+}
+
+")
+
 (def liquid-sim-wgsl
-  "struct Uniforms {
+  (String.append wgsl-tag-constants "struct Uniforms {
     time: f32,
     width: f32,
     height: f32,
@@ -79,16 +136,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 }
 
 
-struct Material {
-    id: f32,
-    r: f32,
-    g: f32,
-    b: f32,
-    a: f32,
-    density: f32,
-    toughness: f32,
-    tags: u32,
-}
+
+
 struct LiquidProps {
     density: f32,
     g_rate: f32,
@@ -96,22 +145,26 @@ struct LiquidProps {
 }
 
 fn get_liq_props(id: f32) -> LiquidProps {
-    let LIQ_LUT = array<LiquidProps, 5>(
-        LiquidProps(0.0, 0.0, 0.0),
-        LiquidProps(1.0, 0.3, 0.08),
-        LiquidProps(2.0, 0.05, 0.02),
-        LiquidProps(1.2, 0.15, 0.05),
-        LiquidProps(0.8, 0.2, 0.06)
-    );
-    let idx = clamp(i32(round(id)), 0, 4);
-    return LIQ_LUT[idx];
+    if (id < 0.5) { return LiquidProps(0.0, 0.0, 0.0); }
+    let mat_id = clamp(u32(round(id)), 0u, 255u);
+    let idx = (256u + mat_id) * 8u;
+    let density = bitcast<f32>(registry_data[idx + 5u]);
+    let tags = registry_data[idx + 7u];
+    
+    var g = min(1.0, 0.4 / max(density, 0.1));
+    var l = min(1.0, 0.2 / max(density, 0.1));
+    if ((tags & TAG_STICKY) != 0u) {
+        g = g * 0.05;
+        l = l * 0.02;
+    }
+    return LiquidProps(density, g, l);
 }
 
 @group(0) @binding(0) var<storage, read>       input_buffer: array<vec4<f32>>;
 @group(0) @binding(1) var<storage, read_write> output_buffer: array<vec4<f32>>;
 @group(0) @binding(2) var<uniform>             u: Uniforms;
 @group(0) @binding(3) var<storage, read_write> solid_buffer: array<vec4<f32>>;
-@group(0) @binding(4) var<storage, read>       materials: array<Material>;
+@group(0) @binding(4) var<storage, read>       registry_data: array<u32>;
 @group(0) @binding(5) var solid_texture:       texture_3d<f32>;
 @group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
@@ -204,7 +257,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (idx >= 4096000u) { return; }
 
     // Dummy reads to prevent compiler from optimizing out unused bindings
-    let dummy_val = input_buffer[0] + solid_buffer[0] + vec4<f32>(materials[0].id);
+    let dummy_val = input_buffer[0] + solid_buffer[0] + vec4<f32>(bitcast<f32>(registry_data[0]));
     if (dummy_val.x > 999999.0) {
         output_buffer[idx] = textureLoad(gas_texture, vec3<i32>(0), 0);
     }
@@ -405,87 +458,68 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
 
     // --- 4. Multi-Phase Reactions ---
-    var react_empty = false;
-    let below_liq = get_liquid(below_p);
-    let above_liq = get_liquid(above_p);
     if (next_vol > 0.05) {
-        if (next_id == 1.0) { // Water
-            for (var i = 0; i < 4; i = i + 1) {
-                let n_liq = get_liquid(ip + neighbors[i]);
-                if (n_liq.y > 0.05 && n_liq.x == 2.0) { react_empty = true; break; }
-            }
-            if (below_liq.y > 0.05 && below_liq.x == 2.0) { react_empty = true; }
-            if (above_liq.y > 0.05 && above_liq.x == 2.0) { react_empty = true; }
-        } else if (next_id == 2.0) { // Lava
-            // React with Water
-            for (var i = 0; i < 4; i = i + 1) {
-                let n_liq = get_liquid(ip + neighbors[i]);
-                if (n_liq.y > 0.05 && n_liq.x == 1.0) { react_empty = true; break; }
-            }
-            if (below_liq.y > 0.05 && below_liq.x == 1.0) { react_empty = true; }
-            if (above_liq.y > 0.05 && above_liq.x == 1.0) { react_empty = true; }
-
-            // React with Oil
-            for (var i = 0; i < 4; i = i + 1) {
-                let n_liq = get_liquid(ip + neighbors[i]);
-                if (n_liq.y > 0.05 && n_liq.x == 4.0) { react_empty = true; break; }
-            }
-            if (below_liq.y > 0.05 && below_liq.x == 4.0) { react_empty = true; }
-            if (above_liq.y > 0.05 && above_liq.x == 4.0) { react_empty = true; }
-        } else if (next_id == 3.0) { // Acid
-            var touches_water = false;
-            for (var i = 0; i < 4; i = i + 1) {
-                let n_liq = get_liquid(ip + neighbors[i]);
-                if (n_liq.y > 0.05 && n_liq.x == 1.0) { touches_water = true; break; }
-            }
-            if (below_liq.y > 0.05 && below_liq.x == 1.0) { touches_water = true; }
-            if (above_liq.y > 0.05 && above_liq.x == 1.0) { touches_water = true; }
-
-            if (touches_water) {
-                next_id = 1.0; // Dilutes to Water
-            } else {
-                var dissolved_solid = false;
-                let dirs = array<vec3<i32>, 6>(
-                    vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
-                    vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
-                    vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
-                );
-                for (var i = 0; i < 6; i = i + 1) {
-                    let sp = ip + dirs[i];
-                    if (sp.x >= 0 && sp.x < 160 && sp.y >= 0 && sp.y < 160 && sp.z >= 0 && sp.z < 160) {
-                        let sol = get_solid(sp);
-                        let is_sol_block = sol.y * 0.5 < 0.008;
-                        let sol_id = sol.x;
-                        if (is_sol_block) {
-                            if (sol_id == 2.0 || sol_id == 3.0) { // Grass/Wood
-                                dissolved_solid = true;
-                                let s_idx = u32(sp.x) + u32(sp.y) * 160u + u32(sp.z) * 25600u;
-                                solid_buffer[s_idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0);
-                                break;
-                            } else if (sol_id == 1.0) { // Stone
-                                let rand_val = fract(sin(dot(vec3<f32>(ip) + vec3<f32>(u.time), vec3<f32>(12.9898, 78.233, 45.164))) * 43758.5453);
-                                if (rand_val < 0.02) { // 2% chance
-                                    dissolved_solid = true;
-                                    let s_idx = u32(sp.x) + u32(sp.y) * 160u + u32(sp.z) * 25600u;
-                                    solid_buffer[s_idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0);
-                                    break;
-                                }
-                            }
-                        }
+        let all_neighbors = array<vec3<i32>, 6>(
+            vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
+            vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
+            vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
+        );
+        for (var i = 0u; i < 6u; i++) {
+            let nip = (ip + all_neighbors[i] + vec3<i32>(160)) % 160;
+            
+            // 1. Solid check
+            let n_sol = get_solid(nip);
+            if (n_sol.y <= 0.0 && abs(n_sol.x) > 0.5) {
+                let rx = get_reaction(abs(next_id), 256u, abs(n_sol.x), 0u);
+                if (rx.x != abs(next_id) + 256.0) {
+                    if (rx.x < 256.0) { // Spawning Solid
+                        let self_s_idx = u32(ip.x) + u32(ip.y) * 160u + u32(ip.z) * 25600u;
+                        solid_buffer[self_s_idx] = vec4<f32>(rx.x, -1.0, 0.0, 0.0);
+                        next_id = 0.0; next_vol = 0.0;
+                    } else if (rx.x < 512.0) { // Becoming another Liquid
+                        next_id = rx.x - 256.0;
+                    } else { // Becoming Gas
+                        next_id = 0.0; next_vol = 0.0;
                     }
-                }
-                if (dissolved_solid) {
-                    react_empty = true;
+                    break;
                 }
             }
-        } else if (next_id == 4.0) { // Oil
-            // Burned by Lava
-            for (var i = 0; i < 4; i = i + 1) {
-                let n_liq = get_liquid(ip + neighbors[i]);
-                if (n_liq.y > 0.05 && n_liq.x == 2.0) { react_empty = true; break; }
+            
+            // 2. Liquid check
+            let n_liq = get_liquid(nip);
+            if (n_liq.y > 0.05) {
+                let rx = get_reaction(abs(next_id), 256u, n_liq.x, 256u);
+                if (rx.x != abs(next_id) + 256.0) {
+                    if (rx.x < 256.0) { 
+                        let self_s_idx = u32(ip.x) + u32(ip.y) * 160u + u32(ip.z) * 25600u;
+                        solid_buffer[self_s_idx] = vec4<f32>(rx.x, -1.0, 0.0, 0.0);
+                        next_id = 0.0; next_vol = 0.0;
+                    } else if (rx.x < 512.0) { 
+                        next_id = rx.x - 256.0;
+                    } else { 
+                        next_id = 0.0; next_vol = 0.0;
+                    }
+                    break;
+                }
             }
-            if (below_liq.y > 0.05 && below_liq.x == 2.0) { react_empty = true; }
-            if (above_liq.y > 0.05 && above_liq.x == 2.0) { react_empty = true; }
+            
+            // 3. Gas check
+            let n_gas = get_gas(nip);
+            if (n_gas.y > 0.05) {
+                let rx = get_reaction(abs(next_id), 256u, n_gas.x, 512u);
+                if (rx.x != abs(next_id) + 256.0) {
+                    if (rx.x < 256.0) { 
+                        let self_s_idx = u32(ip.x) + u32(ip.y) * 160u + u32(ip.z) * 25600u;
+                        solid_buffer[self_s_idx] = vec4<f32>(rx.x, -1.0, 0.0, 0.0);
+                        next_id = 0.0; next_vol = 0.0;
+                    } else if (rx.x < 512.0) { 
+                        next_id = rx.x - 256.0;
+                    } else { 
+                        next_id = 0.0; next_vol = 0.0;
+                    }
+                    break;
+                }
+            }
         }
     }
 
@@ -502,16 +536,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
     }
     if (adjacent_to_explosion) {
-        react_empty = true;
-    }
-
-    if (react_empty) {
         next_vol = 0.0;
         next_id = 0.0;
-        // Turn into Solid Stone if it was a Lava/Water collision (and NOT an explosion!)
-        if (!adjacent_to_explosion && (self_liq.x == 1.0 || self_liq.x == 2.0)) {
-            solid_buffer[idx] = vec4<f32>(1.0, -1.0, 0.0, 0.0);
-        }
     }
 
     // --- 5. Evaporate and clamp ---
@@ -546,10 +572,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     output_buffer[idx] = vec4<f32>(next_id, next_vol, next_age, next_sleep);
 }
-")
+"))
 
 (def gas-sim-wgsl
-  "struct Uniforms {
+  (String.append wgsl-tag-constants "struct Uniforms {
     time: f32,
     width: f32,
     height: f32,
@@ -565,16 +591,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 }
 
 
-struct Material {
-    id: f32,
-    r: f32,
-    g: f32,
-    b: f32,
-    a: f32,
-    density: f32,
-    toughness: f32,
-    tags: u32,
-}
+
+
+
 struct GasProps {
     g_rate: f32,
     l_rate: f32,
@@ -582,22 +601,29 @@ struct GasProps {
 }
 
 fn get_gas_props(id: f32) -> GasProps {
-    let GAS_LUT = array<GasProps, 5>(
-        GasProps(0.0, 0.0, 0.0),
-        GasProps(0.3, 0.15, 0.015),
-        GasProps(0.15, 0.05, 0.01),
-        GasProps(0.25, 0.08, 0.08),
-        GasProps(0.2, 0.04, 0.008)
-    );
-    let idx = clamp(i32(round(id)), 0, 4);
-    return GAS_LUT[idx];
+    if (id < 0.5) { return GasProps(0.0, 0.0, 0.0); }
+    let mat_id = clamp(u32(round(id)), 0u, 255u);
+    let idx = (512u + mat_id) * 8u;
+    let density = bitcast<f32>(registry_data[idx + 5u]);
+    let tags = registry_data[idx + 7u];
+    
+    var g = min(1.0, 0.3 / max(density, 0.1));
+    var l = min(1.0, 0.15 / max(density, 0.1));
+    var dec = 0.0;
+    if ((tags & TAG_HEAVY_GAS) != 0u) {
+        g = -min(1.0, density * 0.1);
+    }
+    if ((tags & TAG_DISSIPATES) != 0u) {
+        dec = 0.02; // Very fast decay
+    }
+    return GasProps(g, l, dec);
 }
 
 @group(0) @binding(0) var<storage, read>       input_buffer: array<vec4<f32>>;
 @group(0) @binding(1) var<storage, read_write> output_buffer: array<vec4<f32>>;
 @group(0) @binding(2) var<uniform>             u: Uniforms;
 @group(0) @binding(3) var<storage, read>       chunk_info: array<vec4<f32>>;
-@group(0) @binding(4) var<storage, read>       materials: array<Material>;
+@group(0) @binding(4) var<storage, read>       registry_data: array<u32>;
 @group(0) @binding(5) var solid_texture:       texture_3d<f32>;
 @group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
@@ -690,7 +716,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (idx >= 4096000u) { return; }
 
     // Dummy reads to prevent compiler from optimizing out unused bindings
-    let dummy_val = input_buffer[0] + chunk_info[0] + vec4<f32>(materials[0].id);
+    let dummy_val = input_buffer[0] + chunk_info[0] + vec4<f32>(bitcast<f32>(registry_data[0]));
     if (dummy_val.x > 999999.0) {
         output_buffer[idx] = textureLoad(liquid_texture, vec3<i32>(0), 0);
     }
@@ -1035,20 +1061,11 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     output_buffer[idx] = vec4<f32>(next_id, next_vol, next_age, next_sleep);
 }
-")
+"))
 
 (def solid-sim-wgsl
-  "
-struct Material {
-    id: f32,
-    r: f32,
-    g: f32,
-    b: f32,
-    a: f32,
-    density: f32,
-    toughness: f32,
-    tags: u32,
-}
+  (String.append wgsl-tag-constants "
+
 struct Uniforms {
     time: f32,
     width: f32,
@@ -1068,7 +1085,7 @@ struct Uniforms {
 @group(0) @binding(1) var<storage, read_write> output_buffer: array<vec4<f32>>;
 @group(0) @binding(2) var<uniform>             u: Uniforms;
 @group(0) @binding(3) var<storage, read_write> solid_buffer: array<vec4<f32>>;
-@group(0) @binding(4) var<storage, read>       materials: array<Material>;
+@group(0) @binding(4) var<storage, read>       registry_data: array<u32>;
 @group(0) @binding(5) var solid_texture:       texture_3d<f32>;
 @group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
@@ -1132,7 +1149,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     var next_age = self_sol.z;
     var next_sleep = self_sol.w;
 
-    let dummy_val = u.time + solid_buffer[0].x + vec4<f32>(materials[0].id).x + textureLoad(solid_texture, vec3<i32>(0), 0).x + textureLoad(liquid_texture, vec3<i32>(0), 0).x + textureLoad(gas_texture, vec3<i32>(0), 0).x;
+    let dummy_val = u.time + solid_buffer[0].x + vec4<f32>(bitcast<f32>(registry_data[0])).x + textureLoad(solid_texture, vec3<i32>(0), 0).x + textureLoad(liquid_texture, vec3<i32>(0), 0).x + textureLoad(gas_texture, vec3<i32>(0), 0).x;
     if (dummy_val < -99999.0) { return; }
 
     if (next_sleep >= 10.0) {
@@ -1195,6 +1212,64 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_age = 0.0;
     }
 
+
+    // --- 2.5 Reaction Matrix Lookup ---
+    if (next_vol <= 0.0 && next_id > 0.0) {
+        let neighbors = array<vec3<i32>, 6>(
+            vec3<i32>(1,0,0), vec3<i32>(-1,0,0),
+            vec3<i32>(0,1,0), vec3<i32>(0,-1,0),
+            vec3<i32>(0,0,1), vec3<i32>(0,0,-1)
+        );
+        for (var i = 0u; i < 6u; i++) {
+            let nip = (ip + neighbors[i] + vec3<i32>(160)) % 160;
+            
+            // 1. Check solid
+            let n_sol = get_solid(nip);
+            if (n_sol.y <= 0.0 && abs(n_sol.x) > 0.5) {
+                let rx = get_reaction(abs(next_id), 0u, abs(n_sol.x), 0u);
+                if (rx.x != abs(next_id)) {
+                    if (rx.x < 256.0) {
+                        next_id = rx.x;
+                    } else {
+                        next_id = 0.0; next_vol = 1.0;
+                    }
+                    next_sleep = 0.0;
+                    break;
+                }
+            }
+            
+            // 2. Check liquid
+            let n_liq = textureLoad(liquid_texture, nip, 0);
+            if (n_liq.x > 0.5) {
+                let rx = get_reaction(abs(next_id), 0u, n_liq.x, 256u);
+                if (rx.x != abs(next_id)) {
+                    if (rx.x < 256.0) {
+                        next_id = rx.x;
+                    } else {
+                        next_id = 0.0; next_vol = 1.0;
+                    }
+                    next_sleep = 0.0;
+                    break;
+                }
+            }
+            
+            // 3. Check gas
+            let n_gas = textureLoad(gas_texture, nip, 0);
+            if (n_gas.x > 0.5) {
+                let rx = get_reaction(abs(next_id), 0u, n_gas.x, 512u);
+                if (rx.x != abs(next_id)) {
+                    if (rx.x < 256.0) {
+                        next_id = rx.x;
+                    } else {
+                        next_id = 0.0; next_vol = 1.0;
+                    }
+                    next_sleep = 0.0;
+                    break;
+                }
+            }
+        }
+    }
+
     // 3. Carve and Build natively on the GPU (Proper SDF Math)
     if (u.hit_pos.w > 0.5) {
         let world_pos = get_world_pos(ip, u.cam_pos.xyz);
@@ -1231,5 +1306,5 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     output_buffer[idx] = vec4<f32>(next_id, next_vol, next_age, next_sleep);
 }
-")
+"))
 

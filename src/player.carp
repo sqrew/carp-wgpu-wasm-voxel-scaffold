@@ -98,33 +98,11 @@
           (Pointer.set (ref-to-ptr (Player.edit-radius player)) 6.0))
 
         ;; 5. Cycle solid type (V key)
-        (when (and v-pressed (not @(Player.v-last player)))
-          (let [curr-solid @(Player.current-mat player)
-                next-solid (if (= curr-solid 1.0f) 2.0f
-                             (if (= curr-solid 2.0f) 3.0f
-                               (if (= curr-solid 3.0f) 4.0f
-                                 (if (= curr-solid 4.0f) 5.0f 1.0f))))]
-            (Pointer.set (ref-to-ptr (Player.current-mat player)) next-solid)))
-        (Pointer.set (ref-to-ptr (Player.v-last player)) v-pressed)
-
+        
         ;; 6. Cycle liquid type (N key)
-        (when (and n-pressed (not @(Player.n-last player)))
-          (let [curr-liq @(Player.current-liq player)
-                next-liq (if (= curr-liq 1.0f) 2.0f
-                           (if (= curr-liq 2.0f) 3.0f
-                             (if (= curr-liq 3.0f) 4.0f 1.0f)))]
-            (Pointer.set (ref-to-ptr (Player.current-liq player)) next-liq)))
-        (Pointer.set (ref-to-ptr (Player.n-last player)) n-pressed)
-
+        
         ;; 7. Cycle gas type (B key)
-        (when (and b-pressed (not @(Player.b-last player)))
-          (let [curr-gas @(Player.current-gas player)
-                next-gas (if (= curr-gas 1.0f) 2.0f
-                           (if (= curr-gas 2.0f) 3.0f
-                             (if (= curr-gas 3.0f) 4.0f 1.0f)))]
-            (Pointer.set (ref-to-ptr (Player.current-gas player)) next-gas)))
-        (Pointer.set (ref-to-ptr (Player.b-last player)) b-pressed)
-
+        
         ;; 8. If anything changed via keyboard, update C globals & sync to HTML UI
         (let [curr-rad @(Player.edit-radius player)
               curr-mat @(Player.current-mat player)
