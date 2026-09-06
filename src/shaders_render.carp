@@ -271,7 +271,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 let mat_id = raw_voxel.r;
                 
                 // Color based on material ID
-                let mat = materials[u32(round(mat_id))];
+                let mat = materials[u32(round(abs(mat_id)))];
                 let base_color = vec3<f32>(mat.r, mat.g, mat.b);
                 
                 let light_dir = normalize(u.sun_dir.xyz);
