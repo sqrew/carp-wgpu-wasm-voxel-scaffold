@@ -83,7 +83,10 @@
       (Array.aset! &registry 7 (Material.init 7.0f 0.25f 0.25f 0.3f 1.0f 3.0f 1.0f (bit-or GRANULAR EXPLOSIVE))) ;; GUNPOWDER
       (Array.aset! &registry 8 (Material.init 8.0f 0.6f 0.8f 0.95f 1.0f 2.0f 2.0f (bit-or MELTABLE (bit-or SLIPPERY (bit-or BRITTLE TRANSPARENT))))) ;; ICE
       (Array.aset! &registry 9 (Material.init 9.0f 0.9f 0.9f 0.95f 1.0f 2.0f 1.0f (bit-or BRITTLE (bit-or TRANSPARENT CORRODIBLE)))) ;; GLASS
-      (Array.aset! &registry 10 (Material.init 10.0f 0.3f 0.9f 0.4f 1.0f 1.5f 1.0f (bit-or STICKY BOUNCY))) ;; SLIME BLOCK
+            (Array.aset! &registry 10 (Material.init 10.0f 0.3f 0.9f 0.4f 1.0f 1.5f 1.0f (bit-or STICKY BOUNCY))) ;; SLIME BLOCK
+      (Array.aset! &registry 11 (Material.init 11.0f 0.9f 0.9f 0.2f 1.0f 1.0f 0.5f (bit-or ABSORBENT FLAMMABLE))) ;; SPONGE
+      (Array.aset! &registry 12 (Material.init 12.0f 0.9f 0.9f 0.9f 1.0f 5.0f 2.0f (bit-or STICKY EXPLOSIVE))) ;; C4 EXPLOSIVE
+      (Array.aset! &registry 13 (Material.init 13.0f 0.4f 0.8f 0.2f 1.0f 1.5f 0.5f (bit-or ORGANIC (bit-or TOXIC BRITTLE)))) ;; SPORE POD
       (Array.aset! &registry 255 (Material.init 255.0f 0.05f 0.05f 0.05f 1.0f 999.0f 999.0f INDESTRUCTIBLE)) ;; BEDROCK
       
       ;; ====== LIQUIDS (256-511) ======
@@ -94,7 +97,9 @@
       
       ;; New Liquids
       (Array.aset! &registry 261 (Material.init 5.0f 0.7f 0.05f 0.05f 1.0f 2.2f 1.0f (bit-or SOLUBLE ORGANIC))) ;; BLOOD
-      (Array.aset! &registry 262 (Material.init 6.0f 0.9f 0.8f 0.2f 1.0f 1.0f 1.0f (bit-or HEALING LIGHT_FLUID))) ;; AMBROSIA
+            (Array.aset! &registry 262 (Material.init 6.0f 0.9f 0.8f 0.2f 1.0f 1.0f 1.0f (bit-or HEALING LIGHT_FLUID))) ;; AMBROSIA
+      (Array.aset! &registry 263 (Material.init 7.0f 0.8f 0.1f 0.6f 1.0f 2.5f 1.0f (bit-or STICKY EXPLOSIVE))) ;; VOLATILE GEL
+      (Array.aset! &registry 264 (Material.init 8.0f 0.3f 0.8f 0.1f 1.0f 4.0f 1.0f (bit-or TOXIC STICKY))) ;; TOXIC SLUDGE
       
       ;; ====== GASES (512-767) ======
       (Array.aset! &registry 513 (Material.init 1.0f 0.7f 0.7f 0.75f 1.0f 0.8f 1.0f DISSIPATES)) ;; STEAM
@@ -104,7 +109,9 @@
       
       ;; New Gases
       (Array.aset! &registry 517 (Material.init 5.0f 0.2f 0.8f 0.1f 1.0f 1.3f 1.0f (bit-or ACIDIC (bit-or HEAVY_GAS DISSIPATES)))) ;; ACID VAPOR
-      (Array.aset! &registry 518 (Material.init 6.0f 0.8f 0.7f 0.6f 1.0f 0.5f 1.0f (bit-or EXPLOSIVE FLAMMABLE))) ;; METHANE
+            (Array.aset! &registry 518 (Material.init 6.0f 0.8f 0.7f 0.6f 1.0f 0.5f 1.0f (bit-or EXPLOSIVE FLAMMABLE))) ;; METHANE
+      (Array.aset! &registry 519 (Material.init 7.0f 1.0f 0.3f 0.0f 1.0f 3.0f 1.0f (bit-or IGNITER (bit-or HEAVY_GAS DISSIPATES)))) ;; NAPALM VAPOR
+      (Array.aset! &registry 520 (Material.init 8.0f 0.5f 0.8f 0.3f 1.0f 1.0f 1.0f (bit-or TOXIC (bit-or ORGANIC DISSIPATES)))) ;; SPORE CLOUD
     )
   )
 
@@ -160,12 +167,12 @@
               (if (and (/= 0 (bit-and tags-a 8388608)) (/= 0 (bit-and tags-b 2)))
                 (do
                   (set! res-a 513.0f)
-                  (if (= b 515) (set! res-b 516.0f) (set! res-b 5.0f)))
+                  (if (= b 515) (set! res-b 516.0f) (set! res-b 1.0f)))
                 ())
               (if (and (/= 0 (bit-and tags-b 8388608)) (/= 0 (bit-and tags-a 2)))
                 (do
                   (set! res-b 513.0f)
-                  (if (= a 515) (set! res-a 516.0f) (set! res-a 5.0f)))
+                  (if (= a 515) (set! res-a 516.0f) (set! res-a 1.0f)))
                 ())
                 
               ;; 5. IGNITER + FLAMMABLE
@@ -176,6 +183,15 @@
                 (set! res-a 515.0f)
                 ())
 
+              
+              ;; 6. FREEZABLE (Ice) + EXTINGUISHER (Water)
+              (if (and (/= 0 (bit-and tags-a 16)) (/= 0 (bit-and tags-b 8388608)))
+                (set! res-b 8.0f)
+                ())
+              (if (and (/= 0 (bit-and tags-b 16)) (/= 0 (bit-and tags-a 8388608)))
+                (set! res-a 8.0f)
+                ())
+                
               (Array.aset! arr (+ offset 0) res-a)
               (Array.aset! arr (+ offset 1) res-b)))))
       

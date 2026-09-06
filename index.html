@@ -280,43 +280,24 @@ canvas.emscripten { border: 0px none; background-color: black; }
       window.player_flying = true;
       window.player_flashlight = true;
 
-      const SOLIDS = [
-        {id: 0.0, name: "Empty (Air)"},
-        {id: 1.0, name: "Stone"},
-        {id: 2.0, name: "Soil"},
-        {id: -2.0, name: "Falling Soil"},
-        {id: 3.0, name: "Wood"},
-        {id: 4.0, name: "Coal"},
-        {id: 5.0, name: "Gold"},
-        {id: -5.0, name: "Falling Gold"},
-        {id: 6.0, name: "Sand"},
-        {id: -6.0, name: "Falling Sand"},
-        {id: 7.0, name: "Gunpowder"},
-        {id: -7.0, name: "Falling Gunpowder"},
-        {id: 8.0, name: "Ice"},
-        {id: 9.0, name: "Glass"},
-        {id: 10.0, name: "Slime Block"},
-        {id: 255.0, name: "Bedrock"}
+            const SOLIDS = [
+         {id: 1.0, name: 'Stone'}, {id: 2.0, name: 'Soil'}, {id: 3.0, name: 'Wood'}, 
+         {id: 4.0, name: 'Coal'}, {id: 5.0, name: 'Gold'}, {id: 6.0, name: 'Sand'}, 
+         {id: 7.0, name: 'Gunpowder'}, {id: 8.0, name: 'Ice'}, {id: 9.0, name: 'Glass'},
+         {id: 10.0, name: 'Slime'}, {id: 11.0, name: 'Sponge'}, {id: 12.0, name: 'C4'},
+         {id: 13.0, name: 'Spore Pod'}, {id: 255.0, name: 'Bedrock'}
       ];
 
-      const LIQUIDS = [
-        {id: 257.0, name: "Water"},
-        {id: 258.0, name: "Lava"},
-        {id: 259.0, name: "Acid"},
-        {id: 260.0, name: "Oil"},
-        {id: 261.0, name: "Blood"},
-        {id: 262.0, name: "Ambrosia"},
-        {id: 263.0, name: "Liquid Wax"},
-        {id: 264.0, name: "Toxic Sludge"}
+            const LIQUIDS = [
+         {id: 1.0, name: 'Water'}, {id: 2.0, name: 'Lava'}, {id: 3.0, name: 'Acid'}, 
+         {id: 4.0, name: 'Oil'}, {id: 5.0, name: 'Blood'}, {id: 6.0, name: 'Ambrosia'},
+         {id: 7.0, name: 'Volatile Gel'}, {id: 8.0, name: 'Toxic Sludge'}
       ];
 
-      const GASES = [
-        {id: 513.0, name: "Steam"},
-        {id: 514.0, name: "Toxic Gas"},
-        {id: 515.0, name: "Fire"},
-        {id: 516.0, name: "Smoke"},
-        {id: 517.0, name: "Acid Vapor"},
-        {id: 518.0, name: "Methane"}
+            const GASES = [
+         {id: 1.0, name: 'Steam'}, {id: 2.0, name: 'Toxic Gas'}, {id: 3.0, name: 'Fire'}, 
+         {id: 4.0, name: 'Smoke'}, {id: 5.0, name: 'Acid Vapor'}, {id: 6.0, name: 'Methane'},
+         {id: 7.0, name: 'Napalm Vapor'}, {id: 8.0, name: 'Spore Cloud'}
       ];
 
       let solid_idx = 0;
