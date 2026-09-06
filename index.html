@@ -281,26 +281,22 @@ canvas.emscripten { border: 0px none; background-color: black; }
       window.player_flashlight = true;
 
       const SOLIDS = [
+        {id: 0.0, name: "Empty (Air)"},
         {id: 1.0, name: "Stone"},
-        {id: 2.0, name: "Wood"},
-        {id: 3.0, name: "Leaves"},
-        {id: 4.0, name: "Obsidian"},
-        {id: 5.0, name: "Ice"},
+        {id: 2.0, name: "Soil"},
+        {id: -2.0, name: "Falling Soil"},
+        {id: 3.0, name: "Wood"},
+        {id: 4.0, name: "Coal"},
+        {id: 5.0, name: "Gold"},
+        {id: -5.0, name: "Falling Gold"},
         {id: 6.0, name: "Sand"},
-        {id: 7.0, name: "Dirt"},
-        {id: 8.0, name: "Sponge"},
+        {id: -6.0, name: "Falling Sand"},
+        {id: 7.0, name: "Gunpowder"},
+        {id: -7.0, name: "Falling Gunpowder"},
+        {id: 8.0, name: "Ice"},
         {id: 9.0, name: "Glass"},
-        {id: 10.0, name: "Wax"},
-        {id: 11.0, name: "Gunpowder"},
-        {id: 12.0, name: "C-4"},
-        {id: 13.0, name: "Thermite"},
-        {id: 14.0, name: "Uranium"},
-        {id: 15.0, name: "Bone"},
-        {id: 16.0, name: "Flesh"},
-        {id: 17.0, name: "Brain"},
-        {id: 18.0, name: "Copper"},
-        {id: 19.0, name: "Iron"},
-        {id: 20.0, name: "Gold"}
+        {id: 10.0, name: "Slime Block"},
+        {id: 255.0, name: "Bedrock"}
       ];
 
       const LIQUIDS = [
@@ -348,18 +344,40 @@ canvas.emscripten { border: 0px none; background-color: black; }
       }
 
       window.addEventListener('keydown', (e) => {
-         if (e.key === 'v' || e.key === 'V') {
+         if (e.key === 'v') {
             solid_idx = (solid_idx + 1) % SOLIDS.length;
             updateHUD();
          }
-         if (e.key === 'n' || e.key === 'N') {
+         if (e.key === 'V') { // Shift + v
+            solid_idx = (solid_idx - 1 + SOLIDS.length) % SOLIDS.length;
+            updateHUD();
+         }
+         if (e.key === 'n') {
             liq_idx = (liq_idx + 1) % LIQUIDS.length;
             updateHUD();
          }
-         if (e.key === 'b' || e.key === 'B') {
+         if (e.key === 'N') { // Shift + n
+            liq_idx = (liq_idx - 1 + LIQUIDS.length) % LIQUIDS.length;
+            updateHUD();
+         }
+         if (e.key === 'b') {
             gas_idx = (gas_idx + 1) % GASES.length;
             updateHUD();
          }
+         if (e.key === 'B') { // Shift + b
+            gas_idx = (gas_idx - 1 + GASES.length) % GASES.length;
+            updateHUD();
+         }
+      });
+      
+      // Let's also add wheel support (cycles solids by default)
+      window.addEventListener('wheel', (e) => {
+         if (e.deltaY > 0) {
+            solid_idx = (solid_idx + 1) % SOLIDS.length;
+         } else {
+            solid_idx = (solid_idx - 1 + SOLIDS.length) % SOLIDS.length;
+         }
+         updateHUD();
       });
 
       function updateBrushRadius(val) {

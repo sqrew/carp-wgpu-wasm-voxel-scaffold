@@ -149,10 +149,15 @@ fn get_liq_props(id: f32) -> LiquidProps {
     let mat_id = clamp(u32(round(id)), 0u, 255u);
     let idx = (256u + mat_id) * 8u;
     let density = bitcast<f32>(registry_data[idx + 5u]);
-    let tags = registry_data[idx + 7u];
+    let tags = u32(round(bitcast<f32>(registry_data[idx + 7u])));
     
     var g = min(1.0, 0.4 / max(density, 0.1));
     var l = min(1.0, 0.2 / max(density, 0.1));
+    let t_rate = abs(g) + 4.0 * l;
+    if (t_rate > 1.0) {
+        g = g / t_rate;
+        l = l / t_rate;
+    }
     if ((tags & TAG_STICKY) != 0u) {
         g = g * 0.05;
         l = l * 0.02;
@@ -194,21 +199,29 @@ fn get_gas(p: vec3<i32>) -> vec4<f32> {
 
 fn is_explosion_center(p: vec3<i32>) -> bool {
     let g = get_gas(p);
-    if (g.x == 2.0 && g.y > 0.1) {
-        let dirs = array<vec3<i32>, 6>(
-            vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
-            vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
-            vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
-        );
-        for (var i = 0; i < 6; i = i + 1) {
-            let np = p + dirs[i];
-            let n_gas = get_gas(np);
-            if (n_gas.x == 3.0 && n_gas.y > 0.1) {
-                return true;
-            }
-            let n_liq = get_liquid(np);
-            if (n_liq.x == 2.0 && n_liq.y > 0.1) {
-                return true;
+    if (g.y > 0.1) {
+        let mat_id_g = clamp(u32(round(g.x)), 0u, 255u);
+        let tags_g = u32(round(bitcast<f32>(registry_data[(512u + mat_id_g) * 8u + 7u])));
+        if ((tags_g & TAG_EXPLOSIVE) != 0u) {
+            let dirs = array<vec3<i32>, 6>(
+                vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
+                vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
+                vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
+            );
+            for (var i = 0; i < 6; i = i + 1) {
+                let np = p + dirs[i];
+                let n_gas = get_gas(np);
+                if (n_gas.y > 0.1) {
+                    let mat_id_ng = clamp(u32(round(n_gas.x)), 0u, 255u);
+                    let tags_ng = u32(round(bitcast<f32>(registry_data[(512u + mat_id_ng) * 8u + 7u])));
+                    if ((tags_ng & TAG_IGNITER) != 0u) { return true; }
+                }
+                let n_liq = get_liquid(np);
+                if (n_liq.y > 0.1) {
+                    let mat_id_nl = clamp(u32(round(n_liq.x)), 0u, 255u);
+                    let tags_nl = u32(round(bitcast<f32>(registry_data[(256u + mat_id_nl) * 8u + 7u])));
+                    if ((tags_nl & TAG_IGNITER) != 0u) { return true; }
+                }
             }
         }
     }
@@ -441,7 +454,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let world_pos = get_world_pos(ip, u.cam_pos.xyz);
         let dist = distance(world_pos, u.hit_pos.xyz);
         if (dist <= u.brush_radius && u.edit_params.x > 0.5) {
-            next_id = u.edit_params.x;
+            var p_id = u.edit_params.x;
+            if (p_id >= 256.0) { p_id = p_id - 256.0; }
+            next_id = p_id;
             next_vol = min(1.0, next_vol + u.edit_params.y);
         }
     }
@@ -605,10 +620,15 @@ fn get_gas_props(id: f32) -> GasProps {
     let mat_id = clamp(u32(round(id)), 0u, 255u);
     let idx = (512u + mat_id) * 8u;
     let density = bitcast<f32>(registry_data[idx + 5u]);
-    let tags = registry_data[idx + 7u];
+    let tags = u32(round(bitcast<f32>(registry_data[idx + 7u])));
     
     var g = min(1.0, 0.3 / max(density, 0.1));
     var l = min(1.0, 0.15 / max(density, 0.1));
+    let t_rate = abs(g) + 4.0 * l;
+    if (t_rate > 1.0) {
+        g = g / t_rate;
+        l = l / t_rate;
+    }
     var dec = 0.0;
     if ((tags & TAG_HEAVY_GAS) != 0u) {
         g = -min(1.0, density * 0.1);
@@ -653,21 +673,29 @@ fn get_liquid(p: vec3<i32>) -> vec4<f32> {
 
 fn is_explosion_center(p: vec3<i32>) -> bool {
     let g = get_gas(p);
-    if (g.x == 2.0 && g.y > 0.1) {
-        let dirs = array<vec3<i32>, 6>(
-            vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
-            vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
-            vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
-        );
-        for (var i = 0; i < 6; i = i + 1) {
-            let np = p + dirs[i];
-            let n_gas = get_gas(np);
-            if (n_gas.x == 3.0 && n_gas.y > 0.1) {
-                return true;
-            }
-            let n_liq = get_liquid(np);
-            if (n_liq.x == 2.0 && n_liq.y > 0.1) {
-                return true;
+    if (g.y > 0.1) {
+        let mat_id_g = clamp(u32(round(g.x)), 0u, 255u);
+        let tags_g = u32(round(bitcast<f32>(registry_data[(512u + mat_id_g) * 8u + 7u])));
+        if ((tags_g & TAG_EXPLOSIVE) != 0u) {
+            let dirs = array<vec3<i32>, 6>(
+                vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
+                vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
+                vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
+            );
+            for (var i = 0; i < 6; i = i + 1) {
+                let np = p + dirs[i];
+                let n_gas = get_gas(np);
+                if (n_gas.y > 0.1) {
+                    let mat_id_ng = clamp(u32(round(n_gas.x)), 0u, 255u);
+                    let tags_ng = u32(round(bitcast<f32>(registry_data[(512u + mat_id_ng) * 8u + 7u])));
+                    if ((tags_ng & TAG_IGNITER) != 0u) { return true; }
+                }
+                let n_liq = get_liquid(np);
+                if (n_liq.y > 0.1) {
+                    let mat_id_nl = clamp(u32(round(n_liq.x)), 0u, 255u);
+                    let tags_nl = u32(round(bitcast<f32>(registry_data[(256u + mat_id_nl) * 8u + 7u])));
+                    if ((tags_nl & TAG_IGNITER) != 0u) { return true; }
+                }
             }
         }
     }
@@ -818,157 +846,68 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let world_pos = get_world_pos(ip, u.cam_pos.xyz);
         let dist = distance(world_pos, u.hit_pos.xyz);
         if (dist <= u.brush_radius && u.edit_params.z > 0.5) {
-            next_id = u.edit_params.z;
+            var p_id = u.edit_params.z;
+            if (p_id >= 512.0) { p_id = p_id - 512.0; }
+            next_id = p_id;
             next_vol = min(1.0, next_vol + u.edit_params.w);
         }
     }
 
-    // --- 4. Multi-Phase Gas Reactions ---
+    // --- 4. Matrix-Driven Gas Spawns ---
     var spawn_gas_id = 0.0;
     var spawn_gas_vol = 0.0;
-
-    let my_liq = get_liquid(ip);
-    let below_liq = get_liquid(below_p);
-    let above_liq = get_liquid(above_p);
-    if (my_liq.y > 0.05) {
-        if (my_liq.x == 1.0) { // Water
-            for (var i = 0; i < 4; i = i + 1) {
-                let n_liq = get_liquid(ip + neighbors[i]);
-                if (n_liq.y > 0.05 && n_liq.x == 2.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; break; }
-            }
-            if (below_liq.y > 0.05 && below_liq.x == 2.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; }
-            if (above_liq.y > 0.05 && above_liq.x == 2.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; }
-        } else if (my_liq.x == 2.0) { // Lava
-            // Steam
-            for (var i = 0; i < 4; i = i + 1) {
-                let n_liq = get_liquid(ip + neighbors[i]);
-                if (n_liq.y > 0.05 && n_liq.x == 1.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; break; }
-            }
-            if (below_liq.y > 0.05 && below_liq.x == 1.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; }
-            if (above_liq.y > 0.05 && above_liq.x == 1.0) { spawn_gas_id = 1.0; spawn_gas_vol = 1.0; }
-            
-            // Fire/Smoke from Lava + Oil
-            for (var i = 0; i < 4; i = i + 1) {
-                let n_liq = get_liquid(ip + neighbors[i]);
-                if (n_liq.y > 0.05 && n_liq.x == 4.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; break; }
-            }
-            if (below_liq.y > 0.05 && below_liq.x == 4.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; }
-            if (above_liq.y > 0.05 && above_liq.x == 4.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; }
-            
-            // Fire/Smoke from Lava + Wood (Solid 3)
-            for (var i = 0; i < 4; i = i + 1) {
-                let sol = get_solid(ip + neighbors[i]);
-                let is_sol_block = sol.y * 0.5 < 0.008;
-                if (is_sol_block && sol.x == 3.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; break; }
-            }
-            let below_sol = get_solid(below_p);
-            if (below_sol.y * 0.5 < 0.008 && below_sol.x == 3.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; }
-            let above_sol = get_solid(above_p);
-            if (above_sol.y * 0.5 < 0.008 && above_sol.x == 3.0) { spawn_gas_id = 3.0; spawn_gas_vol = 1.0; }
-        } else if (my_liq.x == 3.0) { // Acid
-            // Toxic Gas from Acid + Grass/Wood/Stone
-            var acid_react = false;
-            for (var i = 0; i < 4; i = i + 1) {
-                let sol = get_solid(ip + neighbors[i]);
-                if (sol.y * 0.5 < 0.008 && (sol.x == 1.0 || sol.x == 2.0 || sol.x == 3.0)) { acid_react = true; break; }
-            }
-            let below_sol = get_solid(below_p);
-            if (below_sol.y * 0.5 < 0.008 && (below_sol.x == 1.0 || below_sol.x == 2.0 || below_sol.x == 3.0)) { acid_react = true; }
-            let above_sol = get_solid(above_p);
-            if (above_sol.y * 0.5 < 0.008 && (above_sol.x == 1.0 || above_sol.x == 2.0 || above_sol.x == 3.0)) { acid_react = true; }
-            
-            if (acid_react) {
-                spawn_gas_id = 2.0; // Toxic Gas
-                spawn_gas_vol = 1.0;
-            }
-        }
-    }
-
-    // Fire + Water ➔ Steam
-    if (next_id == 3.0 && next_vol > 0.05) {
-        var touches_water = false;
-        if (my_liq.y > 0.05 && my_liq.x == 1.0) { touches_water = true; }
-        for (var i = 0; i < 4; i = i + 1) {
-            let n_liq = get_liquid(ip + neighbors[i]);
-            if (n_liq.y > 0.05 && n_liq.x == 1.0) { touches_water = true; break; }
-        }
-        let below_liq = get_liquid(below_p);
-        if (below_liq.y > 0.05 && below_liq.x == 1.0) { touches_water = true; }
-        let above_liq = get_liquid(above_p);
-        if (above_liq.y > 0.05 && above_liq.x == 1.0) { touches_water = true; }
-        
-        if (touches_water) {
-            next_id = 1.0; // Steam
-            next_vol = 0.5;
-        }
-    }
-
-    // --- 4d. Spawn Steam/Smoke in Air adjacent to reactions ---
-    var reaction_spawn_id = 0.0;
-    var reaction_spawn_vol = 0.0;
     
+    let my_liq = get_liquid(ip);
+    let my_sol = get_solid(ip);
     let dirs6 = array<vec3<i32>, 6>(
         vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
         vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
         vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
     );
     
-    for (var i = 0; i < 6; i = i + 1) {
-        let np = ip + dirs6[i];
-        let n_liq = get_liquid(np);
-        if (n_liq.y > 0.05) {
-            if (n_liq.x == 2.0) { // Neighbor has Lava
-                var touches_water = false;
-                var touches_oil = false;
-                for (var j = 0; j < 6; j = j + 1) {
-                    let nnp = np + dirs6[j];
-                    let nn_liq = get_liquid(nnp);
-                    if (nn_liq.y > 0.05) {
-                        if (nn_liq.x == 1.0) { touches_water = true; }
-                        if (nn_liq.x == 4.0) { touches_oil = true; }
-                    }
+    if (my_liq.y > 0.05) {
+        for (var i = 0u; i < 6u; i++) {
+            let nip = (ip + dirs6[i] + vec3<i32>(160)) % 160;
+            let n_sol = get_solid(nip);
+            if (n_sol.y <= 0.0 && abs(n_sol.x) > 0.5) {
+                let rx = get_reaction(abs(my_liq.x), 256u, abs(n_sol.x), 0u);
+                if (rx.x >= 512.0) {
+                    spawn_gas_id = rx.x - 512.0; spawn_gas_vol = 1.0; break;
                 }
-                if (touches_water) {
-                    reaction_spawn_id = 1.0; // Steam
-                    reaction_spawn_vol = 1.0;
-                } else if (touches_oil) {
-                    reaction_spawn_id = 4.0; // Smoke
-                    reaction_spawn_vol = 1.0;
+            }
+            let n_liq = get_liquid(nip);
+            if (n_liq.y > 0.05) {
+                let rx = get_reaction(abs(my_liq.x), 256u, n_liq.x, 256u);
+                if (rx.x >= 512.0) {
+                    spawn_gas_id = rx.x - 512.0; spawn_gas_vol = 1.0; break;
                 }
-            } else if (n_liq.x == 1.0) { // Neighbor has Water
-                var touches_lava = false;
-                for (var j = 0; j < 6; j = j + 1) {
-                    let nnp = np + dirs6[j];
-                    let nn_liq = get_liquid(nnp);
-                    if (nn_liq.y > 0.05 && nn_liq.x == 2.0) { touches_lava = true; }
+            }
+        }
+    } else if (my_sol.y <= 0.0 && abs(my_sol.x) > 0.5) {
+        for (var i = 0u; i < 6u; i++) {
+            let nip = (ip + dirs6[i] + vec3<i32>(160)) % 160;
+            let n_liq = get_liquid(nip);
+            if (n_liq.y > 0.05) {
+                let rx = get_reaction(abs(my_sol.x), 0u, n_liq.x, 256u);
+                if (rx.x >= 512.0) {
+                    spawn_gas_id = rx.x - 512.0; spawn_gas_vol = 1.0; break;
                 }
-                if (touches_lava) {
-                    reaction_spawn_id = 1.0; // Steam
-                    reaction_spawn_vol = 1.0;
-                }
-            } else if (n_liq.x == 4.0) { // Neighbor has Oil
-                var touches_lava = false;
-                for (var j = 0; j < 6; j = j + 1) {
-                    let nnp = np + dirs6[j];
-                    let nn_liq = get_liquid(nnp);
-                    if (nn_liq.y > 0.05 && nn_liq.x == 2.0) { touches_lava = true; }
-                }
-                if (touches_lava) {
-                    reaction_spawn_id = 4.0; // Smoke
-                    reaction_spawn_vol = 1.0;
+            }
+            let n_gas = get_gas(nip);
+            if (n_gas.y > 0.05) {
+                let rx = get_reaction(abs(my_sol.x), 0u, n_gas.x, 512u);
+                if (rx.x >= 512.0) {
+                    spawn_gas_id = rx.x - 512.0; spawn_gas_vol = 1.0; break;
                 }
             }
         }
     }
     
-    if (reaction_spawn_vol > 0.0) {
-        spawn_gas_id = reaction_spawn_id;
-        spawn_gas_vol = reaction_spawn_vol;
-    }
-
     if (spawn_gas_vol > 0.0) {
-        next_id = spawn_gas_id;
-        next_vol = min(1.0, next_vol + spawn_gas_vol);
+        if (next_vol < 0.95) {
+            next_id = spawn_gas_id;
+            next_vol = min(1.0, next_vol + spawn_gas_vol);
+        }
     }
 
     // --- 4b. Explosion Propagation ---
@@ -986,49 +925,6 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (in_explosion) {
         next_id = 3.0; // Fire
         next_vol = 1.0;
-    }
-
-    // --- 4c. Wood/Coal Burning Spawning Fire/Smoke ---
-    if (next_id == 0.0 || next_id == 4.0) { // Empty or Smoke
-        var spawn_fire = false;
-        let dirs = array<vec3<i32>, 6>(
-            vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
-            vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
-            vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
-        );
-        for (var i = 0; i < 6; i = i + 1) {
-            let np = ip + dirs[i];
-            let sol = get_solid(np);
-            let is_sol_block = sol.y * 0.5 < 0.008;
-            if (is_sol_block && (sol.x == 3.0 || sol.x == 4.0)) { // Wood/Coal
-                // Check if this solid block touches fire or lava
-                for (var j = 0; j < 6; j = j + 1) {
-                    let nnp = np + dirs[j];
-                    let g = get_gas(nnp);
-                    if (g.x == 3.0 && g.y > 0.1) { spawn_fire = true; break; }
-                    let l = get_liquid(nnp);
-                    if (l.x == 2.0 && l.y > 0.1) { spawn_fire = true; break; }
-                }
-            }
-            if (spawn_fire) { break; }
-        }
-        if (spawn_fire) {
-            let rand_val = fract(sin(dot(vec3<f32>(ip) + vec3<f32>(u.time), vec3<f32>(12.9898, 78.233, 45.164))) * 43758.5453);
-            if (rand_val < 0.4) {
-                next_id = 4.0; // Smoke
-                next_vol = 0.8;
-            } else {
-                next_id = 3.0; // Fire
-                next_vol = 1.0;
-            }
-        }
-    }
-
-    // Steam condensation on ceiling
-    if (next_id == 1.0 && next_vol > 0.05) {
-        if (is_solid(above_p)) {
-            next_vol = max(0.0, next_vol - 0.02);
-        }
     }
 
     // --- 5. Evaporate, decay and clamp ---

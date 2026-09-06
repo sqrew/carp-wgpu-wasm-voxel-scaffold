@@ -124,17 +124,61 @@
     (do
       (for [a 0 1024]
         (for [b 0 1024]
-          (let [offset (+ 8192 (* (+ (* a 1024) b) 2))]
+          (let [mat-a (Array.unsafe-nth &registry a)
+                mat-b (Array.unsafe-nth &registry b)
+                tags-a @(Material.tags mat-a)
+                tags-b @(Material.tags mat-b)
+                offset (+ 8192 (* (+ (* a 1024) b) 2))
+                res-a (Float.from-int a)
+                res-b (Float.from-int b)]
             (do
-              (Array.aset! arr (+ offset 0) (Float.from-int a))
-              (Array.aset! arr (+ offset 1) (Float.from-int b))))))
-      (set-reaction! arr 259 1 514.0f 0.0f)
-      (set-reaction! arr 259 6 514.0f 0.0f)
-      (set-reaction! arr 258 257 4.0f 513.0f)
-      (set-reaction! arr 515 2 515.0f 516.0f)
-      (set-reaction! arr 515 260 515.0f 515.0f)
-      (set-reaction! arr 5 258 257.0f 4.0f)
-      (set-reaction! arr 5 515 257.0f 0.0f)
+              ;; 1. ACIDIC + CORRODIBLE
+              (if (and (/= 0 (bit-and tags-a 128)) (/= 0 (bit-and tags-b 64)))
+                (do (set! res-a 0.0f) (set! res-b 514.0f))
+                ())
+              (if (and (/= 0 (bit-and tags-b 128)) (/= 0 (bit-and tags-a 64)))
+                (do (set! res-b 0.0f) (set! res-a 514.0f))
+                ())
+                
+              ;; 2. IGNITER + MELTABLE
+              (if (and (/= 0 (bit-and tags-a 2)) (/= 0 (bit-and tags-b 8)))
+                (if (= b 8) (set! res-b 257.0f) (set! res-b 258.0f))
+                ())
+              (if (and (/= 0 (bit-and tags-b 2)) (/= 0 (bit-and tags-a 8)))
+                (if (= a 8) (set! res-a 257.0f) (set! res-a 258.0f))
+                ())
+                
+              ;; 3. EXTINGUISHER + SOLUBLE
+              (if (and (/= 0 (bit-and tags-a 8388608)) (/= 0 (bit-and tags-b 256)))
+                (set! res-b 257.0f)
+                ())
+              (if (and (/= 0 (bit-and tags-b 8388608)) (/= 0 (bit-and tags-a 256)))
+                (set! res-a 257.0f)
+                ())
+                
+              ;; 4. EXTINGUISHER + IGNITER
+              (if (and (/= 0 (bit-and tags-a 8388608)) (/= 0 (bit-and tags-b 2)))
+                (do
+                  (set! res-a 513.0f)
+                  (if (= b 515) (set! res-b 516.0f) (set! res-b 5.0f)))
+                ())
+              (if (and (/= 0 (bit-and tags-b 8388608)) (/= 0 (bit-and tags-a 2)))
+                (do
+                  (set! res-b 513.0f)
+                  (if (= a 515) (set! res-a 516.0f) (set! res-a 5.0f)))
+                ())
+                
+              ;; 5. IGNITER + FLAMMABLE
+              (if (and (/= 0 (bit-and tags-a 2)) (/= 0 (bit-and tags-b 1)))
+                (set! res-b 515.0f)
+                ())
+              (if (and (/= 0 (bit-and tags-b 2)) (/= 0 (bit-and tags-a 1)))
+                (set! res-a 515.0f)
+                ())
+
+              (Array.aset! arr (+ offset 0) res-a)
+              (Array.aset! arr (+ offset 1) res-b)))))
+      
       ()
     ))
 
