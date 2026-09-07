@@ -2,8 +2,10 @@
   (defn update! [state input]
     (let [player (EngineState.player state)
           cam (Player.camera player)]
-      (when (InputManager.action-pressed? input "spawn-entity")
-        (let [pos (Camera.pos cam)
+      (when (and (InputManager.action-pressed? input "spawn-entity") (> (- @(EngineState.frame-count state) @(EngineState.sync-qx state)) 10))
+        (do
+          (EngineState.set-sync-qx! state @(EngineState.frame-count state))
+          (let [pos (Camera.pos cam)
               dir (Camera.front cam)
               vel (Vector3.mul dir 15.0)
               color (Vector3.init 0.8 0.2 0.2)
@@ -20,5 +22,5 @@
                   id-uint id-long]
               (do
                 (let [_ (Coordinator.schedule! (EngineState.coord state) (AppEvent.DespawnEntity id-uint) 5000l)] ())
-                ())))))))
+                ()))))))))
 )
