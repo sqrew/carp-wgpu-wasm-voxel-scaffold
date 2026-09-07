@@ -1,4 +1,0 @@
-(def a "hello ")
-(def b "world")
-(def c (String.append a b))
-(defn main [] (println* &c))

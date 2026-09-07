@@ -1,4 +1,0 @@
-(load "src/materials.carp")
-(load "src/shaders_sim.carp")
-(defn main []
-  (println* &gas-sim-wgsl))

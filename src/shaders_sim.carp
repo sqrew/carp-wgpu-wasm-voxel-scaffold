@@ -891,22 +891,43 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     var net_flow = 0.0;
     var max_inflow = 0.0;
 
-    // --- 1. Upward rising flow ---
-    // Flow out to above
-    if (!is_solid(above_p)) {
+    // --- 1. Vertical flow ---
+    // Flow out to above (if we rise)
+    if (g_rate > 0.0 && !is_solid(above_p)) {
         let above = get_gas(above_p);
         let flow_out = min(self_vol, max(0.0, 1.0 - above.y)) * g_rate;
         net_flow -= flow_out;
     }
-    // Flow in from below
+    // Flow out to below (if we fall)
+    if (g_rate < 0.0 && !is_solid(below_p)) {
+        let below = get_gas(below_p);
+        let flow_out = min(self_vol, max(0.0, 1.0 - below.y)) * abs(g_rate);
+        net_flow -= flow_out;
+    }
+    // Flow in from below (if they rise)
     if (!is_solid(below_p)) {
         let below = get_gas(below_p);
         let below_props = get_gas_props(below.x);
-        let flow_in = min(below.y, max(0.0, 1.0 - self_vol)) * below_props.g_rate;
-        net_flow += flow_in;
-        if (flow_in > max_inflow) {
-            max_inflow = flow_in;
-            next_id = below.x;
+        if (below_props.g_rate > 0.0) {
+            let flow_in = min(below.y, max(0.0, 1.0 - self_vol)) * below_props.g_rate;
+            net_flow += flow_in;
+            if (flow_in > max_inflow) {
+                max_inflow = flow_in;
+                next_id = below.x;
+            }
+        }
+    }
+    // Flow in from above (if they fall)
+    if (!is_solid(above_p)) {
+        let above = get_gas(above_p);
+        let above_props = get_gas_props(above.x);
+        if (above_props.g_rate < 0.0) {
+            let flow_in = min(above.y, max(0.0, 1.0 - self_vol)) * abs(above_props.g_rate);
+            net_flow += flow_in;
+            if (flow_in > max_inflow) {
+                max_inflow = flow_in;
+                next_id = above.x;
+            }
         }
     }
 
