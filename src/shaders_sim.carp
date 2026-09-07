@@ -585,22 +585,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
     }
 
-    // Vaporize liquid if next to an explosion
-    var adjacent_to_explosion = false;
-    if (is_explosion_center(ip)) {
-        adjacent_to_explosion = true;
-    } else {
-        for (var i = 0; i < 4; i = i + 1) {
-            if (is_explosion_center(ip + neighbors[i])) { adjacent_to_explosion = true; break; }
-        }
-        if (is_explosion_center(below_p) || is_explosion_center(above_p)) {
-            adjacent_to_explosion = true;
-        }
-    }
-    if (adjacent_to_explosion) {
-        next_vol = 0.0;
-        next_id = 0.0;
-    }
+
 
     // --- 5. Evaporate and clamp ---
     if (next_vol < 0.01) {
@@ -1025,22 +1010,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
     }
 
-    // --- 4b. Explosion Propagation ---
-    var in_explosion = false;
-    if (is_explosion_center(ip)) {
-        in_explosion = true;
-    } else {
-        for (var i = 0; i < 4; i = i + 1) {
-            if (is_explosion_center(ip + neighbors[i])) { in_explosion = true; break; }
-        }
-        if (is_explosion_center(below_p) || is_explosion_center(above_p)) {
-            in_explosion = true;
-        }
-    }
-    if (in_explosion) {
-        next_id = 3.0; // Fire
-        next_vol = 1.0;
-    }
+
 
     // --- 5. Evaporate, decay and clamp ---
     let next_props = get_gas_props(next_id);

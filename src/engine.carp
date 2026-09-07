@@ -9,6 +9,8 @@
 (use Scheduler)
 (use InputManager)
 (load "events.carp")
+(load "../../carp-arena/Arena.carp")
+(use Arena)
 
 
 
@@ -35,6 +37,7 @@
   sync-qy Int
   sync-qz Int
   input InputManager
+  scratch-arena Arena.T
 ])
 
 (defmodule EngineState
@@ -51,7 +54,8 @@
                   uniforms (Array.allocate 416)
                   diag (Diagnostics.new @"diagnostics.log")
                   ecs-world (GameWorld.new)
-                  grid (SpatialGrid.new 5.0 20 20 20)]
+                  grid (SpatialGrid.new 5.0 20 20 20)
+                  scratch-arena (Arena.init 16777216l)]
               (do
                 ; Upload all chunks to world texture
                 (let [chunks (World.chunks &world)
@@ -73,7 +77,7 @@
                     (let [backend (GLFWBackend.init)
                             ctx (glfw-window->voidptr @(M-GLFWWindow.p (Engine.win &platform-eng)))
                             input (InputManager.create ctx backend)]
-                        (Result.Success (EngineState.init platform-eng ren world player uniforms diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid (Coordinator.new) 0 0 0 input))))))))))
+                        (Result.Success (EngineState.init platform-eng ren world player uniforms diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid (Coordinator.new) 0 0 0 input scratch-arena))))))))))
 
   (defn draw-bounds-wireframe! [ren min-x min-y min-z max-x max-y max-z color]
     (let [w0 (Vector3.init min-x min-y min-z)
@@ -246,10 +250,10 @@
                         (let [data (Chunk.voxel-data chunk)
                               ptr (Array.unsafe-raw data)]
                           (gpu-readback-consume-chunk ptr))
-                        (let [dummy (Array.replicate 131072 &0.0f)]
-                          (gpu-readback-consume-chunk (Array.unsafe-raw &dummy)))))
-                    (let [dummy (Array.replicate 131072 &0.0f)]
-                      (gpu-readback-consume-chunk (Array.unsafe-raw &dummy))))))
+                        (let [dummy (the (Ptr Float) (Arena.calloc-array (EngineState.scratch-arena state) 131072l))]
+                          (gpu-readback-consume-chunk dummy))))
+                    (let [dummy (the (Ptr Float) (Arena.calloc-array (EngineState.scratch-arena state) 131072l))]
+                      (gpu-readback-consume-chunk dummy)))))
               ())
             (if (not (gpu-readback-is-chunk-mapping))
               (let [p-pos (Camera.pos cam)
@@ -436,6 +440,7 @@
 
   (defn tick-render! [state win]
     (do
+        (Arena.clear (EngineState.scratch-arena state))
       (EngineState.pre-render! state)
       (EngineState.render! state)
       (EngineState.post-render! state)))
