@@ -9,13 +9,6 @@
   "void* $NAME(void* r)"
   "$DECL { return r; }")
 
-(deftemplate emscripten-sleep (Fn [Int] ())
-  "void $NAME(int ms)"
-  "$DECL {
-#ifdef __EMSCRIPTEN__
-    emscripten_sleep(ms);
-#endif
-  }")
 
 (deftemplate js-globals-setup (Fn [] ())
   "#ifndef JS_GLOBALS_DEFINED
@@ -246,3 +239,33 @@
     "$DECL { wgpuQueueWriteBuffer(ctx->queue, vb->buffer, offset, data, size); }")
 )
 
+
+(deftemplate set-emscripten-main-loop-arg (Fn [(Ptr ()) (Ptr ())] ())
+  "void $NAME(void* func, void* arg)"
+  "$DECL {
+#ifdef __EMSCRIPTEN__
+    emscripten_set_main_loop_arg((em_arg_callback_func)func, arg, 0, 1);
+#endif
+  }")
+
+
+(deftemplate alloc-state (Fn [EngineState] (Ptr EngineState))
+  "EngineState* $NAME(EngineState state)"
+  "$DECL { EngineState* ptr = malloc(sizeof(EngineState)); *ptr = state; return ptr; }")
+
+(deftemplate c-loop-callback (Fn [] (Ptr ()))
+  "void* $NAME()"
+  "$DECL { 
+     extern void main_MINUS_loop_MINUS_tick(EngineState*);
+     return (void*)main_MINUS_loop_MINUS_tick; 
+  }")
+
+
+(deftemplate start-main-loop (Fn [(Ptr EngineState)] ())
+  "void $NAME(EngineState* state)"
+  "$DECL {
+#ifdef __EMSCRIPTEN__
+    extern void main_MINUS_loop_MINUS_tick(EngineState*);
+    emscripten_set_main_loop_arg((em_arg_callback_func)main_MINUS_loop_MINUS_tick, state, 0, 1);
+#endif
+  }")

@@ -38,6 +38,8 @@
   sync-qz Int
   input InputManager
   scratch-arena Arena.T
+  clock Clock
+  accumulator Double
 ])
 
 (defmodule EngineState
@@ -77,7 +79,7 @@
                     (let [backend (GLFWBackend.init)
                             ctx (glfw-window->voidptr @(M-GLFWWindow.p (Engine.win &platform-eng)))
                             input (InputManager.create ctx backend)]
-                        (Result.Success (EngineState.init platform-eng ren world player uniforms diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid (Coordinator.new) 0 0 0 input scratch-arena))))))))))
+                        (Result.Success (EngineState.init platform-eng ren world player uniforms diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid (Coordinator.new) 0 0 0 input scratch-arena (Clock.new) 0.0))))))))))
 
   (defn draw-bounds-wireframe! [ren min-x min-y min-z max-x max-y max-z color]
     (let [w0 (Vector3.init min-x min-y min-z)

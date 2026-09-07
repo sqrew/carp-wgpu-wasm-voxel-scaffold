@@ -10,12 +10,28 @@
 (load "gpu_batcher.carp")
 (load "shaders.carp")
 (load "renderer.carp")
-(load "engine.carp")
 (load "../../carp-gametime/gametime.carp")
 (use Clock)
+(load "engine.carp")
 (load "../../carp-job-system/rayon.carp")
 (use Vector3)
 (use Double)
+
+
+(defn main-loop-tick [state-ptr]
+  (let [win @(M-GLFWWindow.p (Engine.win (EngineState.eng state-ptr)))
+        fixed-dt (/ 1.0 60.0)]
+    (do
+      (Clock.tick! (EngineState.clock state-ptr))
+      (EngineState.set-accumulator! state-ptr (+ @(EngineState.accumulator state-ptr) (Clock.clamped-dt (EngineState.clock state-ptr))))
+      
+      (while (>= @(EngineState.accumulator state-ptr) fixed-dt)
+        (do
+          (EngineState.tick-update! state-ptr win fixed-dt)
+          (EngineState.set-accumulator! state-ptr (- @(EngineState.accumulator state-ptr) fixed-dt))))
+          
+      (EngineState.tick-render! state-ptr win))))
+
 
 (defn main []
   (let [win-width 640
@@ -32,18 +48,7 @@
             ; Enable camera capture (mouse lock)
             (GLFW.set-input-mode win GLFW.CURSOR GLFW.CURSOR_DISABLED)
             
-            (let [clock (Clock.new)
-                  fixed-dt (/ 1.0 60.0)
-                  accumulator 0.0]
-              (while (= (GLFW.window-should-close win) GLFW.FALSE)
-                (do
-                  (Clock.tick! &clock)
-                  (set! accumulator (+ accumulator (Clock.clamped-dt &clock)))
-                  (while (>= accumulator fixed-dt)
-                    (do
-                      (EngineState.tick-update! &state win fixed-dt)
-                      (set! accumulator (- accumulator fixed-dt))))
-                  (EngineState.tick-render! &state win)
-                  (emscripten-sleep 16))))
-            
-            0)))))
+            (let [state-ptr (alloc-state state)]
+              (do
+                (start-main-loop state-ptr)
+                0)))))))
