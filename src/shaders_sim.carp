@@ -149,7 +149,7 @@ fn get_liq_props(id: f32) -> LiquidProps {
     let mat_id = clamp(u32(round(id)), 0u, 255u);
     let idx = (256u + mat_id) * 8u;
     let density = bitcast<f32>(registry_data[idx + 5u]);
-    let tags = u32(round(bitcast<f32>(registry_data[idx + 7u])));
+    let tags = registry_data[idx + 7u];
     
     var g = min(1.0, 0.4 / max(density, 0.1));
     var l = min(1.0, 0.2 / max(density, 0.1));
@@ -202,23 +202,32 @@ fn is_explosion_center(p: vec3<i32>) -> bool {
     
     let g = get_gas(p);
     if (g.y > 0.1) {
-        let mat_id = clamp(u32(round(g.x)), 0u, 255u);
-        let tags = u32(round(bitcast<f32>(registry_data[(512u + mat_id) * 8u + 7u])));
-        if ((tags & TAG_EXPLOSIVE) != 0u) { is_exp = true; }
+        let g_id = round(abs(g.x));
+        if (g_id != 0.0 && g_id != 1.0 && g_id != 4.0) { // Optimize: skip common inert gases (Steam, Smoke)
+            let mat_id = clamp(u32(g_id), 0u, 255u);
+            let tags = registry_data[(512u + mat_id) * 8u + 7u];
+            if ((tags & 4u) != 0u) { is_exp = true; } // TAG_EXPLOSIVE
+        }
     }
     
     let l = get_liquid(p);
     if (l.y > 0.1) {
-        let mat_id = clamp(u32(round(l.x)), 0u, 255u);
-        let tags = u32(round(bitcast<f32>(registry_data[(256u + mat_id) * 8u + 7u])));
-        if ((tags & TAG_EXPLOSIVE) != 0u) { is_exp = true; }
+        let l_id = round(abs(l.x));
+        if (l_id != 0.0 && l_id != 1.0) { // Optimize: skip common inert liquids (Water)
+            let mat_id = clamp(u32(l_id), 0u, 255u);
+            let tags = registry_data[(256u + mat_id) * 8u + 7u];
+            if ((tags & 4u) != 0u) { is_exp = true; }
+        }
     }
     
     let s = get_solid(p);
     if (s.y <= 0.0) {
-        let mat_id = clamp(u32(round(abs(s.x))), 0u, 255u);
-        let tags = u32(round(bitcast<f32>(registry_data[mat_id * 8u + 7u])));
-        if ((tags & TAG_EXPLOSIVE) != 0u) { is_exp = true; }
+        let s_id = round(abs(s.x));
+        if (s_id != 0.0 && s_id != 1.0 && s_id != 6.0 && s_id != 255.0) { // Optimize: skip Empty, Stone, Sand, Bedrock
+            let mat_id = clamp(u32(s_id), 0u, 255u);
+            let tags = registry_data[mat_id * 8u + 7u];
+            if ((tags & 4u) != 0u) { is_exp = true; }
+        }
     }
     
     if (is_exp) {
@@ -230,28 +239,38 @@ fn is_explosion_center(p: vec3<i32>) -> bool {
         for (var i = 0; i < 6; i = i + 1) {
             let np = p + dirs[i];
             
-            let n_gas = get_gas(np);
-            if (n_gas.y > 0.1) {
-                let mat_id = clamp(u32(round(n_gas.x)), 0u, 255u);
-                let tags = u32(round(bitcast<f32>(registry_data[(512u + mat_id) * 8u + 7u])));
-                if ((tags & TAG_IGNITER) != 0u) { return true; }
+            let n_g = get_gas(np);
+            if (n_g.y > 0.1) {
+                let n_id = round(abs(n_g.x));
+                if (n_id != 0.0 && n_id != 1.0 && n_id != 4.0) {
+                    let n_mat = clamp(u32(n_id), 0u, 255u);
+                    let n_tags = registry_data[(512u + n_mat) * 8u + 7u];
+                    if ((n_tags & 2u) != 0u) { return true; } // TAG_IGNITER
+                }
             }
             
-            let n_liq = get_liquid(np);
-            if (n_liq.y > 0.1) {
-                let mat_id = clamp(u32(round(n_liq.x)), 0u, 255u);
-                let tags = u32(round(bitcast<f32>(registry_data[(256u + mat_id) * 8u + 7u])));
-                if ((tags & TAG_IGNITER) != 0u) { return true; }
+            let n_l = get_liquid(np);
+            if (n_l.y > 0.1) {
+                let n_id = round(abs(n_l.x));
+                if (n_id != 0.0 && n_id != 1.0) {
+                    let n_mat = clamp(u32(n_id), 0u, 255u);
+                    let n_tags = registry_data[(256u + n_mat) * 8u + 7u];
+                    if ((n_tags & 2u) != 0u) { return true; }
+                }
             }
             
-            let n_sol = get_solid(np);
-            if (n_sol.y <= 0.0) {
-                let mat_id = clamp(u32(round(abs(n_sol.x))), 0u, 255u);
-                let tags = u32(round(bitcast<f32>(registry_data[mat_id * 8u + 7u])));
-                if ((tags & TAG_IGNITER) != 0u) { return true; }
+            let n_s = get_solid(np);
+            if (n_s.y <= 0.0) {
+                let n_id = round(abs(n_s.x));
+                if (n_id != 0.0 && n_id != 1.0 && n_id != 6.0 && n_id != 255.0) {
+                    let n_mat = clamp(u32(n_id), 0u, 255u);
+                    let n_tags = registry_data[n_mat * 8u + 7u];
+                    if ((n_tags & 2u) != 0u) { return true; }
+                }
             }
         }
     }
+    
     return false;
 }
 
@@ -307,6 +326,22 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let z = idx / 25600u;
     let ip = vec3<i32>(i32(x), i32(y), i32(z));
 
+
+    // --- 5. Explosion Carving (O(E) instead of O(N)) ---
+    if (is_explosion_center(ip)) {
+        for (var dx = -3; dx <= 3; dx = dx + 1) {
+            for (var dy = -3; dy <= 3; dy = dy + 1) {
+                for (var dz = -3; dz <= 3; dz = dz + 1) {
+                    let tp = ip + vec3<i32>(dx, dy, dz);
+                    if (distance(vec3<f32>(ip), vec3<f32>(tp)) <= 3.5) {
+                        let wrapped = (tp + vec3<i32>(160)) % 160;
+                        let s_idx = u32(wrapped.x) + u32(wrapped.y) * 160u + u32(wrapped.z) * 25600u;
+                        solid_buffer[s_idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0);
+                    }
+                }
+            }
+        }
+    }
 
 
     let sol_val = get_solid(ip);
@@ -597,6 +632,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_age = 0.0;
     }
 
+
     output_buffer[idx] = vec4<f32>(next_id, next_vol, next_age, next_sleep);
 }
 "))
@@ -632,7 +668,7 @@ fn get_gas_props(id: f32) -> GasProps {
     let mat_id = clamp(u32(round(id)), 0u, 255u);
     let idx = (512u + mat_id) * 8u;
     let density = bitcast<f32>(registry_data[idx + 5u]);
-    let tags = u32(round(bitcast<f32>(registry_data[idx + 7u])));
+    let tags = registry_data[idx + 7u];
     
     var g = min(1.0, 0.3 / max(density, 0.1));
     var l = min(1.0, 0.15 / max(density, 0.1));
@@ -654,7 +690,7 @@ fn get_gas_props(id: f32) -> GasProps {
 @group(0) @binding(0) var<storage, read>       input_buffer: array<vec4<f32>>;
 @group(0) @binding(1) var<storage, read_write> output_buffer: array<vec4<f32>>;
 @group(0) @binding(2) var<uniform>             u: Uniforms;
-@group(0) @binding(3) var<storage, read>       chunk_info: array<vec4<f32>>;
+@group(0) @binding(3) var<storage, read_write> solid_buffer: array<vec4<f32>>;
 @group(0) @binding(4) var<storage, read>       registry_data: array<u32>;
 @group(0) @binding(5) var solid_texture:       texture_3d<f32>;
 @group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
@@ -688,23 +724,32 @@ fn is_explosion_center(p: vec3<i32>) -> bool {
     
     let g = get_gas(p);
     if (g.y > 0.1) {
-        let mat_id = clamp(u32(round(g.x)), 0u, 255u);
-        let tags = u32(round(bitcast<f32>(registry_data[(512u + mat_id) * 8u + 7u])));
-        if ((tags & TAG_EXPLOSIVE) != 0u) { is_exp = true; }
+        let g_id = round(abs(g.x));
+        if (g_id != 0.0 && g_id != 1.0 && g_id != 4.0) { // Optimize: skip common inert gases (Steam, Smoke)
+            let mat_id = clamp(u32(g_id), 0u, 255u);
+            let tags = registry_data[(512u + mat_id) * 8u + 7u];
+            if ((tags & 4u) != 0u) { is_exp = true; } // TAG_EXPLOSIVE
+        }
     }
     
     let l = get_liquid(p);
     if (l.y > 0.1) {
-        let mat_id = clamp(u32(round(l.x)), 0u, 255u);
-        let tags = u32(round(bitcast<f32>(registry_data[(256u + mat_id) * 8u + 7u])));
-        if ((tags & TAG_EXPLOSIVE) != 0u) { is_exp = true; }
+        let l_id = round(abs(l.x));
+        if (l_id != 0.0 && l_id != 1.0) { // Optimize: skip common inert liquids (Water)
+            let mat_id = clamp(u32(l_id), 0u, 255u);
+            let tags = registry_data[(256u + mat_id) * 8u + 7u];
+            if ((tags & 4u) != 0u) { is_exp = true; }
+        }
     }
     
     let s = get_solid(p);
     if (s.y <= 0.0) {
-        let mat_id = clamp(u32(round(abs(s.x))), 0u, 255u);
-        let tags = u32(round(bitcast<f32>(registry_data[mat_id * 8u + 7u])));
-        if ((tags & TAG_EXPLOSIVE) != 0u) { is_exp = true; }
+        let s_id = round(abs(s.x));
+        if (s_id != 0.0 && s_id != 1.0 && s_id != 6.0 && s_id != 255.0) { // Optimize: skip Empty, Stone, Sand, Bedrock
+            let mat_id = clamp(u32(s_id), 0u, 255u);
+            let tags = registry_data[mat_id * 8u + 7u];
+            if ((tags & 4u) != 0u) { is_exp = true; }
+        }
     }
     
     if (is_exp) {
@@ -716,28 +761,38 @@ fn is_explosion_center(p: vec3<i32>) -> bool {
         for (var i = 0; i < 6; i = i + 1) {
             let np = p + dirs[i];
             
-            let n_gas = get_gas(np);
-            if (n_gas.y > 0.1) {
-                let mat_id = clamp(u32(round(n_gas.x)), 0u, 255u);
-                let tags = u32(round(bitcast<f32>(registry_data[(512u + mat_id) * 8u + 7u])));
-                if ((tags & TAG_IGNITER) != 0u) { return true; }
+            let n_g = get_gas(np);
+            if (n_g.y > 0.1) {
+                let n_id = round(abs(n_g.x));
+                if (n_id != 0.0 && n_id != 1.0 && n_id != 4.0) {
+                    let n_mat = clamp(u32(n_id), 0u, 255u);
+                    let n_tags = registry_data[(512u + n_mat) * 8u + 7u];
+                    if ((n_tags & 2u) != 0u) { return true; } // TAG_IGNITER
+                }
             }
             
-            let n_liq = get_liquid(np);
-            if (n_liq.y > 0.1) {
-                let mat_id = clamp(u32(round(n_liq.x)), 0u, 255u);
-                let tags = u32(round(bitcast<f32>(registry_data[(256u + mat_id) * 8u + 7u])));
-                if ((tags & TAG_IGNITER) != 0u) { return true; }
+            let n_l = get_liquid(np);
+            if (n_l.y > 0.1) {
+                let n_id = round(abs(n_l.x));
+                if (n_id != 0.0 && n_id != 1.0) {
+                    let n_mat = clamp(u32(n_id), 0u, 255u);
+                    let n_tags = registry_data[(256u + n_mat) * 8u + 7u];
+                    if ((n_tags & 2u) != 0u) { return true; }
+                }
             }
             
-            let n_sol = get_solid(np);
-            if (n_sol.y <= 0.0) {
-                let mat_id = clamp(u32(round(abs(n_sol.x))), 0u, 255u);
-                let tags = u32(round(bitcast<f32>(registry_data[mat_id * 8u + 7u])));
-                if ((tags & TAG_IGNITER) != 0u) { return true; }
+            let n_s = get_solid(np);
+            if (n_s.y <= 0.0) {
+                let n_id = round(abs(n_s.x));
+                if (n_id != 0.0 && n_id != 1.0 && n_id != 6.0 && n_id != 255.0) {
+                    let n_mat = clamp(u32(n_id), 0u, 255u);
+                    let n_tags = registry_data[n_mat * 8u + 7u];
+                    if ((n_tags & 2u) != 0u) { return true; }
+                }
             }
         }
     }
+    
     return false;
 }
 
@@ -783,7 +838,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (idx >= 4096000u) { return; }
 
     // Dummy reads to prevent compiler from optimizing out unused bindings
-    let dummy_val = input_buffer[0] + chunk_info[0] + vec4<f32>(bitcast<f32>(registry_data[0]));
+    let dummy_val = input_buffer[0] + solid_buffer[0] + vec4<f32>(bitcast<f32>(registry_data[0]));
     if (dummy_val.x > 999999.0) {
         output_buffer[idx] = textureLoad(liquid_texture, vec3<i32>(0), 0);
     }
@@ -994,6 +1049,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_age = 0.0;
     }
 
+
     output_buffer[idx] = vec4<f32>(next_id, next_vol, next_age, next_sleep);
 }
 "))
@@ -1082,23 +1138,32 @@ fn is_explosion_center(p: vec3<i32>) -> bool {
     
     let g = get_gas(p);
     if (g.y > 0.1) {
-        let mat_id = clamp(u32(round(g.x)), 0u, 255u);
-        let tags = u32(round(bitcast<f32>(registry_data[(512u + mat_id) * 8u + 7u])));
-        if ((tags & 4u) != 0u) { is_exp = true; } // TAG_EXPLOSIVE
+        let g_id = round(abs(g.x));
+        if (g_id != 0.0 && g_id != 1.0 && g_id != 4.0) { // Optimize: skip common inert gases (Steam, Smoke)
+            let mat_id = clamp(u32(g_id), 0u, 255u);
+            let tags = registry_data[(512u + mat_id) * 8u + 7u];
+            if ((tags & 4u) != 0u) { is_exp = true; } // TAG_EXPLOSIVE
+        }
     }
     
     let l = get_liquid(p);
     if (l.y > 0.1) {
-        let mat_id = clamp(u32(round(l.x)), 0u, 255u);
-        let tags = u32(round(bitcast<f32>(registry_data[(256u + mat_id) * 8u + 7u])));
-        if ((tags & 4u) != 0u) { is_exp = true; }
+        let l_id = round(abs(l.x));
+        if (l_id != 0.0 && l_id != 1.0) { // Optimize: skip common inert liquids (Water)
+            let mat_id = clamp(u32(l_id), 0u, 255u);
+            let tags = registry_data[(256u + mat_id) * 8u + 7u];
+            if ((tags & 4u) != 0u) { is_exp = true; }
+        }
     }
     
     let s = get_solid(p);
     if (s.y <= 0.0) {
-        let mat_id = clamp(u32(round(abs(s.x))), 0u, 255u);
-        let tags = u32(round(bitcast<f32>(registry_data[mat_id * 8u + 7u])));
-        if ((tags & 4u) != 0u) { is_exp = true; }
+        let s_id = round(abs(s.x));
+        if (s_id != 0.0 && s_id != 1.0 && s_id != 6.0 && s_id != 255.0) { // Optimize: skip Empty, Stone, Sand, Bedrock
+            let mat_id = clamp(u32(s_id), 0u, 255u);
+            let tags = registry_data[mat_id * 8u + 7u];
+            if ((tags & 4u) != 0u) { is_exp = true; }
+        }
     }
     
     if (is_exp) {
@@ -1110,28 +1175,38 @@ fn is_explosion_center(p: vec3<i32>) -> bool {
         for (var i = 0; i < 6; i = i + 1) {
             let np = p + dirs[i];
             
-            let n_gas = get_gas(np);
-            if (n_gas.y > 0.1) {
-                let mat_id = clamp(u32(round(n_gas.x)), 0u, 255u);
-                let tags = u32(round(bitcast<f32>(registry_data[(512u + mat_id) * 8u + 7u])));
-                if ((tags & 2u) != 0u) { return true; } // TAG_IGNITER
+            let n_g = get_gas(np);
+            if (n_g.y > 0.1) {
+                let n_id = round(abs(n_g.x));
+                if (n_id != 0.0 && n_id != 1.0 && n_id != 4.0) {
+                    let n_mat = clamp(u32(n_id), 0u, 255u);
+                    let n_tags = registry_data[(512u + n_mat) * 8u + 7u];
+                    if ((n_tags & 2u) != 0u) { return true; } // TAG_IGNITER
+                }
             }
             
-            let n_liq = get_liquid(np);
-            if (n_liq.y > 0.1) {
-                let mat_id = clamp(u32(round(n_liq.x)), 0u, 255u);
-                let tags = u32(round(bitcast<f32>(registry_data[(256u + mat_id) * 8u + 7u])));
-                if ((tags & 2u) != 0u) { return true; }
+            let n_l = get_liquid(np);
+            if (n_l.y > 0.1) {
+                let n_id = round(abs(n_l.x));
+                if (n_id != 0.0 && n_id != 1.0) {
+                    let n_mat = clamp(u32(n_id), 0u, 255u);
+                    let n_tags = registry_data[(256u + n_mat) * 8u + 7u];
+                    if ((n_tags & 2u) != 0u) { return true; }
+                }
             }
             
-            let n_sol = get_solid(np);
-            if (n_sol.y <= 0.0) {
-                let mat_id = clamp(u32(round(abs(n_sol.x))), 0u, 255u);
-                let tags = u32(round(bitcast<f32>(registry_data[mat_id * 8u + 7u])));
-                if ((tags & 2u) != 0u) { return true; }
+            let n_s = get_solid(np);
+            if (n_s.y <= 0.0) {
+                let n_id = round(abs(n_s.x));
+                if (n_id != 0.0 && n_id != 1.0 && n_id != 6.0 && n_id != 255.0) {
+                    let n_mat = clamp(u32(n_id), 0u, 255u);
+                    let n_tags = registry_data[n_mat * 8u + 7u];
+                    if ((n_tags & 2u) != 0u) { return true; }
+                }
             }
         }
     }
+    
     return false;
 }
 
@@ -1169,28 +1244,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
     }
 
-        // --- 0. Explosion Carving ---
-    var near_explosion = false;
-    for (var dx = -2; dx <= 2; dx = dx + 1) {
-        for (var dy = -2; dy <= 2; dy = dy + 1) {
-            for (var dz = -2; dz <= 2; dz = dz + 1) {
-                let tp = ip + vec3<i32>(dx, dy, dz);
-                if (distance(vec3<f32>(ip), vec3<f32>(tp)) <= 2.5) {
-                    if (is_explosion_center(tp)) {
-                        near_explosion = true;
-                        break;
-                    }
-                }
-            }
-            if (near_explosion) { break; }
-        }
-        if (near_explosion) { break; }
-    }
-    if (near_explosion) {
-        output_buffer[idx] = vec4<f32>(0.0);
-        return;
-    }
-
+    
     // --- Falling Sand Gravity Logic (SDF-Safe) ---
     let g_dir = vec3<i32>(0, -1, 0); 
 
@@ -1329,6 +1383,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
     }
 
+
     output_buffer[idx] = vec4<f32>(next_id, next_vol, next_age, next_sleep);
 }
 "))
@@ -1370,7 +1425,7 @@ fn get_tags(id: f32) -> u32 {
     if (id < 0.5) { return 0u; }
     let mat_id = clamp(u32(round(id)), 0u, 255u);
     let idx = (256u + mat_id) * 8u;
-    return u32(round(bitcast<f32>(registry_data[idx + 7u])));
+    return registry_data[idx + 7u];
 }
 
 @compute @workgroup_size(64)

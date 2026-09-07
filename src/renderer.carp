@@ -210,7 +210,7 @@
          map-buf (Result.Success (gpu-readback-create-map-buffer ctx))
          
          liquid-sim-bg (WGPURender.create-jit-bind-group-water ctx liquid-sim-pipe @&read-raw @&liquid-raw @&main-ub-raw @&write-raw @&mat-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
-         gas-sim-bg (WGPURender.create-jit-bind-group-water ctx gas-sim-pipe @&read-raw @&gas-raw @&main-ub-raw @&read-raw @&mat-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
+         gas-sim-bg (WGPURender.create-jit-bind-group-water ctx gas-sim-pipe @&read-raw @&gas-raw @&main-ub-raw @&write-raw @&mat-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
          solid-sim-bg (WGPURender.create-jit-bind-group-water ctx solid-sim-pipe @&read-raw @&write-raw @&main-ub-raw @&staging-raw @&mat-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
          
          field-read-ptr (WGPURender.create-storage-vertex-buffer ctx &initial-data-read)
