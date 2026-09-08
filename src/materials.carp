@@ -159,57 +159,104 @@
                 res-a (Float.from-int a)
                 res-b (Float.from-int b)]
             (do
-              ;; 1. ACIDIC + CORRODIBLE
-              (if (and (/= 0 (bit-and tags-a 128)) (/= 0 (bit-and tags-b 64)))
+              ;; 1. ACIDIC + CORRODIBLE -> TOXIC GAS
+              (if (and (/= 0 (bit-and tags-a ACIDIC)) (/= 0 (bit-and tags-b CORRODIBLE)))
                 (do (set! res-a (Float.from-int MAT_AIR)) (set! res-b (Float.from-int MAT_TOXIC_GAS)))
                 ())
-              (if (and (/= 0 (bit-and tags-b 128)) (/= 0 (bit-and tags-a 64)))
+              (if (and (/= 0 (bit-and tags-b ACIDIC)) (/= 0 (bit-and tags-a CORRODIBLE)))
                 (do (set! res-b (Float.from-int MAT_AIR)) (set! res-a (Float.from-int MAT_TOXIC_GAS)))
                 ())
                 
-              ;; 2. IGNITER + MELTABLE
-              (if (and (/= 0 (bit-and tags-a 2)) (/= 0 (bit-and tags-b 8)))
+              ;; 2. IGNITER + MELTABLE -> WATER / LAVA
+              (if (and (/= 0 (bit-and tags-a IGNITER)) (/= 0 (bit-and tags-b MELTABLE)))
                 (if (= b MAT_ICE) (set! res-b (Float.from-int MAT_WATER)) (set! res-b (Float.from-int MAT_LAVA)))
                 ())
-              (if (and (/= 0 (bit-and tags-b 2)) (/= 0 (bit-and tags-a 8)))
+              (if (and (/= 0 (bit-and tags-b IGNITER)) (/= 0 (bit-and tags-a MELTABLE)))
                 (if (= a MAT_ICE) (set! res-a (Float.from-int MAT_WATER)) (set! res-a (Float.from-int MAT_LAVA)))
                 ())
                 
-              ;; 3. EXTINGUISHER + SOLUBLE
-              (if (and (/= 0 (bit-and tags-a 8388608)) (/= 0 (bit-and tags-b 256)))
+              ;; 3. EXTINGUISHER + SOLUBLE -> WATER
+              (if (and (/= 0 (bit-and tags-a EXTINGUISHER)) (/= 0 (bit-and tags-b SOLUBLE)))
                 (set! res-b (Float.from-int MAT_WATER))
                 ())
-              (if (and (/= 0 (bit-and tags-b 8388608)) (/= 0 (bit-and tags-a 256)))
+              (if (and (/= 0 (bit-and tags-b EXTINGUISHER)) (/= 0 (bit-and tags-a SOLUBLE)))
                 (set! res-a (Float.from-int MAT_WATER))
                 ())
                 
-              ;; 4. EXTINGUISHER + IGNITER
-              (if (and (/= 0 (bit-and tags-a 8388608)) (/= 0 (bit-and tags-b 2)))
+              ;; 4. EXTINGUISHER + IGNITER -> STEAM / SMOKE / STONE
+              (if (and (/= 0 (bit-and tags-a EXTINGUISHER)) (/= 0 (bit-and tags-b IGNITER)))
                 (do
                   (set! res-a (Float.from-int MAT_STEAM))
                   (if (= b MAT_FIRE) (set! res-b (Float.from-int MAT_SMOKE)) (set! res-b (Float.from-int MAT_STONE))))
                 ())
-              (if (and (/= 0 (bit-and tags-b 8388608)) (/= 0 (bit-and tags-a 2)))
+              (if (and (/= 0 (bit-and tags-b EXTINGUISHER)) (/= 0 (bit-and tags-a IGNITER)))
                 (do
                   (set! res-b (Float.from-int MAT_STEAM))
                   (if (= a MAT_FIRE) (set! res-a (Float.from-int MAT_SMOKE)) (set! res-a (Float.from-int MAT_STONE))))
                 ())
                 
-              ;; 5. IGNITER + FLAMMABLE
-              (if (and (/= 0 (bit-and tags-a 2)) (/= 0 (bit-and tags-b 1)))
+              ;; 5. IGNITER + FLAMMABLE -> FIRE
+              (if (and (/= 0 (bit-and tags-a IGNITER)) (/= 0 (bit-and tags-b FLAMMABLE)))
                 (set! res-b (Float.from-int MAT_FIRE))
                 ())
-              (if (and (/= 0 (bit-and tags-b 2)) (/= 0 (bit-and tags-a 1)))
+              (if (and (/= 0 (bit-and tags-b IGNITER)) (/= 0 (bit-and tags-a FLAMMABLE)))
                 (set! res-a (Float.from-int MAT_FIRE))
                 ())
 
-              
-              ;; 6. FREEZABLE (Ice) + EXTINGUISHER (Water)
-              (if (and (/= 0 (bit-and tags-a 16)) (/= 0 (bit-and tags-b 8388608)))
+              ;; 6. FREEZABLE (Ice) + EXTINGUISHER (Water) -> ICE
+              (if (and (/= 0 (bit-and tags-a FREEZABLE)) (/= 0 (bit-and tags-b EXTINGUISHER)))
                 (set! res-b (Float.from-int MAT_ICE))
                 ())
-              (if (and (/= 0 (bit-and tags-b 16)) (/= 0 (bit-and tags-a 8388608)))
+              (if (and (/= 0 (bit-and tags-b FREEZABLE)) (/= 0 (bit-and tags-a EXTINGUISHER)))
                 (set! res-a (Float.from-int MAT_ICE))
+                ())
+                
+              ;; 7. IGNITER + EXPLOSIVE -> FIRE & SMOKE
+              (if (and (/= 0 (bit-and tags-a IGNITER)) (/= 0 (bit-and tags-b EXPLOSIVE)))
+                (do (set! res-a (Float.from-int MAT_SMOKE)) (set! res-b (Float.from-int MAT_FIRE)))
+                ())
+              (if (and (/= 0 (bit-and tags-b IGNITER)) (/= 0 (bit-and tags-a EXPLOSIVE)))
+                (do (set! res-b (Float.from-int MAT_SMOKE)) (set! res-a (Float.from-int MAT_FIRE)))
+                ())
+
+              ;; 8. ABSORBENT + LIQUID -> DESTROY LIQUID
+              (if (and (/= 0 (bit-and tags-a ABSORBENT)) (and (>= b 256) (< b 512)))
+                (set! res-b (Float.from-int MAT_AIR))
+                ())
+              (if (and (/= 0 (bit-and tags-b ABSORBENT)) (and (>= a 256) (< a 512)))
+                (set! res-a (Float.from-int MAT_AIR))
+                ())
+
+              ;; 9. ORGANIC + TOXIC -> TOXIC_SLUDGE
+              (if (and (/= 0 (bit-and tags-a ORGANIC)) (/= 0 (bit-and tags-b TOXIC)))
+                (set! res-a (Float.from-int MAT_TOXIC_SLUDGE))
+                ())
+              (if (and (/= 0 (bit-and tags-b ORGANIC)) (/= 0 (bit-and tags-a TOXIC)))
+                (set! res-b (Float.from-int MAT_TOXIC_SLUDGE))
+                ())
+
+              ;; 10. ORGANIC + HEALING -> SPREAD ORGANIC
+              (if (and (/= 0 (bit-and tags-a ORGANIC)) (/= 0 (bit-and tags-b HEALING)))
+                (set! res-b (Float.from-int a))
+                ())
+              (if (and (/= 0 (bit-and tags-b ORGANIC)) (/= 0 (bit-and tags-a HEALING)))
+                (set! res-a (Float.from-int b))
+                ())
+
+              ;; 11. ACIDIC + EXTINGUISHER (Water) -> TOXIC GAS
+              (if (and (/= 0 (bit-and tags-a ACIDIC)) (/= 0 (bit-and tags-b EXTINGUISHER)))
+                (set! res-a (Float.from-int MAT_TOXIC_GAS))
+                ())
+              (if (and (/= 0 (bit-and tags-b ACIDIC)) (/= 0 (bit-and tags-a EXTINGUISHER)))
+                (set! res-b (Float.from-int MAT_TOXIC_GAS))
+                ())
+
+              ;; 12. HEALING + TOXIC -> NEUTRALIZE TO WATER
+              (if (and (/= 0 (bit-and tags-a HEALING)) (/= 0 (bit-and tags-b TOXIC)))
+                (do (set! res-a (Float.from-int MAT_WATER)) (set! res-b (Float.from-int MAT_WATER)))
+                ())
+              (if (and (/= 0 (bit-and tags-b HEALING)) (/= 0 (bit-and tags-a TOXIC)))
+                (do (set! res-a (Float.from-int MAT_WATER)) (set! res-b (Float.from-int MAT_WATER)))
                 ())
                 
               (Array.aset! arr (+ offset 0) res-a)
@@ -217,6 +264,7 @@
       
       ()
     ))
+
 
   (defn pack-registry []
     (let [arr (Array.replicate 2105344 &(Float.from-int MAT_AIR))]
