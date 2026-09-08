@@ -18,9 +18,10 @@
             (add-component! ecs &e (CompBody.init rb))
             (add-component! ecs &e (CompVolume.init vol))
             (add-component! ecs &e (CompColor.init color))
-            (let [id-long (Uint64.to-long (ECS.Entity.index &e))
-                  id-uint id-long]
+            (let [idx (ECS.Entity.index &e)
+                  gen (ECS.Entity.generation &e)
+                  ecs-ptr (Unsafe.coerce (EngineState.ecs-world state))]
               (do
-                (let [_ (Coordinator.schedule! (EngineState.coord state) (AppEvent.DespawnEntity id-uint) 5000l)] ())
+                (let [_ (Coordinator.schedule! (EngineState.coord state) (AppEvent.DespawnEntity ecs-ptr idx gen) 5000l)] ())
                 ()))))))))
 )

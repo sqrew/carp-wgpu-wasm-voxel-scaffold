@@ -199,11 +199,13 @@
     (Coordinator.subscribe! (EngineState.coord state)
       &(fn [ev]
         (match-ref ev
-          (AppEvent.DespawnEntity id)
-            (let [ent (ECS.Entity.init (Handle.init (Uint64.from-long @id) (Uint32.from-long 1l)))]
+          (AppEvent.DespawnEntity ecs-ptr idx gen)
+            (let [ecs (the (Ref GameWorld) (Unsafe.coerce @ecs-ptr))
+                  ent (ECS.Entity.init (Handle.init @idx @gen))]
               (do
-                (GameWorld.destroy-entity! (EngineState.ecs-world state) &ent)
-                (Result.Success ())))))))
+                (GameWorld.destroy-entity! ecs &ent)
+                (Result.Success ())))
+          (AppEvent.NoOp) (Result.Success ())))))
 
   (defn update! [state input dt]
     (let [platform-eng (EngineState.eng state)

@@ -1,2 +1,3 @@
 (deftype AppEvent
-  (DespawnEntity [Long]))
+  (NoOp [])
+  (DespawnEntity [(Ptr ()) Uint64 Uint32]))
