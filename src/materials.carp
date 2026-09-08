@@ -68,56 +68,76 @@
 
   (def registry (Array.replicate 1024 &(Material.init 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0)))
 
-    (defn init-registry! []
+      ;; Material IDs
+  (def MAT_AIR 0)
+  (def MAT_STONE 1)
+  (def MAT_SOIL 2)
+  (def MAT_WOOD 3)
+  (def MAT_COAL 4)
+  (def MAT_GOLD 5)
+  (def MAT_SAND 6)
+  (def MAT_GUNPOWDER 7)
+  (def MAT_ICE 8)
+  (def MAT_GLASS 9)
+  (def MAT_SLIME_BLOCK 10)
+  (def MAT_SPONGE 11)
+  (def MAT_C4_EXPLOSIVE 12)
+  (def MAT_SPORE_POD 13)
+  (def MAT_BEDROCK 255)
+  (def MAT_WATER 257)
+  (def MAT_LAVA 258)
+  (def MAT_ACID 259)
+  (def MAT_OIL 260)
+  (def MAT_BLOOD 261)
+  (def MAT_AMBROSIA 262)
+  (def MAT_VOLATILE_GEL 263)
+  (def MAT_TOXIC_SLUDGE 264)
+  (def MAT_STEAM 513)
+  (def MAT_TOXIC_GAS 514)
+  (def MAT_FIRE 515)
+  (def MAT_SMOKE 516)
+  (def MAT_ACID_VAPOR 517)
+  (def MAT_METHANE 518)
+  (def MAT_NAPALM_VAPOR 519)
+  (def MAT_SPORE_CLOUD 520)
+
+  (defn init-registry! []
     (do
-      ;; ====== SOLIDS (0-255) ======
-      (Array.aset! &registry 0 (Material.init 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0))
-      (Array.aset! &registry 1 (Material.init 1.0f 0.55f 0.55f 0.55f 1.0f 10.0f 5.0f 0)) ;; STONE
-      (Array.aset! &registry 2 (Material.init 2.0f 0.2f 0.6f 0.25f 1.0f 5.0f 1.0f (bit-or ORGANIC FLAMMABLE))) ;; SOIL
-      (Array.aset! &registry 3 (Material.init 3.0f 0.5f 0.3f 0.15f 1.0f 2.0f 2.0f (bit-or FLAMMABLE (bit-or CORRODIBLE ORGANIC)))) ;; WOOD
-      (Array.aset! &registry 4 (Material.init 4.0f 0.1f 0.1f 0.1f 1.0f 8.0f 4.0f (bit-or FLAMMABLE CORRODIBLE))) ;; COAL
-      (Array.aset! &registry 5 (Material.init 5.0f 0.95f 0.75f 0.15f 1.0f 15.0f 8.0f (bit-or CONDUCTIVE MELTABLE))) ;; GOLD
-      
-      ;; New Solids
-      (Array.aset! &registry 6 (Material.init 6.0f 0.85f 0.8f 0.6f 1.0f 4.0f 1.0f (bit-or GRANULAR CORRODIBLE))) ;; SAND
-      (Array.aset! &registry 7 (Material.init 7.0f 0.25f 0.25f 0.3f 1.0f 3.0f 1.0f (bit-or GRANULAR EXPLOSIVE))) ;; GUNPOWDER
-      (Array.aset! &registry 8 (Material.init 8.0f 0.6f 0.8f 0.95f 1.0f 2.0f 2.0f (bit-or MELTABLE (bit-or SLIPPERY (bit-or BRITTLE TRANSPARENT))))) ;; ICE
-      (Array.aset! &registry 9 (Material.init 9.0f 0.9f 0.9f 0.95f 1.0f 2.0f 1.0f (bit-or BRITTLE (bit-or TRANSPARENT CORRODIBLE)))) ;; GLASS
-            (Array.aset! &registry 10 (Material.init 10.0f 0.3f 0.9f 0.4f 1.0f 1.5f 1.0f (bit-or STICKY BOUNCY))) ;; SLIME BLOCK
-      (Array.aset! &registry 11 (Material.init 11.0f 0.9f 0.9f 0.2f 1.0f 1.0f 0.5f (bit-or ABSORBENT FLAMMABLE))) ;; SPONGE
-      (Array.aset! &registry 12 (Material.init 12.0f 0.9f 0.9f 0.9f 1.0f 5.0f 2.0f (bit-or STICKY EXPLOSIVE))) ;; C4 EXPLOSIVE
-      (Array.aset! &registry 13 (Material.init 13.0f 0.4f 0.8f 0.2f 1.0f 1.5f 0.5f (bit-or ORGANIC (bit-or TOXIC BRITTLE)))) ;; SPORE POD
-      (Array.aset! &registry 255 (Material.init 255.0f 0.05f 0.05f 0.05f 1.0f 999.0f 999.0f INDESTRUCTIBLE)) ;; BEDROCK
-      
-      ;; ====== LIQUIDS (256-511) ======
-      (Array.aset! &registry 257 (Material.init 1.0f 0.1f 0.4f 0.8f 1.0f 2.0f 1.0f (bit-or EXTINGUISHER CONDUCTIVE))) ;; WATER
-      (Array.aset! &registry 258 (Material.init 2.0f 1.0f 0.3f 0.0f 1.0f 5.0f 1.0f (bit-or IGNITER LUMINESCENT))) ;; LAVA
-      (Array.aset! &registry 259 (Material.init 3.0f 0.15f 0.85f 0.25f 1.0f 3.0f 1.0f ACIDIC)) ;; ACID
-      (Array.aset! &registry 260 (Material.init 4.0f 0.15f 0.15f 0.12f 1.0f 1.5f 1.0f (bit-or FLAMMABLE (bit-or LIGHT_FLUID SLIPPERY)))) ;; OIL
-      
-      ;; New Liquids
-      (Array.aset! &registry 261 (Material.init 5.0f 0.7f 0.05f 0.05f 1.0f 2.2f 1.0f (bit-or SOLUBLE ORGANIC))) ;; BLOOD
-            (Array.aset! &registry 262 (Material.init 6.0f 0.9f 0.8f 0.2f 1.0f 1.0f 1.0f (bit-or HEALING LIGHT_FLUID))) ;; AMBROSIA
-      (Array.aset! &registry 263 (Material.init 7.0f 0.8f 0.1f 0.6f 1.0f 2.5f 1.0f (bit-or STICKY EXPLOSIVE))) ;; VOLATILE GEL
-      (Array.aset! &registry 264 (Material.init 8.0f 0.3f 0.8f 0.1f 1.0f 4.0f 1.0f (bit-or TOXIC STICKY))) ;; TOXIC SLUDGE
-      
-      ;; ====== GASES (512-767) ======
-      (Array.aset! &registry 513 (Material.init 1.0f 0.7f 0.7f 0.75f 1.0f 0.8f 1.0f DISSIPATES)) ;; STEAM
-      (Array.aset! &registry 514 (Material.init 2.0f 0.4f 0.9f 0.1f 1.0f 1.2f 1.0f (bit-or TOXIC (bit-or HEAVY_GAS DISSIPATES)))) ;; TOXIC GAS
-      (Array.aset! &registry 515 (Material.init 3.0f 1.0f 0.35f 0.0f 1.0f 2.0f 1.0f (bit-or IGNITER (bit-or LUMINESCENT DISSIPATES)))) ;; FIRE
-      (Array.aset! &registry 516 (Material.init 4.0f 0.15f 0.15f 0.15f 1.0f 1.8f 1.0f DISSIPATES)) ;; SMOKE
-      
-      ;; New Gases
-      (Array.aset! &registry 517 (Material.init 5.0f 0.2f 0.8f 0.1f 1.0f 1.3f 1.0f (bit-or ACIDIC (bit-or HEAVY_GAS DISSIPATES)))) ;; ACID VAPOR
-            (Array.aset! &registry 518 (Material.init 6.0f 0.8f 0.7f 0.6f 1.0f 0.5f 1.0f (bit-or EXPLOSIVE FLAMMABLE))) ;; METHANE
-      (Array.aset! &registry 519 (Material.init 7.0f 1.0f 0.3f 0.0f 1.0f 3.0f 1.0f (bit-or IGNITER (bit-or HEAVY_GAS DISSIPATES)))) ;; NAPALM VAPOR
-      (Array.aset! &registry 520 (Material.init 8.0f 0.5f 0.8f 0.3f 1.0f 1.0f 1.0f (bit-or TOXIC (bit-or ORGANIC DISSIPATES)))) ;; SPORE CLOUD
+      (Array.aset! &registry MAT_STONE (Material.init (Float.from-int MAT_STONE) 0.55f 0.55f 0.55f 1.0f 10.0f 5.0f 0))
+      (Array.aset! &registry MAT_SOIL (Material.init (Float.from-int MAT_SOIL) 0.2f 0.6f 0.25f 1.0f 5.0f 1.0f (bit-or ORGANIC FLAMMABLE)))
+      (Array.aset! &registry MAT_WOOD (Material.init (Float.from-int MAT_WOOD) 0.5f 0.3f 0.15f 1.0f 2.0f 2.0f (bit-or FLAMMABLE (bit-or CORRODIBLE ORGANIC))))
+      (Array.aset! &registry MAT_COAL (Material.init (Float.from-int MAT_COAL) 0.1f 0.1f 0.1f 1.0f 8.0f 4.0f (bit-or FLAMMABLE CORRODIBLE)))
+      (Array.aset! &registry MAT_GOLD (Material.init (Float.from-int MAT_GOLD) 0.95f 0.75f 0.15f 1.0f 15.0f 8.0f (bit-or CONDUCTIVE MELTABLE)))
+      (Array.aset! &registry MAT_SAND (Material.init (Float.from-int MAT_SAND) 0.85f 0.8f 0.6f 1.0f 4.0f 1.0f (bit-or GRANULAR CORRODIBLE)))
+      (Array.aset! &registry MAT_GUNPOWDER (Material.init (Float.from-int MAT_GUNPOWDER) 0.25f 0.25f 0.3f 1.0f 3.0f 1.0f (bit-or GRANULAR EXPLOSIVE)))
+      (Array.aset! &registry MAT_ICE (Material.init (Float.from-int MAT_ICE) 0.6f 0.8f 0.95f 1.0f 2.0f 2.0f (bit-or MELTABLE (bit-or SLIPPERY (bit-or BRITTLE TRANSPARENT)))))
+      (Array.aset! &registry MAT_GLASS (Material.init (Float.from-int MAT_GLASS) 0.9f 0.9f 0.95f 1.0f 2.0f 1.0f (bit-or BRITTLE (bit-or TRANSPARENT CORRODIBLE))))
+      (Array.aset! &registry MAT_SLIME_BLOCK (Material.init (Float.from-int MAT_SLIME_BLOCK) 0.3f 0.9f 0.4f 1.0f 1.5f 1.0f (bit-or STICKY BOUNCY)))
+      (Array.aset! &registry MAT_SPONGE (Material.init (Float.from-int MAT_SPONGE) 0.9f 0.9f 0.2f 1.0f 1.0f 0.5f (bit-or ABSORBENT FLAMMABLE)))
+      (Array.aset! &registry MAT_C4_EXPLOSIVE (Material.init (Float.from-int MAT_C4_EXPLOSIVE) 0.9f 0.9f 0.9f 1.0f 5.0f 2.0f (bit-or STICKY EXPLOSIVE)))
+      (Array.aset! &registry MAT_SPORE_POD (Material.init (Float.from-int MAT_SPORE_POD) 0.4f 0.8f 0.2f 1.0f 1.5f 0.5f (bit-or ORGANIC (bit-or TOXIC BRITTLE))))
+      (Array.aset! &registry MAT_BEDROCK (Material.init (Float.from-int MAT_BEDROCK) 0.05f 0.05f 0.05f 1.0f 999.0f 999.0f INDESTRUCTIBLE))
+      (Array.aset! &registry MAT_WATER (Material.init (Float.from-int MAT_WATER) 0.1f 0.4f 0.8f 1.0f 2.0f 1.0f (bit-or EXTINGUISHER CONDUCTIVE)))
+      (Array.aset! &registry MAT_LAVA (Material.init (Float.from-int MAT_LAVA) 1.0f 0.3f 0.0f 1.0f 5.0f 1.0f (bit-or IGNITER LUMINESCENT)))
+      (Array.aset! &registry MAT_ACID (Material.init (Float.from-int MAT_ACID) 0.15f 0.85f 0.25f 1.0f 3.0f 1.0f ACIDIC))
+      (Array.aset! &registry MAT_OIL (Material.init (Float.from-int MAT_OIL) 0.15f 0.15f 0.12f 1.0f 1.5f 1.0f (bit-or FLAMMABLE (bit-or LIGHT_FLUID SLIPPERY))))
+      (Array.aset! &registry MAT_BLOOD (Material.init (Float.from-int MAT_BLOOD) 0.7f 0.05f 0.05f 1.0f 2.2f 1.0f (bit-or SOLUBLE ORGANIC)))
+      (Array.aset! &registry MAT_AMBROSIA (Material.init (Float.from-int MAT_AMBROSIA) 0.9f 0.8f 0.2f 1.0f 1.0f 1.0f (bit-or HEALING LIGHT_FLUID)))
+      (Array.aset! &registry MAT_VOLATILE_GEL (Material.init (Float.from-int MAT_VOLATILE_GEL) 0.8f 0.1f 0.6f 1.0f 2.5f 1.0f (bit-or STICKY EXPLOSIVE)))
+      (Array.aset! &registry MAT_TOXIC_SLUDGE (Material.init (Float.from-int MAT_TOXIC_SLUDGE) 0.3f 0.8f 0.1f 1.0f 4.0f 1.0f (bit-or TOXIC STICKY)))
+      (Array.aset! &registry MAT_STEAM (Material.init (Float.from-int MAT_STEAM) 0.7f 0.7f 0.75f 1.0f 0.8f 1.0f DISSIPATES))
+      (Array.aset! &registry MAT_TOXIC_GAS (Material.init (Float.from-int MAT_TOXIC_GAS) 0.4f 0.9f 0.1f 1.0f 1.2f 1.0f (bit-or TOXIC (bit-or HEAVY_GAS DISSIPATES))))
+      (Array.aset! &registry MAT_FIRE (Material.init (Float.from-int MAT_FIRE) 1.0f 0.35f 0.0f 1.0f 2.0f 1.0f (bit-or IGNITER (bit-or LUMINESCENT DISSIPATES))))
+      (Array.aset! &registry MAT_SMOKE (Material.init (Float.from-int MAT_SMOKE) 0.15f 0.15f 0.15f 1.0f 1.8f 1.0f DISSIPATES))
+      (Array.aset! &registry MAT_ACID_VAPOR (Material.init (Float.from-int MAT_ACID_VAPOR) 0.2f 0.8f 0.1f 1.0f 1.3f 1.0f (bit-or ACIDIC (bit-or HEAVY_GAS DISSIPATES))))
+      (Array.aset! &registry MAT_METHANE (Material.init (Float.from-int MAT_METHANE) 0.8f 0.7f 0.6f 1.0f 0.5f 1.0f (bit-or EXPLOSIVE FLAMMABLE)))
+      (Array.aset! &registry MAT_NAPALM_VAPOR (Material.init (Float.from-int MAT_NAPALM_VAPOR) 1.0f 0.3f 0.0f 1.0f 3.0f 1.0f (bit-or IGNITER (bit-or HEAVY_GAS DISSIPATES))))
+      (Array.aset! &registry MAT_SPORE_CLOUD (Material.init (Float.from-int MAT_SPORE_CLOUD) 0.5f 0.8f 0.3f 1.0f 1.0f 1.0f (bit-or TOXIC (bit-or ORGANIC DISSIPATES))))
     )
   )
 
-
-
   (defn set-reaction! [arr a b res-a res-b]
+
     (let [offset (+ 8192 (* (+ (* a 1024) b) 2))]
       (do
         (Array.aset! arr (+ offset 0) res-a)
@@ -141,55 +161,55 @@
             (do
               ;; 1. ACIDIC + CORRODIBLE
               (if (and (/= 0 (bit-and tags-a 128)) (/= 0 (bit-and tags-b 64)))
-                (do (set! res-a 0.0f) (set! res-b 514.0f))
+                (do (set! res-a (Float.from-int MAT_AIR)) (set! res-b (Float.from-int MAT_TOXIC_GAS)))
                 ())
               (if (and (/= 0 (bit-and tags-b 128)) (/= 0 (bit-and tags-a 64)))
-                (do (set! res-b 0.0f) (set! res-a 514.0f))
+                (do (set! res-b (Float.from-int MAT_AIR)) (set! res-a (Float.from-int MAT_TOXIC_GAS)))
                 ())
                 
               ;; 2. IGNITER + MELTABLE
               (if (and (/= 0 (bit-and tags-a 2)) (/= 0 (bit-and tags-b 8)))
-                (if (= b 8) (set! res-b 257.0f) (set! res-b 258.0f))
+                (if (= b MAT_ICE) (set! res-b (Float.from-int MAT_WATER)) (set! res-b (Float.from-int MAT_LAVA)))
                 ())
               (if (and (/= 0 (bit-and tags-b 2)) (/= 0 (bit-and tags-a 8)))
-                (if (= a 8) (set! res-a 257.0f) (set! res-a 258.0f))
+                (if (= a MAT_ICE) (set! res-a (Float.from-int MAT_WATER)) (set! res-a (Float.from-int MAT_LAVA)))
                 ())
                 
               ;; 3. EXTINGUISHER + SOLUBLE
               (if (and (/= 0 (bit-and tags-a 8388608)) (/= 0 (bit-and tags-b 256)))
-                (set! res-b 257.0f)
+                (set! res-b (Float.from-int MAT_WATER))
                 ())
               (if (and (/= 0 (bit-and tags-b 8388608)) (/= 0 (bit-and tags-a 256)))
-                (set! res-a 257.0f)
+                (set! res-a (Float.from-int MAT_WATER))
                 ())
                 
               ;; 4. EXTINGUISHER + IGNITER
               (if (and (/= 0 (bit-and tags-a 8388608)) (/= 0 (bit-and tags-b 2)))
                 (do
-                  (set! res-a 513.0f)
-                  (if (= b 515) (set! res-b 516.0f) (set! res-b 1.0f)))
+                  (set! res-a (Float.from-int MAT_STEAM))
+                  (if (= b MAT_FIRE) (set! res-b (Float.from-int MAT_SMOKE)) (set! res-b (Float.from-int MAT_STONE))))
                 ())
               (if (and (/= 0 (bit-and tags-b 8388608)) (/= 0 (bit-and tags-a 2)))
                 (do
-                  (set! res-b 513.0f)
-                  (if (= a 515) (set! res-a 516.0f) (set! res-a 1.0f)))
+                  (set! res-b (Float.from-int MAT_STEAM))
+                  (if (= a MAT_FIRE) (set! res-a (Float.from-int MAT_SMOKE)) (set! res-a (Float.from-int MAT_STONE))))
                 ())
                 
               ;; 5. IGNITER + FLAMMABLE
               (if (and (/= 0 (bit-and tags-a 2)) (/= 0 (bit-and tags-b 1)))
-                (set! res-b 515.0f)
+                (set! res-b (Float.from-int MAT_FIRE))
                 ())
               (if (and (/= 0 (bit-and tags-b 2)) (/= 0 (bit-and tags-a 1)))
-                (set! res-a 515.0f)
+                (set! res-a (Float.from-int MAT_FIRE))
                 ())
 
               
               ;; 6. FREEZABLE (Ice) + EXTINGUISHER (Water)
               (if (and (/= 0 (bit-and tags-a 16)) (/= 0 (bit-and tags-b 8388608)))
-                (set! res-b 8.0f)
+                (set! res-b (Float.from-int MAT_ICE))
                 ())
               (if (and (/= 0 (bit-and tags-b 16)) (/= 0 (bit-and tags-a 8388608)))
-                (set! res-a 8.0f)
+                (set! res-a (Float.from-int MAT_ICE))
                 ())
                 
               (Array.aset! arr (+ offset 0) res-a)
@@ -199,7 +219,7 @@
     ))
 
   (defn pack-registry []
-    (let [arr (Array.replicate 2105344 &0.0f)]
+    (let [arr (Array.replicate 2105344 &(Float.from-int MAT_AIR))]
       (do
         (for [i 0 1024]
           (let [mat (Array.unsafe-nth &registry i)
