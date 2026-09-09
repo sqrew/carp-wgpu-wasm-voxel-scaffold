@@ -103,8 +103,8 @@
 
   (defn init-registry! []
     (do
-      (Array.aset! &registry MAT_STONE (Material.init (Float.from-int MAT_STONE) 0.55f 0.55f 0.55f 1.0f 10.0f 5.0f 0))
-      (Array.aset! &registry MAT_SOIL (Material.init (Float.from-int MAT_SOIL) 0.2f 0.6f 0.25f 1.0f 5.0f 1.0f (bit-or ORGANIC FLAMMABLE)))
+      (Array.aset! &registry MAT_STONE (Material.init (Float.from-int MAT_STONE) 0.55f 0.55f 0.55f 1.0f 10.0f 5.0f CORRODIBLE))
+      (Array.aset! &registry MAT_SOIL (Material.init (Float.from-int MAT_SOIL) 0.2f 0.6f 0.25f 1.0f 5.0f 1.0f (bit-or ORGANIC (bit-or FLAMMABLE CORRODIBLE))))
       (Array.aset! &registry MAT_WOOD (Material.init (Float.from-int MAT_WOOD) 0.5f 0.3f 0.15f 1.0f 2.0f 2.0f (bit-or FLAMMABLE (bit-or CORRODIBLE ORGANIC))))
       (Array.aset! &registry MAT_COAL (Material.init (Float.from-int MAT_COAL) 0.1f 0.1f 0.1f 1.0f 8.0f 4.0f (bit-or FLAMMABLE CORRODIBLE)))
       (Array.aset! &registry MAT_GOLD (Material.init (Float.from-int MAT_GOLD) 0.95f 0.75f 0.15f 1.0f 15.0f 8.0f (bit-or CONDUCTIVE MELTABLE)))

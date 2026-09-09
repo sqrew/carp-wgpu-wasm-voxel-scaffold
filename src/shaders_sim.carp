@@ -1236,35 +1236,93 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
 
     
-    // --- Falling Sand Gravity Logic (SDF-Safe) ---
-    let g_dir = vec3<i32>(0, -1, 0); 
-
+    
+    // --- Falling Sand Gravity & Liquid Rubble Logic (SDF-Safe) ---
+    // Pseudo-random number for unbiased diagonal falling
+    let rand = fract(sin(dot(vec2<f32>(f32(ip.x), f32(ip.z)) + f32(u.time % 1000u), vec2<f32>(12.9898, 78.233))) * 43758.5453);
+    let diag_x = select(-1, 1, rand > 0.5);
+    let diag_z = select(1, -1, rand > 0.5); // Just some arbitrary second pseudo-random
+    
+    let g_dir = vec3<i32>(0, -1, 0);
+    
     // 1. If we are EMPTY (positive SDF), check if sand wants to fall into us
     if (self_vol > 0.0) {
-        let neighbor_ip = ip - g_dir;
-        let neighbor_sol = get_solid(neighbor_ip);
+        // Try directly above first
+        let up_ip = ip + vec3<i32>(0, 1, 0);
+        let up_sol = get_solid(up_ip);
         
-        // If there is FALLING sand above us (negative SDF AND negative Material ID)
-        if (neighbor_sol.y <= 0.0 && neighbor_sol.x < 0.0) {
-            next_id = neighbor_sol.x;
-            next_vol = neighbor_sol.y; // Become solid (negative)
-            next_age = neighbor_sol.z;
-            next_sleep = 0.0; // Wake up!
+        if (up_sol.y <= 0.0 && up_sol.x < 0.0) {
+            next_id = up_sol.x;
+            next_vol = up_sol.y;
+            next_age = up_sol.z;
+            next_sleep = 0.0;
+        } else {
+            // If nothing directly above, check diagonally above!
+            // But only pull from diagonally above if that sand CANNOT fall straight down.
+            // i.e., check if the space below THAT sand is blocked.
+            // Wait, this is a bit complex. Let's just try to pull from the 4 diagonals above.
+            // To prevent all 4 falling into us at once, we prioritize one based on `rand`.
+            var pulled = false;
+            let dirs = array<vec3<i32>, 4>(
+                vec3<i32>(diag_x, 1, 0), vec3<i32>(-diag_x, 1, 0),
+                vec3<i32>(0, 1, diag_z), vec3<i32>(0, 1, -diag_z)
+            );
+            
+            for (var i = 0; i < 4; i++) {
+                let diag_up_ip = ip + dirs[i];
+                let diag_sol = get_solid(diag_up_ip);
+                if (diag_sol.y <= 0.0 && diag_sol.x < 0.0) {
+                    // Check if that sand is blocked from falling straight down
+                    let diag_down_ip = diag_up_ip + vec3<i32>(0, -1, 0);
+                    let diag_down_sol = get_solid(diag_down_ip);
+                    if (diag_down_sol.y <= 0.0) {
+                        // It's blocked directly below it! So it falls into us!
+                        next_id = diag_sol.x;
+                        next_vol = diag_sol.y;
+                        next_age = diag_sol.z;
+                        next_sleep = 0.0;
+                        pulled = true;
+                        break;
+                    }
+                }
+            }
         }
     } 
-    // 2. If we are FALLING SAND (negative SDF AND negative Material ID), check if we should fall
+    // 2. If we are FALLING SAND (negative SDF AND negative Material ID), check if we should fall or slide
     else if (self_vol <= 0.0 && self_sol.x < 0.0) {
-        let neighbor_ip = ip + g_dir;
-        let neighbor_sol = get_solid(neighbor_ip);
+        let down_ip = ip + vec3<i32>(0, -1, 0);
+        let down_sol = get_solid(down_ip);
         
-        // If the space below us is empty (positive SDF)
-        if (neighbor_sol.y > 0.0) {
+        if (down_sol.y > 0.0) {
+            // Space below is empty, we fall straight down!
             next_id = 0.0;
-            next_vol = 0.5; // Become empty (positive)
+            next_vol = 0.5;
             next_age = 0.0;
-            next_sleep = 0.0; // Stay awake to process emptiness
+            next_sleep = 0.0;
+        } else {
+            // Blocked directly below. Can we slide diagonally down?
+            // To ensure we vacate this cell, the cell diagonally down MUST be empty.
+            // We check the same 4 diagonals but downwards.
+            let dirs = array<vec3<i32>, 4>(
+                vec3<i32>(-diag_x, -1, 0), vec3<i32>(diag_x, -1, 0),
+                vec3<i32>(0, -1, -diag_z), vec3<i32>(0, -1, diag_z)
+            );
+            
+            for (var i = 0; i < 4; i++) {
+                let diag_down_ip = ip + dirs[i];
+                let diag_down_sol = get_solid(diag_down_ip);
+                if (diag_down_sol.y > 0.0) {
+                    // Space diagonally below is empty! We slide into it.
+                    next_id = 0.0;
+                    next_vol = 0.5;
+                    next_age = 0.0;
+                    next_sleep = 0.0;
+                    break;
+                }
+            }
         }
     }
+
 
     if (abs(next_vol - self_vol) < 0.001) {
         next_sleep = min(next_sleep + 1.0, 10.0);
