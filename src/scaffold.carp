@@ -114,6 +114,39 @@
       return bg;
   }")
 
+
+(deftemplate create-raycast-bind-group-with-entities (Fn [(Ptr WGPUContext) WGPUComputePipeline WGPUBuffer WGPUBuffer WGPUBuffer WGPUBuffer WGPUBuffer (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) WGPUBuffer] WGPUBindGroup)
+  "WGPUBindGroup $NAME(WGPUContext* ctx, WGPUComputePipeline pipe, WGPUBuffer input_buf, WGPUBuffer output_buf, WGPUBuffer uniform_buf, WGPUBuffer chunk_info_buf, WGPUBuffer chunk_lookup_buf, WGPURenderTexture* voxel_tex, WGPURenderTexture* water_tex, WGPURenderTexture* gas_tex, WGPUBuffer entities_buf)"
+  "$DECL {
+      if (!ctx || !pipe || !input_buf || !output_buf || !uniform_buf || !chunk_info_buf || !chunk_lookup_buf || !voxel_tex || !water_tex || !gas_tex || !entities_buf) {
+          return NULL;
+      }
+      WGPUBindGroupLayout layout = wgpuComputePipelineGetBindGroupLayout(pipe, 0);
+      if (!layout) {
+          return NULL;
+      }
+      WGPUBindGroupEntry entries[9];
+      entries[0] = (WGPUBindGroupEntry){ .binding = 0, .buffer = input_buf, .offset = 0, .size = wgpuBufferGetSize(input_buf) };
+      entries[1] = (WGPUBindGroupEntry){ .binding = 1, .buffer = output_buf, .offset = 0, .size = wgpuBufferGetSize(output_buf) };
+      entries[2] = (WGPUBindGroupEntry){ .binding = 2, .buffer = uniform_buf, .offset = 0, .size = wgpuBufferGetSize(uniform_buf) };
+      entries[3] = (WGPUBindGroupEntry){ .binding = 3, .buffer = chunk_info_buf, .offset = 0, .size = wgpuBufferGetSize(chunk_info_buf) };
+      entries[4] = (WGPUBindGroupEntry){ .binding = 4, .buffer = chunk_lookup_buf, .offset = 0, .size = wgpuBufferGetSize(chunk_lookup_buf) };
+      entries[5] = (WGPUBindGroupEntry){ .binding = 5, .textureView = voxel_tex->view };
+      entries[6] = (WGPUBindGroupEntry){ .binding = 6, .textureView = water_tex->view };
+      entries[7] = (WGPUBindGroupEntry){ .binding = 7, .textureView = gas_tex->view };
+      entries[8] = (WGPUBindGroupEntry){ .binding = 8, .buffer = entities_buf, .offset = 0, .size = wgpuBufferGetSize(entities_buf) };
+      
+      WGPUBindGroupDescriptor desc = {
+          .layout     = layout,
+          .entryCount = 9,
+          .entries    = entries,
+      };
+      WGPUBindGroup bg = wgpuDeviceCreateBindGroup(ctx->device, &desc);
+      wgpuBindGroupLayoutRelease(layout);
+      return bg;
+  }")
+
+
 (deftype M-WGPUContext [p (Ptr WGPUContext)])
 (defmodule M-WGPUContext
   (defn delete [x] (WGPU.free-context @(M-WGPUContext.p x))))

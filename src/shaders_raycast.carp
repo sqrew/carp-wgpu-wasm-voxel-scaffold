@@ -12,18 +12,12 @@ struct Material {
     tags: u32,
 }
 struct Uniforms {
-    time: f32,
-    width: f32,
-    height: f32,
-    brush_radius: f32,
-    cam_pos: vec4<f32>,
-    cam_dir: vec4<f32>,
-    cam_right: vec4<f32>,
-    cam_up: vec4<f32>,
-    sun_dir: vec4<f32>,
-    hit_pos: vec4<f32>,
-    edit_params: vec4<f32>,
     solid_params: vec4<f32>,
+    explosion: vec4<f32>,
+    entity_count: vec4<f32>,
+    padding1: vec4<f32>,
+    padding2: vec4<f32>,
+    padding3: vec4<f32>,
 }
 
 @group(0) @binding(0) var<storage, read>       dummy0: array<vec4<f32>>;
@@ -34,6 +28,8 @@ struct Uniforms {
 @group(0) @binding(5) var solid_texture:       texture_3d<f32>;
 @group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
+@group(0) @binding(8) var<storage, read> s_entities: array<Entity>;
+
 
 fn get_solid(p: vec3<i32>) -> vec4<f32> {
     let wrapped = (p + vec3<i32>(160)) % 160;

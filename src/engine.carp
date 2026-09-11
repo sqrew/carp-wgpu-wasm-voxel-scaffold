@@ -20,6 +20,7 @@
   world World
   player Player
   uniforms (Array Float)
+  entities-data (Array Float)
   diag Diagnostics
   frame-count Int
   hit-x Float
@@ -79,7 +80,7 @@
                     (let [backend (GLFWBackend.init)
                             ctx (glfw-window->voidptr @(M-GLFWWindow.p (Engine.win &platform-eng)))
                             input (InputManager.create ctx backend)]
-                        (Result.Success (EngineState.init platform-eng ren world player uniforms diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid (Coordinator.new) 0 0 0 input scratch-arena (Clock.new) 0.0))))))))))
+                        (Result.Success (EngineState.init platform-eng ren world player uniforms (Array.replicate 1200000 &0.0f) diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid (Coordinator.new) 0 0 0 input scratch-arena (Clock.new) 0.0))))))))))
 
   (defn draw-bounds-wireframe! [ren min-x min-y min-z max-x max-y max-z color]
     (let [w0 (Vector3.init min-x min-y min-z)
@@ -344,32 +345,32 @@
         (Array.aset! uniforms 34 0.0f)
         (Array.aset! uniforms 35 0.0f)
         
+        
         (let [ecs (EngineState.ecs-world state)
-              count-idx 36
-              start-idx 40
+              entities-data (EngineState.entities-data state)
               num-entities 0]
           (do
             (query ecs (e (cv CompVolume) (cc CompColor))
-              (when (< num-entities 31)
-                (let [idx (+ start-idx (* num-entities 12))
+              (when (< num-entities 100000)
+                (let [idx (* num-entities 12)
                       vol (CompVolume.vol cv)
                       color (CompColor.col cc)]
                   (do
-                    (Array.aset! uniforms (+ idx 8) (Double.to-float @(Vector3.x color)))
-                    (Array.aset! uniforms (+ idx 9) (Double.to-float @(Vector3.y color)))
-                    (Array.aset! uniforms (+ idx 10) (Double.to-float @(Vector3.z color)))
-                    (Array.aset! uniforms (+ idx 11) 1.0f)
+                    (Array.aset! entities-data (+ idx 8) (Double.to-float @(Vector3.x color)))
+                    (Array.aset! entities-data (+ idx 9) (Double.to-float @(Vector3.y color)))
+                    (Array.aset! entities-data (+ idx 10) (Double.to-float @(Vector3.z color)))
+                    (Array.aset! entities-data (+ idx 11) 1.0f)
                     (match-ref vol
                       (Volume.Ball s)
                         (do
-                          (Array.aset! uniforms (+ idx 0) (Double.to-float @(Vector3.x (Sphere.center s))))
-                          (Array.aset! uniforms (+ idx 1) (Double.to-float @(Vector3.y (Sphere.center s))))
-                          (Array.aset! uniforms (+ idx 2) (Double.to-float @(Vector3.z (Sphere.center s))))
-                          (Array.aset! uniforms (+ idx 3) 0.0f)
-                          (Array.aset! uniforms (+ idx 4) 0.0f)
-                          (Array.aset! uniforms (+ idx 5) 0.0f)
-                          (Array.aset! uniforms (+ idx 6) 0.0f)
-                          (Array.aset! uniforms (+ idx 7) (Double.to-float @(Sphere.radius s))))
+                          (Array.aset! entities-data (+ idx 0) (Double.to-float @(Vector3.x (Sphere.center s))))
+                          (Array.aset! entities-data (+ idx 1) (Double.to-float @(Vector3.y (Sphere.center s))))
+                          (Array.aset! entities-data (+ idx 2) (Double.to-float @(Vector3.z (Sphere.center s))))
+                          (Array.aset! entities-data (+ idx 3) 0.0f)
+                          (Array.aset! entities-data (+ idx 4) 0.0f)
+                          (Array.aset! entities-data (+ idx 5) 0.0f)
+                          (Array.aset! entities-data (+ idx 6) 0.0f)
+                          (Array.aset! entities-data (+ idx 7) (Double.to-float @(Sphere.radius s))))
                       (Volume.Box aabb)
                         (let [vmin (AABB.min aabb)
                               vmax (AABB.max aabb)
@@ -380,21 +381,23 @@
                               ey (/ (- @(Vector3.y vmax) @(Vector3.y vmin)) 2.0)
                               ez (/ (- @(Vector3.z vmax) @(Vector3.z vmin)) 2.0)]
                           (do
-                            (Array.aset! uniforms (+ idx 0) (Double.to-float cx))
-                            (Array.aset! uniforms (+ idx 1) (Double.to-float cy))
-                            (Array.aset! uniforms (+ idx 2) (Double.to-float cz))
-                            (Array.aset! uniforms (+ idx 3) 1.0f)
-                            (Array.aset! uniforms (+ idx 4) (Double.to-float ex))
-                            (Array.aset! uniforms (+ idx 5) (Double.to-float ey))
-                            (Array.aset! uniforms (+ idx 6) (Double.to-float ez))
-                            (Array.aset! uniforms (+ idx 7) 0.0f))))
+                            (Array.aset! entities-data (+ idx 0) (Double.to-float cx))
+                            (Array.aset! entities-data (+ idx 1) (Double.to-float cy))
+                            (Array.aset! entities-data (+ idx 2) (Double.to-float cz))
+                            (Array.aset! entities-data (+ idx 3) 1.0f)
+                            (Array.aset! entities-data (+ idx 4) (Double.to-float ex))
+                            (Array.aset! entities-data (+ idx 5) (Double.to-float ey))
+                            (Array.aset! entities-data (+ idx 6) (Double.to-float ez))
+                            (Array.aset! entities-data (+ idx 7) 0.0f))))
                     (set! num-entities (+ num-entities 1))))))
-            (Array.aset! uniforms count-idx (Float.from-int num-entities))
-            (Array.aset! uniforms (+ count-idx 1) 0.0f)
-            (Array.aset! uniforms (+ count-idx 2) 0.0f)
-            (Array.aset! uniforms (+ count-idx 3) 0.0f)
+            (Array.aset! uniforms 36 (Float.from-int num-entities))
+            (Array.aset! uniforms 37 0.0f)
+            (Array.aset! uniforms 38 0.0f)
+            (Array.aset! uniforms 39 0.0f)
             
-            (Engine.update-uniform-buffer eng @(M-UniformBuffer.p (Renderer.uniform-buffer ren)) uniforms))))))
+            (Engine.update-uniform-buffer eng @(M-UniformBuffer.p (Renderer.uniform-buffer ren)) uniforms)
+            (WGPUVertexBufferWrapper.update-offset @(M-WGPUContext.p (Engine.ctx eng)) @(M-VertexBuffer.p (Renderer.entities-buffer ren)) (Uint64.from-long 0l) (WGPU.array->ptr entities-data) (Uint64.from-long (Long.from-int (* num-entities 48)))))))))
+
 
   (defn pre-render! [state]
     (let [platform-eng (EngineState.eng state)
