@@ -1239,7 +1239,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     
     // --- Falling Sand Gravity & Liquid Rubble Logic (SDF-Safe) ---
     // Pseudo-random number for unbiased diagonal falling
-    let rand = fract(sin(dot(vec2<f32>(f32(ip.x), f32(ip.z)) + f32(u.time % 1000u), vec2<f32>(12.9898, 78.233))) * 43758.5453);
+    let rand = fract(sin(dot(vec2<f32>(f32(ip.x), f32(ip.z)) + f32(u32(u.time) % 1000u), vec2<f32>(12.9898, 78.233))) * 43758.5453);
     let diag_x = select(-1, 1, rand > 0.5);
     let diag_z = select(1, -1, rand > 0.5); // Just some arbitrary second pseudo-random
     

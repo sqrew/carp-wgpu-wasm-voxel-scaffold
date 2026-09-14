@@ -33,7 +33,6 @@ struct Uniforms {
     pad1: f32,
     pad2: f32,
     pad3: f32,
-    entities: array<Entity, 31>,
 }
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -43,6 +42,7 @@ struct Uniforms {
 @group(0) @binding(4) var gas_texture: texture_3d<f32>;
 @group(0) @binding(5) var light_texture: texture_3d<f32>;
 @group(0) @binding(6) var<storage, read> materials: array<Material>;
+@group(0) @binding(7) var<storage, read> s_entities: array<Entity>;
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
@@ -115,7 +115,7 @@ fn map_entities(p: vec3<f32>, out_color: ptr<function, vec3<f32>>) -> f32 {
     var min_d = 10000.0;
     let count = u32(u.entity_count);
     for (var i: u32 = 0u; i < count; i = i + 1u) {
-        let e = u.entities[i];
+        let e = s_entities[i];
         let p_local = p - e.pos_type.xyz;
         var d = 10000.0;
         if (e.pos_type.w < 0.5) {

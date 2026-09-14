@@ -1,3 +1,0 @@
-(defn main []
-  (for [i 0 3]
-    (println* "i = " i)))
