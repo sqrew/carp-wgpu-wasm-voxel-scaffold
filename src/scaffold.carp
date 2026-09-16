@@ -20,6 +20,14 @@
    float js_flying = 1.0f;
    float js_flashlight = 1.0f;
 
+   typedef struct {
+       WGPUBindGroupEntry entries[16];
+       int count;
+   } C_Builder;
+
+
+
+
    #ifdef __EMSCRIPTEN__
    #include <emscripten.h>
    EMSCRIPTEN_KEEPALIVE void set_brush_radius(float r) { js_brush_radius = r; }
@@ -153,6 +161,97 @@
   }")
 
 
+
+
+
+;; --- BindGroupBuilder ---
+(deftype Builder [p (Ptr ())])
+
+(deftemplate builder-new (Fn [] (Ptr ()))
+  "void* $NAME()"
+  "$DECL {
+      C_Builder* b = (C_Builder*)malloc(sizeof(C_Builder));
+      b->count = 0;
+      return (void*)b;
+  }")
+
+(deftemplate builder-free (Fn [(Ptr ())] ())
+  "void $NAME(void* b_ptr)"
+  "$DECL {
+      C_Builder* b = (C_Builder*)b_ptr;
+      if (b) free(b);
+  }")
+
+(deftemplate builder-add-buffer (Fn [(Ptr ()) WGPUBuffer] ())
+  "void $NAME(void* b_ptr, WGPUBuffer buf)"
+  "$DECL {
+      C_Builder* b = (C_Builder*)b_ptr;
+      if (!b || b->count >= 16) return;
+      b->entries[b->count] = (WGPUBindGroupEntry){
+          .binding = b->count,
+          .buffer = buf,
+          .offset = 0,
+          .size = wgpuBufferGetSize(buf)
+      };
+      b->count++;
+  }")
+
+(deftemplate builder-add-texture (Fn [(Ptr ()) (Ptr WGPURenderTexture)] ())
+  "void $NAME(void* b_ptr, WGPURenderTexture* tex)"
+  "$DECL {
+      C_Builder* b = (C_Builder*)b_ptr;
+      if (!b || !tex || b->count >= 16) return;
+      b->entries[b->count] = (WGPUBindGroupEntry){
+          .binding = b->count,
+          .textureView = tex->view
+      };
+      b->count++;
+  }")
+
+(deftemplate builder-add-sampler (Fn [(Ptr ()) WGPUSampler] ())
+  "void $NAME(void* b_ptr, WGPUSampler samp)"
+  "$DECL {
+      C_Builder* b = (C_Builder*)b_ptr;
+      if (!b || b->count >= 16) return;
+      b->entries[b->count] = (WGPUBindGroupEntry){
+          .binding = b->count,
+          .sampler = samp
+      };
+      b->count++;
+  }")
+
+(deftemplate builder-build-compute (Fn [(Ptr WGPUContext) WGPUComputePipeline (Ptr ())] WGPUBindGroup)
+  "WGPUBindGroup $NAME(WGPUContext* ctx, WGPUComputePipeline pipe, void* b_ptr)"
+  "$DECL {
+      C_Builder* b = (C_Builder*)b_ptr;
+      if (!ctx || !pipe || !b) return NULL;
+      WGPUBindGroupLayout layout = wgpuComputePipelineGetBindGroupLayout(pipe, 0);
+      WGPUBindGroupDescriptor desc = {
+          .layout = layout,
+          .entryCount = b->count,
+          .entries = b->entries,
+      };
+      WGPUBindGroup bg = wgpuDeviceCreateBindGroup(ctx->device, &desc);
+      wgpuBindGroupLayoutRelease(layout);
+      return bg;
+  }")
+  
+(deftemplate builder-build-render (Fn [(Ptr WGPUContext) WGPURenderPipeline (Ptr ())] WGPUBindGroup)
+  "WGPUBindGroup $NAME(WGPUContext* ctx, WGPURenderPipeline pipe, void* b_ptr)"
+  "$DECL {
+      C_Builder* b = (C_Builder*)b_ptr;
+      if (!ctx || !pipe || !b) return NULL;
+      WGPUBindGroupLayout layout = wgpuRenderPipelineGetBindGroupLayout(pipe, 0);
+      WGPUBindGroupDescriptor desc = {
+          .layout = layout,
+          .entryCount = b->count,
+          .entries = b->entries,
+      };
+      WGPUBindGroup bg = wgpuDeviceCreateBindGroup(ctx->device, &desc);
+      wgpuBindGroupLayoutRelease(layout);
+      return bg;
+  }")
+;; ------------------------
 (deftype M-WGPUContext [p (Ptr WGPUContext)])
 (defmodule M-WGPUContext
   (defn delete [x] (WGPU.free-context @(M-WGPUContext.p x))))

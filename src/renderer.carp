@@ -75,6 +75,9 @@
   liquid-half-buffer M-VertexBuffer
   gas-gpu-buffer M-VertexBuffer
   gas-half-buffer M-VertexBuffer
+  light-gpu-buffer M-VertexBuffer
+  light-half-buffer M-VertexBuffer
+  light-pack-bind-group WGPUBindGroup
   liquid-pack-bind-group WGPUBindGroup
   gas-pack-bind-group WGPUBindGroup
   liquid-sim-pipeline WGPUComputePipeline
@@ -184,6 +187,14 @@
          liquid-half-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &liquid-half-buf)))
          liquid-bufs (Result.Success [@&liquid-raw @&liquid-half-raw])
          
+         light-gpu-buf-ptr (WGPURender.create-storage-vertex-buffer ctx &initial-data-read)
+         light-gpu-buf (Result.Success (M-VertexBuffer.init light-gpu-buf-ptr))
+         light-half-buf-ptr (WGPURender.create-storage-vertex-buffer ctx &initial-data-half)
+         light-half-buf (Result.Success (M-VertexBuffer.init light-half-buf-ptr))
+         light-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &light-gpu-buf)))
+         light-half-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &light-half-buf)))
+         light-bufs (Result.Success [@&light-raw @&light-half-raw])
+         
          gas-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &gas-gpu-buf)))
          gas-half-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &gas-half-buf)))
          gas-bufs (Result.Success [@&gas-raw @&gas-half-raw])
@@ -192,6 +203,7 @@
          pack-bg (WGPU.create-bind-group ctx pack-pipe &bufs)
          liquid-pack-bg (WGPU.create-bind-group ctx pack-pipe &liquid-bufs)
          gas-pack-bg (WGPU.create-bind-group ctx pack-pipe &gas-bufs)
+         light-pack-bg (WGPU.create-bind-group ctx pack-pipe &light-bufs)
          
          copy-pipe (WGPU.create-pipeline ctx copy-wgsl "main")
          
@@ -226,7 +238,21 @@
          field-write-buf (Result.Success (M-VertexBuffer.init field-write-ptr))
          field-read-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &field-read-buf)))
          field-write-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &field-write-buf)))
-         field-sim-bg (WGPURender.create-jit-bind-group-water ctx field-sim-pipe @&field-read-raw @&field-write-raw @&main-ub-raw @&write-raw @&mat-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
+         field-sim-bg (let [b (builder-new)]
+                        (do
+                          (builder-add-buffer b @&field-read-raw)
+                          (builder-add-buffer b @&field-write-raw)
+                          (builder-add-buffer b @&main-ub-raw)
+                          (builder-add-buffer b @&write-raw)
+                          (builder-add-buffer b @&mat-raw)
+                          (builder-add-texture b @(M-RenderTexture.p &voxel-tex))
+                          (builder-add-texture b @(M-RenderTexture.p &liquid-tex))
+                          (builder-add-texture b @(M-RenderTexture.p &gas-tex))
+                          (builder-add-buffer b @&light-raw)
+                          (let [bg (builder-build-compute ctx field-sim-pipe b)]
+                            (do
+                              (builder-free b)
+                              (Result.Success bg)))))
          
 
          raycast-bg (Result.Success (create-raycast-bind-group-with-entities ctx raycast-pipe @&read-raw @&read-raw @&main-ub-raw @&hit-raw @&mat-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex) @&entities-raw))
@@ -244,8 +270,7 @@
          ren (Result.Success (Renderer.init pipe bg ub voxel-tex liquid-tex gas-tex light-tex voxel-sampler lp [] depth-tex w h
                                             read-buf write-buf half-buf pack-pipe pack-bg
                                             staging-buf copy-pipe copy-bg copy-ub
-                                            liquid-gpu-buf liquid-half-buf gas-gpu-buf gas-half-buf
-                                            liquid-pack-bg gas-pack-bg liquid-sim-pipe liquid-sim-bg gas-sim-pipe gas-sim-bg solid-sim-pipe solid-sim-bg
+                                            liquid-gpu-buf liquid-half-buf gas-gpu-buf gas-half-buf light-gpu-buf light-half-buf light-pack-bg liquid-pack-bg gas-pack-bg liquid-sim-pipe liquid-sim-bg gas-sim-pipe gas-sim-bg solid-sim-pipe solid-sim-bg
                                            field-read-buf field-write-buf field-sim-pipe field-sim-bg
                                             hit-buf entities-buf map-buf raycast-pipe raycast-bg chunk-map-buf sync-chunk-pipe sync-chunk-bg sync-chunk-ub mat-buf))]
         (Result.Success ren))))
@@ -267,7 +292,13 @@
         (let [batch-encoder (GPUBatcher.begin-batch ctx)]
           (do
             (GPUBatcher.batch-dispatch batch-encoder @(Renderer.copy-pipeline ren) @(Renderer.copy-bind-group ren) 512)
-            (GPUBatcher.end-batch ctx batch-encoder))))))
+            (GPUBatcher.batch-copy-texture batch-encoder
+                                       (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p (Renderer.light-half-buffer ren)))
+                                       0l
+                                       @(M-RenderTexture.p (Renderer.light-texture ren))
+                                       0 0 0
+                                       160 160 160)
+        (GPUBatcher.end-batch ctx batch-encoder))))))
 
 
 
@@ -347,6 +378,7 @@
         (GPUBatcher.batch-dispatch batch-encoder @(Renderer.pack-pipeline ren) @(Renderer.pack-bind-group ren) 64000)
         (GPUBatcher.batch-dispatch batch-encoder @(Renderer.pack-pipeline ren) @(Renderer.liquid-pack-bind-group ren) 64000)
         (GPUBatcher.batch-dispatch batch-encoder @(Renderer.pack-pipeline ren) @(Renderer.gas-pack-bind-group ren) 64000)
+        (GPUBatcher.batch-dispatch batch-encoder @(Renderer.pack-pipeline ren) @(Renderer.light-pack-bind-group ren) 64000)
         
         ;; 2. Copy half buffers to 3D textures
         (GPUBatcher.batch-copy-texture batch-encoder
@@ -365,6 +397,12 @@
                                        (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p (Renderer.gas-half-buffer ren)))
                                        0l
                                        @(M-RenderTexture.p (Renderer.gas-texture ren))
+                                       0 0 0
+                                       160 160 160)
+        (GPUBatcher.batch-copy-texture batch-encoder
+                                       (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p (Renderer.light-half-buffer ren)))
+                                       0l
+                                       @(M-RenderTexture.p (Renderer.light-texture ren))
                                        0 0 0
                                        160 160 160)
         (GPUBatcher.end-batch ctx batch-encoder))))

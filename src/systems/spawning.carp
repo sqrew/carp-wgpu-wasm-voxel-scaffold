@@ -22,6 +22,6 @@
                   gen (ECS.Entity.generation &e)
                   ecs-ptr (Unsafe.coerce (EngineState.ecs-world state))]
               (do
-                (let [_ (Coordinator.schedule! (EngineState.coord state) (AppEvent.DespawnEntity ecs-ptr idx gen) 5000l)] ())
+                (let [_ (Coordinator.schedule! (EngineState.coord state) (AppEvent.DespawnEntity ecs-ptr idx gen) 15000l)] ())
                 ()))))))))
 )
