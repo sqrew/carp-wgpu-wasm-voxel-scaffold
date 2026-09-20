@@ -176,6 +176,7 @@ fn get_liq_props(id: f32) -> LiquidProps {
 @group(0) @binding(8) var<storage, read_write> light_buffer: array<vec4<f32>>; // buffer backed light!
 
 fn get_solid(p: vec3<i32>) -> vec4<f32> {
+    if (p.x < 0 || p.x >= 160 || p.y < 0 || p.y >= 160 || p.z < 0 || p.z >= 160) { return vec4<f32>(255.0, -1.0, 0.0, 10.0); }
     let wrapped = (p + vec3<i32>(160)) % 160;
     let val = textureLoad(solid_texture, wrapped, 0);
     return val;
@@ -187,12 +188,14 @@ fn is_solid(p: vec3<i32>) -> bool {
 }
 
 fn get_liquid(p: vec3<i32>) -> vec4<f32> {
+    if (p.x < 0 || p.x >= 160 || p.y < 0 || p.y >= 160 || p.z < 0 || p.z >= 160) { return vec4<f32>(0.0); }
     let wrapped = (p + vec3<i32>(160)) % 160;
     let val = textureLoad(liquid_texture, wrapped, 0);
     return val;
 }
 
 fn get_gas(p: vec3<i32>) -> vec4<f32> {
+    if (p.x < 0 || p.x >= 160 || p.y < 0 || p.y >= 160 || p.z < 0 || p.z >= 160) { return vec4<f32>(0.0); }
     let wrapped = (p + vec3<i32>(160)) % 160;
     let val = textureLoad(gas_texture, wrapped, 0);
     return val;
@@ -684,6 +687,7 @@ fn get_gas_props(id: f32) -> GasProps {
 @group(0) @binding(8) var<storage, read_write> light_buffer: array<vec4<f32>>; // buffer backed light!
 
 fn get_solid(p: vec3<i32>) -> vec4<f32> {
+    if (p.x < 0 || p.x >= 160 || p.y < 0 || p.y >= 160 || p.z < 0 || p.z >= 160) { return vec4<f32>(255.0, -1.0, 0.0, 10.0); }
     let wrapped = (p + vec3<i32>(160)) % 160;
     let val = textureLoad(solid_texture, wrapped, 0);
     return val;
@@ -695,12 +699,14 @@ fn is_solid(p: vec3<i32>) -> bool {
 }
 
 fn get_gas(p: vec3<i32>) -> vec4<f32> {
+    if (p.x < 0 || p.x >= 160 || p.y < 0 || p.y >= 160 || p.z < 0 || p.z >= 160) { return vec4<f32>(0.0); }
     let wrapped = (p + vec3<i32>(160)) % 160;
     let val = textureLoad(gas_texture, wrapped, 0);
     return val;
 }
 
 fn get_liquid(p: vec3<i32>) -> vec4<f32> {
+    if (p.x < 0 || p.x >= 160 || p.y < 0 || p.y >= 160 || p.z < 0 || p.z >= 160) { return vec4<f32>(0.0); }
     let wrapped = (p + vec3<i32>(160)) % 160;
     let val = textureLoad(liquid_texture, wrapped, 0);
     return val;
@@ -1612,7 +1618,11 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     
     // Check neighbors to pull light in
     for (var i = 0u; i < 6u; i++) {
-        let np = (ip + dirs6[i] + vec3<i32>(160)) % 160;
+        let p_unwrapped = ip + dirs6[i];
+        if (p_unwrapped.x < 0 || p_unwrapped.x >= 160 || p_unwrapped.y < 0 || p_unwrapped.y >= 160 || p_unwrapped.z < 0 || p_unwrapped.z >= 160) {
+            continue; // Do not pull light from across the chunk boundary!
+        }
+        let np = (p_unwrapped + vec3<i32>(160)) % 160;
         let n_idx = u32(np.x) + u32(np.y) * 160u + u32(np.z) * 25600u;
         let neighbor_light = light_buffer[n_idx].rgb;
         

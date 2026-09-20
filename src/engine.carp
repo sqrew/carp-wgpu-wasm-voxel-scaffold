@@ -134,11 +134,13 @@
                   (when (or (/= @(Chunk.coord-x current-chunk) qx)
                             (or (/= @(Chunk.coord-y current-chunk) qy)
                                  (/= @(Chunk.coord-z current-chunk) qz)))
-                    (let [new-chunk (Chunk.create noise qx qy qz)]
-                      (do
-                        (Renderer.update-chunk-texture eng ren qx qy qz (Chunk.voxel-data &new-chunk))
-                        (Array.aset! chunks slot-idx new-chunk)
-                        (set! loaded-any true))))))))))))
+                    (do
+                      ;; Array.aupdate! pops the chunk out, passes ownership to the lambda, and puts the returned chunk back in place.
+                      ;; This completely bypasses the Carp allocator. Zero mallocs, zero frees!
+                      (Array.aupdate! chunks slot-idx &(fn [c] (Chunk.regenerate c noise qx qy qz)))
+                      (let [updated-chunk (Array.unsafe-nth chunks slot-idx)]
+                        (Renderer.update-chunk-texture eng ren qx qy qz (Chunk.voxel-data updated-chunk)))
+                      (set! loaded-any true)))))))))))
 
 
 

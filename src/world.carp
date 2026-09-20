@@ -25,6 +25,16 @@
       (do
         (Terrain.generate! noise-state qx qy qz p-data)
         (Chunk.init qx qy qz voxel-data))))
+
+  ;; Takes an owned chunk, mutates its array in-place, and returns the chunk. Zero allocations!
+  (defn regenerate [c noise-state qx qy qz]
+    (let [p-data (Array.unsafe-raw (Chunk.voxel-data &c))]
+      (do
+        (Chunk.set-coord-x! &c qx)
+        (Chunk.set-coord-y! &c qy)
+        (Chunk.set-coord-z! &c qz)
+        (Terrain.generate! noise-state qx qy qz p-data)
+        c)))
 )
 
 (defmodule World
@@ -97,38 +107,57 @@
           len (Array.length chunks)
           hx @(Vector3.x hit-pos)
           hy @(Vector3.y hit-pos)
-          hz @(Vector3.z hit-pos)]
+          hz @(Vector3.z hit-pos)
+          ;; Expansion for the SDF gradient update (we update voxels a bit outside the visual radius)
+          pad 16.0
+          r-pad (+ radius pad)]
       (do
         (for [i 0 len]
           (let [chunk (Array.unsafe-nth chunks i)
                 qx @(Chunk.coord-x chunk)
                 qy @(Chunk.coord-y chunk)
                 qz @(Chunk.coord-z chunk)
-                cx (Float.from-int (+ (* qx 32) 16))
-                cy (Float.from-int (+ (* qy 32) 16))
-                cz (Float.from-int (+ (* qz 32) 16))
-                dx (- cx (Double.to-float hx))
-                dy (- cy (Double.to-float hy))
-                dz (- cz (Double.to-float hz))
-                dist-to-center (Float.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))
-                max-range (+ (Double.to-float radius) 28.0f)]
-            (when (< dist-to-center max-range)
+                
+                ;; Calculate the exact local bounding box of the brush for this specific chunk
+                c-base-x (Double.from-int (* qx 32))
+                c-base-y (Double.from-int (* qy 32))
+                c-base-z (Double.from-int (* qz 32))
+                
+                min-x (Double.to-int (Double.floor (- (- hx r-pad) c-base-x)))
+                max-x (Double.to-int (Double.ceil (- (+ hx r-pad) c-base-x)))
+                min-y (Double.to-int (Double.floor (- (- hy r-pad) c-base-y)))
+                max-y (Double.to-int (Double.ceil (- (+ hy r-pad) c-base-y)))
+                min-z (Double.to-int (Double.floor (- (- hz r-pad) c-base-z)))
+                max-z (Double.to-int (Double.ceil (- (+ hz r-pad) c-base-z)))
+                
+                ;; Clamp the iteration window to precisely the 32x32x32 array bounds
+                clamped-min-x (if (< min-x 0) 0 min-x)
+                clamped-max-x (if (> max-x 31) 31 max-x)
+                clamped-min-y (if (< min-y 0) 0 min-y)
+                clamped-max-y (if (> max-y 31) 31 max-y)
+                clamped-min-z (if (< min-z 0) 0 min-z)
+                clamped-max-z (if (> max-z 31) 31 max-z)]
+            
+            ;; If the bounding boxes overlap, we iterate
+            (when (and (<= clamped-min-x clamped-max-x)
+                       (and (<= clamped-min-y clamped-max-y)
+                            (<= clamped-min-z clamped-max-z)))
               (let [p-data (Array.unsafe-raw (Chunk.voxel-data chunk))
                     chunk-modified false]
                 (do
-                  (for [z 0 32]
-                    (for [y 0 32]
-                      (for [x 0 32]
+                  (for [z clamped-min-z (+ clamped-max-z 1)]
+                    (for [y clamped-min-y (+ clamped-max-y 1)]
+                      (for [x clamped-min-x (+ clamped-max-x 1)]
                         (let [idx (+ (* z 1024) (+ (* y 32) x))
                               offset (* idx 4)
-                              gx (Double.from-int (+ (* qx 32) x))
-                              gy (Double.from-int (+ (* qy 32) y))
-                              gz (Double.from-int (+ (* qz 32) z))
+                              gx (+ c-base-x (Double.from-int x))
+                              gy (+ c-base-y (Double.from-int y))
+                              gz (+ c-base-z (Double.from-int z))
                               vx (- gx hx)
                               vy (- gy hy)
                               vz (- gz hz)
                               dist-to-hit (Double.sqrt (+ (+ (* vx vx) (* vy vy)) (* vz vz)))]
-                          (when (< dist-to-hit (+ radius 16.0))
+                          (when (< dist-to-hit r-pad)
                             (let [sphere-sdf (Double.to-float (- dist-to-hit radius))
                                   old-sdf (Pointer.to-value (Pointer.add p-data (Long.from-int (+ offset 1))))
                                   new-sdf (if carve?
