@@ -1,6 +1,7 @@
 ;; =============================================================================
 ;; GPU Particle System
-;; Fire-and-forget GPU-resident particles with ring buffer pool management
+;; Fire-and-forget GPU-resident particles with ring buffer pool management,
+;; voxel world collision, multi-type physical behavior, and adaptive sleep.
 ;; =============================================================================
 
 (load "shaders_particles.carp")
@@ -17,12 +18,19 @@
 (def PARTICLE-MAX 131072)
 (def PARTICLE-MAX-SPAWN-REQUESTS 1024)
 
+;; Particle types
+(def PARTICLE-TYPE-SPARKS 0.0f)
+(def PARTICLE-TYPE-DUST 1.0f)
+(def PARTICLE-TYPE-DEBRIS 2.0f)
+(def PARTICLE-TYPE-SMOKE 3.0f)
+(def PARTICLE-TYPE-MAGIC 4.0f)
+
 (deftype ParticleSystem [
   compute-pipeline WGPUComputePipeline
   render-pipeline (Ptr WGPUGeomPipelineWrapper)
   particle-buffer (Ptr WGPUVertexBufferWrapper)     ;; storage + vertex (128K * 32 bytes)
   write-head-buf (Ptr WGPUVertexBufferWrapper)       ;; storage: atomic u32
-  spawn-queue-buf (Ptr WGPUVertexBufferWrapper)      ;; storage: SpawnRequest array
+  spawn-queue-buf (Ptr WGPUVertexBufferWrapper)      ;; storage: SpawnRequest array (1024 * 48 bytes)
   spawn-count-buf (Ptr WGPUVertexBufferWrapper)      ;; storage: f32 (spawn count)
   dt-buf (Ptr WGPUVertexBufferWrapper)               ;; storage: f32 (delta time)
   vp-buffer (Ptr WGPUUniformBufferWrapper)           ;; render: mat4x4 uniform
@@ -30,14 +38,16 @@
   render-bg WGPUBindGroup
   spawn-queue (Array Float)                          ;; CPU-side staging for spawn requests
   spawn-count Int
+  active-frames Int                                  ;; frames remaining to simulate before sleep
 ])
 
 (defmodule ParticleSystem
 
   ;; -------------------------------------------------------------------------
   ;; Create the particle system: allocates all GPU buffers, pipelines, bind groups
+  ;; solid-tex: 3D voxel texture view for collision detection
   ;; -------------------------------------------------------------------------
-  (defn create [ctx format]
+  (defn create [ctx format solid-tex]
     ;; 1. Allocate initial particle data (all zeros = all dead)
     (let [particle-floats (* PARTICLE-MAX 8)  ;; 8 floats per particle (32 bytes)
           initial-particles (the (Array Float) (Array.replicate particle-floats &0.0f))
@@ -49,8 +59,8 @@
           write-head-data (the (Array Float) [0.0f 0.0f 0.0f 0.0f])
           write-head-ptr (Result.unsafe-from-success (WGPURender.create-storage-vertex-buffer ctx &write-head-data))
 
-          ;; 4. Spawn queue buffer (1024 requests * 8 floats each)
-          spawn-queue-data (the (Array Float) (Array.replicate (* PARTICLE-MAX-SPAWN-REQUESTS 8) &0.0f))
+          ;; 4. Spawn queue buffer (1024 requests * 12 floats each = 48 bytes per request)
+          spawn-queue-data (the (Array Float) (Array.replicate (* PARTICLE-MAX-SPAWN-REQUESTS 12) &0.0f))
           spawn-queue-ptr (Result.unsafe-from-success (WGPURender.create-storage-vertex-buffer ctx &spawn-queue-data))
 
           ;; 5. Spawn count buffer (single f32, 16-byte aligned)
@@ -68,14 +78,15 @@
           compute-pipe (Result.unsafe-from-success (WGPU.create-pipeline ctx particle-compute-wgsl "compute_main"))
 
           ;; 9. Build compute bind group using the Builder pattern
-          ;;    bindings: 0=particles, 1=write_head, 2=spawn_queue, 3=spawn_count, 4=dt
+          ;;    bindings: 0=particles, 1=write_head, 2=spawn_queue, 3=spawn_count, 4=dt, 5=solid_texture
           b (builder-new)
           _ (do
               (builder-add-buffer b (particle-get-v-buffer particle-buf-ptr))
               (builder-add-buffer b (particle-get-v-buffer write-head-ptr))
               (builder-add-buffer b (particle-get-v-buffer spawn-queue-ptr))
               (builder-add-buffer b (particle-get-v-buffer spawn-count-ptr))
-              (builder-add-buffer b (particle-get-v-buffer dt-ptr)))
+              (builder-add-buffer b (particle-get-v-buffer dt-ptr))
+              (builder-add-texture b solid-tex))
           compute-bg (builder-build-compute ctx compute-pipe b)
           _free (builder-free b)
 
@@ -100,20 +111,24 @@
         compute-bg
         render-bg
         cpu-spawn-queue
+        0
         0)))
 
   ;; -------------------------------------------------------------------------
   ;; Queue a particle emission event (CPU side, flushed to GPU once per frame)
   ;; pos: emission origin (world space)
-  ;; vel: base velocity direction
-  ;; lifetime: seconds
+  ;; vel: base velocity vector
+  ;; lifetime: duration in seconds
   ;; count: number of particles to spawn
+  ;; ptype: 0=sparks, 1=dust, 2=debris, 3=smoke, 4=magic
+  ;; spread: velocity cone dispersion factor
+  ;; restitution: surface bounce elasticity (0.0 = none, 1.0 = elastic)
   ;; -------------------------------------------------------------------------
-  (defn emit! [ps pos-x pos-y pos-z vel-x vel-y vel-z lifetime count]
+  (defn emit! [ps pos-x pos-y pos-z vel-x vel-y vel-z lifetime count ptype spread restitution]
     (when (< @(ParticleSystem.spawn-count ps) PARTICLE-MAX-SPAWN-REQUESTS)
       (let [sq (ParticleSystem.spawn-queue ps)]
         (do
-          ;; SpawnRequest: pos.xyz, count, vel.xyz, lifetime (8 floats = 32 bytes)
+          ;; SpawnRequest: 12 floats = 48 bytes
           (Array.push-back! sq pos-x)
           (Array.push-back! sq pos-y)
           (Array.push-back! sq pos-z)
@@ -122,72 +137,101 @@
           (Array.push-back! sq vel-y)
           (Array.push-back! sq vel-z)
           (Array.push-back! sq lifetime)
-          (ParticleSystem.set-spawn-count! ps (inc @(ParticleSystem.spawn-count ps)))))))
+          (Array.push-back! sq ptype)
+          (Array.push-back! sq spread)
+          (Array.push-back! sq restitution)
+          (Array.push-back! sq 0.0f)
+          (ParticleSystem.set-spawn-count! ps (inc @(ParticleSystem.spawn-count ps)))
+          ;; Wake up simulation for at least 240 frames (~4 seconds)
+          (ParticleSystem.set-active-frames! ps 240)))))
 
   ;; -------------------------------------------------------------------------
   ;; Convenience emitters
   ;; -------------------------------------------------------------------------
+
+  ;; 0: Sparks - fiery fast embers that ricochet off walls and ground
   (defn emit-sparks! [ps x y z nx ny nz count]
     (ParticleSystem.emit! ps x y z
-      (* nx 8.0f) (* ny 8.0f) (* nz 8.0f)
-      0.8f count))
+      (* nx 10.0f) (* ny 10.0f) (* nz 10.0f)
+      0.9f count PARTICLE-TYPE-SPARKS 0.45f 0.55f))
 
+  ;; 1: Dust - soft billowing earthy powder that settles on surfaces
   (defn emit-dust! [ps x y z count]
     (ParticleSystem.emit! ps x y z
-      0.0f 2.0f 0.0f
-      1.5f count))
+      0.0f 1.5f 0.0f
+      2.0f count PARTICLE-TYPE-DUST 0.75f 0.0f))
 
-  (defn emit-debris! [ps x y z count]
+  ;; 2: Debris - heavy chipped stone chunks with tumbling ballistic bounce
+  (defn emit-debris! [ps x y z nx ny nz count]
     (ParticleSystem.emit! ps x y z
-      0.0f 5.0f 0.0f
-      2.0f count))
+      (* nx 6.0f) (+ (* ny 6.0f) 3.0f) (* nz 6.0f)
+      2.2f count PARTICLE-TYPE-DEBRIS 0.5f 0.35f))
+
+  ;; 3: Smoke - rising soft gray vapor that drifts upward
+  (defn emit-smoke! [ps x y z count]
+    (ParticleSystem.emit! ps x y z
+      0.0f 1.2f 0.0f
+      3.0f count PARTICLE-TYPE-SMOKE 0.35f 0.0f))
+
+  ;; 4: Magic - shimmering arcane glints with bouncy plasma dynamics
+  (defn emit-magic! [ps x y z count]
+    (ParticleSystem.emit! ps x y z
+      0.0f 3.0f 0.0f
+      2.0f count PARTICLE-TYPE-MAGIC 0.8f 0.75f))
 
   ;; -------------------------------------------------------------------------
   ;; Flush CPU spawn queue to GPU and dispatch compute passes
-  ;; Called once per frame, batched with existing simulation passes
+  ;; If no particles are alive and no spawn requests are queued, skips entirely!
   ;; -------------------------------------------------------------------------
   (defn flush-and-dispatch! [ctx ps dt]
     (let [sc @(ParticleSystem.spawn-count ps)
-          batch-encoder (GPUBatcher.begin-batch ctx)]
-      (do
-        ;; Upload delta time (16 bytes)
-        (let [dt-arr [(Double.to-float dt) 0.0f 0.0f 0.0f]]
-          (WGPURender.update-vertex-buffer ctx @(ParticleSystem.dt-buf ps) &dt-arr))
+          af @(ParticleSystem.active-frames ps)]
+      (when (or (> sc 0) (> af 0))
+        (let [batch-encoder (GPUBatcher.begin-batch ctx)]
+          (do
+            ;; Decrement active frames countdown toward sleep
+            (if (> af 0)
+              (ParticleSystem.set-active-frames! ps (dec af))
+              ())
 
-        ;; Upload spawn count (16 bytes) - always upload so GPU knows if sc == 0 or sc > 0
-        (let [sc-arr [(Float.from-int sc) 0.0f 0.0f 0.0f]]
-          (WGPURender.update-vertex-buffer ctx @(ParticleSystem.spawn-count-buf ps) &sc-arr))
+            ;; Upload delta time (16 bytes)
+            (let [dt-arr [(Double.to-float dt) 0.0f 0.0f 0.0f]]
+              (WGPURender.update-vertex-buffer ctx @(ParticleSystem.dt-buf ps) &dt-arr))
 
-        ;; If we have spawn requests, upload them to GPU queue buffer
-        (when (> sc 0)
-          (let [sq (ParticleSystem.spawn-queue ps)]
-            (do
-              (IO.println &(str* "[Particles] Uploading " (Int.str sc) " spawn requests to GPU"))
-              (WGPURender.update-vertex-buffer ctx @(ParticleSystem.spawn-queue-buf ps) sq))))
+            ;; Upload spawn count (16 bytes)
+            (let [sc-arr [(Float.from-int sc) 0.0f 0.0f 0.0f]]
+              (WGPURender.update-vertex-buffer ctx @(ParticleSystem.spawn-count-buf ps) &sc-arr))
 
-        ;; Dispatch unified compute shader (spawn on thread 0 + update all, full pool)
-        (GPUBatcher.batch-dispatch batch-encoder @(ParticleSystem.compute-pipeline ps) @(ParticleSystem.compute-bg ps) (/ (+ PARTICLE-MAX 63) 64))
+            ;; If we have spawn requests, upload them to GPU queue buffer (no console spam)
+            (when (> sc 0)
+              (let [sq (ParticleSystem.spawn-queue ps)]
+                (WGPURender.update-vertex-buffer ctx @(ParticleSystem.spawn-queue-buf ps) sq)))
 
-        ;; Submit batch
-        (GPUBatcher.end-batch ctx batch-encoder)
+            ;; Dispatch unified compute shader (spawn on thread 0 + update all with collision, full pool)
+            (GPUBatcher.batch-dispatch batch-encoder @(ParticleSystem.compute-pipeline ps) @(ParticleSystem.compute-bg ps) (/ (+ PARTICLE-MAX 63) 64))
 
-        ;; Clear CPU spawn queue
-        (let [sq (ParticleSystem.spawn-queue ps)]
-          (while (not (Array.empty? sq))
-            (ignore (Array.pop-back! sq))))
-        (ParticleSystem.set-spawn-count! ps 0))))
+            ;; Submit batch
+            (GPUBatcher.end-batch ctx batch-encoder)
+
+            ;; Clear CPU spawn queue
+            (let [sq (ParticleSystem.spawn-queue ps)]
+              (while (not (Array.empty? sq))
+                (ignore (Array.pop-back! sq))))
+            (ParticleSystem.set-spawn-count! ps 0))))))
 
   ;; -------------------------------------------------------------------------
   ;; Render particles as point sprites
-  ;; Called during the render pass, after the voxel raymarch, before line pass
+  ;; If sleeping (0 active particles), skips draw call completely!
   ;; -------------------------------------------------------------------------
   (defn render [frame ctx ps cam depth]
-    (let [vp (Camera.view-projection cam)
-          vp-data (CameraMat4.data &vp)]
-      (do
-        ;; Update VP matrix
-        (WGPURender.update-uniform-buffer ctx @(ParticleSystem.vp-buffer ps) vp-data)
-        ;; Draw all particle slots (dead ones get clipped by vertex shader)
-        (WGPURender.run-geom-pass-overlay frame @(ParticleSystem.render-pipeline ps) @(ParticleSystem.render-bg ps) @(ParticleSystem.particle-buffer ps) depth (Uint32.from-long (Long.from-int PARTICLE-MAX)) (Maybe.Nothing)))))
+    (let [af @(ParticleSystem.active-frames ps)]
+      (when (> af 0)
+        (let [vp (Camera.view-projection cam)
+              vp-data (CameraMat4.data &vp)]
+          (do
+            ;; Update VP matrix
+            (WGPURender.update-uniform-buffer ctx @(ParticleSystem.vp-buffer ps) vp-data)
+            ;; Draw all particle slots (dead ones get clipped by vertex shader)
+            (WGPURender.run-geom-pass-overlay frame @(ParticleSystem.render-pipeline ps) @(ParticleSystem.render-bg ps) @(ParticleSystem.particle-buffer ps) depth (Uint32.from-long (Long.from-int PARTICLE-MAX)) (Maybe.Nothing)))))))
 
 )

@@ -83,7 +83,8 @@
                             input (InputManager.create ctx backend)
                             ps-ctx @(M-WGPUContext.p (Engine.ctx &platform-eng))
                             surf-format (WGPURender.surface-format @(M-WGPUSurface.p (Engine.surf &platform-eng)))
-                            ps (ParticleSystem.create ps-ctx &surf-format)]
+                            solid-tex @(M-RenderTexture.p (Renderer.voxel-texture &ren))
+                            ps (ParticleSystem.create ps-ctx &surf-format solid-tex)]
                         (Result.Success (EngineState.init platform-eng ren world player uniforms (Array.replicate 1200000 &0.0f) diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid (Coordinator.new) 0 0 0 input scratch-arena (Clock.new) 0.0 ps))))))))))
 
   (defn draw-bounds-wireframe! [ren min-x min-y min-z max-x max-y max-z color]
@@ -180,6 +181,7 @@
         
         (InputManager.add-binding! input "spawn-entity" (InputSource.Key GLFW.Keycode.R) 1.0)
         (InputManager.add-binding! input "spawn-particles" (InputSource.Key GLFW.Keycode.P) 1.0)
+        (InputManager.add-binding! input "spawn-magic" (InputSource.Key GLFW.Keycode.O) 1.0)
         
         (InputManager.add-binding! input "look-x" (InputSource.MouseDeltaX) 1.0)
         (InputManager.add-binding! input "click-left" (InputSource.MouseButton 0) 1.0)

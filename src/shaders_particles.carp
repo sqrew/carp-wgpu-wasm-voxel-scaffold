@@ -1,11 +1,12 @@
 ;; =============================================================================
 ;; Particle System Shaders
-;; GPU compute (spawn + update) and render (point-list) WGSL shaders
+;; GPU compute (spawn + update with voxel collision) and render (point-list) WGSL shaders
 ;; =============================================================================
 
 ;; ---------------------------------------------------------------------------
-;; Compute shader: shared between spawn and update entry points
-;; Particle struct is 32 bytes: pos(vec3) + life(f32) + vel(vec3) + max_life(f32)
+;; Compute shader: unified spawn and physics integration with voxel collision
+;; Particle struct is 32 bytes: pos(vec3) + life(f32) + vel(vec3) + max_life_type(f32)
+;; max_life_type packs (f16 max_life, f16 ptype) into a single 32-bit float
 ;; ---------------------------------------------------------------------------
 (def particle-compute-wgsl
   "const MAX_PARTICLES: u32 = 131072u;
@@ -15,7 +16,7 @@ struct Particle {
     pos: vec3<f32>,
     life: f32,
     vel: vec3<f32>,
-    max_life: f32,
+    max_life_type: f32,
 }
 
 struct SpawnRequest {
@@ -23,6 +24,10 @@ struct SpawnRequest {
     count: f32,
     vel: vec3<f32>,
     lifetime: f32,
+    ptype: f32,
+    spread: f32,
+    restitution: f32,
+    pad: f32,
 }
 
 @group(0) @binding(0) var<storage, read_write> particles: array<Particle>;
@@ -30,6 +35,7 @@ struct SpawnRequest {
 @group(0) @binding(2) var<storage, read> spawn_queue: array<SpawnRequest>;
 @group(0) @binding(3) var<storage, read> spawn_params: array<f32>;
 @group(0) @binding(4) var<storage, read> time_params: array<f32>;
+@group(0) @binding(5) var solid_texture: texture_3d<f32>;
 
 fn hash(seed: u32) -> f32 {
     var s = seed;
@@ -51,6 +57,43 @@ fn random_in_sphere(seed: u32) -> vec3<f32> {
     return vec / len;
 }
 
+// Sample voxel texture at world position
+fn get_voxel(pos: vec3<f32>) -> vec4<f32> {
+    let wrapped = pos - floor(pos / 160.0) * 160.0;
+    let ip = vec3<i32>(clamp(wrapped, vec3<f32>(0.0), vec3<f32>(159.0)));
+    return textureLoad(solid_texture, ip, 0);
+}
+
+// True if position is inside solid voxel or below bedrock floor
+fn check_collision(pos: vec3<f32>) -> bool {
+    if (pos.y <= 0.0) { return true; }
+    let vox = get_voxel(pos);
+    return vox.r > 0.5;
+}
+
+// Estimate collision normal using neighboring voxel samples
+fn get_normal(pos: vec3<f32>) -> vec3<f32> {
+    if (pos.y <= 0.2) { return vec3<f32>(0.0, 1.0, 0.0); }
+    let eps = 0.5;
+    let s_xp = check_collision(pos + vec3<f32>(eps, 0.0, 0.0));
+    let s_xm = check_collision(pos - vec3<f32>(eps, 0.0, 0.0));
+    let s_yp = check_collision(pos + vec3<f32>(0.0, eps, 0.0));
+    let s_ym = check_collision(pos - vec3<f32>(0.0, eps, 0.0));
+    let s_zp = check_collision(pos + vec3<f32>(0.0, 0.0, eps));
+    let s_zm = check_collision(pos - vec3<f32>(0.0, 0.0, eps));
+
+    var n = vec3<f32>(
+        f32(i32(s_xm) - i32(s_xp)),
+        f32(i32(s_ym) - i32(s_yp)),
+        f32(i32(s_zm) - i32(s_zp))
+    );
+    let len = length(n);
+    if (len < 0.1) {
+        return vec3<f32>(0.0, 1.0, 0.0);
+    }
+    return n / len;
+}
+
 @compute @workgroup_size(64)
 fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let i = global_id.x;
@@ -65,15 +108,26 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 if (req_count > 0u) {
                     let base = atomicAdd(&write_head, req_count);
                     let vel_len = length(req.vel);
+                    let spread_factor = max(req.spread, 0.1);
                     for (var j = 0u; j < req_count; j++) {
                         let slot = (base + j) % MAX_PARTICLES;
                         let seed = (base + j) * 17u + r * 31u + 1u;
                         var np: Particle;
                         let jitter = random_in_sphere(seed);
-                        np.pos = req.pos + jitter * 0.25;
-                        np.vel = req.vel + jitter * max(vel_len, 2.0) * 0.5;
-                        np.life = req.lifetime * (0.6 + hash(seed + 100u) * 0.8);
-                        np.max_life = np.life;
+                        np.pos = req.pos + jitter * 0.2;
+                        
+                        // Push slightly out of surface if starting inside solid
+                        if (check_collision(np.pos)) {
+                            let norm = get_normal(np.pos);
+                            np.pos += norm * 0.35;
+                        }
+                        
+                        np.vel = req.vel + jitter * max(vel_len, 2.0) * spread_factor;
+                        np.life = req.lifetime * (0.7 + hash(seed + 100u) * 0.6);
+                        
+                        // Pack lifetime and ptype into max_life_type
+                        np.max_life_type = bitcast<f32>(pack2x16float(vec2<f32>(np.life, req.ptype)));
+                        
                         particles[slot] = np;
                     }
                 }
@@ -88,20 +142,80 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     let dt = time_params[0];
 
-    // Gravity
-    p.vel.y -= 9.8 * dt;
+    // Unpack max_life and ptype
+    let unpacked = unpack2x16float(bitcast<u32>(p.max_life_type));
+    let ptype = u32(unpacked.y + 0.5);
 
-    // Air resistance
-    p.vel *= 0.98;
+    // Physical properties tailored per particle type
+    var grav = -9.8;
+    var drag = 0.98;
+    var bounciness = 0.55;
 
-    // Integrate position
-    p.pos += p.vel * dt;
+    if (ptype == 0u) {
+        // 0: Sparks - energetic, bouncy, ballistic
+        grav = -11.0;
+        drag = 0.975;
+        bounciness = 0.55;
+    } else if (ptype == 1u) {
+        // 1: Dust - light, floats, high air drag, settles gently
+        grav = -1.8;
+        drag = 0.88;
+        bounciness = 0.0;
+    } else if (ptype == 2u) {
+        // 2: Debris - heavy chunks, low bounciness
+        grav = -15.0;
+        drag = 0.985;
+        bounciness = 0.30;
+    } else if (ptype == 3u) {
+        // 3: Smoke - rises into the air!
+        grav = 2.0;
+        drag = 0.86;
+        bounciness = 0.0;
+    } else {
+        // 4: Magic / Arcane - floaty, low gravity, high ricochet
+        grav = -0.5;
+        drag = 0.97;
+        bounciness = 0.75;
+    }
+
+    // Apply gravity
+    p.vel.y += grav * dt;
+
+    // Apply air resistance
+    p.vel *= pow(drag, dt * 60.0);
+
+    // Predict next position
+    let next_pos = p.pos + p.vel * dt;
+
+    // Voxel world collision detection and response
+    if (check_collision(next_pos)) {
+        let n = get_normal(next_pos);
+        if (bounciness > 0.05) {
+            let vn = dot(p.vel, n);
+            if (vn < 0.0) {
+                // Bounce: reflect along normal with restitution
+                let v_normal = vn * n;
+                let v_tangent = p.vel - v_normal;
+                p.vel = (-v_normal * bounciness) + (v_tangent * 0.75); // surface friction
+                p.pos = p.pos + p.vel * dt + n * 0.05;
+                p.life -= dt * 1.5; // lose energy on collision
+            } else {
+                p.pos = next_pos;
+            }
+        } else {
+            // Settle on surface (Dust, Smoke)
+            p.vel = vec3<f32>(0.0);
+            p.life -= dt * 1.2;
+        }
+    } else {
+        p.pos = next_pos;
+    }
 
     // Decrement life
     p.life -= dt;
 
-    // Kill if expired or too far from world
-    if (p.life <= 0.0 || p.pos.y < -50.0 || length(p.pos) > 500.0) {
+    // Kill if expired or out of world
+    if (p.life <= 0.0 || p.pos.y < -50.0 || length(p.pos) > 600.0) {
         p.life = 0.0;
     }
 
@@ -110,9 +224,9 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 ")
 
 ;; ---------------------------------------------------------------------------
-;; Render shader: point-list with life-based color and alpha discard
+;; Render shader: point-list with type-aware color palettes and alpha fades
 ;; Vertex attributes: location(0) = vec4(pos.xyz, life)
-;;                    location(1) = vec4(vel.xyz, max_life)
+;;                    location(1) = vec4(vel.xyz, max_life_type)
 ;; ---------------------------------------------------------------------------
 (def particle-render-wgsl
   "struct Uniforms {
@@ -122,7 +236,7 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
 struct VertexInput {
     @location(0) pos_life: vec4<f32>,
-    @location(1) vel_maxlife: vec4<f32>,
+    @location(1) vel_maxlifetype: vec4<f32>,
 }
 
 struct VertexOutput {
@@ -134,8 +248,12 @@ struct VertexOutput {
     var out: VertexOutput;
     let pos = in.pos_life.xyz;
     let life = in.pos_life.w;
-    let max_life = in.vel_maxlife.w;
-    let vel = in.vel_maxlife.xyz;
+    let vel = in.vel_maxlifetype.xyz;
+
+    // Unpack max_life and particle type
+    let unpacked = unpack2x16float(bitcast<u32>(in.vel_maxlifetype.w));
+    let max_life = unpacked.x;
+    let ptype = u32(unpacked.y + 0.5);
 
     // Dead particle: move far off-screen and zero alpha
     if (life <= 0.0 || max_life <= 0.0) {
@@ -148,21 +266,42 @@ struct VertexOutput {
 
     // Normalized time remaining (1.0 = just born, 0.0 = about to die)
     let t = clamp(life / max_life, 0.0, 1.0);
-
-    // Speed-influenced brightness
     let speed = clamp(length(vel) / 20.0, 0.0, 1.0);
 
-    // Color: bright yellow-white -> orange -> red -> dim
-    let r = mix(0.4, 1.0, t);
-    let g = mix(0.1, 0.95, t * t) * (0.6 + speed * 0.4);
-    let b = mix(0.0, 0.4, t * t * t);
+    var col: vec4<f32>;
 
-    out.color = vec4<f32>(r, g, b, 1.0);
+    if (ptype == 0u) {
+        // 0: Sparks - brilliant hot ember: white-yellow -> orange -> ruby red -> dim
+        let r = mix(0.4, 1.0, t);
+        let g = mix(0.05, 0.95, t * t) * (0.6 + speed * 0.4);
+        let b = mix(0.0, 0.45, t * t * t);
+        col = vec4<f32>(r, g, b, 1.0);
+    } else if (ptype == 1u) {
+        // 1: Dust - soft earthy sandstone / clay tan -> dusty gray
+        let base_dust = vec3<f32>(0.74, 0.67, 0.56);
+        let fade_dust = vec3<f32>(0.42, 0.38, 0.33);
+        let c = mix(fade_dust, base_dust, t);
+        col = vec4<f32>(c, t); // alpha fade as it dissipates
+    } else if (ptype == 2u) {
+        // 2: Debris - slate / granite rock chips
+        let c = mix(vec3<f32>(0.24, 0.23, 0.22), vec3<f32>(0.52, 0.50, 0.47), t);
+        col = vec4<f32>(c, 1.0);
+    } else if (ptype == 3u) {
+        // 3: Smoke - soft rising ash/gray vapor
+        let c = mix(vec3<f32>(0.22, 0.22, 0.24), vec3<f32>(0.58, 0.58, 0.60), t);
+        col = vec4<f32>(c, t * 0.8);
+    } else {
+        // 4: Magic / Arcane - glowing cyan-magenta plasma
+        let c = mix(vec3<f32>(0.85, 0.15, 0.95), vec3<f32>(0.12, 0.92, 1.0), t);
+        col = vec4<f32>(c, 1.0);
+    }
+
+    out.color = col;
     return out;
 }
 
 @fragment fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    if (in.color.a < 0.01) { discard; }
+    if (in.color.a < 0.02) { discard; }
     return in.color;
 }
 ")

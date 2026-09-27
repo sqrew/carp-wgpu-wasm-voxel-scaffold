@@ -62,8 +62,12 @@
                          phz (Double.to-float @(Vector3.z &hit-pos))]
                      (do
                        (if carve?
-                         (ParticleSystem.emit-sparks! ps phx phy phz 0.0f 1.0f 0.0f 24)
-                         (ParticleSystem.emit-dust! ps phx phy phz 12))
+                         (do
+                           (ParticleSystem.emit-sparks! ps phx phy phz 0.0f 1.0f 0.0f 24)
+                           (ParticleSystem.emit-debris! ps phx phy phz 0.0f 1.0f 0.0f 8))
+                         (do
+                           (ParticleSystem.emit-dust! ps phx phy phz 20)
+                           (ParticleSystem.emit-debris! ps phx phy phz 0.0f 1.0f 0.0f 4)))
                        (ignore (World.edit-sdf! world &hit-pos radius mat-id carve?))))))))))
 )
 )
