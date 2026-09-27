@@ -41,6 +41,7 @@
   scratch-arena Arena.T
   clock Clock
   accumulator Double
+  particles ParticleSystem
 ])
 
 (defmodule EngineState
@@ -79,8 +80,11 @@
                     (ECS.add-component! &ecs-world &player-ent (CompGrounded.init false))
                     (let [backend (GLFWBackend.init)
                             ctx (glfw-window->voidptr @(M-GLFWWindow.p (Engine.win &platform-eng)))
-                            input (InputManager.create ctx backend)]
-                        (Result.Success (EngineState.init platform-eng ren world player uniforms (Array.replicate 1200000 &0.0f) diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid (Coordinator.new) 0 0 0 input scratch-arena (Clock.new) 0.0))))))))))
+                            input (InputManager.create ctx backend)
+                            ps-ctx @(M-WGPUContext.p (Engine.ctx &platform-eng))
+                            surf-format (WGPURender.surface-format @(M-WGPUSurface.p (Engine.surf &platform-eng)))
+                            ps (ParticleSystem.create ps-ctx &surf-format)]
+                        (Result.Success (EngineState.init platform-eng ren world player uniforms (Array.replicate 1200000 &0.0f) diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid (Coordinator.new) 0 0 0 input scratch-arena (Clock.new) 0.0 ps))))))))))
 
   (defn draw-bounds-wireframe! [ren min-x min-y min-z max-x max-y max-z color]
     (let [w0 (Vector3.init min-x min-y min-z)
@@ -175,6 +179,7 @@
         (InputManager.add-binding! input "edit-paint" (InputSource.Key GLFW.Keycode.G) 1.0)
         
         (InputManager.add-binding! input "spawn-entity" (InputSource.Key GLFW.Keycode.R) 1.0)
+        (InputManager.add-binding! input "spawn-particles" (InputSource.Key GLFW.Keycode.P) 1.0)
         
         (InputManager.add-binding! input "look-x" (InputSource.MouseDeltaX) 1.0)
         (InputManager.add-binding! input "click-left" (InputSource.MouseButton 0) 1.0)
@@ -424,8 +429,16 @@
     (let [platform-eng (EngineState.eng state)
           ren (EngineState.renderer state)
           cam (Player.camera (EngineState.player state))
-          diag (EngineState.diag state)]
-      (Renderer.draw platform-eng ren cam diag)))
+          diag (EngineState.diag state)
+          ps (EngineState.particles state)
+          ctx @(M-WGPUContext.p (Engine.ctx platform-eng))
+          dt (Clock.unscaled-dt (EngineState.clock state))]
+      (do
+        ;; Dispatch particle compute (spawn + update) before the main render
+        (Diagnostics.with-zone diag "Particle Compute"
+          (ParticleSystem.flush-and-dispatch! ctx ps dt))
+        ;; Run main voxel render (sim passes + raymarch + particles + line pass + present)
+        (Renderer.draw platform-eng ren cam diag ps))))
 
   (defn post-render! [state]
     (let [platform-eng (EngineState.eng state)

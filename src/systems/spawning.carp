@@ -2,26 +2,41 @@
   (defn update! [state input]
     (let [player (EngineState.player state)
           cam (Player.camera player)]
-      (when (and (InputManager.action-pressed? input "spawn-entity") (> (- @(EngineState.frame-count state) @(EngineState.sync-qx state)) 10))
-        (do
-          (EngineState.set-sync-qx! state @(EngineState.frame-count state))
+      (do
+        (when (InputManager.action-digital? input "spawn-particles")
           (let [pos (Camera.pos cam)
-              dir (Camera.front cam)
-              vel (Vector3.mul dir 15.0)
-              color (Vector3.init 0.8 0.2 0.2)
-              ecs (EngineState.ecs-world state)
-              e (GameWorld.create-entity! ecs)
-              rb (RigidBody.new @pos (Quaternion.identity) 1.0 0.6 0.4 0.1 0.1 0.1)
-              vol (Volume.Ball (Sphere.init @pos 0.5))]
+                dir (Camera.front cam)
+                ps (EngineState.particles state)
+                px (Double.to-float @(Vector3.x pos))
+                py (Double.to-float @(Vector3.y pos))
+                pz (Double.to-float @(Vector3.z pos))
+                fx (Double.to-float @(Vector3.x dir))
+                fy (Double.to-float @(Vector3.y dir))
+                fz (Double.to-float @(Vector3.z dir))
+                sx (+ px (* fx 1.5f))
+                sy (+ py (* fy 1.5f))
+                sz (+ pz (* fz 1.5f))]
+            (ParticleSystem.emit! ps sx sy sz (* fx 20.0f) (* fy 20.0f) (* fz 20.0f) 2.0f 48)))
+        (when (and (InputManager.action-pressed? input "spawn-entity") (> (- @(EngineState.frame-count state) @(EngineState.sync-qx state)) 10))
           (do
-            (Body.set-velocity! (RigidBody.body &rb) vel)
-            (add-component! ecs &e (CompBody.init rb))
-            (add-component! ecs &e (CompVolume.init vol))
-            (add-component! ecs &e (CompColor.init color))
-            (let [idx (ECS.Entity.index &e)
-                  gen (ECS.Entity.generation &e)
-                  ecs-ptr (Unsafe.coerce (EngineState.ecs-world state))]
+            (EngineState.set-sync-qx! state @(EngineState.frame-count state))
+            (let [pos (Camera.pos cam)
+                  dir (Camera.front cam)
+                  vel (Vector3.mul dir 15.0)
+                  color (Vector3.init 0.8 0.2 0.2)
+                  ecs (EngineState.ecs-world state)
+                  e (GameWorld.create-entity! ecs)
+                  rb (RigidBody.new @pos (Quaternion.identity) 1.0 0.6 0.4 0.1 0.1 0.1)
+                  vol (Volume.Ball (Sphere.init @pos 0.5))]
               (do
-                (let [_ (Coordinator.schedule! (EngineState.coord state) (AppEvent.DespawnEntity ecs-ptr idx gen) 15000l)] ())
-                ()))))))))
+                (Body.set-velocity! (RigidBody.body &rb) vel)
+                (add-component! ecs &e (CompBody.init rb))
+                (add-component! ecs &e (CompVolume.init vol))
+                (add-component! ecs &e (CompColor.init color))
+                (let [idx (ECS.Entity.index &e)
+                      gen (ECS.Entity.generation &e)
+                      ecs-ptr (Unsafe.coerce (EngineState.ecs-world state))]
+                  (do
+                    (let [_ (Coordinator.schedule! (EngineState.coord state) (AppEvent.DespawnEntity ecs-ptr idx gen) 15000l)] ())
+                    ())))))))))
 )

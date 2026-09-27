@@ -55,7 +55,15 @@
                  (when (and (or left-pressed right-pressed) f-held)
                    (let [radius @(Player.edit-radius player)
                          mat-id @(Player.current-mat player)
-                         carve? left-pressed]
-                     (ignore (World.edit-sdf! world &hit-pos radius mat-id carve?)))))))))
+                         carve? left-pressed
+                         ps (EngineState.particles state)
+                         phx (Double.to-float @(Vector3.x &hit-pos))
+                         phy (Double.to-float @(Vector3.y &hit-pos))
+                         phz (Double.to-float @(Vector3.z &hit-pos))]
+                     (do
+                       (if carve?
+                         (ParticleSystem.emit-sparks! ps phx phy phz 0.0f 1.0f 0.0f 24)
+                         (ParticleSystem.emit-dust! ps phx phy phz 12))
+                       (ignore (World.edit-sdf! world &hit-pos radius mat-id carve?))))))))))
 )
 )

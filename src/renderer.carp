@@ -1,6 +1,7 @@
 (load "scaffold.carp")
 (load "camera.carp")
 (load "line_pass.carp")
+(load "particles.carp")
 (load "../../carp-diagnostics/diagnostics.carp")
 
 (relative-include "gpu_readback.h")
@@ -407,7 +408,7 @@
                                        160 160 160)
         (GPUBatcher.end-batch ctx batch-encoder))))
 
-  (defn draw [eng ren cam diag]
+  (defn draw [eng ren cam diag ps]
     (do
       (Diagnostics.with-zone diag "Resize Check" (Renderer.handle-resize! eng ren))
       (Diagnostics.with-zone diag "Compute Sim Passes" (Renderer.run-simulation-passes! eng ren))
@@ -425,14 +426,18 @@
               (Diagnostics.with-zone diag "WGPU Voxel Raymarch"
                 (WGPURender.run-pass frame @(M-RenderPipeline.p (Renderer.pipeline ren)) @(Renderer.bind-group ren) (Maybe.Nothing)))
               
-              ;; 2. Line pass (drawn on top)
+              ;; 2. Particle pass (drawn on top of voxels)
+              (Diagnostics.with-zone diag "WGPU Particle Pass"
+                (ParticleSystem.render frame ctx ps cam depth))
+              
+              ;; 3. Line pass (drawn on top)
               (Diagnostics.with-zone diag "WGPU Line Pass"
                 (LinePass.render frame ctx (Renderer.line-pass ren) line-count depth (Maybe.Nothing)))
               
-              ;; 3. Clear lines
+              ;; 4. Clear lines
               (Renderer.clear-lines! ren)
               
-              ;; 4. Present
+              ;; 5. Present
               (Diagnostics.with-zone diag "Present Frame"
                 (Engine.end-frame eng frame)))))))
 

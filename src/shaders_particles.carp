@@ -1,0 +1,168 @@
+;; =============================================================================
+;; Particle System Shaders
+;; GPU compute (spawn + update) and render (point-list) WGSL shaders
+;; =============================================================================
+
+;; ---------------------------------------------------------------------------
+;; Compute shader: shared between spawn and update entry points
+;; Particle struct is 32 bytes: pos(vec3) + life(f32) + vel(vec3) + max_life(f32)
+;; ---------------------------------------------------------------------------
+(def particle-compute-wgsl
+  "const MAX_PARTICLES: u32 = 131072u;
+const MAX_SPAWN_REQUESTS: u32 = 1024u;
+
+struct Particle {
+    pos: vec3<f32>,
+    life: f32,
+    vel: vec3<f32>,
+    max_life: f32,
+}
+
+struct SpawnRequest {
+    pos: vec3<f32>,
+    count: f32,
+    vel: vec3<f32>,
+    lifetime: f32,
+}
+
+@group(0) @binding(0) var<storage, read_write> particles: array<Particle>;
+@group(0) @binding(1) var<storage, read_write> write_head: atomic<u32>;
+@group(0) @binding(2) var<storage, read> spawn_queue: array<SpawnRequest>;
+@group(0) @binding(3) var<storage, read> spawn_params: array<f32>;
+@group(0) @binding(4) var<storage, read> time_params: array<f32>;
+
+fn hash(seed: u32) -> f32 {
+    var s = seed;
+    s = ((s >> 16u) ^ s) * 0x45d9f3bu;
+    s = ((s >> 16u) ^ s) * 0x45d9f3bu;
+    s = (s >> 16u) ^ s;
+    return f32(s & 0xFFFFu) / 65535.0;
+}
+
+fn random_in_sphere(seed: u32) -> vec3<f32> {
+    let u = hash(seed) * 2.0 - 1.0;
+    let v = hash(seed + 1u) * 2.0 - 1.0;
+    let w = hash(seed + 2u) * 2.0 - 1.0;
+    let vec = vec3<f32>(u, v, w);
+    let len = length(vec);
+    if (len < 0.001) {
+        return vec3<f32>(0.0, 1.0, 0.0);
+    }
+    return vec / len;
+}
+
+@compute @workgroup_size(64)
+fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let i = global_id.x;
+
+    // Thread 0 processes any pending spawn requests
+    if (i == 0u) {
+        let sc = u32(spawn_params[0] + 0.5);
+        if (sc > 0u) {
+            for (var r = 0u; r < sc && r < MAX_SPAWN_REQUESTS; r++) {
+                let req = spawn_queue[r];
+                let req_count = u32(req.count + 0.5);
+                if (req_count > 0u) {
+                    let base = atomicAdd(&write_head, req_count);
+                    let vel_len = length(req.vel);
+                    for (var j = 0u; j < req_count; j++) {
+                        let slot = (base + j) % MAX_PARTICLES;
+                        let seed = (base + j) * 17u + r * 31u + 1u;
+                        var np: Particle;
+                        let jitter = random_in_sphere(seed);
+                        np.pos = req.pos + jitter * 0.25;
+                        np.vel = req.vel + jitter * max(vel_len, 2.0) * 0.5;
+                        np.life = req.lifetime * (0.6 + hash(seed + 100u) * 0.8);
+                        np.max_life = np.life;
+                        particles[slot] = np;
+                    }
+                }
+            }
+        }
+    }
+
+    if (i >= MAX_PARTICLES) { return; }
+
+    var p = particles[i];
+    if (p.life <= 0.0) { return; }
+
+    let dt = time_params[0];
+
+    // Gravity
+    p.vel.y -= 9.8 * dt;
+
+    // Air resistance
+    p.vel *= 0.98;
+
+    // Integrate position
+    p.pos += p.vel * dt;
+
+    // Decrement life
+    p.life -= dt;
+
+    // Kill if expired or too far from world
+    if (p.life <= 0.0 || p.pos.y < -50.0 || length(p.pos) > 500.0) {
+        p.life = 0.0;
+    }
+
+    particles[i] = p;
+}
+")
+
+;; ---------------------------------------------------------------------------
+;; Render shader: point-list with life-based color and alpha discard
+;; Vertex attributes: location(0) = vec4(pos.xyz, life)
+;;                    location(1) = vec4(vel.xyz, max_life)
+;; ---------------------------------------------------------------------------
+(def particle-render-wgsl
+  "struct Uniforms {
+    view_proj: mat4x4<f32>,
+}
+@group(0) @binding(0) var<uniform> u: Uniforms;
+
+struct VertexInput {
+    @location(0) pos_life: vec4<f32>,
+    @location(1) vel_maxlife: vec4<f32>,
+}
+
+struct VertexOutput {
+    @builtin(position) clip_position: vec4<f32>,
+    @location(0) color: vec4<f32>,
+}
+
+@vertex fn vs_main(in: VertexInput) -> VertexOutput {
+    var out: VertexOutput;
+    let pos = in.pos_life.xyz;
+    let life = in.pos_life.w;
+    let max_life = in.vel_maxlife.w;
+    let vel = in.vel_maxlife.xyz;
+
+    // Dead particle: move far off-screen and zero alpha
+    if (life <= 0.0 || max_life <= 0.0) {
+        out.clip_position = vec4<f32>(100.0, 100.0, 100.0, 1.0);
+        out.color = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+        return out;
+    }
+
+    out.clip_position = u.view_proj * vec4<f32>(pos, 1.0);
+
+    // Normalized time remaining (1.0 = just born, 0.0 = about to die)
+    let t = clamp(life / max_life, 0.0, 1.0);
+
+    // Speed-influenced brightness
+    let speed = clamp(length(vel) / 20.0, 0.0, 1.0);
+
+    // Color: bright yellow-white -> orange -> red -> dim
+    let r = mix(0.4, 1.0, t);
+    let g = mix(0.1, 0.95, t * t) * (0.6 + speed * 0.4);
+    let b = mix(0.0, 0.4, t * t * t);
+
+    out.color = vec4<f32>(r, g, b, 1.0);
+    return out;
+}
+
+@fragment fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    if (in.color.a < 0.01) { discard; }
+    return in.color;
+}
+")
