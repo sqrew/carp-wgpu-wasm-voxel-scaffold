@@ -1,18 +1,163 @@
 ;; =============================================================================
 ;; GPU Particle System
 ;; Fire-and-forget GPU-resident particles with ring buffer pool management,
-;; voxel world collision, multi-type physical behavior, and adaptive sleep.
+;; voxel world collision, multi-type physical behavior, adaptive sleep,
+;; and camera-facing billboard quads with premultiplied alpha radial glow.
 ;; =============================================================================
 
 (load "shaders_particles.carp")
 
 (use WGPU)
 (use WGPURender)
+(register-type WGPURenderPipeline)
+(defmodule WGPURenderPipeline
+  (deftemplate copy (Fn [(Ref WGPURenderPipeline)] WGPURenderPipeline)
+    "WGPURenderPipeline $NAME(WGPURenderPipeline* p)"
+    "$DECL { return *p; }")
+  (implements copy WGPURenderPipeline.copy)
 
-;; Extracting raw WGPUBuffer from wrapped vertex buffer
+  (deftemplate str (Fn [(Ref WGPURenderPipeline)] String)
+    "String $NAME(WGPURenderPipeline* p)"
+    "$DECL { return strdup(\"WGPURenderPipeline\"); }")
+  (implements str WGPURenderPipeline.str)
+
+  (deftemplate prn (Fn [WGPURenderPipeline] String)
+    "String $NAME(WGPURenderPipeline p)"
+    "$DECL { return strdup(\"WGPURenderPipeline\"); }")
+  (implements prn WGPURenderPipeline.prn))
+
+;; Extracting raw WGPUBuffer from wrapped buffers
 (deftemplate particle-get-v-buffer (Fn [(Ptr WGPUVertexBufferWrapper)] WGPUBuffer)
   "WGPUBuffer $NAME(WGPUVertexBufferWrapper* w)"
   "$DECL { return w->buffer; }")
+
+(deftemplate particle-get-u-buffer (Fn [(Ptr WGPUUniformBufferWrapper)] WGPUBuffer)
+  "WGPUBuffer $NAME(WGPUUniformBufferWrapper* w)"
+  "$DECL { return w->buffer; }")
+
+;; Create billboard render pipeline (no vertex buffers, triangle-list, premultiplied alpha blend)
+(deftemplate particle-create-billboard-pipeline (Fn [(Ptr WGPUContext) (Ptr CChar) (Ptr CChar)] WGPURenderPipeline)
+  "WGPURenderPipeline $NAME(WGPUContext* ctx, const char* src, const char* fmt_str)"
+  "$DECL {
+      if (!ctx || !ctx->device || !src || !fmt_str) return NULL;
+      WGPUTextureFormat fmt = WGPUTextureFormat_BGRA8Unorm;
+      if (fmt_str && (strcmp(fmt_str, \"rgba8unorm\") == 0 || strcmp(fmt_str, \"rgba8unorm-srgb\") == 0)) {
+          fmt = WGPUTextureFormat_RGBA8Unorm;
+      } else if (fmt_str && (strcmp(fmt_str, \"bgra8unorm\") == 0 || strcmp(fmt_str, \"bgra8unorm-srgb\") == 0)) {
+          fmt = WGPUTextureFormat_BGRA8Unorm;
+      }
+
+      WGPUShaderSourceWGSL wgsl = {
+          .chain = { .sType = WGPUSType_ShaderSourceWGSL },
+          .code = { .data = src, .length = strlen(src) },
+      };
+      WGPUShaderModuleDescriptor sm_desc = { .nextInChain = &wgsl.chain };
+      WGPUShaderModule shader = wgpuDeviceCreateShaderModule(ctx->device, &sm_desc);
+      if (!shader) return NULL;
+
+      WGPUBlendState blend = {
+          .color = {
+              .operation = WGPUBlendOperation_Add,
+              .srcFactor = WGPUBlendFactor_One,
+              .dstFactor = WGPUBlendFactor_OneMinusSrcAlpha,
+          },
+          .alpha = {
+              .operation = WGPUBlendOperation_Add,
+              .srcFactor = WGPUBlendFactor_One,
+              .dstFactor = WGPUBlendFactor_OneMinusSrcAlpha,
+          },
+      };
+
+      WGPUColorTargetState color_target = {
+          .format = fmt,
+          .blend = &blend,
+          .writeMask = WGPUColorWriteMask_All,
+      };
+
+      WGPUFragmentState fragment = {
+          .module = shader,
+          .entryPoint = { .data = \"fs_main\", .length = 7 },
+          .targetCount = 1,
+          .targets = &color_target,
+      };
+
+      WGPUDepthStencilState depth_stencil = {
+          .format = WGPUTextureFormat_Depth24Plus,
+          .depthWriteEnabled = false,
+          .depthCompare = WGPUCompareFunction_LessEqual,
+          .stencilFront = { .compare = WGPUCompareFunction_Always },
+          .stencilBack = { .compare = WGPUCompareFunction_Always },
+      };
+
+      WGPURenderPipelineDescriptor pipe_desc = {
+          .vertex = {
+              .module = shader,
+              .entryPoint = { .data = \"vs_main\", .length = 7 },
+              .bufferCount = 0,
+              .buffers = NULL,
+          },
+          .primitive = {
+              .topology = WGPUPrimitiveTopology_TriangleList,
+              .frontFace = WGPUFrontFace_CCW,
+              .cullMode = WGPUCullMode_None,
+          },
+          .depthStencil = &depth_stencil,
+          .multisample = {
+              .count = 1,
+              .mask = 0xFFFFFFFF,
+              .alphaToCoverageEnabled = 0,
+          },
+          .fragment = &fragment,
+      };
+
+      WGPURenderPipeline pipeline = wgpuDeviceCreateRenderPipeline(ctx->device, &pipe_desc);
+      wgpuShaderModuleRelease(shader);
+      return pipeline;
+  }")
+
+;; Execute billboard render pass
+(deftemplate particle-run-billboard-pass (Fn [(Ptr WGPUFrameState) WGPURenderPipeline WGPUBindGroup (Ptr WGPUDepthTexture) Uint32] ())
+  "void $NAME(WGPUFrameState* frame, WGPURenderPipeline pipeline, WGPUBindGroup bind_group, WGPUDepthTexture* depth, uint32_t particle_count)"
+  "$DECL {
+      if (!frame || !pipeline || !depth) return;
+      WGPUTextureView target_view = frame->swapchain_view;
+
+      WGPURenderPassColorAttachment color_att = {
+          .view = target_view,
+          .loadOp = WGPULoadOp_Load,
+          .storeOp = WGPUStoreOp_Store,
+          .clearValue = { .r = 0.0, .g = 0.0, .b = 0.0, .a = 1.0 },
+          .depthSlice = WGPU_DEPTH_SLICE_UNDEFINED,
+      };
+
+      WGPURenderPassDepthStencilAttachment depth_att = {
+          .view = depth->view,
+          .depthLoadOp = WGPULoadOp_Clear,
+          .depthStoreOp = WGPUStoreOp_Store,
+          .depthClearValue = 1.0f,
+          .stencilLoadOp = WGPULoadOp_Undefined,
+          .stencilStoreOp = WGPUStoreOp_Undefined,
+          .depthReadOnly = false,
+          .stencilReadOnly = false,
+      };
+
+      WGPURenderPassDescriptor pass_desc = {
+          .colorAttachmentCount = 1,
+          .colorAttachments = &color_att,
+          .depthStencilAttachment = &depth_att,
+      };
+
+      WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(frame->encoder, &pass_desc);
+      if (!pass) return;
+
+      wgpuRenderPassEncoderSetPipeline(pass, pipeline);
+      if (bind_group) {
+          wgpuRenderPassEncoderSetBindGroup(pass, 0, bind_group, 0, NULL);
+      }
+      wgpuRenderPassEncoderDraw(pass, particle_count * 6, 1, 0, 0);
+      wgpuRenderPassEncoderEnd(pass);
+      wgpuRenderPassEncoderRelease(pass);
+  }")
 
 ;; Constants
 (def PARTICLE-MAX 131072)
@@ -27,13 +172,13 @@
 
 (deftype ParticleSystem [
   compute-pipeline WGPUComputePipeline
-  render-pipeline (Ptr WGPUGeomPipelineWrapper)
+  render-pipeline WGPURenderPipeline
   particle-buffer (Ptr WGPUVertexBufferWrapper)     ;; storage + vertex (128K * 32 bytes)
   write-head-buf (Ptr WGPUVertexBufferWrapper)       ;; storage: atomic u32
   spawn-queue-buf (Ptr WGPUVertexBufferWrapper)      ;; storage: SpawnRequest array (1024 * 48 bytes)
   spawn-count-buf (Ptr WGPUVertexBufferWrapper)      ;; storage: f32 (spawn count)
   dt-buf (Ptr WGPUVertexBufferWrapper)               ;; storage: f32 (delta time)
-  vp-buffer (Ptr WGPUUniformBufferWrapper)           ;; render: mat4x4 uniform
+  vp-buffer (Ptr WGPUUniformBufferWrapper)           ;; render: 96 bytes (view_proj + cam_right + cam_up)
   compute-bg WGPUBindGroup
   render-bg WGPUBindGroup
   spawn-queue (Array Float)                          ;; CPU-side staging for spawn requests
@@ -52,7 +197,7 @@
     (let [particle-floats (* PARTICLE-MAX 8)  ;; 8 floats per particle (32 bytes)
           initial-particles (the (Array Float) (Array.replicate particle-floats &0.0f))
 
-          ;; 2. Create storage-vertex buffer for particles (dual compute + vertex)
+          ;; 2. Create storage-vertex buffer for particles (dual compute + storage read in render)
           particle-buf-ptr (Result.unsafe-from-success (WGPURender.create-storage-vertex-buffer ctx &initial-particles))
 
           ;; 3. Write head buffer (single u32, initialized to 0, 16-byte aligned)
@@ -71,8 +216,8 @@
           dt-data (the (Array Float) [0.016f 0.0f 0.0f 0.0f])
           dt-ptr (Result.unsafe-from-success (WGPURender.create-storage-vertex-buffer ctx &dt-data))
 
-          ;; 7. VP matrix uniform buffer for render (64 bytes)
-          vp-ptr (Result.unsafe-from-success (WGPURender.create-uniform-buffer ctx 64))
+          ;; 7. VP + Camera basis uniform buffer for billboard render (96 bytes)
+          vp-ptr (Result.unsafe-from-success (WGPURender.create-uniform-buffer ctx 96))
 
           ;; 8. Create unified compute pipeline (single entry point compute_main)
           compute-pipe (Result.unsafe-from-success (WGPU.create-pipeline ctx particle-compute-wgsl "compute_main"))
@@ -90,11 +235,16 @@
           compute-bg (builder-build-compute ctx compute-pipe b)
           _free (builder-free b)
 
-          ;; 10. Create render pipeline (point-list, 32-byte stride)
-          render-pipe (Result.unsafe-from-success (WGPURender.create-geom-pipeline ctx particle-render-wgsl "vs_main" "fs_main" format "point-list" 32))
+          ;; 10. Create billboard render pipeline (vertex pulling, triangle-list, premultiplied alpha blend)
+          render-pipe (particle-create-billboard-pipeline ctx (String.cstr particle-render-wgsl) (String.cstr format))
 
-          ;; 11. Create render bind group (VP uniform)
-          render-bg (Result.unsafe-from-success (WGPURender.create-uniform-bind-group ctx render-pipe vp-ptr))
+          ;; 11. Create billboard render bind group: 0=uniforms, 1=particles storage
+          b-ren (builder-new)
+          _ren (do
+              (builder-add-buffer b-ren (particle-get-u-buffer vp-ptr))
+              (builder-add-buffer b-ren (particle-get-v-buffer particle-buf-ptr)))
+          render-bg (builder-build-render ctx render-pipe b-ren)
+          _free-ren (builder-free b-ren)
 
           ;; 12. CPU-side spawn queue (pre-allocate)
           cpu-spawn-queue (the (Array Float) [])]
@@ -220,18 +370,40 @@
             (ParticleSystem.set-spawn-count! ps 0))))))
 
   ;; -------------------------------------------------------------------------
-  ;; Render particles as point sprites
+  ;; Render particles as camera-facing billboard quads with premultiplied alpha
   ;; If sleeping (0 active particles), skips draw call completely!
   ;; -------------------------------------------------------------------------
   (defn render [frame ctx ps cam depth]
     (let [af @(ParticleSystem.active-frames ps)]
       (when (> af 0)
         (let [vp (Camera.view-projection cam)
-              vp-data (CameraMat4.data &vp)]
+              vp-data (CameraMat4.data &vp)
+              right (Camera.right cam)
+              up (Camera.up cam)
+              rx (Double.to-float @(Vector3.x right))
+              ry (Double.to-float @(Vector3.y right))
+              rz (Double.to-float @(Vector3.z right))
+              ux (Double.to-float @(Vector3.x up))
+              uy (Double.to-float @(Vector3.y up))
+              uz (Double.to-float @(Vector3.z up))
+              u-data (the (Array Float) (Array.replicate 24 &0.0f))]
           (do
-            ;; Update VP matrix
-            (WGPURender.update-uniform-buffer ctx @(ParticleSystem.vp-buffer ps) vp-data)
-            ;; Draw all particle slots (dead ones get clipped by vertex shader)
-            (WGPURender.run-geom-pass-overlay frame @(ParticleSystem.render-pipeline ps) @(ParticleSystem.render-bg ps) @(ParticleSystem.particle-buffer ps) depth (Uint32.from-long (Long.from-int PARTICLE-MAX)) (Maybe.Nothing)))))))
+            ;; Pack 16 floats of view_proj
+            (for [i 0 16]
+              (Array.aset! &u-data i @(Array.unsafe-nth vp-data i)))
+            ;; Pack cam_right (indices 16, 17, 18, 19)
+            (Array.aset! &u-data 16 rx)
+            (Array.aset! &u-data 17 ry)
+            (Array.aset! &u-data 18 rz)
+            (Array.aset! &u-data 19 0.0f)
+            ;; Pack cam_up (indices 20, 21, 22, 23)
+            (Array.aset! &u-data 20 ux)
+            (Array.aset! &u-data 21 uy)
+            (Array.aset! &u-data 22 uz)
+            (Array.aset! &u-data 23 0.0f)
+            ;; Update uniform buffer (96 bytes)
+            (WGPURender.update-uniform-buffer ctx @(ParticleSystem.vp-buffer ps) &u-data)
+            ;; Draw billboard quads (6 vertices per particle)
+            (particle-run-billboard-pass frame @(ParticleSystem.render-pipeline ps) @(ParticleSystem.render-bg ps) depth (Uint32.from-long (Long.from-int PARTICLE-MAX))))))))
 
 )

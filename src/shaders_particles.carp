@@ -1,6 +1,6 @@
 ;; =============================================================================
 ;; Particle System Shaders
-;; GPU compute (spawn + update with voxel collision) and render (point-list) WGSL shaders
+;; GPU compute (spawn + update with voxel collision) and billboard render shaders
 ;; =============================================================================
 
 ;; ---------------------------------------------------------------------------
@@ -224,84 +224,133 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 ")
 
 ;; ---------------------------------------------------------------------------
-;; Render shader: point-list with type-aware color palettes and alpha fades
-;; Vertex attributes: location(0) = vec4(pos.xyz, life)
-;;                    location(1) = vec4(vel.xyz, max_life_type)
+;; Billboard Render Shader: Vertex Pulling with Camera-facing Quad Expansion
+;; Premultiplied alpha blending: additive glow for sparks/magic, soft alpha for dust/smoke
 ;; ---------------------------------------------------------------------------
 (def particle-render-wgsl
-  "struct Uniforms {
+  "struct Particle {
+    pos: vec3<f32>,
+    life: f32,
+    vel: vec3<f32>,
+    max_life_type: f32,
+}
+
+struct Uniforms {
     view_proj: mat4x4<f32>,
+    cam_right: vec4<f32>,
+    cam_up:    vec4<f32>,
 }
 @group(0) @binding(0) var<uniform> u: Uniforms;
-
-struct VertexInput {
-    @location(0) pos_life: vec4<f32>,
-    @location(1) vel_maxlifetype: vec4<f32>,
-}
+@group(0) @binding(1) var<storage, read> particles: array<Particle>;
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) color: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+    @location(1) @interpolate(flat) ptype: u32,
+    @location(2) t: f32,
 }
 
-@vertex fn vs_main(in: VertexInput) -> VertexOutput {
+@vertex fn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {
     var out: VertexOutput;
-    let pos = in.pos_life.xyz;
-    let life = in.pos_life.w;
-    let vel = in.vel_maxlifetype.xyz;
+    let particle_idx = vi / 6u;
+    let corner_idx = vi % 6u;
 
-    // Unpack max_life and particle type
-    let unpacked = unpack2x16float(bitcast<u32>(in.vel_maxlifetype.w));
-    let max_life = unpacked.x;
-    let ptype = u32(unpacked.y + 0.5);
-
-    // Dead particle: move far off-screen and zero alpha
-    if (life <= 0.0 || max_life <= 0.0) {
+    if (particle_idx >= 131072u) {
         out.clip_position = vec4<f32>(100.0, 100.0, 100.0, 1.0);
-        out.color = vec4<f32>(0.0, 0.0, 0.0, 0.0);
         return out;
     }
 
-    out.clip_position = u.view_proj * vec4<f32>(pos, 1.0);
+    let p = particles[particle_idx];
 
-    // Normalized time remaining (1.0 = just born, 0.0 = about to die)
-    let t = clamp(life / max_life, 0.0, 1.0);
-    let speed = clamp(length(vel) / 20.0, 0.0, 1.0);
-
-    var col: vec4<f32>;
-
-    if (ptype == 0u) {
-        // 0: Sparks - brilliant hot ember: white-yellow -> orange -> ruby red -> dim
-        let r = mix(0.4, 1.0, t);
-        let g = mix(0.05, 0.95, t * t) * (0.6 + speed * 0.4);
-        let b = mix(0.0, 0.45, t * t * t);
-        col = vec4<f32>(r, g, b, 1.0);
-    } else if (ptype == 1u) {
-        // 1: Dust - soft earthy sandstone / clay tan -> dusty gray
-        let base_dust = vec3<f32>(0.74, 0.67, 0.56);
-        let fade_dust = vec3<f32>(0.42, 0.38, 0.33);
-        let c = mix(fade_dust, base_dust, t);
-        col = vec4<f32>(c, t); // alpha fade as it dissipates
-    } else if (ptype == 2u) {
-        // 2: Debris - slate / granite rock chips
-        let c = mix(vec3<f32>(0.24, 0.23, 0.22), vec3<f32>(0.52, 0.50, 0.47), t);
-        col = vec4<f32>(c, 1.0);
-    } else if (ptype == 3u) {
-        // 3: Smoke - soft rising ash/gray vapor
-        let c = mix(vec3<f32>(0.22, 0.22, 0.24), vec3<f32>(0.58, 0.58, 0.60), t);
-        col = vec4<f32>(c, t * 0.8);
-    } else {
-        // 4: Magic / Arcane - glowing cyan-magenta plasma
-        let c = mix(vec3<f32>(0.85, 0.15, 0.95), vec3<f32>(0.12, 0.92, 1.0), t);
-        col = vec4<f32>(c, 1.0);
+    // Dead particle: discard offscreen
+    if (p.life <= 0.0) {
+        out.clip_position = vec4<f32>(100.0, 100.0, 100.0, 1.0);
+        return out;
     }
 
-    out.color = col;
+    let unpacked = unpack2x16float(bitcast<u32>(p.max_life_type));
+    let max_life = unpacked.x;
+    let ptype = u32(unpacked.y + 0.5);
+
+    if (max_life <= 0.0) {
+        out.clip_position = vec4<f32>(100.0, 100.0, 100.0, 1.0);
+        return out;
+    }
+
+    let t = clamp(p.life / max_life, 0.0, 1.0);
+
+    // Quad corners and UVs: 2 triangles (0, 1, 2) and (3, 4, 5)
+    var offset = vec2<f32>(-1.0, -1.0);
+    var uv = vec2<f32>(0.0, 0.0);
+    if (corner_idx == 1u) { offset = vec2<f32>( 1.0, -1.0); uv = vec2<f32>(1.0, 0.0); }
+    else if (corner_idx == 2u) { offset = vec2<f32>(-1.0,  1.0); uv = vec2<f32>(0.0, 1.0); }
+    else if (corner_idx == 3u) { offset = vec2<f32>(-1.0,  1.0); uv = vec2<f32>(0.0, 1.0); }
+    else if (corner_idx == 4u) { offset = vec2<f32>( 1.0, -1.0); uv = vec2<f32>(1.0, 0.0); }
+    else if (corner_idx == 5u) { offset = vec2<f32>( 1.0,  1.0); uv = vec2<f32>(1.0, 1.0); }
+
+    // World size per particle type
+    var size: f32 = 0.06;
+    if (ptype == 0u) {
+        // Sparks: snappy sparks that start small and taper
+        size = mix(0.02, 0.06, t);
+    } else if (ptype == 1u) {
+        // Dust: puffs expand from 0.07 to 0.18 as they billow
+        size = mix(0.18, 0.07, t);
+    } else if (ptype == 2u) {
+        // Debris: chunky pebbles
+        size = 0.07;
+    } else if (ptype == 3u) {
+        // Smoke: expands into large clouds
+        size = mix(0.30, 0.09, t);
+    } else {
+        // Magic: medium glowing motes
+        size = mix(0.04, 0.08, t);
+    }
+
+    // Billboarding: expand perpendicular to view vector along camera right & up
+    let world_pos = p.pos + (u.cam_right.xyz * offset.x + u.cam_up.xyz * offset.y) * size;
+
+    out.clip_position = u.view_proj * vec4<f32>(world_pos, 1.0);
+    out.uv = uv;
+    out.ptype = ptype;
+    out.t = t;
     return out;
 }
 
 @fragment fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    if (in.color.a < 0.02) { discard; }
-    return in.color;
+    let d = length(in.uv - vec2<f32>(0.5));
+    if (d > 0.5) { discard; }
+
+    let radial = clamp(1.0 - d * 2.0, 0.0, 1.0);
+    let core = pow(radial, 2.0);
+
+    if (in.ptype == 0u) {
+        // 0: Sparks - burning ember with additive glow (alpha = 0 for pure additive)
+        let r = mix(0.4, 1.0, in.t);
+        let g = mix(0.05, 0.95, in.t * in.t);
+        let b = mix(0.0, 0.45, in.t * in.t * in.t);
+        let rgb = vec3<f32>(r, g, b) * (core * 2.0);
+        return vec4<f32>(rgb, 0.0);
+    } else if (in.ptype == 1u) {
+        // 1: Dust - soft earthy sandstone puff (premultiplied alpha)
+        let alpha = in.t * radial * 0.55;
+        let rgb = mix(vec3<f32>(0.42, 0.38, 0.33), vec3<f32>(0.74, 0.67, 0.56), in.t);
+        return vec4<f32>(rgb * alpha, alpha);
+    } else if (in.ptype == 2u) {
+        // 2: Debris - slate rock chip
+        let alpha = smoothstep(0.4, 0.5, 1.0 - d * 2.0);
+        let rgb = mix(vec3<f32>(0.24, 0.23, 0.22), vec3<f32>(0.52, 0.50, 0.47), in.t);
+        return vec4<f32>(rgb * alpha, alpha);
+    } else if (in.ptype == 3u) {
+        // 3: Smoke - soft rising translucent vapor
+        let alpha = in.t * radial * 0.40;
+        let rgb = mix(vec3<f32>(0.22, 0.22, 0.24), vec3<f32>(0.58, 0.58, 0.60), in.t);
+        return vec4<f32>(rgb * alpha, alpha);
+    } else {
+        // 4: Magic - electric cyan/magenta plasma with intense additive glow
+        let c = mix(vec3<f32>(0.85, 0.15, 0.95), vec3<f32>(0.12, 0.92, 1.0), in.t);
+        let rgb = c * (core * 2.5);
+        return vec4<f32>(rgb, 0.0);
+    }
 }
 ")
