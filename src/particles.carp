@@ -132,7 +132,7 @@
 
       WGPURenderPassDepthStencilAttachment depth_att = {
           .view = depth->view,
-          .depthLoadOp = WGPULoadOp_Clear,
+          .depthLoadOp = WGPULoadOp_Load,
           .depthStoreOp = WGPUStoreOp_Store,
           .depthClearValue = 1.0f,
           .stencilLoadOp = WGPULoadOp_Undefined,

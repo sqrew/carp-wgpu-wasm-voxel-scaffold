@@ -404,6 +404,11 @@
             (Array.aset! uniforms 38 0.0f)
             (Array.aset! uniforms 39 0.0f)
             
+            (let [vp (Camera.view-projection cam)
+                  vp-data (CameraMat4.data &vp)]
+              (for [i 0 16]
+                (Array.aset! uniforms (+ 40 i) @(Array.unsafe-nth vp-data i))))
+            
             (Engine.update-uniform-buffer eng @(M-UniformBuffer.p (Renderer.uniform-buffer ren)) uniforms)
             (WGPUVertexBufferWrapper.update-offset @(M-WGPUContext.p (Engine.ctx eng)) @(M-VertexBuffer.p (Renderer.entities-buffer ren)) (Uint64.from-long 0l) (WGPU.array->ptr entities-data) (Uint64.from-long (Long.from-int (* num-entities 48)))))))))
 

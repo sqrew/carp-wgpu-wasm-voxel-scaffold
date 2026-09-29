@@ -21,6 +21,126 @@
 
 ;; WGSL shaders are loaded from shaders.carp
 
+(deftemplate create-voxel-pipeline-with-depth (Fn [(Ptr WGPUContext) (Ptr CChar) (Ptr CChar)] (Ptr WGPURenderPipelineWrapper))
+  "WGPURenderPipelineWrapper* $NAME(WGPUContext* ctx, const char* src, const char* fmt_str)"
+  "$DECL {
+      if (!ctx || !ctx->device || !src || !fmt_str) return NULL;
+      WGPUTextureFormat fmt = WGPUTextureFormat_BGRA8Unorm;
+      if (fmt_str && (strcmp(fmt_str, \"rgba8unorm\") == 0 || strcmp(fmt_str, \"rgba8unorm-srgb\") == 0)) {
+          fmt = WGPUTextureFormat_RGBA8Unorm;
+      } else if (fmt_str && (strcmp(fmt_str, \"bgra8unorm\") == 0 || strcmp(fmt_str, \"bgra8unorm-srgb\") == 0)) {
+          fmt = WGPUTextureFormat_BGRA8Unorm;
+      }
+
+      WGPUShaderSourceWGSL wgsl = {
+          .chain = { .sType = WGPUSType_ShaderSourceWGSL },
+          .code = { .data = src, .length = strlen(src) },
+      };
+      WGPUShaderModuleDescriptor sm_desc = { .nextInChain = &wgsl.chain };
+      WGPUShaderModule shader = wgpuDeviceCreateShaderModule(ctx->device, &sm_desc);
+      if (!shader) return NULL;
+
+      WGPUColorTargetState color_target = {
+          .format = fmt,
+          .writeMask = WGPUColorWriteMask_All,
+      };
+
+      WGPUFragmentState fragment = {
+          .module = shader,
+          .entryPoint = { .data = \"fs_main\", .length = 7 },
+          .targetCount = 1,
+          .targets = &color_target,
+      };
+
+      WGPUDepthStencilState depth_stencil = {
+          .format = WGPUTextureFormat_Depth24Plus,
+          .depthWriteEnabled = true,
+          .depthCompare = WGPUCompareFunction_Always,
+          .stencilFront = { .compare = WGPUCompareFunction_Always },
+          .stencilBack = { .compare = WGPUCompareFunction_Always },
+      };
+
+      WGPURenderPipelineDescriptor pipe_desc = {
+          .vertex = {
+              .module = shader,
+              .entryPoint = { .data = \"vs_main\", .length = 7 },
+              .bufferCount = 0,
+              .buffers = NULL,
+          },
+          .primitive = {
+              .topology = WGPUPrimitiveTopology_TriangleList,
+              .frontFace = WGPUFrontFace_CCW,
+              .cullMode = WGPUCullMode_None,
+          },
+          .depthStencil = &depth_stencil,
+          .multisample = {
+              .count = 1,
+              .mask = 0xFFFFFFFF,
+              .alphaToCoverageEnabled = 0,
+          },
+          .fragment = &fragment,
+      };
+
+      WGPURenderPipeline pipeline = wgpuDeviceCreateRenderPipeline(ctx->device, &pipe_desc);
+      wgpuShaderModuleRelease(shader);
+      if (!pipeline) return NULL;
+
+      WGPUBindGroupLayout bgl = wgpuRenderPipelineGetBindGroupLayout(pipeline, 0);
+      WGPURenderPipelineWrapper* wrap = calloc(1, sizeof(WGPURenderPipelineWrapper));
+      if (!wrap) {
+          if (bgl) wgpuBindGroupLayoutRelease(bgl);
+          wgpuRenderPipelineRelease(pipeline);
+          return NULL;
+      }
+      wrap->pipeline = pipeline;
+      wrap->layout = NULL;
+      wrap->bgl = bgl;
+      return wrap;
+  }")
+
+(deftemplate run-voxel-pass-with-depth (Fn [(Ptr WGPUFrameState) (Ptr WGPURenderPipelineWrapper) WGPUBindGroup (Ptr WGPUDepthTexture)] ())
+  "void $NAME(WGPUFrameState* frame, WGPURenderPipelineWrapper* pipe, WGPUBindGroup bind_group, WGPUDepthTexture* depth)"
+  "$DECL {
+      if (!frame || !pipe || !depth) return;
+      WGPUTextureView target_view = frame->swapchain_view;
+
+      WGPURenderPassColorAttachment color_att = {
+          .view = target_view,
+          .loadOp = WGPULoadOp_Clear,
+          .storeOp = WGPUStoreOp_Store,
+          .clearValue = { .r = 0.0, .g = 0.0, .b = 0.0, .a = 1.0 },
+          .depthSlice = WGPU_DEPTH_SLICE_UNDEFINED,
+      };
+
+      WGPURenderPassDepthStencilAttachment depth_att = {
+          .view = depth->view,
+          .depthLoadOp = WGPULoadOp_Clear,
+          .depthStoreOp = WGPUStoreOp_Store,
+          .depthClearValue = 1.0f,
+          .stencilLoadOp = WGPULoadOp_Undefined,
+          .stencilStoreOp = WGPUStoreOp_Undefined,
+          .depthReadOnly = false,
+          .stencilReadOnly = false,
+      };
+
+      WGPURenderPassDescriptor pass_desc = {
+          .colorAttachmentCount = 1,
+          .colorAttachments = &color_att,
+          .depthStencilAttachment = &depth_att,
+      };
+
+      WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(frame->encoder, &pass_desc);
+      if (!pass) return;
+
+      wgpuRenderPassEncoderSetPipeline(pass, pipe->pipeline);
+      if (bind_group) {
+          wgpuRenderPassEncoderSetBindGroup(pass, 0, bind_group, 0, NULL);
+      }
+      wgpuRenderPassEncoderDraw(pass, 3, 1, 0, 0);
+      wgpuRenderPassEncoderEnd(pass);
+      wgpuRenderPassEncoderRelease(pass);
+  }")
+
 
 (deftype M-RenderPipeline [p (Ptr WGPURenderPipelineWrapper)])
 (defmodule M-RenderPipeline (defn delete [x] (WGPURender.free-pipeline @(M-RenderPipeline.p x))))
@@ -106,7 +226,13 @@
 
 
 (defmodule Renderer
-      (defn create [eng]
+  (defn create-voxel-pipeline [ctx wgsl format]
+    (let [p (create-voxel-pipeline-with-depth ctx (String.cstr wgsl) (String.cstr format))]
+      (if (null? p)
+        (Result.Error @"Failed to create voxel render pipeline with depth")
+        (Result.Success p))))
+
+  (defn create [eng]
     (let [ctx @(M-WGPUContext.p (Engine.ctx eng))]
       (result-do
         [voxel-tex-ptr (WGPURender.create-3d-texture ctx 160 160 160 "rgba16float")
@@ -132,7 +258,7 @@
          ub-ptr (WGPURender.create-uniform-buffer ctx 1664)
          ub (Result.Success (M-UniformBuffer.init ub-ptr))
          
-         pipe-ptr (Engine.create-pipeline eng voxel-wgsl "vs_main" "fs_main")
+         pipe-ptr (Renderer.create-voxel-pipeline ctx voxel-wgsl &format)
          pipe (Result.Success (M-RenderPipeline.init pipe-ptr))
          
          
@@ -422,9 +548,9 @@
                 line-count (LinePass.update! ctx (Renderer.line-pass ren) vp-data (Renderer.lines ren))
                 depth @(M-DepthTexture.p (Renderer.depth-texture ren))]
             (do
-              ;; 1. Voxel pass (raymarching render)
+              ;; 1. Voxel pass (raymarching render with depth write)
               (Diagnostics.with-zone diag "WGPU Voxel Raymarch"
-                (WGPURender.run-pass frame @(M-RenderPipeline.p (Renderer.pipeline ren)) @(Renderer.bind-group ren) (Maybe.Nothing)))
+                (run-voxel-pass-with-depth frame @(M-RenderPipeline.p (Renderer.pipeline ren)) @(Renderer.bind-group ren) depth))
               
               ;; 2. Particle pass (drawn on top of voxels)
               (Diagnostics.with-zone diag "WGPU Particle Pass"
