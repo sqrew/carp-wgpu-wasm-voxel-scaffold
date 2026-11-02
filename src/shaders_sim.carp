@@ -27,6 +27,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 @group(0) @binding(1) var<storage, read_write> voxel_gpu_buffer_read: array<vec4<f32>>;
 @group(0) @binding(2) var<storage, read_write> voxel_gpu_buffer_write: array<vec4<f32>>;
 @group(0) @binding(3) var<uniform>             p: Params;
+@group(0) @binding(4) var<storage, read_write> field_gpu_buffer_read: array<vec4<f32>>;
+@group(0) @binding(5) var<storage, read_write> field_gpu_buffer_write: array<vec4<f32>>;
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
@@ -50,15 +52,28 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     
     let gpu_val = voxel_gpu_buffer_read[g_idx];
     var final_val = cpu_val;
+    var preserved = false;
     
     // If the GPU currently has dynamic falling sand (ID < 0 and Solid <= 0), 
     // PRESERVE IT so the CPU chunk upload doesn't pave over it!
     if (gpu_val.x < 0.0 && gpu_val.y <= 0.0) {
         final_val = gpu_val;
+        preserved = true;
     }
 
     voxel_gpu_buffer_read[g_idx] = final_val;
     voxel_gpu_buffer_write[g_idx] = final_val;
+
+    if (!preserved) {
+        if (final_val.y <= 0.0 && final_val.x > 0.0) {
+            let init_field = vec4<f32>(0.0, 0.0, 0.0, 15.0);
+            field_gpu_buffer_read[g_idx] = init_field;
+            field_gpu_buffer_write[g_idx] = init_field;
+        } else {
+            field_gpu_buffer_read[g_idx] = vec4<f32>(0.0);
+            field_gpu_buffer_write[g_idx] = vec4<f32>(0.0);
+        }
+    }
 }
 ")
 
@@ -1503,111 +1518,110 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (dummy_val < -99999.0) { return; }
 
     
-    // If it's empty space or falling sand (negative id), just pass zero fields.
-    if (sol.y > 0.0 || sol.x <= 0.0) {
-        field_out[idx] = vec4<f32>(0.0);
-        return;
-    }
-
-    // We need 6 neighbors
+    // We need 6 neighbors for both Structural Stress and Global Illumination
     let dirs6 = array<vec3<i32>, 6>(
         vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
         vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
         vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
     );
 
-    var max_neighbor_w = 0.0;
-    
-    // --- Step 1: Load Path Gradient (W) ---
-    var my_w = 0.0;
-    if (sol.x == 255.0 || ip.y == 0) {
-        my_w = 15.0; // Anchor
+    // If it's empty space or falling sand (negative id), zero stress fields (do NOT return early so GI still runs in air!).
+    if (sol.y > 0.0 || sol.x <= 0.0) {
+        field_out[idx] = vec4<f32>(0.0);
     } else {
+        var max_neighbor_w = 0.0;
+        
+        // --- Step 1: Load Path Gradient (W) ---
+        var my_w = 0.0;
+        if (sol.x == 255.0 || ip.y == 0) {
+            my_w = 15.0; // Anchor
+        } else {
+            for (var i = 0u; i < 6u; i++) {
+                let nip = (ip + dirs6[i] + vec3<i32>(160)) % 160;
+                let n_sol = get_solid(nip);
+                if (n_sol.y <= 0.0 && n_sol.x > 0.0) { // If neighbor is rigid solid
+                    let n_idx = u32(nip.x) + u32(nip.y) * 160u + u32(nip.z) * 25600u;
+                    let n_field = field_in[n_idx];
+                    
+                    // Vertical support (from directly below) does not decay!
+                    var decay = 1.0;
+                    if (dirs6[i].y == -1) { decay = 0.0; } // Supported from below
+                    
+                    let supported_w = max(0.0, n_field.w - decay);
+                    if (supported_w > max_neighbor_w) {
+                        max_neighbor_w = supported_w;
+                    }
+                }
+            }
+            my_w = max_neighbor_w;
+        }
+
+        // --- Step 2: Accumulate Stress (X, Y, Z) ---
+        var compressive = 0.0;
+        var tensile = 0.0;
+        var shear = 0.0;
+
         for (var i = 0u; i < 6u; i++) {
             let nip = (ip + dirs6[i] + vec3<i32>(160)) % 160;
             let n_sol = get_solid(nip);
-            if (n_sol.y <= 0.0 && n_sol.x > 0.0) { // If neighbor is rigid solid
+            if (n_sol.y <= 0.0 && n_sol.x > 0.0) {
                 let n_idx = u32(nip.x) + u32(nip.y) * 160u + u32(nip.z) * 25600u;
                 let n_field = field_in[n_idx];
                 
-                // Vertical support (from directly below) does not decay!
+                // Does this neighbor route its load through me?
+                // If its W is EXACTLY my_W - decay, it means I am its anchor path!
                 var decay = 1.0;
-                if (dirs6[i].y == -1) { decay = 0.0; } // Supported from below
+                if (dirs6[i].y == 1) { decay = 0.0; } // The block ABOVE me sees ME as below, so its decay was 0!
                 
-                let supported_w = max(0.0, n_field.w - decay);
-                if (supported_w > max_neighbor_w) {
-                    max_neighbor_w = supported_w;
+                if (abs(n_field.w - (my_w - decay)) < 0.1) {
+                    // Get its mass
+                    let n_mat_id = clamp(u32(round(n_sol.x)), 0u, 255u);
+                    let n_reg_idx = n_mat_id * 8u;
+                    let n_mass = bitcast<f32>(registry_data[n_reg_idx + 5u]); // density as mass
+                    
+                    let n_total_stress = n_field.x + n_field.y + n_field.z + n_mass;
+                    
+                    if (dirs6[i].y == 1) { compressive += n_total_stress; }
+                    else if (dirs6[i].y == -1) { tensile += n_total_stress; }
+                    else { shear += n_total_stress * 0.25; }
                 }
             }
         }
-        my_w = max_neighbor_w;
-    }
 
-    // --- Step 2: Accumulate Stress (X, Y, Z) ---
-    var compressive = 0.0;
-    var tensile = 0.0;
-    var shear = 0.0;
-
-    for (var i = 0u; i < 6u; i++) {
-        let nip = (ip + dirs6[i] + vec3<i32>(160)) % 160;
-        let n_sol = get_solid(nip);
-        if (n_sol.y <= 0.0 && n_sol.x > 0.0) {
-            let n_idx = u32(nip.x) + u32(nip.y) * 160u + u32(nip.z) * 25600u;
-            let n_field = field_in[n_idx];
-            
-            // Does this neighbor route its load through me?
-            // If its W is EXACTLY my_W - decay, it means I am its anchor path!
-            var decay = 1.0;
-            if (dirs6[i].y == 1) { decay = 0.0; } // The block ABOVE me sees ME as below, so its decay was 0!
-            
-            if (abs(n_field.w - (my_w - decay)) < 0.1) {
-                // Get its mass
-                let n_mat_id = clamp(u32(round(n_sol.x)), 0u, 255u);
-                let n_reg_idx = n_mat_id * 8u;
-                let n_mass = bitcast<f32>(registry_data[n_reg_idx + 5u]); // density as mass
-                
-                let n_total_stress = n_field.x + n_field.y + n_field.z + n_mass;
-                
-                if (dirs6[i].y == 1) { compressive += n_total_stress; }
-                else if (dirs6[i].y == -1) { tensile += n_total_stress; }
-                else { shear += n_total_stress; }
-            }
-        }
-    }
-
-    // --- Step 3: Break Condition ---
-    // If we have no support path to bedrock (W == 0), we break immediately.
-    var broken = false;
-    if (my_w <= 0.0 && sol.x != 255.0) {
-        broken = true;
-    }
-
-    // Check strength (using toughness as a proxy for structural limit)
-    let my_mat_id = clamp(u32(round(sol.x)), 0u, 255u);
-    let my_reg_idx = my_mat_id * 8u;
-    let toughness = bitcast<f32>(registry_data[my_reg_idx + 6u]);
-    
-    // Limits (Arbitrary scaling for fun physics)
-    let limit_c = toughness * 50.0; 
-    let limit_t = toughness * 10.0;
-    let limit_s = toughness * 4.0;  // Shear is very weak
-    
-    // Bedrock never breaks
-    if (sol.x != 255.0) {
-        if (compressive > limit_c || tensile > limit_t || shear > limit_s) {
+        // --- Step 3: Break Condition ---
+        // If we have no support path to bedrock (W == 0), we break immediately.
+        var broken = false;
+        if (my_w <= 0.0 && sol.x != 255.0) {
             broken = true;
         }
+
+        // Check strength (using toughness as a proxy for structural limit)
+        let my_mat_id = clamp(u32(round(sol.x)), 0u, 255u);
+        let my_reg_idx = my_mat_id * 8u;
+        let toughness = bitcast<f32>(registry_data[my_reg_idx + 6u]);
+        
+        // Limits (tuned so stone cave arches hold under hill overburden while dirt overhangs & undercut pillars collapse)
+        let limit_c = toughness * 100.0; 
+        let limit_t = toughness * 20.0;
+        let limit_s = toughness * 40.0;
+        
+        // Bedrock never breaks
+        if (sol.x != 255.0) {
+            if (compressive > limit_c || tensile > limit_t || shear > limit_s) {
+                broken = true;
+            }
+        }
+
+        if (broken) {
+            // Break the block! Turn it into falling sand by negating its ID.
+            solid_buffer[idx] = vec4<f32>(-abs(sol.x), sol.y, sol.z, 0.0);
+            field_out[idx] = vec4<f32>(0.0);
+        } else {
+            field_out[idx] = vec4<f32>(compressive, tensile, shear, my_w);
+        }
     }
 
-    if (broken) {
-        // Break the block! Turn it into falling sand by negating its ID.
-        solid_buffer[idx] = vec4<f32>(-abs(sol.x), sol.y, sol.z, 0.0);
-        field_out[idx] = vec4<f32>(0.0);
-    } else {
-        field_out[idx] = vec4<f32>(compressive, tensile, shear, my_w);
-    }
-
-    // --- Step 2: Global Illumination (Light Propagation) ---
+    // --- Step 4: Global Illumination (Light Propagation) ---
     // Look at this voxel's solid/liquid/gas content to see if it's an EMITTER
     let raw_sol = textureLoad(solid_texture, ip, 0);
     let raw_liq = textureLoad(liquid_texture, ip, 0);
@@ -1616,37 +1630,33 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     var current_light = light_buffer[idx].rgb;
     var next_light = current_light * 0.90; // Fast decay for moving sources
     
-    // Check neighbors to pull light in
+    // Check neighbors to pull light in across the toroidal cave volume
     for (var i = 0u; i < 6u; i++) {
-        let p_unwrapped = ip + dirs6[i];
-        if (p_unwrapped.x < 0 || p_unwrapped.x >= 160 || p_unwrapped.y < 0 || p_unwrapped.y >= 160 || p_unwrapped.z < 0 || p_unwrapped.z >= 160) {
-            continue; // Do not pull light from across the chunk boundary!
-        }
-        let np = (p_unwrapped + vec3<i32>(160)) % 160;
+        let np = (ip + dirs6[i] + vec3<i32>(160)) % 160;
         let n_idx = u32(np.x) + u32(np.y) * 160u + u32(np.z) * 25600u;
         let neighbor_light = light_buffer[n_idx].rgb;
         
         // Light loses power as it travels (color bleed)
-        let incoming = neighbor_light - vec3<f32>(0.1, 0.1, 0.1); 
+        let incoming = max(vec3<f32>(0.0), neighbor_light - vec3<f32>(0.1, 0.1, 0.1));
         
         next_light = max(next_light, incoming);
     }
     
-    // Emission overrides neighbor spread!
-    if (round(raw_liq.r) == 2.0) { 
+    // Emission overrides neighbor spread when visible fluid/gas volume is present!
+    if (round(raw_liq.r) == 2.0 && raw_liq.g > 0.05) { 
         // LAVA
-        next_light = vec3<f32>(1.0, 0.4, 0.1) * 2.0;
-    } else if (round(raw_gas.r) == 3.0) { 
+        next_light = vec3<f32>(1.0, 0.4, 0.1) * 2.5;
+    } else if (round(raw_gas.r) == 3.0 && raw_gas.g > 0.05) { 
         // FIRE
-        next_light = vec3<f32>(1.0, 0.8, 0.3) * 1.5;
+        next_light = vec3<f32>(1.0, 0.75, 0.25) * 2.0;
     }
     
-    // If it's a solid block, it absorbs almost all light!
-    if (raw_sol.g <= 0.0 && round(raw_sol.r) != 0.0) { 
-        next_light *= 0.1; 
+    // Solid interior rock blocks light transmission while letting surface texels catch neighbor glow
+    if (raw_sol.g <= -0.5 && round(abs(raw_sol.r)) != 0.0) { 
+        next_light *= 0.05; 
     }
     
-    light_buffer[idx] = vec4<f32>(next_light, 1.0);
+    light_buffer[idx] = vec4<f32>(next_light, 0.0);
 }
 
 "))

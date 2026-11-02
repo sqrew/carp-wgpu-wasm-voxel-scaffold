@@ -8,12 +8,14 @@
           (for [x 0 res]
             (let [gx (+ (* qx 32) x)
                   gz (+ (* qz 32) z)
-                  ;; Procedural rolling hills (2D simplex noise)
-                  nx (* (Double.from-int gx) 0.015)
-                  nz (* (Double.from-int gz) 0.015)
-                  surface-height (Double.to-int (+ 20.0 (* 16.0 (Noise.noise2d noise-state nx nz))))]
+                  fdx (Double.from-int gx)
+                  fdz (Double.from-int gz)
+                  ;; Rolling hills with deep rock mass underneath for 3D caves
+                  surface-h (+ 32.0 (* 10.0 (Noise.noise2d noise-state (* fdx 0.015) (* fdz 0.015))))
+                  sky-cutoff (+ surface-h 3.0)]
               (for [y 0 res]
                 (let [gy (+ (* qy 32) y)
+                      fdy (Double.from-int gy)
                       idx (+ (* z 1024) (+ (* y 32) x))
                       offset (* idx 4)]
                   (if (<= gy 0)
@@ -23,19 +25,39 @@
                         (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) -1.0f)
                         (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
                         (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 10.0f))
-                      (if (> gy surface-height)
-                          ;; Air above the ground
-                          (do
-                            (Pointer.set (Pointer.add p-data (Long.from-int offset)) 0.0f)
-                            (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) (Float.from-int (- gy surface-height)))
-                            (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
-                            (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 0.0f))
-                          ;; Solid Terrain
-                          (let [mat-id (if (> gy (- surface-height 3)) 2.0f 1.0f)
-                                sdf (Float.from-int (- gy surface-height))]
+                      (let [surf-sdf (- fdy surface-h)]
+                        (if (> fdy sky-cutoff)
+                            ;; High air above hills: skip 3D noise completely
                             (do
-                              (Pointer.set (Pointer.add p-data (Long.from-int offset)) mat-id)
-                              (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) sdf)
+                              (Pointer.set (Pointer.add p-data (Long.from-int offset)) 0.0f)
+                              (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) (Double.to-float surf-sdf))
                               (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
-                              (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 10.0f)))))))))))))
+                              (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 0.0f))
+                            ;; Underground & hillside zone: carve 3D Simplex caverns
+                            (let [n1 (Noise.noise3d noise-state (* fdx 0.045) (* fdy 0.065) (* fdz 0.045))
+                                  n2 (Noise.noise3d noise-state (+ (* fdx 0.11) 37.0) (* fdy 0.11) (- (* fdz 0.11) 19.0))
+                                  floor-guard (if (< fdy 5.0) (* (- 5.0 fdy) 0.12) 0.0)
+                                  roof-guard (if (> surf-sdf -4.0) (* (+ surf-sdf 4.0) 0.035) 0.0)
+                                  cave-raw (- (+ (* n1 0.82) (* n2 0.18)) (+ 0.18 (+ floor-guard roof-guard)))
+                                  cave-sdf-raw (* cave-raw 7.0)
+                                  cave-sdf (if (> cave-sdf-raw 6.0) 6.0 (if (< cave-sdf-raw -6.0) -6.0 cave-sdf-raw))
+                                  final-sdf (if (> surf-sdf cave-sdf) surf-sdf cave-sdf)]
+                              (if (> final-sdf 0.0)
+                                  ;; Carved Cave Air or Surface Air
+                                  (do
+                                    (Pointer.set (Pointer.add p-data (Long.from-int offset)) 0.0f)
+                                    (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) (Double.to-float final-sdf))
+                                    (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
+                                    (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 0.0f))
+                                  ;; Solid Terrain: Soil crust near surface, Stone + Coal/Gold veins underground
+                                  (let [mat-id (if (> surf-sdf -3.0)
+                                                   2.0f
+                                                   (if (> n2 0.62)
+                                                       5.0f
+                                                       (if (< n2 -0.52) 4.0f 1.0f)))]
+                                    (do
+                                      (Pointer.set (Pointer.add p-data (Long.from-int offset)) mat-id)
+                                      (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) (Double.to-float final-sdf))
+                                      (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
+                                      (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 10.0f))))))))))))))))
 )
