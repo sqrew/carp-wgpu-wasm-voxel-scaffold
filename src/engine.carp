@@ -58,7 +58,7 @@
                   uniforms (Array.allocate 416)
                   diag (Diagnostics.new @"diagnostics.log")
                   ecs-world (GameWorld.new)
-                  grid (SpatialGrid.new 5.0 20 20 20)
+                  grid (SpatialGrid.new-with-origin 8.0 24 36 24 (Vector3.init -64.0 -224.0 -64.0))
                   scratch-arena (Arena.init 16777216l)]
               (do
                 ; Upload all chunks to world texture and sync 3D textures so Frame 1 sim sees seeded fluids
@@ -123,12 +123,12 @@
           cz (Double.to-int (Double.floor (/ @(Vector3.z cam-pos) 32.0)))
           chunks (World.chunks world)
           noise (World.noise-state world)
-          loaded-any false]
+          loaded-count 0]
       (do
         (for [lz 0 5]
           (for [ly 0 5]
             (for [lx 0 5]
-              (when (not loaded-any)
+              (when (< loaded-count 5)
                 (let [qx (- (+ cx lx) 2)
                       qy (- (+ cy ly) 2)
                       qz (- (+ cz lz) 2)
@@ -146,8 +146,9 @@
                       (Array.aupdate! chunks slot-idx &(fn [c] (Chunk.regenerate c noise qx qy qz)))
                       (let [updated-chunk (Array.unsafe-nth chunks slot-idx)]
                         (Renderer.update-chunk-texture eng ren qx qy qz (Chunk.voxel-data updated-chunk)))
-                      (Renderer.pack-buffers-to-textures! eng ren)
-                      (set! loaded-any true)))))))))))
+                      (set! loaded-count (inc loaded-count)))))))))
+        (when (> loaded-count 0)
+          (Renderer.pack-buffers-to-textures! eng ren)))))
 
 
 

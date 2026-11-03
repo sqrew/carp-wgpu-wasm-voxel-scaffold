@@ -223,8 +223,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         var accum_color = vec3<f32>(0.0);
         var accum_alpha: f32 = 0.0;
         
-        for (var step = 0; step < 128; step = step + 1) {
-            if (t > min(t_far, 80.0)) {
+        for (var step = 0; step < 144; step = step + 1) {
+            if (t > min(t_far, 88.0)) {
                 break;
             }
             let p = ro + rd * t;
@@ -250,7 +250,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                     liq_color = base_liq * max(1.0, mat.a * 0.65);
                 } else {
                     let l_gi = textureSampleLevel(light_texture, voxel_sampler, uvw, 0.0).rgb;
-                    let sky_open = clamp((p.y - 10.0) / 22.0, 0.12, 1.0);
+                    let sky_open = clamp((p.y - 8.0) / 20.0, 0.08, 1.0);
                     let l_amb = clamp(u.sun_dir.y * 3.0 + 0.35, 0.12, 1.0) * sky_open;
                     var l_flash = vec3<f32>(0.0);
                     if (u.cam_pos.w > 0.5) {
@@ -309,28 +309,31 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 let mat = materials[u32(round(abs(mat_id)))];
                 let base_color = vec3<f32>(mat.r, mat.g, mat.b);
                 
+                // Smoothly fade direct sky/moon illumination deep underground so >40m caverns stay dark except for GI & flashlight
+                let sky_exposure = clamp((p.y - 6.0) / 18.0, 0.0, 1.0);
                 let light_dir = normalize(u.sun_dir.xyz);
-                let sun_intensity = clamp(u.sun_dir.y * 4.0, 0.0, 1.0);
+                let sun_intensity = clamp(u.sun_dir.y * 4.0, 0.0, 1.0) * sky_exposure;
                 let diffuse = max(dot(normal, light_dir), 0.0);
                 
-                // Raymarched Shadows (only computed when sun is above horizon!)
+                // Raymarched Shadows (only computed when sun reaches this depth!)
                 var sha: f32 = 1.0;
-                if (sun_intensity > 0.0) {
+                if (sun_intensity > 0.001) {
                     let shadow_pos = p + normal * 0.05;
                     sha = getShadow(shadow_pos, light_dir, 0.05, 40.0, 16.0);
                 }
                 
-                // Moon light (faint blue direct light at night)
+                // Moon light (faint blue direct light at night on surface)
                 let moon_dir = -light_dir;
-                let moon_intensity = clamp(-u.sun_dir.y * 4.0, 0.0, 1.0) * 0.15;
+                let moon_intensity = clamp(-u.sun_dir.y * 4.0, 0.0, 1.0) * 0.15 * sky_exposure;
                 let moon_diffuse = max(dot(normal, moon_dir), 0.0);
                 let moon_light = vec3<f32>(0.7, 0.8, 1.0) * moon_diffuse * moon_intensity;
                 
                 // Ambient Occlusion
                 let ao = getAO(p, normal);
                 
-                // Blend ambient sunlight and night sky ambient
-                let ambient_intensity = clamp(u.sun_dir.y * 3.0 + 0.3, 0.2, 1.0);
+                // Blend surface sky ambient with moody deep-subterranean ambient
+                let surf_ambient = clamp(u.sun_dir.y * 3.0 + 0.3, 0.2, 1.0);
+                let ambient_intensity = mix(0.22, surf_ambient, sky_exposure);
                 
                 // Combine Shading with Light Texture
                 let light_val = textureSampleLevel(light_texture, voxel_sampler, uvw, 0.0) + vec4<f32>(0.0, 0.0, 0.0, 1.0);
@@ -341,8 +344,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 // Player Ambient Glow (spherical light source centered on player)
                 var player_glow = vec3<f32>(0.0);
                 if (u.cam_pos.w > 0.5) {
-                    let attenuation = 1.0 / (1.0 + 0.05 * t + 0.012 * t * t);
-                    player_glow = vec3<f32>(1.0, 0.96, 0.88) * attenuation * 2.5;
+                    let attenuation = 1.0 / (1.0 + 0.04 * t + 0.009 * t * t);
+                    player_glow = vec3<f32>(1.0, 0.96, 0.88) * attenuation * 2.6;
                 }
 
                 var emissive = vec3<f32>(0.0);
@@ -408,17 +411,18 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         }
         
         if (hit) {
-            // Apply linear atmospheric distance fog ending at the world box boundary (80 units)
-            let fog_factor = clamp((t - 40.0) / 40.0, 0.0, 1.0);
+            // Apply linear atmospheric distance fog ending at the world box boundary (88 units)
+            let fog_factor = clamp((t - 44.0) / 44.0, 0.0, 1.0);
             
-            // The fog color is the horizon color mixed with the space color
-            // Fade to pitch black when underground so caves contrast against the abyss
-            let depth_fade = clamp(((ro.y + rd.y * t) - 0.0) / 20.0, 0.0, 1.0);
+            // Fade fog color to pitch black underground so huge caverns contrast against the abyss
+            let depth_fade = clamp(((ro.y + rd.y * t) - 4.0) / 20.0, 0.0, 1.0);
             let fog_color = mix(space_color, horizon_color, max(0.0, rd.y)) * depth_fade;
             
             color = mix(hit_color, fog_color, fog_factor);
         } else {
-            color = mix(color, accum_color, accum_alpha);
+            let far_y = ro.y + rd.y * min(t_far, 88.0);
+            let bg_sky_vis = clamp((max(ro.y, far_y) - 6.0) / 18.0, 0.0, 1.0);
+            color = mix(color * bg_sky_vis, accum_color, accum_alpha);
         }
     }
     

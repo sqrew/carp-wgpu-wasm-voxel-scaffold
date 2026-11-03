@@ -42,10 +42,13 @@
     (let [noise-state (Noise.make-noise 1337)
           world-chunks []]
       (do
-        (for [z 0 5]
-          (for [y 0 5]
-            (for [x 0 5]
-              (Array.push-back! &world-chunks (Chunk.create &noise-state x y z)))))
+        (for [tz 0 5]
+          (for [ty 0 5]
+            (for [tx 0 5]
+              (let [qx (if (= tx 4) -1 tx)
+                    qy (if (= ty 4) -1 ty)
+                    qz (if (= tz 4) -1 tz)]
+                (Array.push-back! &world-chunks (Chunk.create &noise-state qx qy qz))))))
         (World.init world-chunks 32 noise-state))))
 
   (defn positive-mod [n m]
@@ -158,16 +161,18 @@
                               vz (- gz hz)
                               dist-to-hit (Double.sqrt (+ (+ (* vx vx) (* vy vy)) (* vz vz)))]
                           (when (< dist-to-hit r-pad)
-                            (let [sphere-sdf (Double.to-float (- dist-to-hit radius))
+                            (let [old-id (Pointer.to-value (Pointer.add p-data (Long.from-int offset)))
+                                  sphere-sdf (Double.to-float (- dist-to-hit radius))
                                   old-sdf (Pointer.to-value (Pointer.add p-data (Long.from-int (+ offset 1))))
                                   new-sdf (if carve?
                                               (Float.max old-sdf (- 0.0f sphere-sdf))
                                               (Float.min old-sdf sphere-sdf))]
-                              (do
-                                (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) new-sdf)
-                                (when (and (not carve?) (< dist-to-hit radius))
-                                  (Pointer.set (Pointer.add p-data (Long.from-int offset)) mat-id))
-                                (set! chunk-modified true))))))))
+                              (when (not (and carve? (= old-id 255.0f)))
+                                (do
+                                  (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) new-sdf)
+                                  (when (and (not carve?) (< dist-to-hit radius))
+                                    (Pointer.set (Pointer.add p-data (Long.from-int offset)) mat-id))
+                                  (set! chunk-modified true)))))))))
                   (when chunk-modified
                     (Array.push-back! &modified (ChunkCoord.init qx qy qz))))))))
         modified)))

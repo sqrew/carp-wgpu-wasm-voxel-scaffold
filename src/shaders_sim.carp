@@ -52,37 +52,27 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let gz = oz + lz;
     let g_idx = gx + gy * 160u + gz * 25600u;
     
-    let gpu_val = voxel_gpu_buffer_read[g_idx];
     var final_val = cpu_val;
-    var preserved = false;
-    
-    // If the GPU currently has dynamic falling sand (ID < 0 and Solid <= 0), 
-    // PRESERVE IT so the CPU chunk upload doesn't pave over it!
-    if (gpu_val.x < 0.0 && gpu_val.y <= 0.0) {
-        final_val = gpu_val;
-        preserved = true;
-    } else if (final_val.x == 0.0) {
+    if (final_val.x == 0.0) {
         final_val.z = 0.0;
     }
 
     voxel_gpu_buffer_read[g_idx] = final_val;
     voxel_gpu_buffer_write[g_idx] = final_val;
 
-    if (!preserved) {
-        if (final_val.y <= 0.0 && final_val.x > 0.0) {
-            let init_field = vec4<f32>(0.0, 0.0, 0.0, 64.0);
-            field_gpu_buffer_read[g_idx] = init_field;
-            field_gpu_buffer_write[g_idx] = init_field;
-        } else {
-            field_gpu_buffer_read[g_idx] = vec4<f32>(0.0);
-            field_gpu_buffer_write[g_idx] = vec4<f32>(0.0);
-        }
+    if (final_val.y <= 0.0 && final_val.x > 0.0) {
+        let init_field = vec4<f32>(0.0, 0.0, 0.0, 96.0);
+        field_gpu_buffer_read[g_idx] = init_field;
+        field_gpu_buffer_write[g_idx] = init_field;
+    } else {
+        field_gpu_buffer_read[g_idx] = vec4<f32>(0.0);
+        field_gpu_buffer_write[g_idx] = vec4<f32>(0.0);
+    }
 
-        if (final_val.y > 0.0 && seed_liq < -0.5) {
-            liquid_gpu_buffer[g_idx] = vec4<f32>(abs(seed_liq), 1.0, 0.0, 0.0);
-        } else {
-            liquid_gpu_buffer[g_idx] = vec4<f32>(0.0);
-        }
+    if (final_val.y > 0.0 && seed_liq < -0.5) {
+        liquid_gpu_buffer[g_idx] = vec4<f32>(abs(seed_liq), 1.0, 0.0, 0.0);
+    } else {
+        liquid_gpu_buffer[g_idx] = vec4<f32>(0.0);
     }
 }
 ")
@@ -200,36 +190,59 @@ fn get_liq_props(id: f32) -> LiquidProps {
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
 @group(0) @binding(8) var<storage, read_write> light_buffer: array<vec4<f32>>; // buffer backed light!
 
-fn get_solid(p: vec3<i32>) -> vec4<f32> {
-    if (p.x < 0 || p.x >= 160 || p.y < 0 || p.y >= 160 || p.z < 0 || p.z >= 160) { return vec4<f32>(255.0, -1.0, 0.0, 10.0); }
-    let wrapped = (p + vec3<i32>(160)) % 160;
-    let val = textureLoad(solid_texture, wrapped, 0);
-    return val;
+fn positive_mod(n: i32, m: i32) -> i32 {
+    let r = n % m;
+    if (r < 0) {
+        return r + m;
+    }
+    return r;
 }
 
-fn is_solid(p: vec3<i32>) -> bool {
-    let sol = get_solid(p);
+fn get_win_min() -> vec3<i32> {
+    let cx = i32(floor(u.cam_pos.x / 32.0)) - 2;
+    let cy = i32(floor(u.cam_pos.y / 32.0)) - 2;
+    let cz = i32(floor(u.cam_pos.z / 32.0)) - 2;
+    return vec3<i32>(
+        positive_mod(cx, 5) * 32,
+        positive_mod(cy, 5) * 32,
+        positive_mod(cz, 5) * 32
+    );
+}
+
+fn step_in_window(base_ip: vec3<i32>, delta: vec3<i32>, win_min: vec3<i32>) -> bool {
+    let lp = (base_ip - win_min + vec3<i32>(160)) % 160;
+    let nlp = lp + delta;
+    return nlp.x >= 0 && nlp.x < 160 && nlp.y >= 0 && nlp.y < 160 && nlp.z >= 0 && nlp.z < 160;
+}
+
+fn get_solid(base_ip: vec3<i32>, delta: vec3<i32>, win_min: vec3<i32>) -> vec4<f32> {
+    if (!step_in_window(base_ip, delta, win_min)) { return vec4<f32>(255.0, -1.0, 0.0, 10.0); }
+    let wrapped = (base_ip + delta + vec3<i32>(160)) % 160;
+    return textureLoad(solid_texture, wrapped, 0);
+}
+
+fn is_solid(base_ip: vec3<i32>, delta: vec3<i32>, win_min: vec3<i32>) -> bool {
+    let sol = get_solid(base_ip, delta, win_min);
     return sol.y * 0.5 < 0.008;
 }
 
-fn get_liquid(p: vec3<i32>) -> vec4<f32> {
-    if (p.x < 0 || p.x >= 160 || p.y < 0 || p.y >= 160 || p.z < 0 || p.z >= 160) { return vec4<f32>(0.0); }
-    let wrapped = (p + vec3<i32>(160)) % 160;
-    let val = textureLoad(liquid_texture, wrapped, 0);
-    return val;
+fn get_liquid(base_ip: vec3<i32>, delta: vec3<i32>, win_min: vec3<i32>) -> vec4<f32> {
+    if (!step_in_window(base_ip, delta, win_min)) { return vec4<f32>(0.0, 0.0, 0.0, 10.0); }
+    let wrapped = (base_ip + delta + vec3<i32>(160)) % 160;
+    return textureLoad(liquid_texture, wrapped, 0);
 }
 
-fn get_gas(p: vec3<i32>) -> vec4<f32> {
-    if (p.x < 0 || p.x >= 160 || p.y < 0 || p.y >= 160 || p.z < 0 || p.z >= 160) { return vec4<f32>(0.0); }
-    let wrapped = (p + vec3<i32>(160)) % 160;
-    let val = textureLoad(gas_texture, wrapped, 0);
-    return val;
+fn get_gas(base_ip: vec3<i32>, delta: vec3<i32>, win_min: vec3<i32>) -> vec4<f32> {
+    if (!step_in_window(base_ip, delta, win_min)) { return vec4<f32>(0.0, 0.0, 0.0, 10.0); }
+    let wrapped = (base_ip + delta + vec3<i32>(160)) % 160;
+    return textureLoad(gas_texture, wrapped, 0);
 }
 
-fn is_explosion_center(p: vec3<i32>) -> bool {
+fn is_explosion_center(p: vec3<i32>, win_min: vec3<i32>) -> bool {
     var is_exp = false;
+    let zero_d = vec3<i32>(0, 0, 0);
     
-    let g = get_gas(p);
+    let g = get_gas(p, zero_d, win_min);
     if (g.y > 0.1) {
         let g_id = round(abs(g.x));
         if (g_id != 0.0 && g_id != 1.0 && g_id != 4.0) { // Optimize: skip common inert gases (Steam, Smoke)
@@ -239,7 +252,7 @@ fn is_explosion_center(p: vec3<i32>) -> bool {
         }
     }
     
-    let l = get_liquid(p);
+    let l = get_liquid(p, zero_d, win_min);
     if (l.y > 0.1) {
         let l_id = round(abs(l.x));
         if (l_id != 0.0 && l_id != 1.0) { // Optimize: skip common inert liquids (Water)
@@ -249,7 +262,7 @@ fn is_explosion_center(p: vec3<i32>) -> bool {
         }
     }
     
-    let s = get_solid(p);
+    let s = get_solid(p, zero_d, win_min);
     if (s.y <= 0.0) {
         let s_id = round(abs(s.x));
         if (s_id != 0.0 && s_id != 1.0 && s_id != 6.0 && s_id != 255.0) { // Optimize: skip Empty, Stone, Sand, Bedrock
@@ -266,9 +279,9 @@ fn is_explosion_center(p: vec3<i32>) -> bool {
             vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
         );
         for (var i = 0; i < 6; i = i + 1) {
-            let np = p + dirs[i];
+            let d = dirs[i];
             
-            let n_g = get_gas(np);
+            let n_g = get_gas(p, d, win_min);
             if (n_g.y > 0.1) {
                 let n_id = round(abs(n_g.x));
                 if (n_id != 0.0 && n_id != 1.0 && n_id != 4.0) {
@@ -278,7 +291,7 @@ fn is_explosion_center(p: vec3<i32>) -> bool {
                 }
             }
             
-            let n_l = get_liquid(np);
+            let n_l = get_liquid(p, d, win_min);
             if (n_l.y > 0.1) {
                 let n_id = round(abs(n_l.x));
                 if (n_id != 0.0 && n_id != 1.0) {
@@ -288,7 +301,7 @@ fn is_explosion_center(p: vec3<i32>) -> bool {
                 }
             }
             
-            let n_s = get_solid(np);
+            let n_s = get_solid(p, d, win_min);
             if (n_s.y <= 0.0) {
                 let n_id = round(abs(n_s.x));
                 if (n_id != 0.0 && n_id != 1.0 && n_id != 6.0 && n_id != 255.0) {
@@ -301,14 +314,6 @@ fn is_explosion_center(p: vec3<i32>) -> bool {
     }
     
     return false;
-}
-
-fn positive_mod(n: i32, m: i32) -> i32 {
-    let r = n % m;
-    if (r < 0) {
-        return r + m;
-    }
-    return r;
 }
 
 fn get_world_pos(ip: vec3<i32>, cam_pos: vec3<f32>) -> vec3<f32> {
@@ -354,18 +359,23 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let y = (idx / 160u) % 160u;
     let z = idx / 25600u;
     let ip = vec3<i32>(i32(x), i32(y), i32(z));
+    let win_min = get_win_min();
+    let lp = (ip - win_min + vec3<i32>(160)) % 160;
+    let zero_d = vec3<i32>(0, 0, 0);
 
 
     // --- 5. Explosion Carving (O(E) instead of O(N)) ---
-    if (is_explosion_center(ip)) {
+    if (is_explosion_center(ip, win_min)) {
         for (var dx = -3; dx <= 3; dx = dx + 1) {
             for (var dy = -3; dy <= 3; dy = dy + 1) {
                 for (var dz = -3; dz <= 3; dz = dz + 1) {
-                    let tp = ip + vec3<i32>(dx, dy, dz);
-                    if (distance(vec3<f32>(ip), vec3<f32>(tp)) <= 3.5) {
-                        let wrapped = (tp + vec3<i32>(160)) % 160;
+                    let d = vec3<i32>(dx, dy, dz);
+                    if (length(vec3<f32>(d)) <= 3.5 && step_in_window(ip, d, win_min)) {
+                        let wrapped = (ip + d + vec3<i32>(160)) % 160;
                         let s_idx = u32(wrapped.x) + u32(wrapped.y) * 160u + u32(wrapped.z) * 25600u;
-                        solid_buffer[s_idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0);
+                        if (solid_buffer[s_idx].x != 255.0) {
+                            solid_buffer[s_idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0);
+                        }
                     }
                 }
             }
@@ -373,41 +383,15 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
 
 
-    let sol_val = get_solid(ip);
+    let sol_val = get_solid(ip, zero_d, win_min);
     let sol_id = sol_val.x;
     let is_sol_block = sol_val.y * 0.5 < 0.008;
     if (is_sol_block) {
-        // Wood (3.0) or Coal (4.0) catches fire and burns away
-        if (sol_id == 3.0 || sol_id == 4.0) {
-            var touches_fire = false;
-            let dirs = array<vec3<i32>, 6>(
-                vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
-                vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
-                vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
-            );
-            for (var i = 0; i < 6; i = i + 1) {
-                let np = ip + dirs[i];
-                let g = get_gas(np);
-                if (g.x == 3.0 && g.y > 0.1) { touches_fire = true; break; }
-                let l = get_liquid(np);
-                if (l.x == 2.0 && l.y > 0.1) { touches_fire = true; break; }
-            }
-            if (touches_fire) {
-                let rand_val = fract(sin(dot(vec3<f32>(ip) + vec3<f32>(u.time), vec3<f32>(12.9898, 78.233, 45.164))) * 43758.5453);
-                var burn_chance = 0.01; // Wood (1% chance per frame = ~1.6 seconds average)
-                if (sol_id == 4.0) {
-                    burn_chance = 0.002; // Coal (0.2% chance per frame = ~8.3 seconds average)
-                }
-                if (rand_val < burn_chance) {
-                    // Burning is now handled in solid_sim
-                }
-            }
-        }
         output_buffer[idx] = vec4<f32>(0.0);
         return;
     }
 
-    let self_liq = get_liquid(ip);
+    let self_liq = get_liquid(ip, zero_d, win_min);
     let self_vol = self_liq.y;
     var next_id = self_liq.x;
     var next_vol = self_vol;
@@ -415,13 +399,13 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     var next_sleep = self_liq.w;
     
     if (next_sleep >= 10.0) {
-        let n1 = get_liquid(ip + vec3<i32>(-1,0,0)).w;
-        let n2 = get_liquid(ip + vec3<i32>(1,0,0)).w;
-        let n3 = get_liquid(ip + vec3<i32>(0,-1,0)).w;
-        let n4 = get_liquid(ip + vec3<i32>(0,1,0)).w;
-        let n5 = get_liquid(ip + vec3<i32>(0,0,-1)).w;
-        let n6 = get_liquid(ip + vec3<i32>(0,0,1)).w;
-        let my_gas = get_gas(ip).w;
+        let n1 = get_liquid(ip, vec3<i32>(-1,0,0), win_min).w;
+        let n2 = get_liquid(ip, vec3<i32>(1,0,0), win_min).w;
+        let n3 = get_liquid(ip, vec3<i32>(0,-1,0), win_min).w;
+        let n4 = get_liquid(ip, vec3<i32>(0,1,0), win_min).w;
+        let n5 = get_liquid(ip, vec3<i32>(0,0,-1), win_min).w;
+        let n6 = get_liquid(ip, vec3<i32>(0,0,1), win_min).w;
+        let my_gas = get_gas(ip, zero_d, win_min).w;
         if (n1 >= 10.0 && n2 >= 10.0 && n3 >= 10.0 && n4 >= 10.0 && n5 >= 10.0 && n6 >= 10.0 && my_gas >= 10.0 && u.edit_params.y == 0.0) {
              output_buffer[idx] = self_liq;
              return;
@@ -430,8 +414,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     let self_props = get_liq_props(self_liq.x);
 
-    let below_p = ip + vec3<i32>(0, -1, 0);
-    let above_p = ip + vec3<i32>(0, 1, 0);
+    let down_d = vec3<i32>(0, -1, 0);
+    let up_d = vec3<i32>(0, 1, 0);
 
     let neighbors = array<vec3<i32>, 4>(
         vec3<i32>(-1, 0, 0),
@@ -443,13 +427,13 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     // --- 1. Density Buoyancy Swapping (1-to-1 parity matching) ---
     var swapped = false;
     let frame_step = i32(u.time) % 2;
-    let is_even_pair = (ip.y % 2) == frame_step;
+    let is_even_pair = (lp.y % 2) == frame_step;
 
     if (self_vol > 0.05) {
         if (is_even_pair) {
             // Look down
-            if (ip.y > 0 && !is_solid(below_p)) {
-                let below = get_liquid(below_p);
+            if (lp.y > 0 && !is_solid(ip, down_d, win_min)) {
+                let below = get_liquid(ip, down_d, win_min);
                 let below_props = get_liq_props(below.x);
                 if (below.y > 0.05 && self_props.density > below_props.density) {
                     next_id = below.x;
@@ -459,8 +443,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             }
         } else {
             // Look up
-            if (ip.y < 159 && !is_solid(above_p)) {
-                let above = get_liquid(above_p);
+            if (lp.y < 159 && !is_solid(ip, up_d, win_min)) {
+                let above = get_liquid(ip, up_d, win_min);
                 let above_props = get_liq_props(above.x);
                 if (above.y > 0.05 && above_props.density > self_props.density) {
                     next_id = above.x;
@@ -480,16 +464,16 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let l_rate = self_props.l_rate;
 
         // Downward gravity flow
-        if (!is_solid(below_p)) {
-            let below = get_liquid(below_p);
+        if (!is_solid(ip, down_d, win_min)) {
+            let below = get_liquid(ip, down_d, win_min);
             let below_props = get_liq_props(below.x);
             if (below.y <= 0.05 || self_props.density >= below_props.density) {
                 let flow_out = min(self_vol, max(0.0, 1.0 - below.y)) * g_rate;
                 net_flow -= flow_out;
             }
         }
-        if (!is_solid(above_p)) {
-            let above = get_liquid(above_p);
+        if (!is_solid(ip, up_d, win_min)) {
+            let above = get_liquid(ip, up_d, win_min);
             let above_props = get_liq_props(above.x);
             if (self_vol <= 0.05 || above_props.density >= self_props.density) {
                 let flow_in = min(above.y, max(0.0, 1.0 - self_vol)) * above_props.g_rate;
@@ -503,9 +487,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
         // Lateral flow
         for (var i = 0; i < 4; i = i + 1) {
-            let np = ip + neighbors[i];
-            if (!is_solid(np)) {
-                let n_liq = get_liquid(np);
+            let nd = neighbors[i];
+            if (!is_solid(ip, nd, win_min)) {
+                let n_liq = get_liquid(ip, nd, win_min);
                 let n_props = get_liq_props(n_liq.x);
                 if (self_vol > n_liq.y && (n_liq.y <= 0.05 || self_props.density >= n_props.density)) {
                     let flow_out = (self_vol - n_liq.y) * l_rate;
@@ -538,9 +522,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
 
     // --- 3.5. Steam condensation ---
-    let my_gas = get_gas(ip);
+    let my_gas = get_gas(ip, zero_d, win_min);
     if (my_gas.x == 1.0 && my_gas.y > 0.05) {
-        if (is_solid(above_p)) {
+        if (is_solid(ip, up_d, win_min)) {
             if (next_vol <= 0.05 || next_id == 1.0) {
                 next_id = 1.0; // Water
                 next_vol = min(1.0, next_vol + 0.02);
@@ -556,10 +540,11 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
         );
         for (var i = 0u; i < 6u; i++) {
-            let nip = (ip + all_neighbors[i] + vec3<i32>(160)) % 160;
+            let nd = all_neighbors[i];
+            if (!step_in_window(ip, nd, win_min)) { continue; }
             
             // 1. Solid check
-            let n_sol = get_solid(nip);
+            let n_sol = get_solid(ip, nd, win_min);
             if (n_sol.y <= 0.0 && abs(n_sol.x) > 0.5) {
                 let rx = get_reaction(abs(next_id), 256u, abs(n_sol.x), 0u);
                 if (rx.x != abs(next_id) + 256.0) {
@@ -577,7 +562,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             }
             
             // 2. Liquid check
-            let n_liq = get_liquid(nip);
+            let n_liq = get_liquid(ip, nd, win_min);
             if (n_liq.y > 0.05) {
                 let rx = get_reaction(abs(next_id), 256u, n_liq.x, 256u);
                 if (rx.x != abs(next_id) + 256.0) {
@@ -595,7 +580,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             }
             
             // 3. Gas check
-            let n_gas = get_gas(nip);
+            let n_gas = get_gas(ip, nd, win_min);
             if (n_gas.y > 0.05) {
                 let rx = get_reaction(abs(next_id), 256u, n_gas.x, 512u);
                 if (rx.x != abs(next_id) + 256.0) {
@@ -711,115 +696,52 @@ fn get_gas_props(id: f32) -> GasProps {
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
 @group(0) @binding(8) var<storage, read_write> light_buffer: array<vec4<f32>>; // buffer backed light!
 
-fn get_solid(p: vec3<i32>) -> vec4<f32> {
-    if (p.x < 0 || p.x >= 160 || p.y < 0 || p.y >= 160 || p.z < 0 || p.z >= 160) { return vec4<f32>(255.0, -1.0, 0.0, 10.0); }
-    let wrapped = (p + vec3<i32>(160)) % 160;
-    let val = textureLoad(solid_texture, wrapped, 0);
-    return val;
-}
-
-fn is_solid(p: vec3<i32>) -> bool {
-    let sol = get_solid(p);
-    return sol.y * 0.5 < 0.008;
-}
-
-fn get_gas(p: vec3<i32>) -> vec4<f32> {
-    if (p.x < 0 || p.x >= 160 || p.y < 0 || p.y >= 160 || p.z < 0 || p.z >= 160) { return vec4<f32>(0.0); }
-    let wrapped = (p + vec3<i32>(160)) % 160;
-    let val = textureLoad(gas_texture, wrapped, 0);
-    return val;
-}
-
-fn get_liquid(p: vec3<i32>) -> vec4<f32> {
-    if (p.x < 0 || p.x >= 160 || p.y < 0 || p.y >= 160 || p.z < 0 || p.z >= 160) { return vec4<f32>(0.0); }
-    let wrapped = (p + vec3<i32>(160)) % 160;
-    let val = textureLoad(liquid_texture, wrapped, 0);
-    return val;
-}
-
-fn is_explosion_center(p: vec3<i32>) -> bool {
-    var is_exp = false;
-    
-    let g = get_gas(p);
-    if (g.y > 0.1) {
-        let g_id = round(abs(g.x));
-        if (g_id != 0.0 && g_id != 1.0 && g_id != 4.0) { // Optimize: skip common inert gases (Steam, Smoke)
-            let mat_id = clamp(u32(g_id), 0u, 255u);
-            let tags = registry_data[(512u + mat_id) * 8u + 7u];
-            if ((tags & 4u) != 0u) { is_exp = true; } // TAG_EXPLOSIVE
-        }
-    }
-    
-    let l = get_liquid(p);
-    if (l.y > 0.1) {
-        let l_id = round(abs(l.x));
-        if (l_id != 0.0 && l_id != 1.0) { // Optimize: skip common inert liquids (Water)
-            let mat_id = clamp(u32(l_id), 0u, 255u);
-            let tags = registry_data[(256u + mat_id) * 8u + 7u];
-            if ((tags & 4u) != 0u) { is_exp = true; }
-        }
-    }
-    
-    let s = get_solid(p);
-    if (s.y <= 0.0) {
-        let s_id = round(abs(s.x));
-        if (s_id != 0.0 && s_id != 1.0 && s_id != 6.0 && s_id != 255.0) { // Optimize: skip Empty, Stone, Sand, Bedrock
-            let mat_id = clamp(u32(s_id), 0u, 255u);
-            let tags = registry_data[mat_id * 8u + 7u];
-            if ((tags & 4u) != 0u) { is_exp = true; }
-        }
-    }
-    
-    if (is_exp) {
-        let dirs = array<vec3<i32>, 6>(
-            vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
-            vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
-            vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
-        );
-        for (var i = 0; i < 6; i = i + 1) {
-            let np = p + dirs[i];
-            
-            let n_g = get_gas(np);
-            if (n_g.y > 0.1) {
-                let n_id = round(abs(n_g.x));
-                if (n_id != 0.0 && n_id != 1.0 && n_id != 4.0) {
-                    let n_mat = clamp(u32(n_id), 0u, 255u);
-                    let n_tags = registry_data[(512u + n_mat) * 8u + 7u];
-                    if ((n_tags & 2u) != 0u) { return true; } // TAG_IGNITER
-                }
-            }
-            
-            let n_l = get_liquid(np);
-            if (n_l.y > 0.1) {
-                let n_id = round(abs(n_l.x));
-                if (n_id != 0.0 && n_id != 1.0) {
-                    let n_mat = clamp(u32(n_id), 0u, 255u);
-                    let n_tags = registry_data[(256u + n_mat) * 8u + 7u];
-                    if ((n_tags & 2u) != 0u) { return true; }
-                }
-            }
-            
-            let n_s = get_solid(np);
-            if (n_s.y <= 0.0) {
-                let n_id = round(abs(n_s.x));
-                if (n_id != 0.0 && n_id != 1.0 && n_id != 6.0 && n_id != 255.0) {
-                    let n_mat = clamp(u32(n_id), 0u, 255u);
-                    let n_tags = registry_data[n_mat * 8u + 7u];
-                    if ((n_tags & 2u) != 0u) { return true; }
-                }
-            }
-        }
-    }
-    
-    return false;
-}
-
 fn positive_mod(n: i32, m: i32) -> i32 {
     let r = n % m;
     if (r < 0) {
         return r + m;
     }
     return r;
+}
+
+fn get_win_min() -> vec3<i32> {
+    let cx = i32(floor(u.cam_pos.x / 32.0)) - 2;
+    let cy = i32(floor(u.cam_pos.y / 32.0)) - 2;
+    let cz = i32(floor(u.cam_pos.z / 32.0)) - 2;
+    return vec3<i32>(
+        positive_mod(cx, 5) * 32,
+        positive_mod(cy, 5) * 32,
+        positive_mod(cz, 5) * 32
+    );
+}
+
+fn step_in_window(base_ip: vec3<i32>, delta: vec3<i32>, win_min: vec3<i32>) -> bool {
+    let lp = (base_ip - win_min + vec3<i32>(160)) % 160;
+    let nlp = lp + delta;
+    return nlp.x >= 0 && nlp.x < 160 && nlp.y >= 0 && nlp.y < 160 && nlp.z >= 0 && nlp.z < 160;
+}
+
+fn get_solid(base_ip: vec3<i32>, delta: vec3<i32>, win_min: vec3<i32>) -> vec4<f32> {
+    if (!step_in_window(base_ip, delta, win_min)) { return vec4<f32>(255.0, -1.0, 0.0, 10.0); }
+    let wrapped = (base_ip + delta + vec3<i32>(160)) % 160;
+    return textureLoad(solid_texture, wrapped, 0);
+}
+
+fn is_solid(base_ip: vec3<i32>, delta: vec3<i32>, win_min: vec3<i32>) -> bool {
+    let sol = get_solid(base_ip, delta, win_min);
+    return sol.y * 0.5 < 0.008;
+}
+
+fn get_gas(base_ip: vec3<i32>, delta: vec3<i32>, win_min: vec3<i32>) -> vec4<f32> {
+    if (!step_in_window(base_ip, delta, win_min)) { return vec4<f32>(0.0, 0.0, 0.0, 10.0); }
+    let wrapped = (base_ip + delta + vec3<i32>(160)) % 160;
+    return textureLoad(gas_texture, wrapped, 0);
+}
+
+fn get_liquid(base_ip: vec3<i32>, delta: vec3<i32>, win_min: vec3<i32>) -> vec4<f32> {
+    if (!step_in_window(base_ip, delta, win_min)) { return vec4<f32>(0.0, 0.0, 0.0, 10.0); }
+    let wrapped = (base_ip + delta + vec3<i32>(160)) % 160;
+    return textureLoad(liquid_texture, wrapped, 0);
 }
 
 fn get_world_pos(ip: vec3<i32>, cam_pos: vec3<f32>) -> vec3<f32> {
@@ -865,13 +787,15 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let y = (idx / 160u) % 160u;
     let z = idx / 25600u;
     let ip = vec3<i32>(i32(x), i32(y), i32(z));
+    let win_min = get_win_min();
+    let zero_d = vec3<i32>(0, 0, 0);
 
-    if (is_solid(ip)) {
+    if (is_solid(ip, zero_d, win_min)) {
         output_buffer[idx] = vec4<f32>(0.0, 0.0, 0.0, 10.0);
         return;
     }
 
-    let self_gas = get_gas(ip);
+    let self_gas = get_gas(ip, zero_d, win_min);
     let self_vol = self_gas.y;
     var next_id = self_gas.x;
     var next_vol = self_vol;
@@ -879,21 +803,21 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     var next_sleep = self_gas.w;
     
     if (next_sleep >= 10.0) {
-        let n1 = get_gas(ip + vec3<i32>(-1,0,0)).w;
-        let n2 = get_gas(ip + vec3<i32>(1,0,0)).w;
-        let n3 = get_gas(ip + vec3<i32>(0,-1,0)).w;
-        let n4 = get_gas(ip + vec3<i32>(0,1,0)).w;
-        let n5 = get_gas(ip + vec3<i32>(0,0,-1)).w;
-        let n6 = get_gas(ip + vec3<i32>(0,0,1)).w;
-        let my_liq = get_liquid(ip).w;
+        let n1 = get_gas(ip, vec3<i32>(-1,0,0), win_min).w;
+        let n2 = get_gas(ip, vec3<i32>(1,0,0), win_min).w;
+        let n3 = get_gas(ip, vec3<i32>(0,-1,0), win_min).w;
+        let n4 = get_gas(ip, vec3<i32>(0,1,0), win_min).w;
+        let n5 = get_gas(ip, vec3<i32>(0,0,-1), win_min).w;
+        let n6 = get_gas(ip, vec3<i32>(0,0,1), win_min).w;
+        let my_liq = get_liquid(ip, zero_d, win_min).w;
         if (n1 >= 10.0 && n2 >= 10.0 && n3 >= 10.0 && n4 >= 10.0 && n5 >= 10.0 && n6 >= 10.0 && my_liq >= 10.0 && u.edit_params.w == 0.0) {
              output_buffer[idx] = self_gas;
              return;
         }
     }
 
-    let below_p = ip + vec3<i32>(0, -1, 0);
-    let above_p = ip + vec3<i32>(0, 1, 0);
+    let down_d = vec3<i32>(0, -1, 0);
+    let up_d = vec3<i32>(0, 1, 0);
 
     let neighbors = array<vec3<i32>, 4>(
         vec3<i32>(-1, 0, 0),
@@ -911,20 +835,20 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     // --- 1. Vertical flow ---
     // Flow out to above (if we rise)
-    if (g_rate > 0.0 && !is_solid(above_p)) {
-        let above = get_gas(above_p);
+    if (g_rate > 0.0 && !is_solid(ip, up_d, win_min)) {
+        let above = get_gas(ip, up_d, win_min);
         let flow_out = min(self_vol, max(0.0, 1.0 - above.y)) * g_rate;
         net_flow -= flow_out;
     }
     // Flow out to below (if we fall)
-    if (g_rate < 0.0 && !is_solid(below_p)) {
-        let below = get_gas(below_p);
+    if (g_rate < 0.0 && !is_solid(ip, down_d, win_min)) {
+        let below = get_gas(ip, down_d, win_min);
         let flow_out = min(self_vol, max(0.0, 1.0 - below.y)) * abs(g_rate);
         net_flow -= flow_out;
     }
     // Flow in from below (if they rise)
-    if (!is_solid(below_p)) {
-        let below = get_gas(below_p);
+    if (!is_solid(ip, down_d, win_min)) {
+        let below = get_gas(ip, down_d, win_min);
         let below_props = get_gas_props(below.x);
         if (below_props.g_rate > 0.0) {
             let flow_in = min(below.y, max(0.0, 1.0 - self_vol)) * below_props.g_rate;
@@ -936,8 +860,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
     }
     // Flow in from above (if they fall)
-    if (!is_solid(above_p)) {
-        let above = get_gas(above_p);
+    if (!is_solid(ip, up_d, win_min)) {
+        let above = get_gas(ip, up_d, win_min);
         let above_props = get_gas_props(above.x);
         if (above_props.g_rate < 0.0) {
             let flow_in = min(above.y, max(0.0, 1.0 - self_vol)) * abs(above_props.g_rate);
@@ -951,9 +875,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     // --- 2. Lateral flow ---
     for (var i = 0; i < 4; i = i + 1) {
-        let np = ip + neighbors[i];
-        if (!is_solid(np)) {
-            let n_gas = get_gas(np);
+        let nd = neighbors[i];
+        if (!is_solid(ip, nd, win_min)) {
+            let n_gas = get_gas(ip, nd, win_min);
             let n_props = get_gas_props(n_gas.x);
             // Flow out to neighbor if we have more
             if (self_vol > n_gas.y) {
@@ -990,8 +914,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     var spawn_gas_id = 0.0;
     var spawn_gas_vol = 0.0;
     
-    let my_liq = get_liquid(ip);
-    let my_sol = get_solid(ip);
+    let my_liq = get_liquid(ip, zero_d, win_min);
+    let my_sol = get_solid(ip, zero_d, win_min);
     let dirs6 = array<vec3<i32>, 6>(
         vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
         vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
@@ -1000,15 +924,16 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     
     if (my_liq.y > 0.05) {
         for (var i = 0u; i < 6u; i++) {
-            let nip = (ip + dirs6[i] + vec3<i32>(160)) % 160;
-            let n_sol = get_solid(nip);
+            let nd = dirs6[i];
+            if (!step_in_window(ip, nd, win_min)) { continue; }
+            let n_sol = get_solid(ip, nd, win_min);
             if (n_sol.y <= 0.0 && abs(n_sol.x) > 0.5) {
                 let rx = get_reaction(abs(my_liq.x), 256u, abs(n_sol.x), 0u);
                 if (rx.x >= 512.0) {
                     spawn_gas_id = rx.x - 512.0; spawn_gas_vol = 1.0; break;
                 }
             }
-            let n_liq = get_liquid(nip);
+            let n_liq = get_liquid(ip, nd, win_min);
             if (n_liq.y > 0.05) {
                 let rx = get_reaction(abs(my_liq.x), 256u, n_liq.x, 256u);
                 if (rx.x >= 512.0) {
@@ -1018,15 +943,16 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
     } else if (my_sol.y <= 0.0 && abs(my_sol.x) > 0.5) {
         for (var i = 0u; i < 6u; i++) {
-            let nip = (ip + dirs6[i] + vec3<i32>(160)) % 160;
-            let n_liq = get_liquid(nip);
+            let nd = dirs6[i];
+            if (!step_in_window(ip, nd, win_min)) { continue; }
+            let n_liq = get_liquid(ip, nd, win_min);
             if (n_liq.y > 0.05) {
                 let rx = get_reaction(abs(my_sol.x), 0u, n_liq.x, 256u);
                 if (rx.x >= 512.0) {
                     spawn_gas_id = rx.x - 512.0; spawn_gas_vol = 1.0; break;
                 }
             }
-            let n_gas = get_gas(nip);
+            let n_gas = get_gas(ip, nd, win_min);
             if (n_gas.y > 0.05) {
                 let rx = get_reaction(abs(my_sol.x), 0u, n_gas.x, 512u);
                 if (rx.x >= 512.0) {
@@ -1114,6 +1040,23 @@ fn positive_mod(n: i32, m: i32) -> i32 {
     return r;
 }
 
+fn get_win_min() -> vec3<i32> {
+    let cx = i32(floor(u.cam_pos.x / 32.0)) - 2;
+    let cy = i32(floor(u.cam_pos.y / 32.0)) - 2;
+    let cz = i32(floor(u.cam_pos.z / 32.0)) - 2;
+    return vec3<i32>(
+        positive_mod(cx, 5) * 32,
+        positive_mod(cy, 5) * 32,
+        positive_mod(cz, 5) * 32
+    );
+}
+
+fn step_in_window(base_ip: vec3<i32>, delta: vec3<i32>, win_min: vec3<i32>) -> bool {
+    let lp = (base_ip - win_min + vec3<i32>(160)) % 160;
+    let nlp = lp + delta;
+    return nlp.x >= 0 && nlp.x < 160 && nlp.y >= 0 && nlp.y < 160 && nlp.z >= 0 && nlp.z < 160;
+}
+
 fn get_world_pos(ip: vec3<i32>, cam_pos: vec3<f32>) -> vec3<f32> {
     let cx = i32(floor(cam_pos.x / 32.0));
     let cy = i32(floor(cam_pos.y / 32.0));
@@ -1142,97 +1085,13 @@ fn get_world_pos(ip: vec3<i32>, cam_pos: vec3<f32>) -> vec3<f32> {
     return vec3<f32>(f32(gx), f32(gy), f32(gz));
 }
 
-fn get_solid(p: vec3<i32>) -> vec4<f32> {
-    let wrapped = (p + vec3<i32>(160)) % 160;
+fn get_solid(base_ip: vec3<i32>, delta: vec3<i32>, win_min: vec3<i32>) -> vec4<f32> {
+    if (!step_in_window(base_ip, delta, win_min)) {
+        return vec4<f32>(255.0, -1.0, 0.0, 10.0);
+    }
+    let wrapped = (base_ip + delta + vec3<i32>(160)) % 160;
     let s_idx = u32(wrapped.x) + u32(wrapped.y) * 160u + u32(wrapped.z) * 25600u;
     return input_buffer[s_idx];
-}
-
-fn get_liquid(p: vec3<i32>) -> vec4<f32> {
-    let wrapped = (p + vec3<i32>(160)) % 160;
-    return textureLoad(liquid_texture, wrapped, 0);
-}
-
-fn get_gas(p: vec3<i32>) -> vec4<f32> {
-    let wrapped = (p + vec3<i32>(160)) % 160;
-    return textureLoad(gas_texture, wrapped, 0);
-}
-
-fn is_explosion_center(p: vec3<i32>) -> bool {
-    var is_exp = false;
-    
-    let g = get_gas(p);
-    if (g.y > 0.1) {
-        let g_id = round(abs(g.x));
-        if (g_id != 0.0 && g_id != 1.0 && g_id != 4.0) { // Optimize: skip common inert gases (Steam, Smoke)
-            let mat_id = clamp(u32(g_id), 0u, 255u);
-            let tags = registry_data[(512u + mat_id) * 8u + 7u];
-            if ((tags & 4u) != 0u) { is_exp = true; } // TAG_EXPLOSIVE
-        }
-    }
-    
-    let l = get_liquid(p);
-    if (l.y > 0.1) {
-        let l_id = round(abs(l.x));
-        if (l_id != 0.0 && l_id != 1.0) { // Optimize: skip common inert liquids (Water)
-            let mat_id = clamp(u32(l_id), 0u, 255u);
-            let tags = registry_data[(256u + mat_id) * 8u + 7u];
-            if ((tags & 4u) != 0u) { is_exp = true; }
-        }
-    }
-    
-    let s = get_solid(p);
-    if (s.y <= 0.0) {
-        let s_id = round(abs(s.x));
-        if (s_id != 0.0 && s_id != 1.0 && s_id != 6.0 && s_id != 255.0) { // Optimize: skip Empty, Stone, Sand, Bedrock
-            let mat_id = clamp(u32(s_id), 0u, 255u);
-            let tags = registry_data[mat_id * 8u + 7u];
-            if ((tags & 4u) != 0u) { is_exp = true; }
-        }
-    }
-    
-    if (is_exp) {
-        let dirs = array<vec3<i32>, 6>(
-            vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
-            vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
-            vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
-        );
-        for (var i = 0; i < 6; i = i + 1) {
-            let np = p + dirs[i];
-            
-            let n_g = get_gas(np);
-            if (n_g.y > 0.1) {
-                let n_id = round(abs(n_g.x));
-                if (n_id != 0.0 && n_id != 1.0 && n_id != 4.0) {
-                    let n_mat = clamp(u32(n_id), 0u, 255u);
-                    let n_tags = registry_data[(512u + n_mat) * 8u + 7u];
-                    if ((n_tags & 2u) != 0u) { return true; } // TAG_IGNITER
-                }
-            }
-            
-            let n_l = get_liquid(np);
-            if (n_l.y > 0.1) {
-                let n_id = round(abs(n_l.x));
-                if (n_id != 0.0 && n_id != 1.0) {
-                    let n_mat = clamp(u32(n_id), 0u, 255u);
-                    let n_tags = registry_data[(256u + n_mat) * 8u + 7u];
-                    if ((n_tags & 2u) != 0u) { return true; }
-                }
-            }
-            
-            let n_s = get_solid(np);
-            if (n_s.y <= 0.0) {
-                let n_id = round(abs(n_s.x));
-                if (n_id != 0.0 && n_id != 1.0 && n_id != 6.0 && n_id != 255.0) {
-                    let n_mat = clamp(u32(n_id), 0u, 255u);
-                    let n_tags = registry_data[n_mat * 8u + 7u];
-                    if ((n_tags & 2u) != 0u) { return true; }
-                }
-            }
-        }
-    }
-    
-    return false;
 }
 
 @compute @workgroup_size(64)
@@ -1244,8 +1103,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let y = (idx / 160u) % 160u;
     let z = idx / 25600u;
     let ip = vec3<i32>(i32(x), i32(y), i32(z));
+    let win_min = get_win_min();
+    let zero_d = vec3<i32>(0, 0, 0);
 
-    let self_sol = get_solid(ip);
+    let self_sol = get_solid(ip, zero_d, win_min);
     let self_vol = self_sol.y;
     var next_id = self_sol.x;
     var next_vol = self_vol;
@@ -1256,12 +1117,12 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (dummy_val < -99999.0) { return; }
 
     if (next_sleep >= 10.0) {
-        let n1 = get_solid(ip + vec3<i32>(-1,0,0)).w;
-        let n2 = get_solid(ip + vec3<i32>(1,0,0)).w;
-        let n3 = get_solid(ip + vec3<i32>(0,-1,0)).w;
-        let n4 = get_solid(ip + vec3<i32>(0,1,0)).w;
-        let n5 = get_solid(ip + vec3<i32>(0,0,-1)).w;
-        let n6 = get_solid(ip + vec3<i32>(0,0,1)).w;
+        let n1 = get_solid(ip, vec3<i32>(-1,0,0), win_min).w;
+        let n2 = get_solid(ip, vec3<i32>(1,0,0), win_min).w;
+        let n3 = get_solid(ip, vec3<i32>(0,-1,0), win_min).w;
+        let n4 = get_solid(ip, vec3<i32>(0,1,0), win_min).w;
+        let n5 = get_solid(ip, vec3<i32>(0,0,-1), win_min).w;
+        let n6 = get_solid(ip, vec3<i32>(0,0,1), win_min).w;
         // Wake up if the mouse is clicking (u.hit_pos.w == 1.0)
         if (n1 >= 10.0 && n2 >= 10.0 && n3 >= 10.0 && n4 >= 10.0 && n5 >= 10.0 && n6 >= 10.0 && u.hit_pos.w == 0.0) {
              output_buffer[idx] = self_sol;
@@ -1269,21 +1130,14 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
     }
 
-    
-    
     // --- Falling Sand Gravity & Liquid Rubble Logic (SDF-Safe) ---
-    // Pseudo-random number for unbiased diagonal falling
     let rand = fract(sin(dot(vec2<f32>(f32(ip.x), f32(ip.z)) + f32(u32(u.time) % 1000u), vec2<f32>(12.9898, 78.233))) * 43758.5453);
     let diag_x = select(-1, 1, rand > 0.5);
-    let diag_z = select(1, -1, rand > 0.5); // Just some arbitrary second pseudo-random
-    
-    let g_dir = vec3<i32>(0, -1, 0);
+    let diag_z = select(1, -1, rand > 0.5);
     
     // 1. If we are EMPTY (positive SDF), check if sand wants to fall into us
     if (self_vol > 0.0) {
-        // Try directly above first
-        let up_ip = ip + vec3<i32>(0, 1, 0);
-        let up_sol = get_solid(up_ip);
+        let up_sol = get_solid(ip, vec3<i32>(0, 1, 0), win_min);
         
         if (up_sol.y <= 0.0 && up_sol.x < 0.0) {
             next_id = up_sol.x;
@@ -1291,31 +1145,21 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             next_age = up_sol.z;
             next_sleep = 0.0;
         } else {
-            // If nothing directly above, check diagonally above!
-            // But only pull from diagonally above if that sand CANNOT fall straight down.
-            // i.e., check if the space below THAT sand is blocked.
-            // Wait, this is a bit complex. Let's just try to pull from the 4 diagonals above.
-            // To prevent all 4 falling into us at once, we prioritize one based on `rand`.
-            var pulled = false;
             let dirs = array<vec3<i32>, 4>(
                 vec3<i32>(diag_x, 1, 0), vec3<i32>(-diag_x, 1, 0),
                 vec3<i32>(0, 1, diag_z), vec3<i32>(0, 1, -diag_z)
             );
             
             for (var i = 0; i < 4; i++) {
-                let diag_up_ip = ip + dirs[i];
-                let diag_sol = get_solid(diag_up_ip);
+                let d_up = dirs[i];
+                let diag_sol = get_solid(ip, d_up, win_min);
                 if (diag_sol.y <= 0.0 && diag_sol.x < 0.0) {
-                    // Check if that sand is blocked from falling straight down
-                    let diag_down_ip = diag_up_ip + vec3<i32>(0, -1, 0);
-                    let diag_down_sol = get_solid(diag_down_ip);
+                    let diag_down_sol = get_solid(ip, d_up + vec3<i32>(0, -1, 0), win_min);
                     if (diag_down_sol.y <= 0.0) {
-                        // It's blocked directly below it! So it falls into us!
                         next_id = diag_sol.x;
                         next_vol = diag_sol.y;
                         next_age = diag_sol.z;
                         next_sleep = 0.0;
-                        pulled = true;
                         break;
                     }
                 }
@@ -1324,29 +1168,22 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     } 
     // 2. If we are FALLING SAND (negative SDF AND negative Material ID), check if we should fall or slide
     else if (self_vol <= 0.0 && self_sol.x < 0.0) {
-        let down_ip = ip + vec3<i32>(0, -1, 0);
-        let down_sol = get_solid(down_ip);
+        let down_sol = get_solid(ip, vec3<i32>(0, -1, 0), win_min);
         
         if (down_sol.y > 0.0) {
-            // Space below is empty, we fall straight down!
             next_id = 0.0;
             next_vol = 0.5;
             next_age = 0.0;
             next_sleep = 0.0;
         } else {
-            // Blocked directly below. Can we slide diagonally down?
-            // To ensure we vacate this cell, the cell diagonally down MUST be empty.
-            // We check the same 4 diagonals but downwards.
             let dirs = array<vec3<i32>, 4>(
                 vec3<i32>(-diag_x, -1, 0), vec3<i32>(diag_x, -1, 0),
                 vec3<i32>(0, -1, -diag_z), vec3<i32>(0, -1, diag_z)
             );
             
             for (var i = 0; i < 4; i++) {
-                let diag_down_ip = ip + dirs[i];
-                let diag_down_sol = get_solid(diag_down_ip);
+                let diag_down_sol = get_solid(ip, dirs[i], win_min);
                 if (diag_down_sol.y > 0.0) {
-                    // Space diagonally below is empty! We slide into it.
                     next_id = 0.0;
                     next_vol = 0.5;
                     next_age = 0.0;
@@ -1376,17 +1213,19 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
 
     // --- 2.5 Reaction Matrix Lookup ---
-    if (next_vol <= 0.0 && next_id > 0.0) {
+    if (next_vol <= 0.0 && next_id > 0.0 && next_id != 255.0) {
         let neighbors = array<vec3<i32>, 6>(
             vec3<i32>(1,0,0), vec3<i32>(-1,0,0),
             vec3<i32>(0,1,0), vec3<i32>(0,-1,0),
             vec3<i32>(0,0,1), vec3<i32>(0,0,-1)
         );
         for (var i = 0u; i < 6u; i++) {
-            let nip = (ip + neighbors[i] + vec3<i32>(160)) % 160;
+            let nd = neighbors[i];
+            if (!step_in_window(ip, nd, win_min)) { continue; }
+            let nip = (ip + nd + vec3<i32>(160)) % 160;
             
             // 1. Check solid
-            let n_sol = get_solid(nip);
+            let n_sol = get_solid(ip, nd, win_min);
             if (n_sol.y <= 0.0 && abs(n_sol.x) > 0.5) {
                 let rx = get_reaction(abs(next_id), 0u, abs(n_sol.x), 0u);
                 if (rx.x != abs(next_id)) {
@@ -1432,13 +1271,13 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
     }
 
-    // 3. Carve and Build natively on the GPU (Proper SDF Math)
+    // 3. Carve and Build natively on the GPU (Proper SDF Math; True Bedrock 255.0 is indestructible)
     if (u.hit_pos.w > 0.5) {
         let world_pos = get_world_pos(ip, u.cam_pos.xyz);
         let dist = distance(world_pos, u.hit_pos.xyz);
         
-        if (u.solid_params.x > 998.0) { // Carving (Intersection)
-            if (dist <= u.brush_radius + 4.0) {
+        if (u.solid_params.x > 998.0 && next_id != 255.0) { // Carving (Intersection)
+            if (dist <= u.brush_radius + 8.0) {
                 let carve_val = u.brush_radius - dist;
                 if (carve_val > next_vol) {
                     next_vol = carve_val;
@@ -1448,7 +1287,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 }
             }
         } else if (u.solid_params.x > 0.0) { // Spawning Rigid (Union)
-            if (dist <= u.brush_radius + 4.0) {
+            if (dist <= u.brush_radius + 8.0) {
                 let build_val = dist - u.brush_radius;
                 if (build_val < next_vol) {
                     next_vol = build_val;
@@ -1498,6 +1337,31 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
 @group(0) @binding(8) var<storage, read_write> light_buffer: array<vec4<f32>>; // buffer backed light!
 
+fn positive_mod(n: i32, m: i32) -> i32 {
+    let r = n % m;
+    if (r < 0) {
+        return r + m;
+    }
+    return r;
+}
+
+fn get_win_min() -> vec3<i32> {
+    let cx = i32(floor(u.cam_pos.x / 32.0)) - 2;
+    let cy = i32(floor(u.cam_pos.y / 32.0)) - 2;
+    let cz = i32(floor(u.cam_pos.z / 32.0)) - 2;
+    return vec3<i32>(
+        positive_mod(cx, 5) * 32,
+        positive_mod(cy, 5) * 32,
+        positive_mod(cz, 5) * 32
+    );
+}
+
+fn step_in_window(base_ip: vec3<i32>, delta: vec3<i32>, win_min: vec3<i32>) -> bool {
+    let lp = (base_ip - win_min + vec3<i32>(160)) % 160;
+    let nlp = lp + delta;
+    return nlp.x >= 0 && nlp.x < 160 && nlp.y >= 0 && nlp.y < 160 && nlp.z >= 0 && nlp.z < 160;
+}
+
 fn get_solid(p: vec3<i32>) -> vec4<f32> {
     let wrapped = (p + vec3<i32>(160)) % 160;
     let s_idx = u32(wrapped.x) + u32(wrapped.y) * 160u + u32(wrapped.z) * 25600u;
@@ -1521,6 +1385,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let y = (idx / 160u) % 160u;
     let z = idx / 25600u;
     let ip = vec3<i32>(i32(x), i32(y), i32(z));
+    let win_min = get_win_min();
+    let lp = (ip - win_min + vec3<i32>(160)) % 160;
 
     let sol = solid_buffer[idx];
     // Dummy use of all bindings to prevent WebGPU from optimizing them out of the pipeline layout!
@@ -1543,11 +1409,13 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         
         // --- Step 1: Load Path Gradient (W) ---
         var my_w = 0.0;
-        if (sol.x == 255.0 || ip.y == 0) {
-            my_w = 64.0; // Anchor (64-hop reach across multi-tier 3D cave labyrinths)
+        if (sol.x == 255.0 || lp.y <= 32 || lp.x <= 32 || lp.x >= 127 || lp.z <= 32 || lp.z >= 127) {
+            my_w = 96.0; // Anchor at True Bedrock & outer streaming shell of active 5x5x5 window
         } else {
             for (var i = 0u; i < 6u; i++) {
-                let nip = (ip + dirs6[i] + vec3<i32>(160)) % 160;
+                let nd = dirs6[i];
+                if (!step_in_window(ip, nd, win_min)) { continue; }
+                let nip = (ip + nd + vec3<i32>(160)) % 160;
                 let n_sol = get_solid(nip);
                 if (n_sol.y <= 0.0 && n_sol.x > 0.0) { // If neighbor is rigid solid
                     let n_idx = u32(nip.x) + u32(nip.y) * 160u + u32(nip.z) * 25600u;
@@ -1555,7 +1423,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     
                     // Vertical support (from directly below) does not decay!
                     var decay = 1.0;
-                    if (dirs6[i].y == -1) { decay = 0.0; } // Supported from below
+                    if (nd.y == -1) { decay = 0.0; } // Supported from below
                     
                     let supported_w = max(0.0, n_field.w - decay);
                     if (supported_w > max_neighbor_w) {
@@ -1567,13 +1435,15 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
 
         // --- Step 2: Accumulate Stress (X, Y, Z) ---
-        // Contractive dome transfer (2 * 0.38 = 0.76 < 1.0) prevents 2^k Pascal's-triangle blowup across 3D overhangs
+        // Contractive 3D dome transfer (3 * 0.30 = 0.90 < 1.0) keeps massive cathedral vaults stable while collapsing severed pillars
         var compressive = 0.0;
         var tensile = 0.0;
         var shear = 0.0;
 
         for (var i = 0u; i < 6u; i++) {
-            let nip = (ip + dirs6[i] + vec3<i32>(160)) % 160;
+            let nd = dirs6[i];
+            if (!step_in_window(ip, nd, win_min)) { continue; }
+            let nip = (ip + nd + vec3<i32>(160)) % 160;
             let n_sol = get_solid(nip);
             if (n_sol.y <= 0.0 && n_sol.x > 0.0) {
                 let n_idx = u32(nip.x) + u32(nip.y) * 160u + u32(nip.z) * 25600u;
@@ -1581,19 +1451,19 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 
                 // Does this neighbor route its load through me?
                 var decay = 1.0;
-                if (dirs6[i].y == 1) { decay = 0.0; } // The block ABOVE me sees ME as below, so its decay was 0!
+                if (nd.y == 1) { decay = 0.0; } // The block ABOVE me sees ME as below, so its decay was 0!
                 
                 if (abs(n_field.w - (my_w - decay)) < 0.1) {
                     let n_mat_id = clamp(u32(round(n_sol.x)), 0u, 255u);
                     let n_reg_idx = n_mat_id * 8u;
                     let n_mass = bitcast<f32>(registry_data[n_reg_idx + 5u]); // density as mass
                     
-                    if (dirs6[i].y == 1) {
+                    if (nd.y == 1) {
                         compressive += n_field.x * 0.88 + n_mass;
-                    } else if (dirs6[i].y == -1) {
+                    } else if (nd.y == -1) {
                         tensile += n_field.y * 0.85 + n_mass;
                     } else {
-                        shear += n_field.z * 0.38 + n_field.x * 0.08 + n_mass * 0.30;
+                        shear += n_field.z * 0.30 + n_field.x * 0.06 + n_mass * 0.25;
                     }
                 }
             }
@@ -1606,15 +1476,15 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             broken = true;
         }
 
-        // Check strength (floor at 1.5 so brittle flora/crystals embedded in cave walls don't self-crush)
+        // Check strength (floor at 2.5 so brittle flora/crystals embedded in huge vault walls don't self-crush)
         let my_mat_id = clamp(u32(round(sol.x)), 0u, 255u);
         let my_reg_idx = my_mat_id * 8u;
         let toughness = bitcast<f32>(registry_data[my_reg_idx + 6u]);
-        let struct_t = max(toughness, 1.5);
+        let struct_t = max(toughness, 2.5);
         
         let limit_c = struct_t * 120.0; 
-        let limit_t = struct_t * 35.0;
-        let limit_s = struct_t * 45.0;
+        let limit_t = struct_t * 50.0;
+        let limit_s = struct_t * 60.0;
         
         // Bedrock never breaks
         if (sol.x != 255.0) {
@@ -1641,9 +1511,11 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     var current_light = light_buffer[idx].rgb;
     var next_light = current_light * 0.90; // Fast decay for moving sources
     
-    // Check neighbors to pull light in across the toroidal cave volume
+    // Check neighbors to pull light in across the active 5x5x5 window (without bleeding across outer toroidal seam)
     for (var i = 0u; i < 6u; i++) {
-        let np = (ip + dirs6[i] + vec3<i32>(160)) % 160;
+        let nd = dirs6[i];
+        if (!step_in_window(ip, nd, win_min)) { continue; }
+        let np = (ip + nd + vec3<i32>(160)) % 160;
         let n_idx = u32(np.x) + u32(np.y) * 160u + u32(np.z) * 25600u;
         let neighbor_light = light_buffer[n_idx].rgb;
         

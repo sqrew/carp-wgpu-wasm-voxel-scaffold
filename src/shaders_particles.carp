@@ -64,16 +64,16 @@ fn get_voxel(pos: vec3<f32>) -> vec4<f32> {
     return textureLoad(solid_texture, ip, 0);
 }
 
-// True if position is inside solid voxel or below bedrock floor
+// True if position is inside solid voxel or below true bedrock floor
 fn check_collision(pos: vec3<f32>) -> bool {
-    if (pos.y <= 0.0) { return true; }
+    if (pos.y <= -192.0) { return true; }
     let vox = get_voxel(pos);
-    return vox.r > 0.5;
+    return abs(vox.r) > 0.5 && vox.g <= 0.0;
 }
 
 // Estimate collision normal using neighboring voxel samples
 fn get_normal(pos: vec3<f32>) -> vec3<f32> {
-    if (pos.y <= 0.2) { return vec3<f32>(0.0, 1.0, 0.0); }
+    if (pos.y <= -191.8) { return vec3<f32>(0.0, 1.0, 0.0); }
     let eps = 0.5;
     let s_xp = check_collision(pos + vec3<f32>(eps, 0.0, 0.0));
     let s_xm = check_collision(pos - vec3<f32>(eps, 0.0, 0.0));
@@ -214,8 +214,8 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     // Decrement life
     p.life -= dt;
 
-    // Kill if expired or out of world
-    if (p.life <= 0.0 || p.pos.y < -50.0 || length(p.pos) > 600.0) {
+    // Kill if expired or below true bedrock
+    if (p.life <= 0.0 || p.pos.y < -240.0) {
         p.life = 0.0;
     }
 

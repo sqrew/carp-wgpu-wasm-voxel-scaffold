@@ -18,11 +18,11 @@
                       fdy (Double.from-int gy)
                       idx (+ (* z 1024) (+ (* y 32) x))
                       offset (* idx 4)]
-                  (if (<= gy 0)
-                      ;; Absolute Bedrock Floor
+                  (if (<= gy -192)
+                      ;; True Bedrock Floor at y = -192 (~225 voxels below surface hills)
                       (do
                         (Pointer.set (Pointer.add p-data (Long.from-int offset)) 255.0f)
-                        (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) -1.0f)
+                        (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) -12.0f)
                         (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
                         (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 10.0f))
                       (let [surf-sdf (- fdy surface-h)]
@@ -30,44 +30,95 @@
                             ;; High air above hills: skip 3D noise completely
                             (do
                               (Pointer.set (Pointer.add p-data (Long.from-int offset)) 0.0f)
-                              (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) (Double.to-float surf-sdf))
+                              (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) (Double.to-float (if (> surf-sdf 12.0) 12.0 surf-sdf)))
                               (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
                               (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 0.0f))
-                            ;; Underground & hillside zone: carve 3D Simplex caverns
-                            (let [n1 (Noise.noise3d noise-state (* fdx 0.045) (* fdy 0.065) (* fdz 0.045))
-                                  n2 (Noise.noise3d noise-state (+ (* fdx 0.11) 37.0) (* fdy 0.11) (- (* fdz 0.11) 19.0))
-                                  floor-guard (if (< fdy 5.0) (* (- 5.0 fdy) 0.12) 0.0)
-                                  roof-guard (if (> surf-sdf -4.0) (* (+ surf-sdf 4.0) 0.035) 0.0)
-                                  cave-raw (- (+ (* n1 0.82) (* n2 0.18)) (+ 0.18 (+ floor-guard roof-guard)))
-                                  cave-sdf-raw (* cave-raw 7.0)
-                                  cave-sdf (if (> cave-sdf-raw 6.0) 6.0 (if (< cave-sdf-raw -6.0) -6.0 cave-sdf-raw))
-                                  final-sdf (if (> surf-sdf cave-sdf) surf-sdf cave-sdf)]
+                            ;; Underground & hillside zone: multi-scale 3D cathedrals, vertical chasms, and winding tunnels
+                            (let [depth-below (- surface-h fdy)
+                                  deep-raw (/ (- depth-below 14.0) 55.0)
+                                  deep-scale (if (< deep-raw 0.25) 0.25 (if (> deep-raw 1.0) 1.0 deep-raw))
+                                  n-sink (Noise.noise2d noise-state (+ (* fdx 0.022) 91.0) (- (* fdz 0.022) 47.0))
+                                  n-macro (Noise.noise3d noise-state (* fdx 0.018) (* fdy 0.022) (* fdz 0.018))
+                                  n-chasm (Noise.noise3d noise-state (- (* fdx 0.028) 63.0) (* fdy 0.011) (+ (* fdz 0.028) 29.0))
+                                  n-tun (Noise.noise3d noise-state (+ (* fdx 0.038) 17.0) (* fdy 0.044) (- (* fdz 0.038) 41.0))
+                                  n-det (Noise.noise3d noise-state (+ (* fdx 0.095) 37.0) (* fdy 0.095) (- (* fdz 0.095) 19.0))
+                                  sink-open (if (> n-sink 0.46) 0.0 (if (< n-sink 0.26) 1.0 (/ (- 0.46 n-sink) 0.20)))
+                                  roof-guard (if (> surf-sdf -8.0) (* (* (+ surf-sdf 8.0) 0.032) sink-open) 0.0)
+                                  floor-guard (if (< fdy -178.0) (* (- -178.0 fdy) 0.065) 0.0)
+                                  base-thresh (- 0.16 (* 0.06 deep-scale))
+                                  cave-blend (+ (* n-macro (* 0.58 deep-scale))
+                                                (+ (* n-chasm 0.34)
+                                                   (+ (* n-tun (- 0.45 (* 0.20 deep-scale)))
+                                                      (* n-det 0.12))))
+                                  cave-raw (- cave-blend (+ base-thresh (+ floor-guard roof-guard)))
+                                  sdf-scale (+ 11.0 (* 13.0 deep-scale))
+                                  cave-sdf-raw (* cave-raw sdf-scale)
+                                  cave-sdf (if (> cave-sdf-raw 12.0) 12.0 (if (< cave-sdf-raw -12.0) -12.0 cave-sdf-raw))
+                                  surf-clamped (if (> surf-sdf 12.0) 12.0 (if (< surf-sdf -12.0) -12.0 surf-sdf))
+                                  final-sdf (if (> surf-clamped cave-sdf) surf-clamped cave-sdf)]
                               (if (> final-sdf 0.0)
-                                  ;; Carved Cave Air or Surface Air (negative z seeds underground liquids on chunk upload: -1 Water, -2 Lava)
-                                  (let [seed-liq (if (and (>= gy 2) (and (<= gy 6) (and (< surf-sdf -14.0) (> n2 0.08))))
-                                                     -2.0f
-                                                     (if (and (>= gy 11) (and (<= gy 15) (and (< surf-sdf -10.0) (< n2 -0.22))))
+                                  ;; Carved Cave Air or Surface Air (negative z seeds underground liquids on chunk upload)
+                                  ;; -1 Water, -2 Lava, -4 Oil, -6 Ambrosia, -8 Toxic Sludge
+                                  (let [seed-liq (if (< surf-sdf -12.0)
+                                                     (if (and (>= gy -22) (and (<= gy -14) (< n-tun -0.18)))
                                                          -1.0f
-                                                         0.0f))]
+                                                         (if (and (>= gy -48) (and (<= gy -44) (> n-tun 0.40)))
+                                                             -6.0f
+                                                             (if (and (>= gy -76) (and (<= gy -66) (< n-chasm -0.08)))
+                                                                 -1.0f
+                                                                 (if (and (>= gy -132) (<= gy -124))
+                                                                     (if (> n-tun 0.28)
+                                                                         -8.0f
+                                                                         (if (< n-tun -0.30) -4.0f 0.0f))
+                                                                     (if (and (>= gy -188) (and (<= gy -176) (> n-macro -0.18)))
+                                                                         -2.0f
+                                                                         0.0f)))))
+                                                     0.0f)]
                                     (do
                                       (Pointer.set (Pointer.add p-data (Long.from-int offset)) 0.0f)
                                       (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) (Double.to-float final-sdf))
                                       (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) seed-liq)
                                       (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 0.0f)))
-                                  ;; Solid Terrain: Soil crust near surface, glowing Crystal/Amethyst/Spore cave pockets, and Coal/Gold veins
-                                  (let [cave-skin? (and (< surf-sdf -6.0) (> final-sdf -1.6))
+                                  ;; Solid Terrain: 4 Depth Biomes (Spore Karst -> Crystal Glacial Vaults -> Amethyst Chasms -> Magma Abyss)
+                                  (let [cave-skin? (and (< surf-sdf -5.0) (> final-sdf -1.6))
                                         n3 (if cave-skin?
-                                               (Noise.noise3d noise-state (- (* fdx 0.19) 11.0) (+ (* fdy 0.19) 53.0) (* fdz 0.19))
+                                               (Noise.noise3d noise-state (- (* fdx 0.17) 11.0) (+ (* fdy 0.17) 53.0) (* fdz 0.17))
                                                0.0)
-                                        mat-id (if (> surf-sdf -3.0)
+                                        mat-id (if (> surf-sdf -3.2)
                                                    2.0f
-                                                   (if (and cave-skin? (> n3 0.56))
-                                                       (if (> n2 0.0) 14.0f 15.0f)
-                                                       (if (and cave-skin? (and (>= gy 8) (and (< n2 -0.15) (< n3 -0.58))))
+                                                   (if (>= gy -35)
+                                                       ;; Stratum I: Overgrown Spore & Limestone Karst
+                                                       (if (and cave-skin? (> n3 0.50))
                                                            13.0f
-                                                           (if (> n2 0.62)
-                                                               5.0f
-                                                               (if (< n2 -0.52) 4.0f 1.0f)))))]
+                                                           (if (and cave-skin? (< n3 -0.58))
+                                                               10.0f
+                                                               (if (< n-det -0.56) 4.0f 1.0f)))
+                                                       (if (>= gy -95)
+                                                           ;; Stratum II: Crystal & Glacial Vaults
+                                                           (if (and cave-skin? (> n3 0.45))
+                                                               14.0f
+                                                               (if (and cave-skin? (< n3 -0.48))
+                                                                   (if (> n-tun 0.0) 8.0f 9.0f)
+                                                                   (if (> n-det 0.62)
+                                                                       5.0f
+                                                                       (if (< n-det -0.56) 4.0f 1.0f))))
+                                                           (if (>= gy -145)
+                                                               ;; Stratum III: Amethyst & Oil/Sludge Chasms
+                                                               (if (and cave-skin? (> n3 0.43))
+                                                                   15.0f
+                                                                   (if (and cave-skin? (< n3 -0.56))
+                                                                       14.0f
+                                                                       (if (> n-det 0.56)
+                                                                           5.0f
+                                                                           (if (< n-det -0.54) 4.0f 1.0f))))
+                                                               ;; Stratum IV: Deep Magma Abyss (keep meltable Gold above initial Lava sea y=-176)
+                                                               (if (and cave-skin? (> n3 0.40))
+                                                                   15.0f
+                                                                   (if (and cave-skin? (< n3 -0.52))
+                                                                       14.0f
+                                                                       (if (and (> gy -170) (> n-det 0.52))
+                                                                           5.0f
+                                                                           1.0f)))))))]
                                     (do
                                       (Pointer.set (Pointer.add p-data (Long.from-int offset)) mat-id)
                                       (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) (Double.to-float final-sdf))
