@@ -61,12 +61,13 @@
                   grid (SpatialGrid.new 5.0 20 20 20)
                   scratch-arena (Arena.init 16777216l)]
               (do
-                ; Upload all chunks to world texture
+                ; Upload all chunks to world texture and sync 3D textures so Frame 1 sim sees seeded fluids
                 (let [chunks (World.chunks &world)
                       num-chunks (Array.length chunks)]
                   (for [i 0 num-chunks]
                     (let [chunk (Array.unsafe-nth chunks i)]
                       (Renderer.update-chunk-texture &platform-eng &ren @(Chunk.coord-x chunk) @(Chunk.coord-y chunk) @(Chunk.coord-z chunk) (Chunk.voxel-data chunk)))))
+                (Renderer.pack-buffers-to-textures! &platform-eng &ren)
                 (Camera.update-basis! (Player.camera &player))
                 
                 (let [player-ent (GameWorld.create-entity! &ecs-world)
@@ -145,6 +146,7 @@
                       (Array.aupdate! chunks slot-idx &(fn [c] (Chunk.regenerate c noise qx qy qz)))
                       (let [updated-chunk (Array.unsafe-nth chunks slot-idx)]
                         (Renderer.update-chunk-texture eng ren qx qy qz (Chunk.voxel-data updated-chunk)))
+                      (Renderer.pack-buffers-to-textures! eng ren)
                       (set! loaded-any true)))))))))))
 
 

@@ -352,6 +352,7 @@
                      (builder-add-buffer b @&ub-raw)
                      (builder-add-buffer b @&field-read-raw)
                      (builder-add-buffer b @&field-write-raw)
+                     (builder-add-buffer b @&liquid-raw)
                      (let [cbg (builder-build-compute ctx copy-pipe b)]
                        (do
                          (builder-free b)

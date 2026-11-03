@@ -43,18 +43,31 @@
                                   cave-sdf (if (> cave-sdf-raw 6.0) 6.0 (if (< cave-sdf-raw -6.0) -6.0 cave-sdf-raw))
                                   final-sdf (if (> surf-sdf cave-sdf) surf-sdf cave-sdf)]
                               (if (> final-sdf 0.0)
-                                  ;; Carved Cave Air or Surface Air
-                                  (do
-                                    (Pointer.set (Pointer.add p-data (Long.from-int offset)) 0.0f)
-                                    (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) (Double.to-float final-sdf))
-                                    (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
-                                    (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 0.0f))
-                                  ;; Solid Terrain: Soil crust near surface, Stone + Coal/Gold veins underground
-                                  (let [mat-id (if (> surf-sdf -3.0)
+                                  ;; Carved Cave Air or Surface Air (negative z seeds underground liquids on chunk upload: -1 Water, -2 Lava)
+                                  (let [seed-liq (if (and (>= gy 2) (and (<= gy 6) (and (< surf-sdf -14.0) (> n2 0.08))))
+                                                     -2.0f
+                                                     (if (and (>= gy 11) (and (<= gy 15) (and (< surf-sdf -10.0) (< n2 -0.22))))
+                                                         -1.0f
+                                                         0.0f))]
+                                    (do
+                                      (Pointer.set (Pointer.add p-data (Long.from-int offset)) 0.0f)
+                                      (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) (Double.to-float final-sdf))
+                                      (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) seed-liq)
+                                      (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 0.0f)))
+                                  ;; Solid Terrain: Soil crust near surface, glowing Crystal/Amethyst/Spore cave pockets, and Coal/Gold veins
+                                  (let [cave-skin? (and (< surf-sdf -6.0) (> final-sdf -1.6))
+                                        n3 (if cave-skin?
+                                               (Noise.noise3d noise-state (- (* fdx 0.19) 11.0) (+ (* fdy 0.19) 53.0) (* fdz 0.19))
+                                               0.0)
+                                        mat-id (if (> surf-sdf -3.0)
                                                    2.0f
-                                                   (if (> n2 0.62)
-                                                       5.0f
-                                                       (if (< n2 -0.52) 4.0f 1.0f)))]
+                                                   (if (and cave-skin? (> n3 0.56))
+                                                       (if (> n2 0.0) 14.0f 15.0f)
+                                                       (if (and cave-skin? (and (>= gy 8) (and (< n2 -0.15) (< n3 -0.58))))
+                                                           13.0f
+                                                           (if (> n2 0.62)
+                                                               5.0f
+                                                               (if (< n2 -0.52) 4.0f 1.0f)))))]
                                     (do
                                       (Pointer.set (Pointer.add p-data (Long.from-int offset)) mat-id)
                                       (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) (Double.to-float final-sdf))

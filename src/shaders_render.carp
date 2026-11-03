@@ -244,7 +244,21 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
             if (liq_val.g > 0.05) {
                 let raw_liq = textureLoad(liquid_texture, ip_cell, 0);
                 let mat = materials[u32(round(raw_liq.r)) + 256u];
-                let liq_color = vec3<f32>(mat.r, mat.g, mat.b);
+                let base_liq = vec3<f32>(mat.r, mat.g, mat.b);
+                var liq_color = base_liq;
+                if ((mat.tags & 2097152u) != 0u) {
+                    liq_color = base_liq * max(1.0, mat.a * 0.65);
+                } else {
+                    let l_gi = textureSampleLevel(light_texture, voxel_sampler, uvw, 0.0).rgb;
+                    let sky_open = clamp((p.y - 10.0) / 22.0, 0.12, 1.0);
+                    let l_amb = clamp(u.sun_dir.y * 3.0 + 0.35, 0.12, 1.0) * sky_open;
+                    var l_flash = vec3<f32>(0.0);
+                    if (u.cam_pos.w > 0.5) {
+                        let f_att = 1.0 / (1.0 + 0.05 * t + 0.012 * t * t);
+                        l_flash = vec3<f32>(1.0, 0.96, 0.88) * f_att * 2.2;
+                    }
+                    liq_color = base_liq * (vec3<f32>(l_amb) + l_gi + l_flash);
+                }
                 let absorb = mat.density;
                 let step_size = max(0.008, dist);
                 let alpha = 1.0 - exp(-liq_val.g * step_size * absorb);
@@ -330,8 +344,13 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                     let attenuation = 1.0 / (1.0 + 0.05 * t + 0.012 * t * t);
                     player_glow = vec3<f32>(1.0, 0.96, 0.88) * attenuation * 2.5;
                 }
+
+                var emissive = vec3<f32>(0.0);
+                if ((mat.tags & 2097152u) != 0u) {
+                    emissive = base_color * min(mat.a * 0.6, 1.5);
+                }
                 
-                let solid_col = base_color * (direct + ambient + moon_light + block_light + player_glow);
+                let solid_col = base_color * (direct + ambient + moon_light + block_light + player_glow) + emissive;
                 hit_color = mix(solid_col, accum_color, accum_alpha);
                 hit = true;
                 break;

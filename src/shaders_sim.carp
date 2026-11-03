@@ -29,6 +29,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 @group(0) @binding(3) var<uniform>             p: Params;
 @group(0) @binding(4) var<storage, read_write> field_gpu_buffer_read: array<vec4<f32>>;
 @group(0) @binding(5) var<storage, read_write> field_gpu_buffer_write: array<vec4<f32>>;
+@group(0) @binding(6) var<storage, read_write> liquid_gpu_buffer: array<vec4<f32>>;
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
@@ -40,6 +41,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let lz = idx / 1024u;
 
     let cpu_val = staging_buffer[idx];
+    let seed_liq = cpu_val.z;
 
     let ox = u32(p.offset_x);
     let oy = u32(p.offset_y);
@@ -59,6 +61,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (gpu_val.x < 0.0 && gpu_val.y <= 0.0) {
         final_val = gpu_val;
         preserved = true;
+    } else if (final_val.x == 0.0) {
+        final_val.z = 0.0;
     }
 
     voxel_gpu_buffer_read[g_idx] = final_val;
@@ -66,12 +70,18 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     if (!preserved) {
         if (final_val.y <= 0.0 && final_val.x > 0.0) {
-            let init_field = vec4<f32>(0.0, 0.0, 0.0, 15.0);
+            let init_field = vec4<f32>(0.0, 0.0, 0.0, 64.0);
             field_gpu_buffer_read[g_idx] = init_field;
             field_gpu_buffer_write[g_idx] = init_field;
         } else {
             field_gpu_buffer_read[g_idx] = vec4<f32>(0.0);
             field_gpu_buffer_write[g_idx] = vec4<f32>(0.0);
+        }
+
+        if (final_val.y > 0.0 && seed_liq < -0.5) {
+            liquid_gpu_buffer[g_idx] = vec4<f32>(abs(seed_liq), 1.0, 0.0, 0.0);
+        } else {
+            liquid_gpu_buffer[g_idx] = vec4<f32>(0.0);
         }
     }
 }
@@ -1534,7 +1544,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         // --- Step 1: Load Path Gradient (W) ---
         var my_w = 0.0;
         if (sol.x == 255.0 || ip.y == 0) {
-            my_w = 15.0; // Anchor
+            my_w = 64.0; // Anchor (64-hop reach across multi-tier 3D cave labyrinths)
         } else {
             for (var i = 0u; i < 6u; i++) {
                 let nip = (ip + dirs6[i] + vec3<i32>(160)) % 160;
@@ -1557,6 +1567,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
 
         // --- Step 2: Accumulate Stress (X, Y, Z) ---
+        // Contractive dome transfer (2 * 0.38 = 0.76 < 1.0) prevents 2^k Pascal's-triangle blowup across 3D overhangs
         var compressive = 0.0;
         var tensile = 0.0;
         var shear = 0.0;
@@ -1569,21 +1580,21 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 let n_field = field_in[n_idx];
                 
                 // Does this neighbor route its load through me?
-                // If its W is EXACTLY my_W - decay, it means I am its anchor path!
                 var decay = 1.0;
                 if (dirs6[i].y == 1) { decay = 0.0; } // The block ABOVE me sees ME as below, so its decay was 0!
                 
                 if (abs(n_field.w - (my_w - decay)) < 0.1) {
-                    // Get its mass
                     let n_mat_id = clamp(u32(round(n_sol.x)), 0u, 255u);
                     let n_reg_idx = n_mat_id * 8u;
                     let n_mass = bitcast<f32>(registry_data[n_reg_idx + 5u]); // density as mass
                     
-                    let n_total_stress = n_field.x + n_field.y + n_field.z + n_mass;
-                    
-                    if (dirs6[i].y == 1) { compressive += n_total_stress; }
-                    else if (dirs6[i].y == -1) { tensile += n_total_stress; }
-                    else { shear += n_total_stress * 0.25; }
+                    if (dirs6[i].y == 1) {
+                        compressive += n_field.x * 0.88 + n_mass;
+                    } else if (dirs6[i].y == -1) {
+                        tensile += n_field.y * 0.85 + n_mass;
+                    } else {
+                        shear += n_field.z * 0.38 + n_field.x * 0.08 + n_mass * 0.30;
+                    }
                 }
             }
         }
@@ -1595,15 +1606,15 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             broken = true;
         }
 
-        // Check strength (using toughness as a proxy for structural limit)
+        // Check strength (floor at 1.5 so brittle flora/crystals embedded in cave walls don't self-crush)
         let my_mat_id = clamp(u32(round(sol.x)), 0u, 255u);
         let my_reg_idx = my_mat_id * 8u;
         let toughness = bitcast<f32>(registry_data[my_reg_idx + 6u]);
+        let struct_t = max(toughness, 1.5);
         
-        // Limits (tuned so stone cave arches hold under hill overburden while dirt overhangs & undercut pillars collapse)
-        let limit_c = toughness * 100.0; 
-        let limit_t = toughness * 20.0;
-        let limit_s = toughness * 40.0;
+        let limit_c = struct_t * 120.0; 
+        let limit_t = struct_t * 35.0;
+        let limit_s = struct_t * 45.0;
         
         // Bedrock never breaks
         if (sol.x != 255.0) {
@@ -1642,17 +1653,56 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_light = max(next_light, incoming);
     }
     
-    // Emission overrides neighbor spread when visible fluid/gas volume is present!
-    if (round(raw_liq.r) == 2.0 && raw_liq.g > 0.05) { 
-        // LAVA
-        next_light = vec3<f32>(1.0, 0.4, 0.1) * 2.5;
-    } else if (round(raw_gas.r) == 3.0 && raw_gas.g > 0.05) { 
-        // FIRE
-        next_light = vec3<f32>(1.0, 0.75, 0.25) * 2.0;
+    // Registry-driven TAG_LUMINESCENT emission across exposed cave solids, liquids, and gases
+    var is_lum_solid = false;
+    let sol_id_abs = round(abs(raw_sol.r));
+    if (raw_sol.g <= 0.0 && raw_sol.g > -1.6 && sol_id_abs > 0.5) {
+        let s_base = clamp(u32(sol_id_abs), 0u, 255u) * 8u;
+        let s_tags = registry_data[s_base + 7u];
+        if ((s_tags & TAG_LUMINESCENT) != 0u) {
+            is_lum_solid = true;
+            let s_col = vec3<f32>(
+                bitcast<f32>(registry_data[s_base + 1u]),
+                bitcast<f32>(registry_data[s_base + 2u]),
+                bitcast<f32>(registry_data[s_base + 3u])
+            );
+            let s_str = bitcast<f32>(registry_data[s_base + 4u]);
+            next_light = max(next_light, s_col * s_str);
+        }
+    }
+
+    let liq_id_u = clamp(u32(round(abs(raw_liq.r))), 0u, 255u);
+    if (liq_id_u > 0u && raw_liq.g > 0.05) {
+        let l_base = (256u + liq_id_u) * 8u;
+        let l_tags = registry_data[l_base + 7u];
+        if ((l_tags & TAG_LUMINESCENT) != 0u) {
+            let l_col = vec3<f32>(
+                bitcast<f32>(registry_data[l_base + 1u]),
+                bitcast<f32>(registry_data[l_base + 2u]),
+                bitcast<f32>(registry_data[l_base + 3u])
+            );
+            let l_str = bitcast<f32>(registry_data[l_base + 4u]);
+            next_light = max(next_light, l_col * l_str);
+        }
+    }
+
+    let gas_id_u = clamp(u32(round(abs(raw_gas.r))), 0u, 255u);
+    if (gas_id_u > 0u && raw_gas.g > 0.05) {
+        let g_base = (512u + gas_id_u) * 8u;
+        let g_tags = registry_data[g_base + 7u];
+        if ((g_tags & TAG_LUMINESCENT) != 0u) {
+            let g_col = vec3<f32>(
+                bitcast<f32>(registry_data[g_base + 1u]),
+                bitcast<f32>(registry_data[g_base + 2u]),
+                bitcast<f32>(registry_data[g_base + 3u])
+            );
+            let g_str = bitcast<f32>(registry_data[g_base + 4u]);
+            next_light = max(next_light, g_col * g_str);
+        }
     }
     
-    // Solid interior rock blocks light transmission while letting surface texels catch neighbor glow
-    if (raw_sol.g <= -0.5 && round(abs(raw_sol.r)) != 0.0) { 
+    // Non-luminescent interior rock blocks light transmission while letting surface texels catch neighbor glow
+    if (!is_lum_solid && raw_sol.g <= -0.5 && sol_id_abs != 0.0) { 
         next_light *= 0.05; 
     }
     
