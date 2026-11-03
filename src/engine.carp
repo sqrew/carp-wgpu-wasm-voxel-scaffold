@@ -123,6 +123,7 @@
           cz (Double.to-int (Double.floor (/ @(Vector3.z cam-pos) 32.0)))
           chunks (World.chunks world)
           noise (World.noise-state world)
+          strata (World.strata world)
           loaded-count 0]
       (do
         (for [lz 0 5]
@@ -143,7 +144,7 @@
                     (do
                       ;; Array.aupdate! pops the chunk out, passes ownership to the lambda, and puts the returned chunk back in place.
                       ;; This completely bypasses the Carp allocator. Zero mallocs, zero frees!
-                      (Array.aupdate! chunks slot-idx &(fn [c] (Chunk.regenerate c noise qx qy qz)))
+                      (Array.aupdate! chunks slot-idx &(fn [c] (Chunk.regenerate c noise strata qx qy qz)))
                       (let [updated-chunk (Array.unsafe-nth chunks slot-idx)]
                         (Renderer.update-chunk-texture eng ren qx qy qz (Chunk.voxel-data updated-chunk)))
                       (set! loaded-count (inc loaded-count)))))))))

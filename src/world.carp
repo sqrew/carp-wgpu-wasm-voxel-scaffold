@@ -14,32 +14,35 @@
   chunks (Array Chunk)
   voxel-resolution Int
   noise-state NoiseState
+  strata StrataConfig
 ])(deftype ChunkCoord [x Int y Int z Int])
 
 (defmodule Chunk
-  (defn create [noise-state qx qy qz]
+  (defn create [noise-state strata qx qy qz]
     (let [res 32
           size (* res (* res (* res 4)))
           voxel-data (Array.allocate size)
           p-data (Array.unsafe-raw &voxel-data)]
       (do
-        (Terrain.generate! noise-state qx qy qz p-data)
+        (Terrain.generate! noise-state strata qx qy qz p-data)
         (Chunk.init qx qy qz voxel-data))))
 
   ;; Takes an owned chunk, mutates its array in-place, and returns the chunk. Zero allocations!
-  (defn regenerate [c noise-state qx qy qz]
+  (defn regenerate [c noise-state strata qx qy qz]
     (let [p-data (Array.unsafe-raw (Chunk.voxel-data &c))]
       (do
         (Chunk.set-coord-x! &c qx)
         (Chunk.set-coord-y! &c qy)
         (Chunk.set-coord-z! &c qz)
-        (Terrain.generate! noise-state qx qy qz p-data)
+        (Terrain.generate! noise-state strata qx qy qz p-data)
         c)))
 )
 
 (defmodule World
   (defn create []
-    (let [noise-state (Noise.make-noise 1337)
+    (let [seed (fresh-run-seed)
+          noise-state (Noise.make-noise seed)
+          strata (Terrain.make-strata seed)
           world-chunks []]
       (do
         (for [tz 0 5]
@@ -48,8 +51,8 @@
               (let [qx (if (= tx 4) -1 tx)
                     qy (if (= ty 4) -1 ty)
                     qz (if (= tz 4) -1 tz)]
-                (Array.push-back! &world-chunks (Chunk.create &noise-state qx qy qz))))))
-        (World.init world-chunks 32 noise-state))))
+                (Array.push-back! &world-chunks (Chunk.create &noise-state &strata qx qy qz))))))
+        (World.init world-chunks 32 noise-state strata))))
 
   (defn positive-mod [n m]
     (let [r (Int.mod n m)]

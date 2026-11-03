@@ -30,6 +30,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 @group(0) @binding(4) var<storage, read_write> field_gpu_buffer_read: array<vec4<f32>>;
 @group(0) @binding(5) var<storage, read_write> field_gpu_buffer_write: array<vec4<f32>>;
 @group(0) @binding(6) var<storage, read_write> liquid_gpu_buffer: array<vec4<f32>>;
+@group(0) @binding(7) var<storage, read_write> gas_gpu_buffer: array<vec4<f32>>;
+@group(0) @binding(8) var<storage, read_write> light_gpu_buffer: array<vec4<f32>>;
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
@@ -41,7 +43,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let lz = idx / 1024u;
 
     let cpu_val = staging_buffer[idx];
-    let seed_liq = cpu_val.z;
+    let seed_fluid = cpu_val.z;
 
     let ox = u32(p.offset_x);
     let oy = u32(p.offset_y);
@@ -59,6 +61,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     voxel_gpu_buffer_read[g_idx] = final_val;
     voxel_gpu_buffer_write[g_idx] = final_val;
+    light_gpu_buffer[g_idx] = vec4<f32>(0.0);
 
     if (final_val.y <= 0.0 && final_val.x > 0.0) {
         let init_field = vec4<f32>(0.0, 0.0, 0.0, 96.0);
@@ -69,10 +72,15 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         field_gpu_buffer_write[g_idx] = vec4<f32>(0.0);
     }
 
-    if (final_val.y > 0.0 && seed_liq < -0.5) {
-        liquid_gpu_buffer[g_idx] = vec4<f32>(abs(seed_liq), 1.0, 0.0, 0.0);
+    if (final_val.y > 0.0 && seed_fluid < -0.5) {
+        liquid_gpu_buffer[g_idx] = vec4<f32>(abs(seed_fluid), 1.0, 0.0, 0.0);
+        gas_gpu_buffer[g_idx] = vec4<f32>(0.0);
+    } else if (final_val.y > 0.0 && seed_fluid > 0.5) {
+        liquid_gpu_buffer[g_idx] = vec4<f32>(0.0);
+        gas_gpu_buffer[g_idx] = vec4<f32>(seed_fluid, 0.9, 0.0, 0.0);
     } else {
         liquid_gpu_buffer[g_idx] = vec4<f32>(0.0);
+        gas_gpu_buffer[g_idx] = vec4<f32>(0.0);
     }
 }
 ")
