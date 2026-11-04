@@ -178,15 +178,20 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         drag = 0.996;
         bounciness = 0.25;
     } else if (ptype >= 201u && ptype <= 208u) {
-        // 201..208: Pressurized Flask Gas Jet - fast blast that billows upward
+        // 201..208: Pressurized Gas Bellows Gust / Flamethrower - fast blast that billows upward
         grav = 1.6;
-        drag = 0.94;
+        drag = 0.945;
         bounciness = 0.12;
-    } else if (ptype >= 301u && ptype <= 316u) {
-        // 301..316: Big Succ Siphon Droplets - zero-gravity vacuum streak into flask nozzle
+    } else if ((ptype >= 301u && ptype <= 316u) || (ptype >= 501u && ptype <= 517u)) {
+        // 301..316 & 501..517: Big Succ / Bellows / Solid Sack Vacuum Streaks into nozzle
         grav = 0.0;
         drag = 0.995;
         bounciness = 0.0;
+    } else if (ptype >= 401u && ptype <= 417u) {
+        // 401..417: Solid Sack Heavy Chunk Lob / Granular Pour - matches grav -22 raycast arc!
+        grav = -22.0;
+        drag = 0.994;
+        bounciness = 0.28;
     } else {
         // 4: Magic / Arcane - floaty, low gravity, high ricochet
         grav = -0.5;
@@ -203,8 +208,9 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     // Predict next position
     let next_pos = p.pos + p.vel * dt;
 
-    // Voxel world collision detection and response (skip for vacuumed siphon droplets)
-    if (ptype < 300u && check_collision(next_pos)) {
+    // Voxel world collision detection and response (skip for vacuumed siphon streaks)
+    let is_vacuum = (ptype >= 300u && ptype < 400u) || (ptype >= 500u && ptype < 600u);
+    if (!is_vacuum && check_collision(next_pos)) {
         let n = get_normal(next_pos);
         if (bounciness > 0.05) {
             let vn = dot(p.vel, n);
@@ -287,6 +293,28 @@ fn reagent_visual(ridx: u32) -> vec4<f32> {
     }
 }
 
+fn solid_visual(sidx: u32) -> vec4<f32> {
+    switch (sidx) {
+        case 1u:  { return vec4<f32>(0.55, 0.55, 0.56, 0.0); } // Stone
+        case 2u:  { return vec4<f32>(0.24, 0.62, 0.28, 0.0); } // Soil
+        case 3u:  { return vec4<f32>(0.56, 0.34, 0.17, 0.0); } // Wood
+        case 4u:  { return vec4<f32>(0.16, 0.16, 0.18, 0.0); } // Coal
+        case 5u:  { return vec4<f32>(0.98, 0.78, 0.18, 0.0); } // Gold
+        case 6u:  { return vec4<f32>(0.88, 0.82, 0.60, 0.0); } // Sand
+        case 7u:  { return vec4<f32>(0.30, 0.30, 0.36, 0.0); } // Gunpowder
+        case 8u:  { return vec4<f32>(0.62, 0.84, 0.98, 0.0); } // Ice
+        case 9u:  { return vec4<f32>(0.90, 0.92, 0.98, 0.0); } // Glass
+        case 10u: { return vec4<f32>(0.32, 0.92, 0.42, 0.0); } // Slime
+        case 11u: { return vec4<f32>(0.92, 0.90, 0.24, 0.0); } // Sponge
+        case 12u: { return vec4<f32>(0.92, 0.88, 0.84, 0.0); } // C4
+        case 13u: { return vec4<f32>(0.38, 0.96, 0.34, 1.0); } // Spore Pod (luminescent)
+        case 14u: { return vec4<f32>(0.15, 0.90, 1.00, 1.0); } // Crystal (luminescent)
+        case 15u: { return vec4<f32>(0.76, 0.28, 1.00, 1.0); } // Amethyst (luminescent)
+        case 16u: { return vec4<f32>(0.22, 0.16, 0.34, 0.0); } // Obsidian
+        default:  { return vec4<f32>(0.60, 1.00, 0.20, 1.0); } // Rad-Ore (luminescent)
+    }
+}
+
 @vertex fn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {
     var out: VertexOutput;
     let particle_idx = vi / 6u;
@@ -343,11 +371,17 @@ fn reagent_visual(ridx: u32) -> vec4<f32> {
         // Liquid Squirt droplets: plump pressurized globules that taper slightly
         size = mix(0.065, 0.115, t);
     } else if (ptype >= 201u && ptype <= 208u) {
-        // Gas Squirt puffs: start tight at nozzle and billow outward
-        size = mix(0.28, 0.09, t);
+        // Gas Bellows puffs: start tight at nozzle and billow into fat clouds
+        size = mix(0.38, 0.10, t);
     } else if (ptype >= 301u && ptype <= 316u) {
-        // Big Succ droplets: shrink cleanly as they funnel into the bottle neck
+        // Big Succ / Bellows droplets: shrink cleanly as they funnel into the nozzle
         size = mix(0.035, 0.115, t);
+    } else if (ptype >= 401u && ptype <= 417u) {
+        // Solid Sack clods / grains: chunky solid fragments
+        size = mix(0.085, 0.135, t);
+    } else if (ptype >= 501u && ptype <= 517u) {
+        // Solid Sack dredged chunks: funnel cleanly from mined rock into the Sack!
+        size = mix(0.04, 0.13, t);
     } else {
         // Magic: medium glowing motes
         size = mix(0.04, 0.08, t);
@@ -404,16 +438,16 @@ fn reagent_visual(ridx: u32) -> vec4<f32> {
         let rgb = vis.rgb * (0.75 + 0.35 * radial) + vec3<f32>(spec);
         return vec4<f32>(rgb * alpha, alpha);
     } else if (in.ptype >= 201u && in.ptype <= 208u) {
-        // Gas Squirt Puff
+        // Gas Bellows Puff / Flamethrower Tongue
         let vis = reagent_visual(in.ptype - 200u + 8u);
         if (vis.w > 0.5) {
-            let rgb = vis.rgb * (core * 1.9 * in.t);
+            let rgb = vis.rgb * (core * 2.1 * in.t);
             return vec4<f32>(rgb, 0.0);
         }
         let alpha = in.t * radial * 0.48;
         return vec4<f32>(vis.rgb * alpha, alpha);
     } else if (in.ptype >= 301u && in.ptype <= 316u) {
-        // Big Succ Siphon Droplet / Fume Streak
+        // Big Succ / Bellows Siphon Streak
         let vis = reagent_visual(in.ptype - 300u);
         let spec = pow(radial, 3.0) * 0.3;
         if (vis.w > 0.5) {
@@ -422,6 +456,18 @@ fn reagent_visual(ridx: u32) -> vec4<f32> {
         }
         let alpha = clamp(radial * 0.85, 0.0, 0.9);
         let rgb = vis.rgb + vec3<f32>(spec);
+        return vec4<f32>(rgb * alpha, alpha);
+    } else if ((in.ptype >= 401u && in.ptype <= 417u) || (in.ptype >= 501u && in.ptype <= 517u)) {
+        // Solid Sack Chunk (401..417 Pack/Pour, 501..517 Dredge Scoop)
+        let sidx = select(in.ptype - 500u, in.ptype - 400u, in.ptype < 500u);
+        let vis = solid_visual(sidx);
+        let shade = 0.68 + 0.38 * clamp(1.0 - length(in.uv - vec2<f32>(0.35, 0.65)) * 1.6, 0.0, 1.0);
+        if (vis.w > 0.5) {
+            let rgb = vis.rgb * (core * 2.0 + 0.35);
+            return vec4<f32>(rgb, 0.0);
+        }
+        let alpha = smoothstep(0.22, 0.44, radial);
+        let rgb = vis.rgb * shade;
         return vec4<f32>(rgb * alpha, alpha);
     } else {
         // 4: Magic - electric cyan/magenta plasma with intense additive glow

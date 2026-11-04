@@ -190,13 +190,13 @@ canvas.emscripten { border: 0px none; background-color: black; }
         
         <!-- Controls Helper Cheat Sheet -->
         <div style="font-size: 10px; color: #888; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 12px; padding-top: 8px; line-height: 1.45;">
-          <strong style="color:#bbb;">Flask, Matchbox &amp; Sandbox:</strong><br>
-          • <strong>Right Click</strong>: Big Succ (siphon pool/gas)<br>
-          • <strong>Left Click</strong>: Squirt stream + knockback<br>
+          <strong style="color:#bbb;">3-Phase Rig, Matchbox &amp; Sandbox:</strong><br>
+          • <strong>1 / 2 / 3 or Wheel</strong>: Sack / Flask / Bellows<br>
+          • <strong>RMB</strong>: Scoop / Siphon / Inhale • <strong>LMB</strong>: Deploy<br>
           • <strong>Z / Middle Click</strong>: Strike &amp; flick Match<br>
-          • <strong>X</strong>: Dump/purge flask | <strong>R</strong>: Spawn physics ball<br>
-          • <strong>F + Click</strong>: Solid | <strong>H + Click</strong>: Liq | <strong>G + Click</strong>: Gas<br>
-          • <strong>V / N / B</strong>: Cycle mats | <strong>WASD / Q / E</strong>: Move
+          • <strong>X</strong>: Dump active rig | <strong>R</strong>: Physics ball<br>
+          • <strong>F/H/G + Click</strong>: Sandbox Solid / Liq / Gas<br>
+          • <strong>V / N / B</strong>: Sandbox mats | <strong>[ / ]</strong>: Brush size
         </div>
       </div>
 
@@ -208,49 +208,101 @@ canvas.emscripten { border: 0px none; background-color: black; }
         <div id="reticle-hint" style="margin-top: 8px; font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.95); background: rgba(12,12,18,0.68); padding: 2px 7px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); opacity: 0; transition: opacity 0.12s ease; white-space: nowrap;"></div>
       </div>
 
-      <!-- Bottom-Right Off-Hand Matchbox + Alchemical Flask Rig HUD -->
-      <div style="position: absolute; bottom: 18px; right: 18px; display: flex; align-items: flex-end; gap: 10px; pointer-events: none; z-index: 95; font-family: system-ui, -apple-system, sans-serif; color: #eee;">
+      <!-- Bottom-Right Off-Hand Matchbox + Triple-Stack Alchemist's Rig HUD -->
+      <div style="position: absolute; bottom: 16px; right: 16px; display: flex; align-items: flex-end; gap: 9px; pointer-events: none; z-index: 95; font-family: system-ui, -apple-system, sans-serif; color: #eee;">
         <!-- Off-Hand Matchbox Card -->
-        <div id="match-hud" style="display: flex; align-items: center; gap: 10px; background: rgba(14, 15, 22, 0.88); padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.16); box-shadow: 0 6px 24px rgba(0,0,0,0.65); transition: border-color 0.12s ease, box-shadow 0.12s ease;">
-          <!-- Matchstick Icon -->
-          <div style="position: relative; width: 22px; height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;">
+        <div id="match-hud" style="display: flex; align-items: center; gap: 9px; background: rgba(14, 15, 22, 0.88); padding: 9px 11px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.16); box-shadow: 0 6px 24px rgba(0,0,0,0.65); transition: border-color 0.12s ease, box-shadow 0.12s ease;">
+          <div style="position: relative; width: 20px; height: 50px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;">
             <div id="match-flame" style="width: 12px; height: 14px; border-radius: 50% 50% 42% 42%; background: radial-gradient(circle at 50% 65%, #fff59d 0%, #ffb300 45%, #ff5722 90%); box-shadow: 0 0 10px rgba(255, 152, 0, 0.75); margin-bottom: -3px; opacity: 0.45; transform: scale(0.85); transition: opacity 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;"></div>
             <div style="width: 8px; height: 8px; border-radius: 50%; background: #c62828; border: 1px solid rgba(255,255,255,0.2);"></div>
-            <div style="width: 4px; height: 28px; background: linear-gradient(90deg, #d7b377, #a17946); border-radius: 0 0 2px 2px;"></div>
+            <div style="width: 4px; height: 26px; background: linear-gradient(90deg, #d7b377, #a17946); border-radius: 0 0 2px 2px;"></div>
           </div>
-          <div style="text-align: left; min-width: 96px;">
-            <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.9px; color: #8c96ab; margin-bottom: 2px;">Matchbox</div>
-            <div style="display: flex; align-items: baseline; gap: 6px;">
-              <span style="font-size: 17px; font-weight: 800; color: #ffca62; line-height: 1.1;">&infin;</span>
-              <span id="match-status" style="font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,0.08); color: #9aa4b8; letter-spacing: 0.4px;">DRY</span>
+          <div style="text-align: left; min-width: 84px;">
+            <div style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.9px; color: #8c96ab; margin-bottom: 2px;">Matchbox</div>
+            <div style="display: flex; align-items: baseline; gap: 5px;">
+              <span style="font-size: 16px; font-weight: 800; color: #ffca62; line-height: 1.1;">&infin;</span>
+              <span id="match-status" style="font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.08); color: #9aa4b8; letter-spacing: 0.4px;">DRY</span>
             </div>
-            <div id="match-active-lbl" style="font-size: 11px; color: #b8c2d6; margin-top: 3px; font-variant-numeric: tabular-nums;">0 burning</div>
-            <div style="font-size: 10px; color: #6e778a; margin-top: 3px;">Z / MMB Strike</div>
+            <div id="match-active-lbl" style="font-size: 10px; color: #b8c2d6; margin-top: 2px; font-variant-numeric: tabular-nums;">0 burning</div>
+            <div style="font-size: 9px; color: #6e778a; margin-top: 2px;">Z / MMB</div>
           </div>
         </div>
 
-        <!-- Alchemical Flask Vial Card -->
-        <div id="flask-hud" style="display: flex; align-items: flex-end; gap: 12px; background: rgba(14, 15, 22, 0.88); padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.16); box-shadow: 0 6px 24px rgba(0,0,0,0.65);">
-          <div style="text-align: right; min-width: 128px;">
-            <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.9px; color: #8c96ab; margin-bottom: 2px;">Alchemical Flask</div>
-            <div id="flask-mat-name" style="font-size: 16px; font-weight: 700; color: #9aa4b8; line-height: 1.2;">Empty</div>
-            <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 4px;">
-              <span id="flask-mode-badge" style="font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,0.08); color: #9aa4b8; letter-spacing: 0.5px;">READY</span>
-              <span id="flask-pct" style="font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; color: #cfd6e6;">0%</span>
-            </div>
-            <div style="font-size: 10px; color: #6e778a; margin-top: 5px;">RMB Succ • LMB Squirt • X Dump</div>
-          </div>
-          <!-- Glass Bottle Silhouette -->
+        <!-- [1] SOLID SACK Card -->
+        <div id="rig-card-0" style="display: flex; align-items: center; gap: 9px; background: rgba(14, 15, 22, 0.90); padding: 10px 11px; border-radius: 12px; border: 1.5px solid rgba(79, 195, 247, 0.72); box-shadow: 0 8px 26px rgba(0,0,0,0.7), 0 0 14px rgba(79, 195, 247, 0.22); transform: translateY(-5px); transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;">
           <div style="display: flex; flex-direction: column; align-items: center;">
-            <div style="width: 14px; height: 6px; background: #8b6b4a; border-radius: 2px 2px 0 0; border: 1px solid rgba(255,255,255,0.2); border-bottom: none;"></div>
-            <div style="width: 18px; height: 9px; background: rgba(200,225,255,0.12); border: 1.5px solid rgba(210,230,255,0.38); border-bottom: none; border-radius: 2px 2px 0 0;"></div>
-            <div id="flask-glass" style="position: relative; width: 42px; height: 66px; border-radius: 10px 10px 20px 20px; border: 2px solid rgba(210,230,255,0.42); background: rgba(8, 10, 16, 0.78); overflow: hidden; box-shadow: inset 0 0 10px rgba(255,255,255,0.08);">
-              <div id="flask-fill-bar" style="position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: #29b6f6; transition: height 0.06s linear, background 0.15s ease;">
+            <!-- Drawstring Pouch Neck -->
+            <div style="width: 20px; height: 6px; background: #8d6e63; border-radius: 3px 3px 1px 1px; border: 1px solid rgba(255,255,255,0.22); border-bottom: none;"></div>
+            <div style="width: 16px; height: 4px; background: #d7b377; border-radius: 1px;"></div>
+            <div id="rig-vessel-0" style="position: relative; width: 36px; height: 48px; border-radius: 11px 11px 16px 16px; border: 2px solid rgba(215, 185, 145, 0.48); background: rgba(18, 14, 12, 0.85); overflow: hidden; box-shadow: inset 0 0 10px rgba(0,0,0,0.6);">
+              <div id="rig-bar-0" style="position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: #8d6e63; transition: height 0.06s linear, background 0.15s ease;">
+                <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: rgba(255,255,255,0.35);"></div>
+              </div>
+              <div style="position: absolute; top: 6px; right: 5px; width: 4px; height: 32px; border-radius: 3px; background: rgba(255,255,255,0.10);"></div>
+            </div>
+          </div>
+          <div style="min-width: 86px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px;">
+              <span style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; color: #c5a888; font-weight: 700;">[1] Solid Sack</span>
+            </div>
+            <div id="rig-name-0" style="font-size: 13px; font-weight: 700; color: #9aa4b8; line-height: 1.25; margin-top: 2px;">Empty</div>
+            <div style="display: flex; align-items: center; gap: 5px; margin-top: 3px;">
+              <span id="rig-badge-0" style="font-size: 8px; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.08); color: #9aa4b8;">READY</span>
+              <span id="rig-pct-0" style="font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; color: #cfd6e6;">0%</span>
+            </div>
+            <div style="font-size: 9px; color: #6e778a; margin-top: 3px;">Scoop • Pack</div>
+          </div>
+        </div>
+
+        <!-- [2] LIQUID FLASK Card -->
+        <div id="rig-card-1" style="display: flex; align-items: center; gap: 9px; background: rgba(14, 15, 22, 0.86); padding: 10px 11px; border-radius: 12px; border: 1.5px solid rgba(255,255,255,0.14); box-shadow: 0 6px 24px rgba(0,0,0,0.65); opacity: 0.84; transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;">
+          <div style="display: flex; flex-direction: column; align-items: center;">
+            <div style="width: 12px; height: 5px; background: #8b6b4a; border-radius: 2px 2px 0 0; border: 1px solid rgba(255,255,255,0.2); border-bottom: none;"></div>
+            <div style="width: 16px; height: 7px; background: rgba(200,225,255,0.12); border: 1.5px solid rgba(210,230,255,0.38); border-bottom: none; border-radius: 2px 2px 0 0;"></div>
+            <div id="rig-vessel-1" style="position: relative; width: 34px; height: 48px; border-radius: 9px 9px 17px 17px; border: 2px solid rgba(210,230,255,0.42); background: rgba(8, 10, 16, 0.78); overflow: hidden; box-shadow: inset 0 0 10px rgba(255,255,255,0.08);">
+              <div id="rig-bar-1" style="position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: #29b6f6; transition: height 0.06s linear, background 0.15s ease;">
                 <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: rgba(255,255,255,0.45);"></div>
               </div>
-              <!-- Glass highlight -->
-              <div style="position: absolute; top: 6px; left: 5px; width: 5px; height: 48px; border-radius: 4px; background: linear-gradient(180deg, rgba(255,255,255,0.28), rgba(255,255,255,0.03));"></div>
+              <div style="position: absolute; top: 5px; left: 4px; width: 4px; height: 34px; border-radius: 3px; background: linear-gradient(180deg, rgba(255,255,255,0.28), rgba(255,255,255,0.03));"></div>
             </div>
+          </div>
+          <div style="min-width: 86px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px;">
+              <span style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; color: #7ec8f8; font-weight: 700;">[2] Liq Flask</span>
+            </div>
+            <div id="rig-name-1" style="font-size: 13px; font-weight: 700; color: #9aa4b8; line-height: 1.25; margin-top: 2px;">Empty</div>
+            <div style="display: flex; align-items: center; gap: 5px; margin-top: 3px;">
+              <span id="rig-badge-1" style="font-size: 8px; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.08); color: #9aa4b8;">READY</span>
+              <span id="rig-pct-1" style="font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; color: #cfd6e6;">0%</span>
+            </div>
+            <div style="font-size: 9px; color: #6e778a; margin-top: 3px;">Succ • Squirt</div>
+          </div>
+        </div>
+
+        <!-- [3] GAS BELLOWS Card -->
+        <div id="rig-card-2" style="display: flex; align-items: center; gap: 9px; background: rgba(14, 15, 22, 0.86); padding: 10px 11px; border-radius: 12px; border: 1.5px solid rgba(255,255,255,0.14); box-shadow: 0 6px 24px rgba(0,0,0,0.65); opacity: 0.84; transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;">
+          <div style="display: flex; flex-direction: column; align-items: center;">
+            <!-- Brass Bellows Nozzle -->
+            <div style="width: 8px; height: 8px; background: linear-gradient(90deg, #ffd54f, #b28726); border-radius: 2px 2px 0 0;"></div>
+            <div style="width: 18px; height: 4px; background: #8d6e63; border-radius: 2px 2px 0 0;"></div>
+            <div id="rig-vessel-2" style="position: relative; width: 36px; height: 48px; border-radius: 14px; border: 2px solid rgba(255, 208, 128, 0.44); background: rgba(12, 13, 20, 0.80); overflow: hidden; box-shadow: inset 0 0 10px rgba(255,255,255,0.08);">
+              <div id="rig-bar-2" style="position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: #ffab2e; opacity: 0.88; transition: height 0.06s linear, background 0.15s ease;">
+                <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: rgba(255,255,255,0.35);"></div>
+              </div>
+              <!-- Accordion Pleat Lines -->
+              <div style="position: absolute; inset: 10px 4px; border-top: 1px dashed rgba(255,255,255,0.14); border-bottom: 1px dashed rgba(255,255,255,0.14);"></div>
+            </div>
+          </div>
+          <div style="min-width: 86px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px;">
+              <span style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; color: #ffca7a; font-weight: 700;">[3] Bellows</span>
+            </div>
+            <div id="rig-name-2" style="font-size: 13px; font-weight: 700; color: #9aa4b8; line-height: 1.25; margin-top: 2px;">Empty</div>
+            <div style="display: flex; align-items: center; gap: 5px; margin-top: 3px;">
+              <span id="rig-badge-2" style="font-size: 8px; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.08); color: #9aa4b8;">READY</span>
+              <span id="rig-pct-2" style="font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; color: #cfd6e6;">0%</span>
+            </div>
+            <div style="font-size: 9px; color: #6e778a; margin-top: 3px;">Inhale • Gust</div>
           </div>
         </div>
       </div>
@@ -383,7 +435,15 @@ canvas.emscripten { border: 0px none; background-color: black; }
          }
       }
 
+      window.rig_slot = 0;
+
       window.addEventListener('keydown', (e) => {
+         if (e.key === '1' || e.key === '2' || e.key === '3') {
+            window.rig_slot = parseInt(e.key, 10) - 1;
+            if (typeof Module !== 'undefined' && Module._set_rig_slot) {
+               Module._set_rig_slot(window.rig_slot);
+            }
+         }
          if (e.key === 'v') {
             solid_idx = (solid_idx + 1) % SOLIDS.length;
             updateHUD();
@@ -410,15 +470,23 @@ canvas.emscripten { border: 0px none; background-color: black; }
          }
       });
       
-      // Let's also add wheel support (cycles solids by default)
+      // Plain Scroll Wheel swaps active Alchemist's Rig ([1] Sack / [2] Flask / [3] Bellows); Shift + Wheel cycles sandbox solid
       window.addEventListener('wheel', (e) => {
-         if (e.deltaY > 0) {
-            solid_idx = (solid_idx + 1) % SOLIDS.length;
+         if (e.shiftKey) {
+            if (e.deltaY > 0) {
+               solid_idx = (solid_idx + 1) % SOLIDS.length;
+            } else {
+               solid_idx = (solid_idx - 1 + SOLIDS.length) % SOLIDS.length;
+            }
+            updateHUD();
          } else {
-            solid_idx = (solid_idx - 1 + SOLIDS.length) % SOLIDS.length;
+            e.preventDefault();
+            window.rig_slot = ((window.rig_slot || 0) + (e.deltaY > 0 ? 1 : 2)) % 3;
+            if (typeof Module !== 'undefined' && Module._set_rig_slot) {
+               Module._set_rig_slot(window.rig_slot);
+            }
          }
-         updateHUD();
-      });
+      }, { passive: false });
 
       function updateBrushRadius(val) {
         window.player_brush_radius = parseFloat(val);
@@ -449,99 +517,152 @@ canvas.emscripten { border: 0px none; background-color: black; }
         document.getElementById('light-chk').checked = window.player_flashlight;
       };
 
-      const FLASK_REAGENTS = {
+      const RIG_REAGENTS = {
+        // Solids (1..17)
+        1:   { name: 'Stone',        col: '#9098a6', glow: false },
+        2:   { name: 'Soil',         col: '#9c6d49', glow: false },
+        3:   { name: 'Wood',         col: '#c28550', glow: false },
+        4:   { name: 'Coal',         col: '#5c626e', glow: false },
+        5:   { name: 'Gold',         col: '#ffd54f', glow: false },
+        6:   { name: 'Sand',         col: '#f2cf7e', glow: false },
+        7:   { name: 'Gunpowder',    col: '#838996', glow: false },
+        8:   { name: 'Ice',          col: '#8be2ff', glow: false },
+        9:   { name: 'Glass',        col: '#b3f0ff', glow: false },
+        10:  { name: 'Slime',        col: '#4be864', glow: false },
+        11:  { name: 'Sponge',       col: '#e3c64f', glow: false },
+        12:  { name: 'C4',           col: '#ef604d', glow: false },
+        13:  { name: 'Spore Pod',    col: '#a2f54e', glow: true  },
+        14:  { name: 'Crystal',      col: '#42f2ff', glow: true  },
+        15:  { name: 'Amethyst',     col: '#d15cff', glow: true  },
+        16:  { name: 'Obsidian',     col: '#745d9e', glow: false },
+        17:  { name: 'Rad-Ore',      col: '#57ff38', glow: true  },
+        // Liquids (257..264)
         257: { name: 'Water',        col: '#29b6f6', glow: false },
         258: { name: 'Lava',         col: '#ff6d00', glow: true  },
         259: { name: 'Acid',         col: '#39ff5a', glow: true  },
-        260: { name: 'Oil',          col: '#4e3b2c', glow: false },
-        261: { name: 'Blood',        col: '#d31922', glow: false },
+        260: { name: 'Oil',          col: '#87654a', glow: false },
+        261: { name: 'Blood',        col: '#e5242e', glow: false },
         262: { name: 'Ambrosia',     col: '#ffd54f', glow: true  },
         263: { name: 'Volatile Gel', col: '#ff2ec4', glow: true  },
         264: { name: 'Toxic Sludge', col: '#76d926', glow: false },
+        // Gases (513..520)
         513: { name: 'Steam',        col: '#cfd8dc', glow: false },
         514: { name: 'Toxic Gas',    col: '#8be82b', glow: false },
         515: { name: 'Fire',         col: '#ffab2e', glow: true  },
-        516: { name: 'Smoke',        col: '#60646d', glow: false },
+        516: { name: 'Smoke',        col: '#8a909c', glow: false },
         517: { name: 'Acid Vapor',   col: '#4ae83a', glow: false },
         518: { name: 'Methane',      col: '#d7be9b', glow: false },
         519: { name: 'Napalm Vapor', col: '#ff5722', glow: true  },
         520: { name: 'Spore Cloud',  col: '#88db54', glow: false }
       };
 
-      window.sync_flask = function(mat, fill, mode, probe) {
-        const mId = Math.round(mat);
-        const pId = Math.round(probe);
-        const info = FLASK_REAGENTS[mId] || null;
-        const pInfo = FLASK_REAGENTS[pId] || null;
-        const pct = Math.round(Math.max(0, Math.min(1, fill)) * 100);
+      const RIG_ACCENTS   = ['#d7b377', '#4fc3f7', '#ffca7a'];
+      const RIG_IN_BADGE  = ['SCOOPING', 'BIG SUCC', 'INHALING'];
+      const RIG_OUT_BADGE = ['PACKING!', 'SQUIRT!',  'BLAST!'];
+      const RIG_IN_HINT   = ['Scooping ', 'Siphoning ', 'Inhaling '];
+      const RIG_IDLE_HINT = ['RMB: Scoop ', 'RMB: Siphon ', 'RMB: Inhale '];
 
-        const nameEl = document.getElementById('flask-mat-name');
-        const pctEl  = document.getElementById('flask-pct');
-        const barEl  = document.getElementById('flask-fill-bar');
-        const glassEl = document.getElementById('flask-glass');
-        const badgeEl = document.getElementById('flask-mode-badge');
+      window.sync_rig = function(slot, sm, sf, lm, lf, gm, gf, mode, probe) {
+        const activeSlot = Math.max(0, Math.min(2, slot | 0));
+        window.rig_slot = activeSlot;
+
+        const mats  = [Math.round(sm), Math.round(lm), Math.round(gm)];
+        const fills = [Math.max(0, Math.min(1, sf)), Math.max(0, Math.min(1, lf)), Math.max(0, Math.min(1, gf))];
+        const pInfo = RIG_REAGENTS[Math.round(probe)] || null;
+
+        for (let i = 0; i < 3; i++) {
+          const info     = RIG_REAGENTS[mats[i]] || null;
+          const fill     = fills[i];
+          const pct      = Math.round(fill * 100);
+          const isActive = (i === activeSlot);
+
+          const cardEl   = document.getElementById('rig-card-' + i);
+          const vesselEl = document.getElementById('rig-vessel-' + i);
+          const barEl    = document.getElementById('rig-bar-' + i);
+          const nameEl   = document.getElementById('rig-name-' + i);
+          const badgeEl  = document.getElementById('rig-badge-' + i);
+          const pctEl    = document.getElementById('rig-pct-' + i);
+
+          pctEl.innerText = pct + '%';
+          barEl.style.height = (fill * 100).toFixed(1) + '%';
+
+          if (info && fill > 0.002) {
+            nameEl.innerText = info.name;
+            nameEl.style.color = info.col;
+            barEl.style.background = info.col;
+            vesselEl.style.boxShadow = info.glow
+              ? ('0 0 16px ' + info.col + ', inset 0 0 11px ' + info.col)
+              : 'inset 0 0 10px rgba(255,255,255,0.08)';
+          } else {
+            nameEl.innerText = 'Empty';
+            nameEl.style.color = '#9aa4b8';
+            barEl.style.height = '0%';
+            vesselEl.style.boxShadow = 'inset 0 0 10px rgba(255,255,255,0.08)';
+          }
+
+          if (isActive) {
+            const hiCol = (info && fill > 0.002) ? info.col : RIG_ACCENTS[i];
+            cardEl.style.transform   = 'translateY(-5px)';
+            cardEl.style.opacity     = '1.0';
+            cardEl.style.borderColor = hiCol;
+            cardEl.style.boxShadow   = '0 8px 26px rgba(0,0,0,0.72), 0 0 15px ' + hiCol + '44';
+          } else {
+            cardEl.style.transform   = 'translateY(0px)';
+            cardEl.style.opacity     = '0.80';
+            cardEl.style.borderColor = 'rgba(255,255,255,0.14)';
+            cardEl.style.boxShadow   = '0 6px 24px rgba(0,0,0,0.65)';
+          }
+
+          if (isActive && mode < -0.5) {
+            badgeEl.innerText = RIG_IN_BADGE[i];
+            badgeEl.style.background = 'rgba(79, 195, 247, 0.25)';
+            badgeEl.style.color = '#4fc3f7';
+          } else if (isActive && mode > 0.5 && mode < 1.5) {
+            badgeEl.innerText = RIG_OUT_BADGE[i];
+            badgeEl.style.background = 'rgba(255, 138, 101, 0.28)';
+            badgeEl.style.color = '#ffab91';
+          } else if (isActive && mode > 1.5) {
+            badgeEl.innerText = 'DUMPED';
+            badgeEl.style.background = 'rgba(255,255,255,0.14)';
+            badgeEl.style.color = '#eee';
+          } else if (info && fill >= 0.995) {
+            badgeEl.innerText = 'FULL';
+            badgeEl.style.background = 'rgba(129, 199, 132, 0.22)';
+            badgeEl.style.color = '#a5d6a7';
+          } else if (info && fill > 0.002) {
+            badgeEl.innerText = 'LOCKED';
+            badgeEl.style.background = 'rgba(255, 213, 79, 0.16)';
+            badgeEl.style.color = '#ffe082';
+          } else {
+            badgeEl.innerText = 'READY';
+            badgeEl.style.background = 'rgba(255,255,255,0.08)';
+            badgeEl.style.color = '#9aa4b8';
+          }
+        }
+
         const ringEl  = document.getElementById('reticle-ring');
         const hintEl  = document.getElementById('reticle-hint');
-
-        pctEl.innerText = pct + '%';
-        barEl.style.height = (Math.max(0, Math.min(1, fill)) * 100).toFixed(1) + '%';
-
-        if (info && fill > 0.002) {
-          nameEl.innerText = info.name;
-          nameEl.style.color = info.col;
-          barEl.style.background = info.col;
-          glassEl.style.boxShadow = info.glow
-            ? ('0 0 18px ' + info.col + ', inset 0 0 12px ' + info.col)
-            : 'inset 0 0 10px rgba(255,255,255,0.08)';
-        } else {
-          nameEl.innerText = 'Empty';
-          nameEl.style.color = '#9aa4b8';
-          barEl.style.height = '0%';
-          glassEl.style.boxShadow = 'inset 0 0 10px rgba(255,255,255,0.08)';
-        }
+        const actFill = fills[activeSlot];
+        const actInfo = RIG_REAGENTS[mats[activeSlot]] || null;
 
         if (mode < -0.5) {
-          badgeEl.innerText = 'BIG SUCC';
-          badgeEl.style.background = 'rgba(79, 195, 247, 0.25)';
-          badgeEl.style.color = '#4fc3f7';
           ringEl.style.transform = 'scale(0.78)';
         } else if (mode > 0.5 && mode < 1.5) {
-          badgeEl.innerText = 'SQUIRT!';
-          badgeEl.style.background = 'rgba(255, 138, 101, 0.28)';
-          badgeEl.style.color = '#ffab91';
           ringEl.style.transform = 'scale(1.25)';
-        } else if (mode > 1.5) {
-          badgeEl.innerText = 'DUMPED';
-          badgeEl.style.background = 'rgba(255,255,255,0.14)';
-          badgeEl.style.color = '#eee';
-          ringEl.style.transform = 'scale(1.0)';
-        } else if (info && fill >= 0.995) {
-          badgeEl.innerText = 'FULL';
-          badgeEl.style.background = 'rgba(129, 199, 132, 0.22)';
-          badgeEl.style.color = '#a5d6a7';
-          ringEl.style.transform = 'scale(1.0)';
-        } else if (info && fill > 0.002) {
-          badgeEl.innerText = 'LOCKED';
-          badgeEl.style.background = 'rgba(255, 213, 79, 0.16)';
-          badgeEl.style.color = '#ffe082';
-          ringEl.style.transform = 'scale(1.0)';
         } else {
-          badgeEl.innerText = 'READY';
-          badgeEl.style.background = 'rgba(255,255,255,0.08)';
-          badgeEl.style.color = '#9aa4b8';
           ringEl.style.transform = 'scale(1.0)';
         }
 
-        if (pInfo && fill < 0.995) {
+        if (pInfo && actFill < 0.995) {
           ringEl.style.borderColor = pInfo.col;
-          ringEl.style.boxShadow = '0 0 8px ' + pInfo.col;
-          hintEl.innerText = (mode < -0.5 ? 'Siphoning ' : 'RMB: Siphon ') + pInfo.name;
-          hintEl.style.color = pInfo.col;
-          hintEl.style.opacity = '1';
+          ringEl.style.boxShadow   = '0 0 8px ' + pInfo.col;
+          hintEl.innerText         = (mode < -0.5 ? RIG_IN_HINT[activeSlot] : RIG_IDLE_HINT[activeSlot]) + pInfo.name;
+          hintEl.style.color       = pInfo.col;
+          hintEl.style.opacity     = '1';
         } else {
-          ringEl.style.borderColor = (info && mode > 0.5 && mode < 1.5) ? info.col : 'rgba(255,255,255,0.55)';
-          ringEl.style.boxShadow = 'none';
-          hintEl.style.opacity = '0';
+          ringEl.style.borderColor = (actInfo && mode > 0.5 && mode < 1.5) ? actInfo.col : RIG_ACCENTS[activeSlot];
+          ringEl.style.boxShadow   = 'none';
+          hintEl.style.opacity     = '0';
         }
       };
       
@@ -598,6 +719,6 @@ canvas.emscripten { border: 0px none; background-color: black; }
         canvasElement.focus();
       });
     </script>
-    <script async type="text/javascript" src="index.js?v=1788905000"></script>
+    <script async type="text/javascript" src="index.js?v=1788906000"></script>
   </body>
 </html>

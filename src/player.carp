@@ -89,14 +89,6 @@
             (Pointer.set p-rad next-rad)))
         (Pointer.set (ref-to-ptr (Player.rbracket-last player)) rbr-pressed)
 
-        ;; Quick presets for radius
-        (when (InputManager.action-digital? input "mat-solid")
-          (Pointer.set (ref-to-ptr (Player.edit-radius player)) 1.5))
-        (when (InputManager.action-digital? input "mat-liquid")
-          (Pointer.set (ref-to-ptr (Player.edit-radius player)) 3.0))
-        (when (InputManager.action-digital? input "mat-gas")
-          (Pointer.set (ref-to-ptr (Player.edit-radius player)) 6.0))
-
         ;; 5. Cycle solid type (V key)
         
         ;; 6. Cycle liquid type (N key)

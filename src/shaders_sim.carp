@@ -1235,8 +1235,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let n5 = get_solid(ip, vec3<i32>(0,0,-1), win_min).w;
         let n6 = get_solid(ip, vec3<i32>(0,0,1), win_min).w;
         var match_near = false;
+        let wp_s = get_world_pos(ip, u.cam_pos.xyz) + vec3<f32>(0.5);
         if (u.match_info.x > 0.5) {
-            let wp_s = get_world_pos(ip, u.cam_pos.xyz) + vec3<f32>(0.5);
             for (var mi = 0u; mi < 8u; mi++) {
                 let m = u.matches[mi];
                 if (m.w > 0.01 && distance(wp_s, m.xyz) <= 2.4) {
@@ -1245,8 +1245,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 }
             }
         }
-        // Wake up if the mouse is clicking (u.hit_pos.w == 1.0) or a lit match is nearby
-        if (n1 >= 10.0 && n2 >= 10.0 && n3 >= 10.0 && n4 >= 10.0 && n5 >= 10.0 && n6 >= 10.0 && u.hit_pos.w == 0.0 && !match_near) {
+        let sack_near = u.flask_pos.w > 0.1 && abs(u.flask_action.x) > 0.5 && abs(u.flask_action.x) < 254.5 && distance(wp_s, u.flask_pos.xyz) <= (u.flask_pos.w + 8.5);
+        // Wake up if the mouse is clicking (u.hit_pos.w == 1.0), Solid Sack is active nearby, or a lit match is nearby
+        if (n1 >= 10.0 && n2 >= 10.0 && n3 >= 10.0 && n4 >= 10.0 && n5 >= 10.0 && n6 >= 10.0 && u.hit_pos.w == 0.0 && !match_near && !sack_near) {
              output_buffer[idx] = self_sol;
              return;
         }
@@ -1422,6 +1423,46 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             if (dist <= u.brush_radius) {
                 next_vol = -0.5;
                 next_id = u.solid_params.x;
+                next_sleep = 0.0;
+            }
+        }
+    }
+
+    // 3.2. Solid Sack: RMB Scoop/Dredge (y < 0), LMB Cohesive Pack (y > 0, x > 0), & Granular Pour (y > 0, x < 0)
+    if (u.flask_pos.w > 0.1 && abs(u.flask_action.x) > 0.5 && abs(u.flask_action.x) < 254.5 && abs(u.flask_action.y) > 0.001) {
+        let world_pos = get_world_pos(ip, u.cam_pos.xyz);
+        let fdist = distance(world_pos, u.flask_pos.xyz);
+        let sr = u.flask_pos.w;
+        if (u.flask_action.y < 0.0) {
+            // Smooth SDF scoop (never mines Bedrock 255.0)
+            if (next_id != 255.0 && fdist <= sr + 8.0) {
+                let carve_val = sr - fdist;
+                if (carve_val > next_vol) {
+                    next_vol = carve_val;
+                    if (next_vol > 0.0) {
+                        next_id = 0.0;
+                    }
+                    next_sleep = 0.0;
+                }
+            }
+        } else if (u.flask_action.x > 0.0) {
+            // Cohesive Solid Pack: smooth SDF mound that sticks onto walls/floors without repainting existing rock!
+            if (next_id != 255.0 && fdist <= sr + 8.0) {
+                let build_val = fdist - sr;
+                if (build_val < next_vol) {
+                    let was_empty = next_vol > 0.0;
+                    next_vol = build_val;
+                    if (next_vol <= 0.0 && was_empty) {
+                        next_id = u.flask_action.x;
+                    }
+                    next_sleep = 0.0;
+                }
+            }
+        } else {
+            // Granular CA Pour (Sand -6.0, Gunpowder -7.0): spawns cascading grains only in empty air!
+            if (next_vol > 0.0 && fdist <= sr) {
+                next_vol = -0.5;
+                next_id = u.flask_action.x;
                 next_sleep = 0.0;
             }
         }
@@ -1737,8 +1778,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
     }
 
-    // Held Luminescent Alchemical Flask acts as a live colored hand-lantern in dark caves!
-    if (u.flask_action.w > 0.02 && u.flask_action.z > 256.5) {
+    // Held Luminescent Vessel (Crystal Sack, Lava/Ambrosia Flask, or Bottled Fire Bellows) acts as a live hand-lantern!
+    if (u.match_info.y > 0.02 && u.flask_action.z > 0.5) {
         let f_mat = clamp(u32(round(u.flask_action.z)), 0u, 1023u);
         let f_base = f_mat * 8u;
         let f_tags = registry_data[f_base + 7u];
@@ -1753,7 +1794,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     bitcast<f32>(registry_data[f_base + 3u])
                 );
                 let f_str = bitcast<f32>(registry_data[f_base + 4u]);
-                next_light = max(next_light, f_col * f_str * (0.45 + 0.65 * u.flask_action.w));
+                next_light = max(next_light, f_col * f_str * (0.45 + 0.65 * u.match_info.y));
             }
         }
     }

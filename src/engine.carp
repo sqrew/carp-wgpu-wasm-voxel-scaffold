@@ -42,8 +42,13 @@
   clock Clock
   accumulator Double
   particles ParticleSystem
+  rig-slot Int
+  sack-mat Float
+  sack-fill Float
   flask-mat Float
   flask-fill Float
+  bellows-mat Float
+  bellows-fill Float
   flask-px Float
   flask-py Float
   flask-pz Float
@@ -51,6 +56,7 @@
   flask-ax Float
   flask-ay Float
   last-spawn-frame Int
+  last-sack-bite-frame Int
   x-last Bool
   match-idx (Array Uint64)
   match-gen (Array Uint32)
@@ -104,7 +110,7 @@
                             surf-format (WGPURender.surface-format @(M-WGPUSurface.p (Engine.surf &platform-eng)))
                             solid-tex @(M-RenderTexture.p (Renderer.voxel-texture &ren))
                             ps (ParticleSystem.create ps-ctx &surf-format solid-tex)]
-                        (Result.Success (EngineState.init platform-eng ren world player uniforms (Array.replicate 1200000 &0.0f) diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid (Coordinator.new) 0 0 0 input scratch-arena (Clock.new) 0.0 ps 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0 false (Array.replicate 8 &(Uint64.from-long 0l)) (Array.replicate 8 &(Uint32.from-long 0l)) (Array.replicate 8 &0.0f) (Array.replicate 24 &0.0f) 0 0 0.0f 0))))))))))
+                        (Result.Success (EngineState.init platform-eng ren world player uniforms (Array.replicate 1200000 &0.0f) diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid (Coordinator.new) 0 0 0 input scratch-arena (Clock.new) 0.0 ps 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0 0 false (Array.replicate 8 &(Uint64.from-long 0l)) (Array.replicate 8 &(Uint32.from-long 0l)) (Array.replicate 8 &0.0f) (Array.replicate 24 &0.0f) 0 0 0.0f 0))))))))))
 
   (defn draw-bounds-wireframe! [ren min-x min-y min-z max-x max-y max-z color]
     (let [w0 (Vector3.init min-x min-y min-z)
@@ -434,31 +440,43 @@
               (for [i 0 16]
                 (Array.aset! uniforms (+ 40 i) @(Array.unsafe-nth vp-data i))))
 
-            (Array.aset! uniforms 56 @(EngineState.flask-px state))
-            (Array.aset! uniforms 57 @(EngineState.flask-py state))
-            (Array.aset! uniforms 58 @(EngineState.flask-pz state))
-            (Array.aset! uniforms 59 @(EngineState.flask-pr state))
-            (Array.aset! uniforms 60 @(EngineState.flask-ax state))
-            (Array.aset! uniforms 61 @(EngineState.flask-ay state))
-            (Array.aset! uniforms 62 @(EngineState.flask-mat state))
-            (Array.aset! uniforms 63 @(EngineState.flask-fill state))
+            (let [rslot @(EngineState.rig-slot state)
+                  act-mat (if (= rslot 0)
+                            @(EngineState.sack-mat state)
+                            (if (= rslot 1)
+                              @(EngineState.flask-mat state)
+                              @(EngineState.bellows-mat state)))
+                  act-fill (if (= rslot 0)
+                             @(EngineState.sack-fill state)
+                             (if (= rslot 1)
+                               @(EngineState.flask-fill state)
+                               @(EngineState.bellows-fill state)))]
+              (do
+                (Array.aset! uniforms 56 @(EngineState.flask-px state))
+                (Array.aset! uniforms 57 @(EngineState.flask-py state))
+                (Array.aset! uniforms 58 @(EngineState.flask-pz state))
+                (Array.aset! uniforms 59 @(EngineState.flask-pr state))
+                (Array.aset! uniforms 60 @(EngineState.flask-ax state))
+                (Array.aset! uniforms 61 @(EngineState.flask-ay state))
+                (Array.aset! uniforms 62 act-mat)
+                (Array.aset! uniforms 63 (Float.from-int rslot))
 
-            (let [m-life (EngineState.match-life state)
-                  m-pos (EngineState.match-pos state)]
-              (for [mi 0 8]
-                (let [u-base (+ 64 (* mi 4))
-                      p-base (* mi 3)
-                      ml @(Array.unsafe-nth m-life mi)
-                      m-norm (if (> ml 0.0f) (Float.clamp 0.0f 1.0f (/ ml 14.0f)) 0.0f)]
-                  (do
-                    (Array.aset! uniforms u-base @(Array.unsafe-nth m-pos p-base))
-                    (Array.aset! uniforms (+ u-base 1) @(Array.unsafe-nth m-pos (+ p-base 1)))
-                    (Array.aset! uniforms (+ u-base 2) @(Array.unsafe-nth m-pos (+ p-base 2)))
-                    (Array.aset! uniforms (+ u-base 3) m-norm)))))
-            (Array.aset! uniforms 96 (Float.from-int @(EngineState.match-lit-count state)))
-            (Array.aset! uniforms 97 0.0f)
-            (Array.aset! uniforms 98 0.0f)
-            (Array.aset! uniforms 99 0.0f)
+                (let [m-life (EngineState.match-life state)
+                      m-pos (EngineState.match-pos state)]
+                  (for [mi 0 8]
+                    (let [u-base (+ 64 (* mi 4))
+                          p-base (* mi 3)
+                          ml @(Array.unsafe-nth m-life mi)
+                          m-norm (if (> ml 0.0f) (Float.clamp 0.0f 1.0f (/ ml 14.0f)) 0.0f)]
+                      (do
+                        (Array.aset! uniforms u-base @(Array.unsafe-nth m-pos p-base))
+                        (Array.aset! uniforms (+ u-base 1) @(Array.unsafe-nth m-pos (+ p-base 1)))
+                        (Array.aset! uniforms (+ u-base 2) @(Array.unsafe-nth m-pos (+ p-base 2)))
+                        (Array.aset! uniforms (+ u-base 3) m-norm)))))
+                (Array.aset! uniforms 96 (Float.from-int @(EngineState.match-lit-count state)))
+                (Array.aset! uniforms 97 act-fill)
+                (Array.aset! uniforms 98 0.0f)
+                (Array.aset! uniforms 99 0.0f)))
             
             (Engine.update-uniform-buffer eng @(M-UniformBuffer.p (Renderer.uniform-buffer ren)) uniforms)
             (WGPUVertexBufferWrapper.update-offset @(M-WGPUContext.p (Engine.ctx eng)) @(M-VertexBuffer.p (Renderer.entities-buffer ren)) (Uint64.from-long 0l) (WGPU.array->ptr entities-data) (Uint64.from-long (Long.from-int (* num-entities 48)))))))))

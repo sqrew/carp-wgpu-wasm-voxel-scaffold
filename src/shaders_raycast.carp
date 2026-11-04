@@ -130,17 +130,12 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
 
     // -------------------------------------------------------------------------
-    // 2. Flask BIG SUCC Siphon Probe (0..16m) -> hit_buffer[1]
-    //    Prioritizes liquids through surface fumes when empty, or locks onto
-    //    the flask's current material ID (u.flask_action.z) when partially full.
+    // 2. Triple-Stack Rig RMB Probe -> hit_buffer[1]
+    //    u.flask_action.z = active vessel's locked material ID (0 = empty)
+    //    u.flask_action.w = active rig slot (0 = Solid Sack, 1 = Liquid Flask, 2 = Gas Bellows)
     // -------------------------------------------------------------------------
     let locked_mat = round(u.flask_action.z);
-    let max_succ_t = min(select(16.0, t + 0.75, hit), 16.0);
-
-    var found_liq_id: f32 = 0.0;
-    var found_liq_pos = vec3<f32>(0.0);
-    var found_gas_id: f32 = 0.0;
-    var found_gas_pos = vec3<f32>(0.0);
+    let rig_slot = i32(round(u.flask_action.w));
 
     let offsets = array<vec3<f32>, 7>(
         vec3<f32>( 0.0,  0.0,  0.0),
@@ -152,59 +147,126 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         vec3<f32>( 0.0,  0.0, -0.8)
     );
 
-    var st: f32 = 0.0;
-    for (var s = 0; s < 40; s = s + 1) {
-        if (st > max_succ_t || found_liq_id > 0.5) { break; }
-        let base_p = ro + rd * st;
-        for (var k = 0u; k < 7u; k = k + 1u) {
-            let sp = base_p + offsets[k];
-            if (sp.x <= box_min.x + 1.0 || sp.x >= box_max.x - 1.0 ||
-                sp.y <= box_min.y + 1.0 || sp.y >= box_max.y - 1.0 ||
-                sp.z <= box_min.z + 1.0 || sp.z >= box_max.z - 1.0) {
-                continue;
-            }
-            let liq = get_liquid_world(sp);
-            let l_raw = round(abs(liq.x));
-            if (l_raw > 0.5 && liq.y > 0.06) {
-                let g_mat = 256.0 + l_raw;
-                if (locked_mat < 0.5 || abs(g_mat - locked_mat) < 0.5) {
-                    found_liq_id = g_mat;
-                    found_liq_pos = floor(sp) + vec3<f32>(0.5);
-                    break;
+    if (rig_slot == 0) {
+        // [1] SOLID SACK: Probe non-Bedrock solid walls & rubble within 14m
+        var found_sol_id: f32 = 0.0;
+        var found_sol_pos = vec3<f32>(0.0);
+        if (hit && t <= 14.0) {
+            let dig_center = p + rd * 0.42;
+            for (var k = 0u; k < 7u; k = k + 1u) {
+                let sp = dig_center + offsets[k] * 0.55;
+                if (sp.x <= box_min.x + 2.0 || sp.x >= box_max.x - 2.0 ||
+                    sp.y <= box_min.y + 2.0 || sp.y >= box_max.y - 2.0 ||
+                    sp.z <= box_min.z + 2.0 || sp.z >= box_max.z - 2.0 || sp.y <= -191.0) {
+                    continue;
                 }
-            }
-            if (found_gas_id < 0.5) {
-                let gas = get_gas_world(sp);
-                let g_raw = round(abs(gas.x));
-                if (g_raw > 0.5 && gas.y > 0.12) {
-                    let g_mat = 512.0 + g_raw;
-                    if (locked_mat < 0.5 || abs(g_mat - locked_mat) < 0.5) {
-                        found_gas_id = g_mat;
-                        found_gas_pos = floor(sp) + vec3<f32>(0.5);
+                let sol = get_solid_world(sp);
+                let s_raw = round(abs(sol.x));
+                if (sol.y <= 0.25 && s_raw >= 0.5 && s_raw < 254.5) {
+                    if (locked_mat < 0.5 || abs(s_raw - locked_mat) < 0.5) {
+                        found_sol_id = s_raw;
+                        found_sol_pos = p;
+                        break;
                     }
                 }
             }
         }
-        st = st + 0.42;
-    }
-
-    if (found_liq_id > 0.5) {
-        hit_buffer[1] = vec4<f32>(found_liq_pos, found_liq_id);
-    } else if (found_gas_id > 0.5) {
-        hit_buffer[1] = vec4<f32>(found_gas_pos, found_gas_id);
+        if (found_sol_id > 0.5) {
+            hit_buffer[1] = vec4<f32>(found_sol_pos, found_sol_id);
+        } else {
+            hit_buffer[1] = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+        }
+    } else if (rig_slot == 1) {
+        // [2] LIQUID FLASK: Probe Liquids ONLY (257..264) through steam/smoke up to 16m
+        let max_succ_t = min(select(16.0, t + 0.75, hit), 16.0);
+        var found_liq_id: f32 = 0.0;
+        var found_liq_pos = vec3<f32>(0.0);
+        var st: f32 = 0.0;
+        for (var s = 0; s < 40; s = s + 1) {
+            if (st > max_succ_t || found_liq_id > 0.5) { break; }
+            let base_p = ro + rd * st;
+            for (var k = 0u; k < 7u; k = k + 1u) {
+                let sp = base_p + offsets[k];
+                if (sp.x <= box_min.x + 1.0 || sp.x >= box_max.x - 1.0 ||
+                    sp.y <= box_min.y + 1.0 || sp.y >= box_max.y - 1.0 ||
+                    sp.z <= box_min.z + 1.0 || sp.z >= box_max.z - 1.0) {
+                    continue;
+                }
+                let liq = get_liquid_world(sp);
+                let l_raw = round(abs(liq.x));
+                if (l_raw > 0.5 && liq.y > 0.06) {
+                    let g_mat = 256.0 + l_raw;
+                    if (locked_mat < 0.5 || abs(g_mat - locked_mat) < 0.5) {
+                        found_liq_id = g_mat;
+                        found_liq_pos = floor(sp) + vec3<f32>(0.5);
+                        break;
+                    }
+                }
+            }
+            st = st + 0.42;
+        }
+        if (found_liq_id > 0.5) {
+            hit_buffer[1] = vec4<f32>(found_liq_pos, found_liq_id);
+        } else {
+            hit_buffer[1] = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+        }
     } else {
-        hit_buffer[1] = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+        // [3] GAS BELLOWS: Wide-cone Gas ONLY intake (513..520) up to 18m (catches match Fire & ceiling Methane!)
+        let max_gas_t = min(select(18.0, t + 0.85, hit), 18.0);
+        var found_gas_id: f32 = 0.0;
+        var found_gas_pos = vec3<f32>(0.0);
+        var st: f32 = 0.0;
+        for (var s = 0; s < 44; s = s + 1) {
+            if (st > max_gas_t || found_gas_id > 0.5) { break; }
+            let base_p = ro + rd * st;
+            for (var k = 0u; k < 7u; k = k + 1u) {
+                let sp = base_p + offsets[k] * 1.65;
+                if (sp.x <= box_min.x + 1.0 || sp.x >= box_max.x - 1.0 ||
+                    sp.y <= box_min.y + 1.0 || sp.y >= box_max.y - 1.0 ||
+                    sp.z <= box_min.z + 1.0 || sp.z >= box_max.z - 1.0) {
+                    continue;
+                }
+                let gas = get_gas_world(sp);
+                let g_raw = round(abs(gas.x));
+                if (g_raw > 0.5 && gas.y > 0.06) {
+                    let g_mat = 512.0 + g_raw;
+                    if (locked_mat < 0.5 || abs(g_mat - locked_mat) < 0.5) {
+                        found_gas_id = g_mat;
+                        found_gas_pos = floor(sp) + vec3<f32>(0.5);
+                        break;
+                    }
+                }
+            }
+            st = st + 0.42;
+        }
+        if (found_gas_id > 0.5) {
+            hit_buffer[1] = vec4<f32>(found_gas_pos, found_gas_id);
+        } else {
+            hit_buffer[1] = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+        }
     }
 
     // -------------------------------------------------------------------------
-    // 3. Parabolic High-Pressure Squirt Arc -> hit_buffer[2]
-    //    Matches particle jet physics (speed 26 m/s, slight upward loft, grav -18)
-    //    hit_buffer[2].w: 0 = none, 1 = voxel splash, >= 2 = 2 + hit s_entities idx
+    // 3. Phase-Tailored LMB Ballistic / Cone Arc -> hit_buffer[2]
+    //    Slot 0 (Solid Sack):   Heavy lob (speed 21, loft +2.2, grav -22), ignores water so you can pack bridges!
+    //    Slot 1 (Liquid Flask): High-pressure parabolic stream (speed 26, loft +1.8, grav -18)
+    //    Slot 2 (Gas Bellows):  Buoyant flamethrower/gust cone (speed 19, grav +1.6) that sweeps 2..9m in open air!
     // -------------------------------------------------------------------------
     let right_n = normalize(u.cam_right.xyz);
     let up_n    = normalize(u.cam_up.xyz);
     var jpos = ro + right_n * 0.36 - up_n * 0.22 + rd * 0.65;
     var jvel = rd * 26.0 + vec3<f32>(0.0, 1.8, 0.0);
+    var jgrav: f32 = -18.0;
+    var max_jsteps: i32 = 88;
+    if (rig_slot == 0) {
+        jvel = rd * 21.0 + vec3<f32>(0.0, 2.2, 0.0);
+        jgrav = -22.0;
+    } else if (rig_slot == 2) {
+        jvel = rd * 19.0 + vec3<f32>(0.0, 0.6, 0.0);
+        jgrav = 1.6;
+        // Sweep open-air gas/fire bloom continuously along the 2m..9m cone at 60 Hz!
+        max_jsteps = 5 + i32(15.0 * fract(u.time * 11.37));
+    }
     let jdt: f32 = 0.024;
     let ent_count = u32(max(0.0, u.entity_count));
 
@@ -212,8 +274,14 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     var jet_impact = jpos;
 
     for (var step = 0; step < 88; step = step + 1) {
+        if (step >= max_jsteps) {
+            // Gas Bellows open-air plume bloom!
+            jet_impact = jpos;
+            jet_code = 1.0;
+            break;
+        }
         let prev_pos = jpos;
-        jvel.y = jvel.y - 18.0 * jdt;
+        jvel.y = jvel.y + jgrav * jdt;
         jpos = jpos + jvel * jdt;
 
         if (jpos.x <= box_min.x + 1.5 || jpos.x >= box_max.x - 1.5 ||
@@ -230,6 +298,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
 
         if (step > 1 && ent_count > 0u) {
+            let hit_pad = select(0.45, 0.95, rig_slot == 2);
             for (var ei: u32 = 0u; ei < ent_count && ei < 256u; ei = ei + 1u) {
                 let e = s_entities[ei];
                 let pl = jpos - e.pos_type.xyz;
@@ -240,7 +309,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     let q = abs(pl) - e.extents_rad.xyz;
                     ed = length(max(q, vec3<f32>(0.0))) + min(max(q.x, max(q.y, q.z)), 0.0);
                 }
-                if (ed <= 0.45) {
+                if (ed <= hit_pad) {
                     jet_impact = jpos;
                     jet_code = 2.0 + f32(ei);
                     break;
@@ -251,7 +320,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
         let sv = get_solid_world(jpos);
         let liq_here = get_liquid_world(jpos);
-        if (sv.y * 0.5 <= 0.06 || (step > 3 && liq_here.y > 0.65)) {
+        if (sv.y * 0.5 <= 0.06 || (rig_slot == 1 && step > 3 && liq_here.y > 0.65)) {
             jet_impact = prev_pos;
             jet_code = 1.0;
             break;

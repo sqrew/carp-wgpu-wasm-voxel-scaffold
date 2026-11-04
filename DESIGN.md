@@ -6,15 +6,12 @@ Core design north star: **tiny rules, massive simulation leverage**. Every playe
 
 ## 1. Foundational Player Verbs
 
-### Alchemical Flask *(v1 Shipped)* & The 3-Phase Alchemist's Rig *(Next Evolution)*
-- **Single-Element Siphon & Firehose *(v1 Shipped)*:** `Right-Click` ("Big Succ") vacuums real cave pools and gas pockets into a locked, non-reacting bottle; `Left-Click` ("Squirt Till It Hurt") fires a gravity-arcing stream that splashes reactive voxels and blasts physics bodies backward; `X` purges/dumps.
-- **The 3-Phase Alchemist's Rig (`Solid Pouch + Liquid Flask + Gas Bellows`)**:
-  - Instead of an arbitrary 4-potion inventory bar, give the player **three permanent phase-specialized vessels** mirroring the engine's exact three simulation layers (`Solid` / `Liquid` / `Gas`)!
-  - **Solid Pouch / Dredge (`1`)**: Scoops & packs granular/chunked solids (**Wood**, **Coal**, **Sand**, **Gunpowder**, **Ice**, **Slime**, **Sponge**, **C4**, **Crystal**) and lobs/packs clumps or mounds on demand.
-  - **Liquid Flask (`2`)**: High-pressure siphon & parabolic squirt stream (**Water**, **Oil**, **Acid**, **Lava**, **Volatile Gel**, **Ambrosia**, **Blood**, **Toxic Sludge**).
-  - **Gas Bellows / Censer (`3`)**: Vacuums & puffs buoyant plumes/clouds (**Methane**, **Steam**, **Smoke**, **Spore Cloud**, **Acid Vapor**, **Napalm Vapor**, **Fire**).
-  - **Infinite Emergent Recipes**: Because all three phases stay strictly separated until deployed in the world, you carry combinatorial alchemy everywhere—pack **Wood** + squirt **Oil** + strike a **Match** to build a permanent campfire torch in pitch-black caves; hang a ceiling pocket of **Methane** + paint a fuse trail of **Oil** up the wall + flick a **Match** from cover; pack a **Gunpowder / C4** breach charge into a stressed pillar seam; or spray **Lava + Water** mid-air to cast instant stone bridges across chasms.
-  - **Lantern Synergy**: Holding `LUMINESCENT` reagents (**Lava**, **Acid**, **Ambrosia**, **Volatile Gel**, **Fire**) acts as a live colored hand-lantern in `field-sim-wgsl`.
+### The 3-Phase Alchemist's Rig (`Solid Sack + Liquid Flask + Gas Bellows`) *(v1 Shipped)*
+- **Three Dedicated Phase Vessels (`1` / `2` / `3` + Scroll Wheel)**: Instead of a generic inventory bar, the player carries three permanent vessels mirroring the engine's exact three simulation layers (`Solid` / `Liquid` / `Gas`), with `X` purging only the currently equipped vessel:
+  - **`[1]` Solid Sack (Dredge & Pack)**: `RMB` chews smooth SDF bites out of cave walls and rubble (triggering live Voronoi stress fractures!) and vacuums chunks into a single-material pouch; `LMB` lobs a heavy arc—**Sand** and **Gunpowder** cascade out as falling CA piles/fuses, while cohesive solids (**Wood**, **Coal**, **Slime**, **C4**, **Ice**, **Stone**, **Crystal**) extrude solid 3D mounds onto surfaces with live CPU physics collision.
+  - **`[2]` Liquid Flask (Siphon & Firehose)**: `RMB` ("Big Succ") siphons **Liquids** cleanly through surface smoke/steam; `LMB` ("Squirt Till It Hurt") fires a high-pressure parabolic stream with entity knockback.
+  - **`[3]` Gas Bellows (Inhale & Gust / Flamethrower)**: `RMB` draws a wide intake cone to snag rising **Methane** pockets or **Fire** straight off a burning match; `LMB` blasts a sweeping `2–9m` volumetric plume/flamethrower cone with heavy airblast knockback.
+  - **Infinite Emergent Recipes & Lantern Synergy**: Pack **Wood** (`1`) + squirt **Oil** (`2`) + strike a **Match** (`Z`) to build a permanent campfire torch in pitch-black caves; hang **Methane** (`3`) in a ceiling dome + paint an **Oil** fuse (`2`) up the wall; or hold glowing **Crystal/Amethyst/Rad-Ore** (`1`), **Lava/Ambrosia** (`2`), or **Fire** (`3`) as a live colored hand-lantern in `field-sim-wgsl`.
 
 ### Off-Hand Matchbox / Flint Snap *(v1 Shipped — Infinite for Testing)*
 - **Physical Cave Scout & Igniter**: `Z` or `Middle-Click` strikes a spark shower at your off-hand and flicks a bouncing, self-emissive burning match (`CompBody` sphere + warm flickering amber GI in `field-sim-wgsl` + `MAT_FIRE` ignition in `gas-sim-wgsl`).
