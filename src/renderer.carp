@@ -233,7 +233,19 @@
 
 
 
+(deftemplate create-zeroed-storage-buffer-raw (Fn [(Ptr WGPUContext) Int] (Ptr WGPUVertexBufferWrapper))
+  "WGPUVertexBufferWrapper* $NAME(WGPUContext* ctx, int float_count)"
+  "$DECL {
+      return wgpu_create_storage_vertex_buffer(ctx, NULL, (uint64_t)float_count * sizeof(float));
+  }")
+
 (defmodule Renderer
+  (defn create-zeroed-storage-buffer [ctx float-count]
+    (let [vb (create-zeroed-storage-buffer-raw ctx float-count)]
+      (if (null? vb)
+        (Result.Error @"Failed to create zeroed WebGPU storage buffer")
+        (Result.Success vb))))
+
   (defn create-voxel-pipeline [ctx wgsl format]
     (let [p (create-voxel-pipeline-with-depth ctx (String.cstr wgsl) (String.cstr format))]
       (if (null? p)
@@ -269,43 +281,41 @@
          pipe-ptr (Renderer.create-voxel-pipeline ctx voxel-wgsl &format)
          pipe (Result.Success (M-RenderPipeline.init pipe-ptr))
          
-         
-         initial-data-read (Result.Success (Array.replicate 16384000 &0.0f))
-         initial-data-half (Result.Success (Array.replicate 8192000 &0.0f))
-         
-         read-buf-ptr (WGPURender.create-storage-vertex-buffer ctx &initial-data-read)
+         ;; Unmapped buffers (mappedAtCreation=false) are GPU zero-initialized by WebGPU spec,
+         ;; avoiding ~660 MB of synchronous JS ArrayBuffer / IPC shmem OOM on tab reload.
+         read-buf-ptr (Renderer.create-zeroed-storage-buffer ctx 16384000)
          read-buf (Result.Success (M-VertexBuffer.init read-buf-ptr))
          
-         write-buf-ptr (WGPURender.create-storage-vertex-buffer ctx &initial-data-read)
+         write-buf-ptr (Renderer.create-zeroed-storage-buffer ctx 16384000)
          write-buf (Result.Success (M-VertexBuffer.init write-buf-ptr))
          
-         half-buf-ptr (WGPURender.create-storage-vertex-buffer ctx &initial-data-half)
+         half-buf-ptr (Renderer.create-zeroed-storage-buffer ctx 8192000)
          half-buf (Result.Success (M-VertexBuffer.init half-buf-ptr))
          
-         liquid-gpu-buf-ptr (WGPURender.create-storage-vertex-buffer ctx &initial-data-read)
+         liquid-gpu-buf-ptr (Renderer.create-zeroed-storage-buffer ctx 16384000)
          liquid-gpu-buf (Result.Success (M-VertexBuffer.init liquid-gpu-buf-ptr))
          
-         liquid-half-buf-ptr (WGPURender.create-storage-vertex-buffer ctx &initial-data-half)
+         liquid-half-buf-ptr (Renderer.create-zeroed-storage-buffer ctx 8192000)
          liquid-half-buf (Result.Success (M-VertexBuffer.init liquid-half-buf-ptr))
          
-         gas-gpu-buf-ptr (WGPURender.create-storage-vertex-buffer ctx &initial-data-read)
+         gas-gpu-buf-ptr (Renderer.create-zeroed-storage-buffer ctx 16384000)
          gas-gpu-buf (Result.Success (M-VertexBuffer.init gas-gpu-buf-ptr))
          
-         gas-half-buf-ptr (WGPURender.create-storage-vertex-buffer ctx &initial-data-half)
+         gas-half-buf-ptr (Renderer.create-zeroed-storage-buffer ctx 8192000)
          gas-half-buf (Result.Success (M-VertexBuffer.init gas-half-buf-ptr))
          
-
-         staging-buf-ptr (WGPURender.create-storage-vertex-buffer ctx &initial-data-read)
+         ;; 32x32x32 chunk staging buffer (131,072 floats = 512 KB instead of 65.5 MB)
+         staging-buf-ptr (Renderer.create-zeroed-storage-buffer ctx 131072)
          staging-buf (Result.Success (M-VertexBuffer.init staging-buf-ptr))
          
          _mat_init (Result.Success (Materials.init-registry!))
          mat-data (Result.Success (Materials.pack-registry))
-         mat-buf-ptr (WGPURender.create-storage-vertex-buffer ctx &mat-data)
+         mat-buf-ptr (Renderer.create-zeroed-storage-buffer ctx (Array.length &mat-data))
+         _mat_upload (Result.Success (WGPURender.update-vertex-buffer ctx mat-buf-ptr &mat-data))
          mat-buf (Result.Success (M-VertexBuffer.init mat-buf-ptr))
          mat-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &mat-buf)))
 
-         entities-data (Result.Success (Array.replicate 1200000 &0.0f))
-         entities-ptr (WGPURender.create-storage-vertex-buffer ctx &entities-data)
+         entities-ptr (Renderer.create-zeroed-storage-buffer ctx 1200000)
          entities-buf (Result.Success (M-VertexBuffer.init entities-ptr))
          entities-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &entities-buf)))
 
@@ -322,9 +332,9 @@
          liquid-half-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &liquid-half-buf)))
          liquid-bufs (Result.Success [@&liquid-raw @&liquid-half-raw])
          
-         light-gpu-buf-ptr (WGPURender.create-storage-vertex-buffer ctx &initial-data-read)
+         light-gpu-buf-ptr (Renderer.create-zeroed-storage-buffer ctx 16384000)
          light-gpu-buf (Result.Success (M-VertexBuffer.init light-gpu-buf-ptr))
-         light-half-buf-ptr (WGPURender.create-storage-vertex-buffer ctx &initial-data-half)
+         light-half-buf-ptr (Renderer.create-zeroed-storage-buffer ctx 8192000)
          light-half-buf (Result.Success (M-VertexBuffer.init light-half-buf-ptr))
          light-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &light-gpu-buf)))
          light-half-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &light-half-buf)))
@@ -340,9 +350,9 @@
          gas-pack-bg (WGPU.create-bind-group ctx pack-pipe &gas-bufs)
          light-pack-bg (WGPU.create-bind-group ctx pack-pipe &light-bufs)
          
-         field-read-ptr (WGPURender.create-storage-vertex-buffer ctx &initial-data-read)
+         field-read-ptr (Renderer.create-zeroed-storage-buffer ctx 16384000)
          field-read-buf (Result.Success (M-VertexBuffer.init field-read-ptr))
-         field-write-ptr (WGPURender.create-storage-vertex-buffer ctx &initial-data-read)
+         field-write-ptr (Renderer.create-zeroed-storage-buffer ctx 16384000)
          field-write-buf (Result.Success (M-VertexBuffer.init field-write-ptr))
          field-read-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &field-read-buf)))
          field-write-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &field-write-buf)))
@@ -376,8 +386,7 @@
          
          main-ub-raw (Result.Success (WGPURender.uniform-buffer-get-buffer @(M-UniformBuffer.p &ub)))
          
-         hit-data (Result.Success (Array.replicate 12 &0.0f))
-         hit-buf-ptr (WGPURender.create-storage-vertex-buffer ctx &hit-data)
+         hit-buf-ptr (Renderer.create-zeroed-storage-buffer ctx 12)
          hit-buf (Result.Success (M-VertexBuffer.init hit-buf-ptr))
          hit-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &hit-buf)))
          map-buf (Result.Success (gpu-readback-create-map-buffer ctx))

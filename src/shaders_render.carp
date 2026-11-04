@@ -132,6 +132,106 @@ fn getAO(p: vec3<f32>, n: vec3<f32>) -> f32 {
     return clamp(1.0 - occ * 0.35, 0.0, 1.0);
 }
 
+// ---------------------------------------------------------------------------
+// 3D Procedural Stress Fracture Functions (driven by light_texture.a [0..1])
+// ---------------------------------------------------------------------------
+fn hash33(q: vec3<i32>) -> vec3<f32> {
+    var v = bitcast<vec3<u32>>(q) * 1664525u + vec3<u32>(1013904223u);
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    v = v ^ (v >> vec3<u32>(16u));
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    return vec3<f32>(v & vec3<u32>(65535u)) / 65535.0;
+}
+
+fn vnoise3(x: vec3<f32>) -> vec3<f32> {
+    let i = vec3<i32>(floor(x));
+    let f = fract(x);
+    let u_f = f * f * (3.0 - 2.0 * f);
+    let n000 = hash33(i + vec3<i32>(0, 0, 0));
+    let n100 = hash33(i + vec3<i32>(1, 0, 0));
+    let n010 = hash33(i + vec3<i32>(0, 1, 0));
+    let n110 = hash33(i + vec3<i32>(1, 1, 0));
+    let n001 = hash33(i + vec3<i32>(0, 0, 1));
+    let n101 = hash33(i + vec3<i32>(1, 0, 1));
+    let n011 = hash33(i + vec3<i32>(0, 1, 1));
+    let n111 = hash33(i + vec3<i32>(1, 1, 1));
+    let nx00 = mix(n000, n100, u_f.x);
+    let nx10 = mix(n010, n110, u_f.x);
+    let nx01 = mix(n001, n101, u_f.x);
+    let nx11 = mix(n011, n111, u_f.x);
+    let nxy0 = mix(nx00, nx10, u_f.y);
+    let nxy1 = mix(nx01, nx11, u_f.y);
+    return mix(nxy0, nxy1, u_f.z) * 2.0 - vec3<f32>(1.0);
+}
+
+// Single-pass 3D Euclidean Voronoi edge distance + analytical seam direction
+fn voronoi_edge_3d(x: vec3<f32>) -> vec4<f32> {
+    let base = vec3<i32>(floor(x));
+    let frac_p = fract(x);
+    var d1: f32 = 8.0;
+    var d2: f32 = 8.0;
+    var r1 = vec3<f32>(0.0);
+    var r2 = vec3<f32>(0.0);
+
+    for (var kz = -1; kz <= 1; kz = kz + 1) {
+        for (var ky = -1; ky <= 1; ky = ky + 1) {
+            for (var kx = -1; kx <= 1; kx = kx + 1) {
+                let g = vec3<f32>(f32(kx), f32(ky), f32(kz));
+                let jitter = hash33(base + vec3<i32>(kx, ky, kz));
+                let r = g + (0.12 + 0.76 * jitter) - frac_p;
+                let d = dot(r, r);
+                if (d < d1) {
+                    d2 = d1;
+                    r2 = r1;
+                    d1 = d;
+                    r1 = r;
+                } else if (d < d2) {
+                    d2 = d;
+                    r2 = r;
+                }
+            }
+        }
+    }
+    let diff = r2 - r1;
+    let seam_dir = diff / max(length(diff), 0.0001);
+    let edge_dist = abs(0.5 * dot(r1 + r2, seam_dir));
+    return vec4<f32>(seam_dir, edge_dist);
+}
+
+// Returns vec4(tangent_bevel_normal.xyz, crack_fissure_core)
+fn eval_fracture_3d(p: vec3<f32>, strain: f32, surf_n: vec3<f32>) -> vec4<f32> {
+    let warp = vnoise3(p * 2.15) * 0.36 + vnoise3(p * 5.9) * 0.12;
+    let v1 = voronoi_edge_3d(p * 1.25 + warp);
+
+    let pinch = clamp(0.62 + 0.58 * vnoise3(p * 0.85 + vec3<f32>(11.3, 4.7, 8.1)).x, 0.22, 1.25);
+    let w1 = mix(0.018, 0.125, strain * strain) * mix(pinch, 1.0, strain * 0.6);
+    let core1 = 1.0 - smoothstep(0.0, w1, v1.w);
+    let lip1  = 1.0 - smoothstep(w1 * 0.35, w1 * 2.2, v1.w);
+
+    var core2: f32 = 0.0;
+    var lip2:  f32 = 0.0;
+    var dir2 = vec3<f32>(0.0);
+    if (strain > 0.30) {
+        let sub_s = smoothstep(0.30, 0.96, strain);
+        let v2 = voronoi_edge_3d(p * 3.5 + warp * 1.85 + vec3<f32>(7.7, 3.1, 13.9));
+        let branch_mask = clamp(sub_s * (0.45 + 0.85 * smoothstep(0.45, 0.04, v1.w)), 0.0, 1.0);
+        let w2 = mix(0.010, 0.078, branch_mask);
+        core2 = (1.0 - smoothstep(0.0, w2, v2.w)) * branch_mask * 0.88;
+        lip2  = (1.0 - smoothstep(w2 * 0.3, w2 * 2.1, v2.w)) * branch_mask * 0.55;
+        dir2  = v2.xyz;
+    }
+
+    let tang1 = v1.xyz - surf_n * dot(v1.xyz, surf_n);
+    let tang2 = dir2   - surf_n * dot(dir2, surf_n);
+    let bevel = (tang1 * lip1 * (1.0 - core1 * 0.55) * 0.9 + tang2 * lip2 * 0.45) * (0.45 + 0.65 * strain);
+    let crack_core = clamp(max(core1, core2), 0.0, 1.0);
+    return vec4<f32>(bevel, crack_core);
+}
+
 fn map_entities(p: vec3<f32>, out_color: ptr<function, vec3<f32>>) -> f32 {
     var min_d = 10000.0;
     let count = u32(u.entity_count);
@@ -300,7 +400,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                     textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p + vec3<f32>(0.0, 0.0, eps), vec3<f32>(0.0), vec3<f32>(160.0))/160.0, 0.0).g - 
                     textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p - vec3<f32>(0.0, 0.0, eps), vec3<f32>(0.0), vec3<f32>(160.0))/160.0, 0.0).g
                 );
-                let normal = normalize(n);
+                let raw_normal = normalize(n);
+                var normal = raw_normal;
                 
                 // Fetch discrete material ID using textureLoad at the nearest integer coordinate (avoids trilinear bleeding!)
                 let ip = vec3<i32>(clamp(wrapped_p, vec3<f32>(0.0), vec3<f32>(159.0)));
@@ -310,6 +411,26 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 // Color based on material ID
                 let mat = materials[u32(round(abs(mat_id)))];
                 let base_color = vec3<f32>(mat.r, mat.g, mat.b);
+
+                // Unpack light_texture: .rgb = GI block light, .a = smoothed structural stress [0..1]
+                let light_sample = textureSampleLevel(light_texture, voxel_sampler, uvw, 0.0);
+                let inside_p = p - raw_normal * 0.45;
+                let inside_w = inside_p - floor(inside_p / 160.0) * 160.0;
+                let inside_uvw = clamp(inside_w / 160.0, vec3<f32>(0.002), vec3<f32>(0.998));
+                let stress_raw = max(light_sample.a, textureSampleLevel(light_texture, voxel_sampler, inside_uvw, 0.0).a);
+
+                let is_brittle = (mat.tags & 16384u) != 0u;
+                let is_indestructible = (mat.tags & 16777216u) != 0u;
+                let strain_lo = select(0.24, 0.17, is_brittle);
+                let strain_hi = select(0.90, 0.78, is_brittle);
+                let strain = select(smoothstep(strain_lo, strain_hi, stress_raw), 0.0, is_indestructible);
+
+                var crack_core: f32 = 0.0;
+                if (strain > 0.005) {
+                    let frac = eval_fracture_3d(p, strain, raw_normal);
+                    normal = normalize(raw_normal + frac.xyz);
+                    crack_core = frac.w;
+                }
                 
                 // Smoothly fade direct sky/moon illumination deep underground so >40m caverns stay dark except for GI & flashlight
                 let sky_exposure = clamp((p.y - 6.0) / 18.0, 0.0, 1.0);
@@ -320,7 +441,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 // Raymarched Shadows (only computed when sun reaches this depth!)
                 var sha: f32 = 1.0;
                 if (sun_intensity > 0.001) {
-                    let shadow_pos = p + normal * 0.05;
+                    let shadow_pos = p + raw_normal * 0.05;
                     sha = getShadow(shadow_pos, light_dir, 0.05, 40.0, 16.0);
                 }
                 
@@ -330,32 +451,38 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 let moon_diffuse = max(dot(normal, moon_dir), 0.0);
                 let moon_light = vec3<f32>(0.7, 0.8, 1.0) * moon_diffuse * moon_intensity;
                 
-                // Ambient Occlusion
-                let ao = getAO(p, normal);
+                // Ambient Occlusion (deepened inside open structural fissures)
+                let ao = getAO(p, raw_normal) * mix(1.0, 0.10, crack_core);
                 
                 // Blend surface sky ambient with moody deep-subterranean ambient
                 let surf_ambient = clamp(u.sun_dir.y * 3.0 + 0.3, 0.2, 1.0);
                 let ambient_intensity = mix(0.22, surf_ambient, sky_exposure);
                 
-                // Combine Shading with Light Texture
-                let light_val = textureSampleLevel(light_texture, voxel_sampler, uvw, 0.0) + vec4<f32>(0.0, 0.0, 0.0, 1.0);
-                let ambient = vec3<f32>(0.15, 0.18, 0.25) * ao * light_val.a * ambient_intensity;
-                let direct = vec3<f32>(1.0, 0.95, 0.85) * diffuse * sha * light_val.a * sun_intensity;
-                let block_light = light_val.rgb;
+                // Combine Shading with GI Block Light (.rgb)
+                let ambient = vec3<f32>(0.15, 0.18, 0.25) * ao * ambient_intensity;
+                let direct = vec3<f32>(1.0, 0.95, 0.85) * diffuse * sha * sun_intensity;
+                let block_light = light_sample.rgb;
                 
-                // Player Ambient Glow (spherical light source centered on player)
+                // Player Ambient Glow (modulated slightly by beveled normal so flashlight catches fissure lips!)
                 var player_glow = vec3<f32>(0.0);
                 if (u.cam_pos.w > 0.5) {
                     let attenuation = 1.0 / (1.0 + 0.04 * t + 0.009 * t * t);
-                    player_glow = vec3<f32>(1.0, 0.96, 0.88) * attenuation * 2.6;
+                    let view_bevel = clamp(0.55 + 0.65 * max(dot(normal, -rd), 0.0), 0.35, 1.2);
+                    player_glow = vec3<f32>(1.0, 0.96, 0.88) * attenuation * 2.6 * view_bevel;
                 }
 
                 var emissive = vec3<f32>(0.0);
                 if ((mat.tags & 2097152u) != 0u) {
                     emissive = base_color * min(mat.a * 0.6, 1.5);
+                    // Luminescent crystals/ores bleed intense inner light through stress fissures!
+                    emissive += base_color * crack_core * (1.25 + 1.5 * strain);
+                } else if (strain > 0.72 && crack_core > 0.2) {
+                    // Critical-failure friction glint inside deep fissures right before rock snaps
+                    emissive += vec3<f32>(0.55, 0.20, 0.05) * pow(crack_core, 2.0) * smoothstep(0.72, 0.98, strain) * 0.55;
                 }
-                
-                let solid_col = base_color * (direct + ambient + moon_light + block_light + player_glow) + emissive;
+
+                let rock_albedo = mix(base_color, base_color * 0.07, crack_core * 0.94);
+                let solid_col = rock_albedo * (direct + ambient + moon_light + block_light + player_glow) + emissive;
                 hit_color = mix(solid_col, accum_color, accum_alpha);
                 hit = true;
                 break;

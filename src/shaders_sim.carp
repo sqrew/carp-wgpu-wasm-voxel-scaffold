@@ -1471,8 +1471,14 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     );
 
     // If it's empty space or falling sand (negative id), zero stress fields (do NOT return early so GI still runs in air!).
+    // Track normalized structural stress [0..1] for packing into light_buffer.a (used by voxel-wgsl fracture veins).
+    var solid_stress: f32 = 0.0;
     if (sol.y > 0.0 || sol.x <= 0.0) {
         field_out[idx] = vec4<f32>(0.0);
+        if (sol.y <= 0.0 && sol.x < -0.5) {
+            // Falling rubble that just fractured retains visible shatter cracks as it tumbles
+            solid_stress = 0.78;
+        }
     } else {
         var max_neighbor_w = 0.0;
         
@@ -1555,10 +1561,25 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let limit_t = struct_t * 50.0;
         let limit_s = struct_t * 60.0;
         
-        // Bedrock never breaks
+        // Bedrock never breaks or cracks
         if (sol.x != 255.0) {
             if (compressive > limit_c || tensile > limit_t || shear > limit_s) {
                 broken = true;
+            }
+            if (broken) {
+                solid_stress = 1.0;
+            } else {
+                let rc = compressive / max(limit_c, 1.0);
+                let rt = tensile / max(limit_t, 1.0);
+                let rs = shear / max(limit_s, 1.0);
+                var load_ratio = max(rc, max(rt, rs));
+                // Cantilever / undercut span amplification (grounded columns sit at my_w == 96.0;
+                // arches, overhangs, and acid-undercut pillars have my_w < 96.0)
+                let span = max(0.0, 96.0 - my_w);
+                if (span > 0.5 && load_ratio > 0.035) {
+                    load_ratio = max(load_ratio, clamp(load_ratio * (1.0 + span * 0.16) + span * 0.022, 0.0, 0.98));
+                }
+                solid_stress = clamp(load_ratio, 0.0, 1.0);
             }
         }
 
@@ -1571,14 +1592,18 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
     }
 
-    // --- Step 4: Global Illumination (Light Propagation) ---
-    // Look at this voxel's solid/liquid/gas content to see if it's an EMITTER
+    // --- Step 4: Global Illumination (.rgb) + Smoothed Structural Stress (.a) ---
+    // NOTE: light_buffer packs GI RGB block light in .rgb and normalized structural stress [0..1] in .a
+    // so voxel-wgsl gets hardware 3D trilinear stress interpolation with zero extra 3D textures.
     let raw_sol = textureLoad(solid_texture, ip, 0);
     let raw_liq = textureLoad(liquid_texture, ip, 0);
     let raw_gas = textureLoad(gas_texture, ip, 0);
 
-    var current_light = light_buffer[idx].rgb;
+    let prev_entry = light_buffer[idx];
+    var current_light = prev_entry.rgb;
+    let prev_stress = prev_entry.a;
     var next_light = current_light * 0.90; // Fast decay for moving sources
+    var max_adj_solid_stress: f32 = 0.0;
     
     // Check neighbors to pull light in across the active 5x5x5 window (without bleeding across outer toroidal seam)
     for (var i = 0u; i < 6u; i++) {
@@ -1586,12 +1611,20 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         if (!step_in_window(ip, nd, win_min)) { continue; }
         let np = (ip + nd + vec3<i32>(160)) % 160;
         let n_idx = u32(np.x) + u32(np.y) * 160u + u32(np.z) * 25600u;
-        let neighbor_light = light_buffer[n_idx].rgb;
+        let neighbor_entry = light_buffer[n_idx];
+        let neighbor_light = neighbor_entry.rgb;
         
         // Light loses power as it travels (color bleed)
         let incoming = max(vec3<f32>(0.0), neighbor_light - vec3<f32>(0.1, 0.1, 0.1));
-        
         next_light = max(next_light, incoming);
+
+        // Dilate solid stress 1 voxel outward into adjacent surface-skin air so SDF zero-crossings don't dilute to 0
+        if (sol.y > 0.0 && raw_sol.g < 1.8) {
+            let n_sol_tex = textureLoad(solid_texture, np, 0);
+            if (n_sol_tex.g <= 0.0 && abs(n_sol_tex.r) > 0.5) {
+                max_adj_solid_stress = max(max_adj_solid_stress, neighbor_entry.a);
+            }
+        }
     }
     
     // Registry-driven TAG_LUMINESCENT emission across exposed cave solids, liquids, and gases
@@ -1668,7 +1701,13 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_light *= 0.05; 
     }
     
-    light_buffer[idx] = vec4<f32>(next_light, 0.0);
+    var next_stress: f32 = 0.0;
+    if (sol.y <= 0.0 && abs(sol.x) > 0.5) {
+        next_stress = mix(prev_stress, solid_stress, 0.20);
+    } else if (raw_sol.g < 1.8) {
+        next_stress = max_adj_solid_stress;
+    }
+    light_buffer[idx] = vec4<f32>(next_light, next_stress);
 }
 
 "))
