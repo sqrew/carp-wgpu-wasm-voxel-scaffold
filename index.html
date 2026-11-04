@@ -189,12 +189,46 @@ canvas.emscripten { border: 0px none; background-color: black; }
         </div>
         
         <!-- Controls Helper Cheat Sheet -->
-        <div style="font-size: 10px; color: #777; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 12px; padding-top: 8px; line-height: 1.4;">
-          <strong>Controls:</strong><br>
-          • <strong>WASD</strong> / <strong>Space</strong> / <strong>Shift</strong> to fly<br>
-          • <strong>F + Right Click</strong> to Place Solid | <strong>F + Left Click</strong> to Break<br>
-          • <strong>H + Click</strong> for Liquid | <strong>G + Click</strong> for Gas<br>
-          • <strong>V / B / N</strong> keys to cycle materials | <strong>[ ]</strong> brush size
+        <div style="font-size: 10px; color: #888; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 12px; padding-top: 8px; line-height: 1.45;">
+          <strong style="color:#bbb;">Flask &amp; Sandbox Controls:</strong><br>
+          • <strong>Right Click</strong>: Big Succ (siphon pool/gas)<br>
+          • <strong>Left Click</strong>: Squirt stream + knockback<br>
+          • <strong>X</strong>: Dump/purge flask | <strong>R</strong>: Spawn physics ball<br>
+          • <strong>F + Click</strong>: Solid | <strong>H + Click</strong>: Liq | <strong>G + Click</strong>: Gas<br>
+          • <strong>V / N / B</strong>: Cycle mats | <strong>WASD / Q / E</strong>: Move
+        </div>
+      </div>
+
+      <!-- Center Reticle & Siphon Probe Prompt -->
+      <div id="reticle-wrap" style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 90; display: flex; flex-direction: column; align-items: center;">
+        <div id="reticle-ring" style="width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.55); display: flex; align-items: center; justify-content: center; transition: transform 0.1s ease, border-color 0.1s ease, box-shadow 0.1s ease;">
+          <div style="width: 3px; height: 3px; border-radius: 50%; background: rgba(255,255,255,0.9);"></div>
+        </div>
+        <div id="reticle-hint" style="margin-top: 8px; font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.95); background: rgba(12,12,18,0.68); padding: 2px 7px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); opacity: 0; transition: opacity 0.12s ease; white-space: nowrap;"></div>
+      </div>
+
+      <!-- Bottom-Right Alchemical Flask Vial HUD -->
+      <div id="flask-hud" style="position: absolute; bottom: 18px; right: 18px; display: flex; align-items: flex-end; gap: 12px; background: rgba(14, 15, 22, 0.88); padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.16); box-shadow: 0 6px 24px rgba(0,0,0,0.65); pointer-events: none; z-index: 95; font-family: system-ui, -apple-system, sans-serif; color: #eee;">
+        <div style="text-align: right; min-width: 128px;">
+          <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.9px; color: #8c96ab; margin-bottom: 2px;">Alchemical Flask</div>
+          <div id="flask-mat-name" style="font-size: 16px; font-weight: 700; color: #9aa4b8; line-height: 1.2;">Empty</div>
+          <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 4px;">
+            <span id="flask-mode-badge" style="font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,0.08); color: #9aa4b8; letter-spacing: 0.5px;">READY</span>
+            <span id="flask-pct" style="font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; color: #cfd6e6;">0%</span>
+          </div>
+          <div style="font-size: 10px; color: #6e778a; margin-top: 5px;">RMB Succ • LMB Squirt • X Dump</div>
+        </div>
+        <!-- Glass Bottle Silhouette -->
+        <div style="display: flex; flex-direction: column; align-items: center;">
+          <div style="width: 14px; height: 6px; background: #8b6b4a; border-radius: 2px 2px 0 0; border: 1px solid rgba(255,255,255,0.2); border-bottom: none;"></div>
+          <div style="width: 18px; height: 9px; background: rgba(200,225,255,0.12); border: 1.5px solid rgba(210,230,255,0.38); border-bottom: none; border-radius: 2px 2px 0 0;"></div>
+          <div id="flask-glass" style="position: relative; width: 42px; height: 66px; border-radius: 10px 10px 20px 20px; border: 2px solid rgba(210,230,255,0.42); background: rgba(8, 10, 16, 0.78); overflow: hidden; box-shadow: inset 0 0 10px rgba(255,255,255,0.08);">
+            <div id="flask-fill-bar" style="position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: #29b6f6; transition: height 0.06s linear, background 0.15s ease;">
+              <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: rgba(255,255,255,0.45);"></div>
+            </div>
+            <!-- Glass highlight -->
+            <div style="position: absolute; top: 6px; left: 5px; width: 5px; height: 48px; border-radius: 4px; background: linear-gradient(180deg, rgba(255,255,255,0.28), rgba(255,255,255,0.03));"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -391,6 +425,102 @@ canvas.emscripten { border: 0px none; background-color: black; }
         document.getElementById('fly-chk').checked = window.player_flying;
         document.getElementById('light-chk').checked = window.player_flashlight;
       };
+
+      const FLASK_REAGENTS = {
+        257: { name: 'Water',        col: '#29b6f6', glow: false },
+        258: { name: 'Lava',         col: '#ff6d00', glow: true  },
+        259: { name: 'Acid',         col: '#39ff5a', glow: true  },
+        260: { name: 'Oil',          col: '#4e3b2c', glow: false },
+        261: { name: 'Blood',        col: '#d31922', glow: false },
+        262: { name: 'Ambrosia',     col: '#ffd54f', glow: true  },
+        263: { name: 'Volatile Gel', col: '#ff2ec4', glow: true  },
+        264: { name: 'Toxic Sludge', col: '#76d926', glow: false },
+        513: { name: 'Steam',        col: '#cfd8dc', glow: false },
+        514: { name: 'Toxic Gas',    col: '#8be82b', glow: false },
+        515: { name: 'Fire',         col: '#ffab2e', glow: true  },
+        516: { name: 'Smoke',        col: '#60646d', glow: false },
+        517: { name: 'Acid Vapor',   col: '#4ae83a', glow: false },
+        518: { name: 'Methane',      col: '#d7be9b', glow: false },
+        519: { name: 'Napalm Vapor', col: '#ff5722', glow: true  },
+        520: { name: 'Spore Cloud',  col: '#88db54', glow: false }
+      };
+
+      window.sync_flask = function(mat, fill, mode, probe) {
+        const mId = Math.round(mat);
+        const pId = Math.round(probe);
+        const info = FLASK_REAGENTS[mId] || null;
+        const pInfo = FLASK_REAGENTS[pId] || null;
+        const pct = Math.round(Math.max(0, Math.min(1, fill)) * 100);
+
+        const nameEl = document.getElementById('flask-mat-name');
+        const pctEl  = document.getElementById('flask-pct');
+        const barEl  = document.getElementById('flask-fill-bar');
+        const glassEl = document.getElementById('flask-glass');
+        const badgeEl = document.getElementById('flask-mode-badge');
+        const ringEl  = document.getElementById('reticle-ring');
+        const hintEl  = document.getElementById('reticle-hint');
+
+        pctEl.innerText = pct + '%';
+        barEl.style.height = (Math.max(0, Math.min(1, fill)) * 100).toFixed(1) + '%';
+
+        if (info && fill > 0.002) {
+          nameEl.innerText = info.name;
+          nameEl.style.color = info.col;
+          barEl.style.background = info.col;
+          glassEl.style.boxShadow = info.glow
+            ? ('0 0 18px ' + info.col + ', inset 0 0 12px ' + info.col)
+            : 'inset 0 0 10px rgba(255,255,255,0.08)';
+        } else {
+          nameEl.innerText = 'Empty';
+          nameEl.style.color = '#9aa4b8';
+          barEl.style.height = '0%';
+          glassEl.style.boxShadow = 'inset 0 0 10px rgba(255,255,255,0.08)';
+        }
+
+        if (mode < -0.5) {
+          badgeEl.innerText = 'BIG SUCC';
+          badgeEl.style.background = 'rgba(79, 195, 247, 0.25)';
+          badgeEl.style.color = '#4fc3f7';
+          ringEl.style.transform = 'scale(0.78)';
+        } else if (mode > 0.5 && mode < 1.5) {
+          badgeEl.innerText = 'SQUIRT!';
+          badgeEl.style.background = 'rgba(255, 138, 101, 0.28)';
+          badgeEl.style.color = '#ffab91';
+          ringEl.style.transform = 'scale(1.25)';
+        } else if (mode > 1.5) {
+          badgeEl.innerText = 'DUMPED';
+          badgeEl.style.background = 'rgba(255,255,255,0.14)';
+          badgeEl.style.color = '#eee';
+          ringEl.style.transform = 'scale(1.0)';
+        } else if (info && fill >= 0.995) {
+          badgeEl.innerText = 'FULL';
+          badgeEl.style.background = 'rgba(129, 199, 132, 0.22)';
+          badgeEl.style.color = '#a5d6a7';
+          ringEl.style.transform = 'scale(1.0)';
+        } else if (info && fill > 0.002) {
+          badgeEl.innerText = 'LOCKED';
+          badgeEl.style.background = 'rgba(255, 213, 79, 0.16)';
+          badgeEl.style.color = '#ffe082';
+          ringEl.style.transform = 'scale(1.0)';
+        } else {
+          badgeEl.innerText = 'READY';
+          badgeEl.style.background = 'rgba(255,255,255,0.08)';
+          badgeEl.style.color = '#9aa4b8';
+          ringEl.style.transform = 'scale(1.0)';
+        }
+
+        if (pInfo && fill < 0.995) {
+          ringEl.style.borderColor = pInfo.col;
+          ringEl.style.boxShadow = '0 0 8px ' + pInfo.col;
+          hintEl.innerText = (mode < -0.5 ? 'Siphoning ' : 'RMB: Siphon ') + pInfo.name;
+          hintEl.style.color = pInfo.col;
+          hintEl.style.opacity = '1';
+        } else {
+          ringEl.style.borderColor = (info && mode > 0.5 && mode < 1.5) ? info.col : 'rgba(255,255,255,0.55)';
+          ringEl.style.boxShadow = 'none';
+          hintEl.style.opacity = '0';
+        }
+      };
       
       updateHUD(); // Initialize HUD labels
 
@@ -399,6 +529,6 @@ canvas.emscripten { border: 0px none; background-color: black; }
         canvasElement.focus();
       });
     </script>
-    <script async type="text/javascript" src="index.js?v=1788805000"></script>
+    <script async type="text/javascript" src="index.js?v=1788901000"></script>
   </body>
 </html>

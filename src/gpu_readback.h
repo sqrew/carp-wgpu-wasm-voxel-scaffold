@@ -3,17 +3,16 @@
 #include <string.h>
 #include <stdbool.h>
 
-static float latest_hit_pos[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+static float latest_hit_pos[12] = {0.0f};
 static bool is_mapping = false;
 
 static void buffer_map_callback(WGPUMapAsyncStatus status, WGPUStringView message, void* userdata1, void* userdata2) {
     is_mapping = false;
     if (status == WGPUMapAsyncStatus_Success) {
         WGPUBuffer buffer = (WGPUBuffer)userdata1;
-        const void* mapped = wgpuBufferGetConstMappedRange(buffer, 0, 16);
+        const void* mapped = wgpuBufferGetConstMappedRange(buffer, 0, 48);
         if (mapped) {
-            
-            memcpy(latest_hit_pos, mapped, 16);
+            memcpy(latest_hit_pos, mapped, 48);
         }
         wgpuBufferUnmap(buffer);
     }
@@ -31,7 +30,7 @@ static void gpu_readback_hit_pos_async(WGPUBuffer buffer) {
         .userdata2 = NULL
     };
     
-    wgpuBufferMapAsync(buffer, WGPUMapMode_Read, 0, 16, cb_info);
+    wgpuBufferMapAsync(buffer, WGPUMapMode_Read, 0, 48, cb_info);
 }
 
 static float gpu_readback_get_hit_x() { return latest_hit_pos[0]; }
@@ -39,14 +38,22 @@ static float gpu_readback_get_hit_y() { return latest_hit_pos[1]; }
 static float gpu_readback_get_hit_z() { return latest_hit_pos[2]; }
 static float gpu_readback_get_hit_w() { return latest_hit_pos[3]; }
 
+static float gpu_readback_get_succ_x() { return latest_hit_pos[4]; }
+static float gpu_readback_get_succ_y() { return latest_hit_pos[5]; }
+static float gpu_readback_get_succ_z() { return latest_hit_pos[6]; }
+static float gpu_readback_get_succ_w() { return latest_hit_pos[7]; }
 
+static float gpu_readback_get_jet_x() { return latest_hit_pos[8]; }
+static float gpu_readback_get_jet_y() { return latest_hit_pos[9]; }
+static float gpu_readback_get_jet_z() { return latest_hit_pos[10]; }
+static float gpu_readback_get_jet_w() { return latest_hit_pos[11]; }
 
 static WGPUBuffer gpu_readback_create_map_buffer(WGPUContext* ctx) {
     WGPUBufferDescriptor desc = {
         .nextInChain = NULL,
         .label = "RaycastMapBuffer",
         .usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst,
-        .size = 16,
+        .size = 48,
         .mappedAtCreation = false
     };
     return wgpuDeviceCreateBuffer(ctx->device, &desc);

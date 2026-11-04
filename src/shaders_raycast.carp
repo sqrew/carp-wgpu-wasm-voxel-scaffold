@@ -33,6 +33,9 @@ struct Uniforms {
     pad1: f32,
     pad2: f32,
     pad3: f32,
+    view_proj: mat4x4<f32>,
+    flask_pos: vec4<f32>,
+    flask_action: vec4<f32>,
 }
 
 @group(0) @binding(0) var<storage, read>       dummy0: array<vec4<f32>>;
@@ -45,10 +48,21 @@ struct Uniforms {
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
 @group(0) @binding(8) var<storage, read> s_entities: array<Entity>;
 
+fn wrap_world(p: vec3<f32>) -> vec3<i32> {
+    let w = p - floor(p / 160.0) * 160.0;
+    return vec3<i32>(clamp(w, vec3<f32>(0.0), vec3<f32>(159.0)));
+}
 
-fn get_solid(p: vec3<i32>) -> vec4<f32> {
-    let wrapped = (p + vec3<i32>(160)) % 160;
-    return textureLoad(solid_texture, wrapped, 0);
+fn get_solid_world(p: vec3<f32>) -> vec4<f32> {
+    return textureLoad(solid_texture, wrap_world(p), 0);
+}
+
+fn get_liquid_world(p: vec3<f32>) -> vec4<f32> {
+    return textureLoad(liquid_texture, wrap_world(p), 0);
+}
+
+fn get_gas_world(p: vec3<f32>) -> vec4<f32> {
+    return textureLoad(gas_texture, wrap_world(p), 0);
 }
 
 @compute @workgroup_size(1)
@@ -64,13 +78,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     let ro = u.cam_pos.xyz;
     let rd = normalize(u.cam_dir.xyz);
-    
-    // We only care about the crosshair (center of screen)
-    // Raymarch exactly like the renderer
-    
-    var t_near: f32 = 0.0;
-    var t_far: f32 = 0.0;
-    
+
     let cx = floor(u.cam_pos.x / 32.0);
     let cy = floor(u.cam_pos.y / 32.0);
     let cz = floor(u.cam_pos.z / 32.0);
@@ -82,27 +90,22 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let t1 = (box_max - ro) * inv_rd;
     let tmin = min(t0, t1);
     let tmax = max(t0, t1);
-    
-    t_near = max(max(tmin.x, tmin.y), tmin.z);
-    t_far = min(min(tmax.x, tmax.y), tmax.z);
-    
-    t_near = max(t_near, 0.0);
-    
+
+    let t_near = max(max(max(tmin.x, tmin.y), tmin.z), 0.0);
+    let t_far  = min(min(tmax.x, tmax.y), tmax.z);
+
+    // -------------------------------------------------------------------------
+    // 1. Solid Crosshair Raymarch -> hit_buffer[0]
+    // -------------------------------------------------------------------------
     var hit = false;
     var t = t_near;
-    var p = vec3<f32>(0.0);
-    
+    var p = ro;
+
     if (t_near < t_far) {
         for (var i = 0; i < 200; i = i + 1) {
             p = ro + rd * t;
-            
-            // Map world pos to texture pos (Toroidal wrap)
-            let wrapped_p = p - floor(p / 160.0) * 160.0;
-            let tp = vec3<i32>(wrapped_p);
-            
-            let sdf_val = get_solid(tp);
+            let sdf_val = get_solid_world(p);
             let d = sdf_val.y * 0.5;
-            
             if (d < 0.05 || d <= 0.0) {
                 hit = true;
                 break;
@@ -110,20 +113,150 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             if (t > t_far || t > 80.0) {
                 break;
             }
-            
             var step_size = max(d, 0.05);
-            if (sdf_val.x < 0.0 || sdf_val.x == 5.0) { // CA blocks
+            if (sdf_val.x < 0.0 || sdf_val.x == 5.0) {
                 step_size = clamp(step_size, 0.005, 0.85);
             }
             t = t + step_size;
         }
     }
-    
+
     if (hit) {
         hit_buffer[0] = vec4<f32>(p.x, p.y, p.z, 1.0);
     } else {
         hit_buffer[0] = vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }
+
+    // -------------------------------------------------------------------------
+    // 2. Flask BIG SUCC Siphon Probe (0..16m) -> hit_buffer[1]
+    //    Prioritizes liquids through surface fumes when empty, or locks onto
+    //    the flask's current material ID (u.flask_action.z) when partially full.
+    // -------------------------------------------------------------------------
+    let locked_mat = round(u.flask_action.z);
+    let max_succ_t = min(select(16.0, t + 0.75, hit), 16.0);
+
+    var found_liq_id: f32 = 0.0;
+    var found_liq_pos = vec3<f32>(0.0);
+    var found_gas_id: f32 = 0.0;
+    var found_gas_pos = vec3<f32>(0.0);
+
+    let offsets = array<vec3<f32>, 7>(
+        vec3<f32>( 0.0,  0.0,  0.0),
+        vec3<f32>( 0.0,  0.8,  0.0),
+        vec3<f32>( 0.0, -0.8,  0.0),
+        vec3<f32>( 0.8,  0.0,  0.0),
+        vec3<f32>(-0.8,  0.0,  0.0),
+        vec3<f32>( 0.0,  0.0,  0.8),
+        vec3<f32>( 0.0,  0.0, -0.8)
+    );
+
+    var st: f32 = 0.0;
+    for (var s = 0; s < 40; s = s + 1) {
+        if (st > max_succ_t || found_liq_id > 0.5) { break; }
+        let base_p = ro + rd * st;
+        for (var k = 0u; k < 7u; k = k + 1u) {
+            let sp = base_p + offsets[k];
+            if (sp.x <= box_min.x + 1.0 || sp.x >= box_max.x - 1.0 ||
+                sp.y <= box_min.y + 1.0 || sp.y >= box_max.y - 1.0 ||
+                sp.z <= box_min.z + 1.0 || sp.z >= box_max.z - 1.0) {
+                continue;
+            }
+            let liq = get_liquid_world(sp);
+            let l_raw = round(abs(liq.x));
+            if (l_raw > 0.5 && liq.y > 0.06) {
+                let g_mat = 256.0 + l_raw;
+                if (locked_mat < 0.5 || abs(g_mat - locked_mat) < 0.5) {
+                    found_liq_id = g_mat;
+                    found_liq_pos = floor(sp) + vec3<f32>(0.5);
+                    break;
+                }
+            }
+            if (found_gas_id < 0.5) {
+                let gas = get_gas_world(sp);
+                let g_raw = round(abs(gas.x));
+                if (g_raw > 0.5 && gas.y > 0.12) {
+                    let g_mat = 512.0 + g_raw;
+                    if (locked_mat < 0.5 || abs(g_mat - locked_mat) < 0.5) {
+                        found_gas_id = g_mat;
+                        found_gas_pos = floor(sp) + vec3<f32>(0.5);
+                    }
+                }
+            }
+        }
+        st = st + 0.42;
+    }
+
+    if (found_liq_id > 0.5) {
+        hit_buffer[1] = vec4<f32>(found_liq_pos, found_liq_id);
+    } else if (found_gas_id > 0.5) {
+        hit_buffer[1] = vec4<f32>(found_gas_pos, found_gas_id);
+    } else {
+        hit_buffer[1] = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. Parabolic High-Pressure Squirt Arc -> hit_buffer[2]
+    //    Matches particle jet physics (speed 26 m/s, slight upward loft, grav -18)
+    //    hit_buffer[2].w: 0 = none, 1 = voxel splash, >= 2 = 2 + hit s_entities idx
+    // -------------------------------------------------------------------------
+    let right_n = normalize(u.cam_right.xyz);
+    let up_n    = normalize(u.cam_up.xyz);
+    var jpos = ro + right_n * 0.36 - up_n * 0.22 + rd * 0.65;
+    var jvel = rd * 26.0 + vec3<f32>(0.0, 1.8, 0.0);
+    let jdt: f32 = 0.024;
+    let ent_count = u32(max(0.0, u.entity_count));
+
+    var jet_code: f32 = 0.0;
+    var jet_impact = jpos;
+
+    for (var step = 0; step < 88; step = step + 1) {
+        let prev_pos = jpos;
+        jvel.y = jvel.y - 18.0 * jdt;
+        jpos = jpos + jvel * jdt;
+
+        if (jpos.x <= box_min.x + 1.5 || jpos.x >= box_max.x - 1.5 ||
+            jpos.y <= box_min.y + 1.5 || jpos.y >= box_max.y - 1.5 ||
+            jpos.z <= box_min.z + 1.5 || jpos.z >= box_max.z - 1.5) {
+            jet_impact = prev_pos;
+            jet_code = 1.0;
+            break;
+        }
+        if (jpos.y <= -191.2) {
+            jet_impact = vec3<f32>(jpos.x, -190.8, jpos.z);
+            jet_code = 1.0;
+            break;
+        }
+
+        if (step > 1 && ent_count > 0u) {
+            for (var ei: u32 = 0u; ei < ent_count && ei < 256u; ei = ei + 1u) {
+                let e = s_entities[ei];
+                let pl = jpos - e.pos_type.xyz;
+                var ed: f32 = 1000.0;
+                if (e.pos_type.w < 0.5) {
+                    ed = length(pl) - e.extents_rad.w;
+                } else {
+                    let q = abs(pl) - e.extents_rad.xyz;
+                    ed = length(max(q, vec3<f32>(0.0))) + min(max(q.x, max(q.y, q.z)), 0.0);
+                }
+                if (ed <= 0.45) {
+                    jet_impact = jpos;
+                    jet_code = 2.0 + f32(ei);
+                    break;
+                }
+            }
+            if (jet_code > 0.5) { break; }
+        }
+
+        let sv = get_solid_world(jpos);
+        let liq_here = get_liquid_world(jpos);
+        if (sv.y * 0.5 <= 0.06 || (step > 3 && liq_here.y > 0.65)) {
+            jet_impact = prev_pos;
+            jet_code = 1.0;
+            break;
+        }
+    }
+
+    hit_buffer[2] = vec4<f32>(jet_impact, jet_code);
 }
 ")
 )

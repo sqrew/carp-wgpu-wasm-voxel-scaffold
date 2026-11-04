@@ -108,22 +108,23 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 if (req_count > 0u) {
                     let base = atomicAdd(&write_head, req_count);
                     let vel_len = length(req.vel);
-                    let spread_factor = max(req.spread, 0.1);
+                    let spread_factor = max(req.spread, 0.015);
                     for (var j = 0u; j < req_count; j++) {
                         let slot = (base + j) % MAX_PARTICLES;
                         let seed = (base + j) * 17u + r * 31u + 1u;
                         var np: Particle;
                         let jitter = random_in_sphere(seed);
-                        np.pos = req.pos + jitter * 0.2;
+                        let pos_jit = select(0.2, 0.09, req.ptype >= 100.0 && req.ptype < 300.0);
+                        np.pos = req.pos + jitter * pos_jit;
                         
                         // Push slightly out of surface if starting inside solid
-                        if (check_collision(np.pos)) {
+                        if (req.ptype < 300.0 && check_collision(np.pos)) {
                             let norm = get_normal(np.pos);
                             np.pos += norm * 0.35;
                         }
                         
                         np.vel = req.vel + jitter * max(vel_len, 2.0) * spread_factor;
-                        np.life = req.lifetime * (0.7 + hash(seed + 100u) * 0.6);
+                        np.life = req.lifetime * (0.78 + hash(seed + 100u) * 0.44);
                         
                         // Pack lifetime and ptype into max_life_type
                         np.max_life_type = bitcast<f32>(pack2x16float(vec2<f32>(np.life, req.ptype)));
@@ -171,6 +172,21 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         grav = 2.0;
         drag = 0.86;
         bounciness = 0.0;
+    } else if (ptype >= 101u && ptype <= 108u) {
+        // 101..108: Pressurized Flask Liquid Stream - matches parabolic raycast arc!
+        grav = -18.0;
+        drag = 0.996;
+        bounciness = 0.25;
+    } else if (ptype >= 201u && ptype <= 208u) {
+        // 201..208: Pressurized Flask Gas Jet - fast blast that billows upward
+        grav = 1.6;
+        drag = 0.94;
+        bounciness = 0.12;
+    } else if (ptype >= 301u && ptype <= 316u) {
+        // 301..316: Big Succ Siphon Droplets - zero-gravity vacuum streak into flask nozzle
+        grav = 0.0;
+        drag = 0.995;
+        bounciness = 0.0;
     } else {
         // 4: Magic / Arcane - floaty, low gravity, high ricochet
         grav = -0.5;
@@ -187,8 +203,8 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     // Predict next position
     let next_pos = p.pos + p.vel * dt;
 
-    // Voxel world collision detection and response
-    if (check_collision(next_pos)) {
+    // Voxel world collision detection and response (skip for vacuumed siphon droplets)
+    if (ptype < 300u && check_collision(next_pos)) {
         let n = get_normal(next_pos);
         if (bounciness > 0.05) {
             let vn = dot(p.vel, n);
@@ -250,6 +266,27 @@ struct VertexOutput {
     @location(2) t: f32,
 }
 
+fn reagent_visual(ridx: u32) -> vec4<f32> {
+    switch (ridx) {
+        case 1u:  { return vec4<f32>(0.18, 0.64, 1.00, 0.0); } // Water
+        case 2u:  { return vec4<f32>(1.00, 0.42, 0.08, 1.0); } // Lava (luminescent)
+        case 3u:  { return vec4<f32>(0.22, 1.00, 0.32, 1.0); } // Acid (luminescent)
+        case 4u:  { return vec4<f32>(0.22, 0.18, 0.14, 0.0); } // Oil
+        case 5u:  { return vec4<f32>(0.80, 0.06, 0.08, 0.0); } // Blood
+        case 6u:  { return vec4<f32>(1.00, 0.85, 0.24, 1.0); } // Ambrosia (luminescent)
+        case 7u:  { return vec4<f32>(0.98, 0.18, 0.74, 1.0); } // Volatile Gel (luminescent)
+        case 8u:  { return vec4<f32>(0.38, 0.85, 0.14, 0.0); } // Toxic Sludge
+        case 9u:  { return vec4<f32>(0.78, 0.82, 0.88, 0.0); } // Steam
+        case 10u: { return vec4<f32>(0.45, 0.92, 0.15, 0.0); } // Toxic Gas
+        case 11u: { return vec4<f32>(1.00, 0.68, 0.18, 1.0); } // Fire (luminescent)
+        case 12u: { return vec4<f32>(0.24, 0.24, 0.27, 0.0); } // Smoke
+        case 13u: { return vec4<f32>(0.25, 0.88, 0.18, 0.0); } // Acid Vapor
+        case 14u: { return vec4<f32>(0.82, 0.72, 0.58, 0.0); } // Methane
+        case 15u: { return vec4<f32>(1.00, 0.35, 0.05, 1.0); } // Napalm Vapor
+        default:  { return vec4<f32>(0.52, 0.86, 0.32, 0.0); } // Spore Cloud
+    }
+}
+
 @vertex fn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {
     var out: VertexOutput;
     let particle_idx = vi / 6u;
@@ -302,6 +339,15 @@ struct VertexOutput {
     } else if (ptype == 3u) {
         // Smoke: expands into large clouds
         size = mix(0.30, 0.09, t);
+    } else if (ptype >= 101u && ptype <= 108u) {
+        // Liquid Squirt droplets: plump pressurized globules that taper slightly
+        size = mix(0.065, 0.115, t);
+    } else if (ptype >= 201u && ptype <= 208u) {
+        // Gas Squirt puffs: start tight at nozzle and billow outward
+        size = mix(0.28, 0.09, t);
+    } else if (ptype >= 301u && ptype <= 316u) {
+        // Big Succ droplets: shrink cleanly as they funnel into the bottle neck
+        size = mix(0.035, 0.115, t);
     } else {
         // Magic: medium glowing motes
         size = mix(0.04, 0.08, t);
@@ -345,6 +391,37 @@ struct VertexOutput {
         // 3: Smoke - soft rising translucent vapor
         let alpha = in.t * radial * 0.40;
         let rgb = mix(vec3<f32>(0.22, 0.22, 0.24), vec3<f32>(0.58, 0.58, 0.60), in.t);
+        return vec4<f32>(rgb * alpha, alpha);
+    } else if (in.ptype >= 101u && in.ptype <= 108u) {
+        // Liquid Squirt Droplet
+        let vis = reagent_visual(in.ptype - 100u);
+        let spec = pow(clamp(1.0 - length(in.uv - vec2<f32>(0.36, 0.64)) * 3.0, 0.0, 1.0), 3.0) * 0.35;
+        if (vis.w > 0.5) {
+            let rgb = (vis.rgb + vec3<f32>(spec)) * (core * 2.1);
+            return vec4<f32>(rgb, 0.0);
+        }
+        let alpha = clamp(smoothstep(0.05, 0.42, radial) * (0.35 + 0.6 * in.t), 0.0, 0.92);
+        let rgb = vis.rgb * (0.75 + 0.35 * radial) + vec3<f32>(spec);
+        return vec4<f32>(rgb * alpha, alpha);
+    } else if (in.ptype >= 201u && in.ptype <= 208u) {
+        // Gas Squirt Puff
+        let vis = reagent_visual(in.ptype - 200u + 8u);
+        if (vis.w > 0.5) {
+            let rgb = vis.rgb * (core * 1.9 * in.t);
+            return vec4<f32>(rgb, 0.0);
+        }
+        let alpha = in.t * radial * 0.48;
+        return vec4<f32>(vis.rgb * alpha, alpha);
+    } else if (in.ptype >= 301u && in.ptype <= 316u) {
+        // Big Succ Siphon Droplet / Fume Streak
+        let vis = reagent_visual(in.ptype - 300u);
+        let spec = pow(radial, 3.0) * 0.3;
+        if (vis.w > 0.5) {
+            let rgb = (vis.rgb + vec3<f32>(spec)) * (core * 2.2);
+            return vec4<f32>(rgb, 0.0);
+        }
+        let alpha = clamp(radial * 0.85, 0.0, 0.9);
+        let rgb = vis.rgb + vec3<f32>(spec);
         return vec4<f32>(rgb * alpha, alpha);
     } else {
         // 4: Magic - electric cyan/magenta plasma with intense additive glow

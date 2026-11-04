@@ -52,6 +52,23 @@
 #endif
   }")
 
+(deftemplate js-sync-flask (Fn [Float Float Float Float] ())
+  "void $NAME(float m, float fill, float mode, float probe)"
+  "$DECL {
+#ifdef __EMSCRIPTEN__
+      static float prev_m = -1.0f, prev_fill = -1.0f, prev_mode = -9.0f, prev_probe = -1.0f;
+      float dm = m - prev_m; if (dm < 0.0f) dm = -dm;
+      float df = fill - prev_fill; if (df < 0.0f) df = -df;
+      float dmode = mode - prev_mode; if (dmode < 0.0f) dmode = -dmode;
+      float dp = probe - prev_probe; if (dp < 0.0f) dp = -dp;
+      if (dm < 0.05f && df < 0.004f && dmode < 0.1f && dp < 0.05f) return;
+      prev_m = m; prev_fill = fill; prev_mode = mode; prev_probe = probe;
+      char buf[256];
+      sprintf(buf, \"if (window.sync_flask) window.sync_flask(%.1f, %.4f, %.1f, %.1f);\", m, fill, mode, probe);
+      emscripten_run_script(buf);
+#endif
+  }")
+
 (deftemplate get-js-brush-radius (Fn [] Float) "float $NAME(void)" "$DECL { return js_brush_radius; }")
 (deftemplate get-js-solid-mat (Fn [] Float) "float $NAME(void)" "$DECL { return js_solid_mat; }")
 (deftemplate get-js-liq-mat (Fn [] Float) "float $NAME(void)" "$DECL { return js_liq_mat; }")
