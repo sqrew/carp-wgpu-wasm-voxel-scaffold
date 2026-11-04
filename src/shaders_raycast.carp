@@ -49,6 +49,7 @@ struct Uniforms {
 @group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
 @group(0) @binding(8) var<storage, read> s_entities: array<Entity>;
+@group(0) @binding(9) var light_texture:       texture_3d<f32>;
 
 fn wrap_world(p: vec3<f32>) -> vec3<i32> {
     let w = p - floor(p / 160.0) * 160.0;
@@ -67,6 +68,10 @@ fn get_gas_world(p: vec3<f32>) -> vec4<f32> {
     return textureLoad(gas_texture, wrap_world(p), 0);
 }
 
+fn get_light_world(p: vec3<f32>) -> vec4<f32> {
+    return textureLoad(light_texture, wrap_world(p), 0);
+}
+
 @compute @workgroup_size(1)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (global_id.x > 0u) { return; }
@@ -76,7 +81,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let hack6 = textureLoad(liquid_texture, vec3<i32>(0), 0);
     let hack7 = textureLoad(gas_texture, vec3<i32>(0), 0);
     let hack8 = s_entities[0].pos_type;
-    if (hack0.x == 9999.9) { hit_buffer[0] = hack1 + hack4 + hack6 + hack7 + hack8; }
+    let hack9 = textureLoad(light_texture, vec3<i32>(0), 0);
+    if (hack0.x == 9999.9) { hit_buffer[0] = hack1 + hack4 + hack6 + hack7 + hack8 + hack9; }
 
     let ro = u.cam_pos.xyz;
     let rd = normalize(u.cam_dir.xyz);
@@ -210,7 +216,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         } else {
             hit_buffer[1] = vec4<f32>(0.0, 0.0, 0.0, 0.0);
         }
-    } else {
+    } else if (rig_slot == 2) {
         // [3] GAS BELLOWS: Wide-cone Gas ONLY intake (513..520) up to 18m (catches match Fire & ceiling Methane!)
         let max_gas_t = min(select(18.0, t + 0.85, hit), 18.0);
         var found_gas_id: f32 = 0.0;
@@ -244,6 +250,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         } else {
             hit_buffer[1] = vec4<f32>(0.0, 0.0, 0.0, 0.0);
         }
+    } else {
+        // [4] GAUNTLET & BOOT: CPU handles entity targeting; hit_buffer[3].yzw supplies terrain mat, stress & puddle splash
+        hit_buffer[1] = vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }
 
     // -------------------------------------------------------------------------
@@ -330,8 +339,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     hit_buffer[2] = vec4<f32>(jet_impact, jet_code);
 
     // -------------------------------------------------------------------------
-    // 4. Active Match Extinguisher Check -> hit_buffer[3].x (8-bit snuff mask)
-    //    Checks if any lit match [0..7] touched an EXTINGUISHER liquid (Water)
+    // 4. Match Snuff Mask + [4] Gauntlet & Boot Terrain/Stress/Splash Probe -> hit_buffer[3]
+    //    .x = snuff_mask, .y = hit_sol_mat (1..255), .z = hit_stress (0..1), .w = splash_mat (257..264)
     // -------------------------------------------------------------------------
     var snuff_mask: u32 = 0u;
     if (u.match_info.x > 0.5) {
@@ -355,7 +364,46 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             }
         }
     }
-    hit_buffer[3] = vec4<f32>(f32(snuff_mask), 0.0, 0.0, 0.0);
+
+    var hit_sol_mat: f32 = 0.0;
+    var hit_stress: f32 = 0.0;
+    if (hit && t <= 16.0) {
+        let probe_c = p + rd * 0.45;
+        for (var k = 0u; k < 7u; k = k + 1u) {
+            let sp = probe_c + offsets[k] * 0.65;
+            if (sp.x <= box_min.x + 2.0 || sp.x >= box_max.x - 2.0 ||
+                sp.y <= box_min.y + 2.0 || sp.y >= box_max.y - 2.0 ||
+                sp.z <= box_min.z + 2.0 || sp.z >= box_max.z - 2.0 || sp.y <= -191.0) {
+                continue;
+            }
+            let sol = get_solid_world(sp);
+            let s_raw = round(abs(sol.x));
+            if (hit_sol_mat < 0.5 && sol.y <= 0.25 && s_raw >= 0.5) {
+                hit_sol_mat = s_raw;
+            }
+            let st_val = get_light_world(sp).a;
+            if (st_val > hit_stress) {
+                hit_stress = st_val;
+            }
+        }
+    }
+
+    var splash_mat: f32 = 0.0;
+    let max_boot_t = min(select(4.6, t + 0.35, hit), 4.6);
+    var bst: f32 = 0.65;
+    for (var bs = 0; bs < 10; bs = bs + 1) {
+        if (bst > max_boot_t) { break; }
+        let bp = ro + rd * bst;
+        let bl = get_liquid_world(bp);
+        let bl_raw = round(abs(bl.x));
+        if (bl_raw > 0.5 && bl.y > 0.10) {
+            splash_mat = 256.0 + bl_raw;
+            break;
+        }
+        bst = bst + 0.44;
+    }
+
+    hit_buffer[3] = vec4<f32>(f32(snuff_mask), hit_sol_mat, hit_stress, splash_mat);
 }
 ")
 )

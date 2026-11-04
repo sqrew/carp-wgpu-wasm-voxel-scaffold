@@ -49,6 +49,9 @@ static float gpu_readback_get_jet_z() { return latest_hit_pos[10]; }
 static float gpu_readback_get_jet_w() { return latest_hit_pos[11]; }
 
 static float gpu_readback_get_match_snuff() { return latest_hit_pos[12]; }
+static float gpu_readback_get_hit_mat() { return latest_hit_pos[13]; }
+static float gpu_readback_get_hit_stress() { return latest_hit_pos[14]; }
+static float gpu_readback_get_hit_splash() { return latest_hit_pos[15]; }
 
 static WGPUBuffer gpu_readback_create_map_buffer(WGPUContext* ctx) {
     WGPUBufferDescriptor desc = {

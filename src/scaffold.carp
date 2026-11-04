@@ -37,7 +37,7 @@
    EMSCRIPTEN_KEEPALIVE void set_gas_mat(float m) { js_gas_mat = m; }
    EMSCRIPTEN_KEEPALIVE void set_flying(float f) { js_flying = f; }
    EMSCRIPTEN_KEEPALIVE void set_flashlight(float f) { js_flashlight = f; }
-   EMSCRIPTEN_KEEPALIVE void set_rig_slot(int s) { if (s >= 0 && s <= 2) js_rig_slot = s; }
+   EMSCRIPTEN_KEEPALIVE void set_rig_slot(int s) { if (s >= 0 && s <= 3) js_rig_slot = s; }
    #endif
    #endif
 
@@ -54,24 +54,26 @@
 #endif
   }")
 
-(deftemplate js-sync-rig (Fn [Int Float Float Float Float Float Float Float Float] ())
-  "void $NAME(int slot, float sm, float sf, float lm, float lf, float gm, float gf, float mode, float probe)"
+(deftemplate js-sync-rig (Fn [Int Float Float Float Float Float Float Float Float Float Float] ())
+  "void $NAME(int slot, float sm, float sf, float lm, float lf, float gm, float gf, float gmat, float mode, float probe, float pstress)"
   "$DECL {
 #ifdef __EMSCRIPTEN__
       static int prev_slot = -1;
-      static float p_sm = -1.0f, p_sf = -1.0f, p_lm = -1.0f, p_lf = -1.0f, p_gm = -1.0f, p_gf = -1.0f, p_mode = -9.0f, p_probe = -1.0f;
+      static float p_sm = -1.0f, p_sf = -1.0f, p_lm = -1.0f, p_lf = -1.0f, p_gm = -1.0f, p_gf = -1.0f, p_gmat = -1.0f, p_mode = -9.0f, p_probe = -1.0f, p_st = -1.0f;
       float dsf = sf - p_sf; if (dsf < 0.0f) dsf = -dsf;
       float dlf = lf - p_lf; if (dlf < 0.0f) dlf = -dlf;
       float dgf = gf - p_gf; if (dgf < 0.0f) dgf = -dgf;
       float dsm = sm - p_sm; if (dsm < 0.0f) dsm = -dsm;
       float dlm = lm - p_lm; if (dlm < 0.0f) dlm = -dlm;
       float dgm = gm - p_gm; if (dgm < 0.0f) dgm = -dgm;
+      float dgmat = gmat - p_gmat; if (dgmat < 0.0f) dgmat = -dgmat;
       float dmode = mode - p_mode; if (dmode < 0.0f) dmode = -dmode;
       float dprobe = probe - p_probe; if (dprobe < 0.0f) dprobe = -dprobe;
-      if (slot == prev_slot && dsm < 0.05f && dsf < 0.004f && dlm < 0.05f && dlf < 0.004f && dgm < 0.05f && dgf < 0.004f && dmode < 0.1f && dprobe < 0.05f) return;
-      prev_slot = slot; p_sm = sm; p_sf = sf; p_lm = lm; p_lf = lf; p_gm = gm; p_gf = gf; p_mode = mode; p_probe = probe;
-      char buf[320];
-      sprintf(buf, \"if (window.sync_rig) window.sync_rig(%d, %.1f, %.4f, %.1f, %.4f, %.1f, %.4f, %.1f, %.1f);\", slot, sm, sf, lm, lf, gm, gf, mode, probe);
+      float dst = pstress - p_st; if (dst < 0.0f) dst = -dst;
+      if (slot == prev_slot && dsm < 0.05f && dsf < 0.004f && dlm < 0.05f && dlf < 0.004f && dgm < 0.05f && dgf < 0.004f && dgmat < 0.05f && dmode < 0.05f && dprobe < 0.05f && dst < 0.02f) return;
+      prev_slot = slot; p_sm = sm; p_sf = sf; p_lm = lm; p_lf = lf; p_gm = gm; p_gf = gf; p_gmat = gmat; p_mode = mode; p_probe = probe; p_st = pstress;
+      char buf[384];
+      sprintf(buf, \"if (window.sync_rig) window.sync_rig(%d, %.1f, %.4f, %.1f, %.4f, %.1f, %.4f, %.1f, %.2f, %.1f, %.3f);\", slot, sm, sf, lm, lf, gm, gf, gmat, mode, probe, pstress);
       emscripten_run_script(buf);
 #endif
   }")
@@ -105,7 +107,7 @@
 (deftemplate set-js-gas-mat (Fn [Float] ()) "void $NAME(float m)" "$DECL { js_gas_mat = m; }")
 (deftemplate set-js-flying (Fn [Float] ()) "void $NAME(float f)" "$DECL { js_flying = f; }")
 (deftemplate set-js-flashlight (Fn [Float] ()) "void $NAME(float f)" "$DECL { js_flashlight = f; }")
-(deftemplate set-js-rig-slot (Fn [Int] ()) "void $NAME(int s)" "$DECL { if (s >= 0 && s <= 2) js_rig_slot = s; }")
+(deftemplate set-js-rig-slot (Fn [Int] ()) "void $NAME(int s)" "$DECL { if (s >= 0 && s <= 3) js_rig_slot = s; }")
 
 (register-type GLFWwindow)
 

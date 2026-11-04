@@ -6,12 +6,15 @@ Core design north star: **tiny rules, massive simulation leverage**. Every playe
 
 ## 1. Foundational Player Verbs
 
-### The 3-Phase Alchemist's Rig (`Solid Sack + Liquid Flask + Gas Bellows`) *(v1 Shipped)*
-- **Three Dedicated Phase Vessels (`1` / `2` / `3` + Scroll Wheel)**: Instead of a generic inventory bar, the player carries three permanent vessels mirroring the engine's exact three simulation layers (`Solid` / `Liquid` / `Gas`), with `X` purging only the currently equipped vessel:
+### The 4-Slot Alchemist's Belt (`Sack + Flask + Bellows + Gauntlet & Boot`) *(v1 Shipped)*
+- **Three Phase Vessels + Dedicated Kinetic Intent Slot (`1` / `2` / `3` / `4` + Scroll Wheel)**: Mirrors the engine's three simulation layers (`Solid` / `Liquid` / `Gas`) plus a dedicated empty-handed Push/Pull kinetic slot (`[4]`), with `X` purging only the active vessel (or dropping a held object):
   - **`[1]` Solid Sack (Dredge & Pack)**: `RMB` chews smooth SDF bites out of cave walls and rubble (triggering live Voronoi stress fractures!) and vacuums chunks into a single-material pouch; `LMB` lobs a heavy arc—**Sand** and **Gunpowder** cascade out as falling CA piles/fuses, while cohesive solids (**Wood**, **Coal**, **Slime**, **C4**, **Ice**, **Stone**, **Crystal**) extrude solid 3D mounds onto surfaces with live CPU physics collision.
   - **`[2]` Liquid Flask (Siphon & Firehose)**: `RMB` ("Big Succ") siphons **Liquids** cleanly through surface smoke/steam; `LMB` ("Squirt Till It Hurt") fires a high-pressure parabolic stream with entity knockback.
   - **`[3]` Gas Bellows (Inhale & Gust / Flamethrower)**: `RMB` draws a wide intake cone to snag rising **Methane** pockets or **Fire** straight off a burning match; `LMB` blasts a sweeping `2–9m` volumetric plume/flamethrower cone with heavy airblast knockback.
-  - **Infinite Emergent Recipes & Lantern Synergy**: Pack **Wood** (`1`) + squirt **Oil** (`2`) + strike a **Match** (`Z`) to build a permanent campfire torch in pitch-black caves; hang **Methane** (`3`) in a ceiling dome + paint an **Oil** fuse (`2`) up the wall; or hold glowing **Crystal/Amethyst/Rad-Ore** (`1`), **Lava/Ambrosia** (`2`), or **Fire** (`3`) as a live colored hand-lantern in `field-sim-wgsl`.
+  - **`[4]` Gauntlet & Boot (Push / Pull Kinetic & Interact Intent)**: Safe "hands-free" physical interaction so grabbing or kicking never accidentally dumps reagents:
+    - **`RMB` Hazard Tug, Spring Carry & Wall Wrench (Pull)**: Locks onto dynamic `CompBody` entities up to `14.5m` away and violently yanks/reels them (`14.5–25.5 m/s` + ledge-clearing hop) straight into **Acid / Lava / Fire** traps between you and them, catching them in a smooth close-range spring grasp (`<= 2.25m`; `Hold RMB + Click LMB` cannonball-punts at `30.5 m/s`!). Pressing `RMB` on a close solid wall (`<= 8.8m`) wrenches out a material-true physical boulder (`Slime` super-bouncy, `Ice` frictionless curling stone, `Crystal/Amethyst/Rad-Ore` glowing cave lantern, `Spore Pod` puffing live `MAT_SPORE_CLOUD` gas) straight into your grip.
+    - **`LMB` Seismic Boot Kick & Weaponized Cave-Ins (Push)**: Boots nearby entities in a wide front cone (`26 m/s`), splashes shallow liquid puddles, and reads live GPU structural load (`light_texture.a` via `raycast-wgsl`)—kicking an overloaded pillar (`>= 22%` load) or brittle **Crystal / Ice / Glass / Coal / Obsidian / Spore Pod** shatters a massive `r = 2.2m` chunk into 3 tumbling rubble boulders (`SHATTER!`) to sever support and drop cavern roofs onto enemies below.
+  - **Infinite Emergent Recipes & Lantern Synergy**: Pack **Wood** (`1`) + squirt **Oil** (`2`) + strike a **Match** (`Z`) to build a permanent campfire torch in pitch-black caves; flood a trench with **Acid** (`2`) then swap to **`[4]`** and yank targets off ledges right into the vat; or carry a wrenched **Crystal** boulder (`4`), **Lava/Ambrosia** (`2`), or **Fire** (`3`) as a live colored hand-lantern in `field-sim-wgsl`.
 
 ### Off-Hand Matchbox / Flint Snap *(v1 Shipped — Infinite for Testing)*
 - **Physical Cave Scout & Igniter**: `Z` or `Middle-Click` strikes a spark shower at your off-hand and flicks a bouncing, self-emissive burning match (`CompBody` sphere + warm flickering amber GI in `field-sim-wgsl` + `MAT_FIRE` ignition in `gas-sim-wgsl`).
@@ -20,10 +23,6 @@ Core design north star: **tiny rules, massive simulation leverage**. Every playe
 - **Survival Light Progression *(Planned)***:
   - Make **Matches / Flint Snaps** a finite, scavenged/crafted survival resource (`Coal`/`Wood` + `Sulfur`/`Gunpowder`) so every peek down an abyss or detonation counts, and turn the **Flashlight (`L`)** into a coveted mid/late-game found relic/powerup rather than a free spawn toggle!
   - *Optional Sister Variant*: Static/Piezo arc snap that discharges into `CONDUCTIVE` **Water** puddles and **Gold** veins.
-
-### Seismic Boot Kick
-- **Close-Range Impulse + Collapse Trigger**: Heavy physical kick (`CompBody` knockback for boulders, barrels, spore pods, and enemies) paired with a localized stress shockwave in `field-sim-wgsl`.
-- **Weaponized Cave-Ins**: Spot an overloaded or acid-thinned load-bearing pillar -> kick it -> sever support and drop tons of cavern roof onto whatever is underneath.
 
 ### Stains & "Portal-Gel" Footing *(Gravity-On Play)*
 - **Material-Driven Movement & Survival**: Hook existing `Materials` bitflags (`SLIPPERY`, `BOUNCY`, `STICKY`, `IGNITER`, `EXTINGUISHER`, `TOXIC`, `HEALING`) into player/entity locomotion (`Flying Mode` off) and temporary body coatings ("stains"):

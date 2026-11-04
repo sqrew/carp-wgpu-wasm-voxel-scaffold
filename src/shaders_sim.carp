@@ -990,6 +990,14 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 next_sleep = 0.0;
             }
         }
+    } else if (u.flask_pos.w > 0.1 && u.flask_action.w > 2.5 && abs(round(abs(u.flask_action.x)) - 13.0) < 0.5 && u.flask_action.y < -0.5) {
+        // [4] Gauntlet & Boot: Kicking or wrenching a Spore Pod (13.0) erupts live MAT_SPORE_CLOUD (8.0)!
+        let world_pos = get_world_pos(ip, u.cam_pos.xyz) + vec3<f32>(0.5);
+        if (distance(world_pos, u.flask_pos.xyz) <= u.flask_pos.w + 1.8) {
+            next_id = 8.0;
+            next_vol = max(next_vol, 0.88);
+            next_sleep = 0.0;
+        }
     }
 
     // --- 4. Matrix-Driven Gas Spawns ---
