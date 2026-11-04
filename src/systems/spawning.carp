@@ -1,12 +1,24 @@
 (defmodule SpawningSystem
-  (defn update! [state input]
+  (defn char-match-entity! [ecs idx gen]
+    (when (> (Uint64.to-long idx) 0l)
+      (let [ent (ECS.Entity.init (Handle.init idx gen))
+            cb-opt (the (Maybe CompBody) (get-component ecs &ent))]
+        (match cb-opt
+          (Maybe.Just _)
+            (ECS.add-component! ecs &ent (CompColor.init (Vector3.init 0.14 0.11 0.09)))
+          (Maybe.Nothing) ()))))
+
+  (defn update! [state input dt]
     (let [player (EngineState.player state)
-          cam (Player.camera player)]
+          cam (Player.camera player)
+          ps (EngineState.particles state)
+          ecs (EngineState.ecs-world state)
+          fc @(EngineState.frame-count state)
+          fdt (Double.to-float dt)]
       (do
         (when (InputManager.action-digital? input "spawn-particles")
           (let [pos (Camera.pos cam)
                 dir (Camera.front cam)
-                ps (EngineState.particles state)
                 px (Double.to-float @(Vector3.x pos))
                 py (Double.to-float @(Vector3.y pos))
                 pz (Double.to-float @(Vector3.z pos))
@@ -20,7 +32,6 @@
         (when (InputManager.action-digital? input "spawn-magic")
           (let [pos (Camera.pos cam)
                 dir (Camera.front cam)
-                ps (EngineState.particles state)
                 px (Double.to-float @(Vector3.x pos))
                 py (Double.to-float @(Vector3.y pos))
                 pz (Double.to-float @(Vector3.z pos))
@@ -31,21 +42,19 @@
                 sy (+ py (* fy 1.5f))
                 sz (+ pz (* fz 1.5f))]
             (ParticleSystem.emit! ps sx sy sz (* fx 18.0f) (* fy 18.0f) (* fz 18.0f) 2.2f 40 PARTICLE-TYPE-MAGIC 0.5f 0.8f)))
-        (when (and (InputManager.action-pressed? input "spawn-entity") (> (- @(EngineState.frame-count state) @(EngineState.last-spawn-frame state)) 10))
+        (when (and (InputManager.action-pressed? input "spawn-entity") (> (- fc @(EngineState.last-spawn-frame state)) 10))
           (do
-            (EngineState.set-last-spawn-frame! state @(EngineState.frame-count state))
+            (EngineState.set-last-spawn-frame! state fc)
             (let [pos (Camera.pos cam)
                   dir (Camera.front cam)
                   spawn-pos (Vector3.add pos &(Vector3.mul dir 1.6))
                   vel (Vector3.mul dir 7.5)
-                  fc @(EngineState.frame-count state)
                   cidx (Int.mod fc 3)
                   color (if (= cidx 0)
                           (Vector3.init 0.95 0.28 0.22)
                           (if (= cidx 1)
                             (Vector3.init 0.22 0.85 0.95)
                             (Vector3.init 0.95 0.78 0.20)))
-                  ecs (EngineState.ecs-world state)
                   e (GameWorld.create-entity! ecs)
                   rb (RigidBody.new @&spawn-pos (Quaternion.identity) 1.0 0.65 0.35 0.1 0.1 0.1)
                   vol (Volume.Ball (Sphere.init spawn-pos 0.6))]
@@ -59,5 +68,131 @@
                       ecs-ptr (Unsafe.coerce (EngineState.ecs-world state))]
                   (do
                     (let [_ (Coordinator.schedule! (EngineState.coord state) (AppEvent.DespawnEntity ecs-ptr idx gen) 60000l)] ())
-                    ())))))))))
+                    ()))))))
+
+        ;; Off-Hand Matchbox / Flint Snap (Z or Middle Mouse Button)
+        (when (and (or (InputManager.action-pressed? input "strike-match")
+                       (InputManager.action-pressed? input "strike-match-mmb"))
+                   (> (- fc @(EngineState.last-match-frame state)) 10))
+          (do
+            (EngineState.set-last-match-frame! state fc)
+            (let [slot (Int.mod @(EngineState.match-slot state) 8)
+                  m-idx (EngineState.match-idx state)
+                  m-gen (EngineState.match-gen state)
+                  m-life (EngineState.match-life state)
+                  m-pos (EngineState.match-pos state)
+                  old-life @(Array.unsafe-nth m-life slot)
+                  pos (Camera.pos cam)
+                  dir (Camera.front cam)
+                  right (Camera.right cam)
+                  up (Camera.up cam)
+                  sx-d (- (+ (- @(Vector3.x pos) (* @(Vector3.x right) 0.30)) (* @(Vector3.x dir) 0.70)) (* @(Vector3.x up) 0.12))
+                  sy-d (- (+ (- @(Vector3.y pos) (* @(Vector3.y right) 0.30)) (* @(Vector3.y dir) 0.70)) (* @(Vector3.y up) 0.12))
+                  sz-d (- (+ (- @(Vector3.z pos) (* @(Vector3.z right) 0.30)) (* @(Vector3.z dir) 0.70)) (* @(Vector3.z up) 0.12))
+                  vx-d (+ (* @(Vector3.x dir) 16.5) (* @(Vector3.x up) 2.4))
+                  vy-d (+ (* @(Vector3.y dir) 16.5) (* @(Vector3.y up) 2.4))
+                  vz-d (+ (* @(Vector3.z dir) 16.5) (* @(Vector3.z up) 2.4))
+                  spawn-pos (Vector3.init sx-d sy-d sz-d)
+                  vel (Vector3.init vx-d vy-d vz-d)
+                  sx (Double.to-float sx-d)
+                  sy (Double.to-float sy-d)
+                  sz (Double.to-float sz-d)
+                  fx (Double.to-float @(Vector3.x dir))
+                  fy (Double.to-float @(Vector3.y dir))
+                  fz (Double.to-float @(Vector3.z dir))]
+              (do
+                (when (> old-life 0.0f)
+                  (SpawningSystem.char-match-entity! ecs @(Array.unsafe-nth m-idx slot) @(Array.unsafe-nth m-gen slot)))
+                (EngineState.set-match-slot! state (inc slot))
+                ;; Flint-strike spark shower right at the off-hand
+                (ParticleSystem.emit-sparks! ps sx sy sz fx fy fz 22)
+                (let [e (GameWorld.create-entity! ecs)
+                      rb (RigidBody.new @&spawn-pos (Quaternion.identity) 0.35 0.50 0.58 0.14 0.14 0.14)
+                      vol (Volume.Ball (Sphere.init spawn-pos 0.16))
+                      hdr-col (Vector3.init 2.85 1.48 0.32)]
+                  (do
+                    (Body.set-velocity! (RigidBody.body &rb) vel)
+                    (add-component! ecs &e (CompBody.init rb))
+                    (add-component! ecs &e (CompVolume.init vol))
+                    (add-component! ecs &e (CompColor.init hdr-col))
+                    (let [idx (ECS.Entity.index &e)
+                          gen (ECS.Entity.generation &e)
+                          ecs-ptr (Unsafe.coerce (EngineState.ecs-world state))
+                          base (* slot 3)]
+                      (do
+                        (Array.aset! m-idx slot idx)
+                        (Array.aset! m-gen slot gen)
+                        (Array.aset! m-life slot 14.0f)
+                        (Array.aset! m-pos base sx)
+                        (Array.aset! m-pos (+ base 1) sy)
+                        (Array.aset! m-pos (+ base 2) sz)
+                        (EngineState.set-match-flash! state 1.0f)
+                        (let [_ (Coordinator.schedule! (EngineState.coord state) (AppEvent.DespawnEntity ecs-ptr idx gen) 22000l)] ())
+                        ()))))))))
+
+        ;; Update up to 8 active burning matches (positions, ember trails, burnout, and Water snuffing)
+        (let [m-idx (EngineState.match-idx state)
+              m-gen (EngineState.match-gen state)
+              m-life (EngineState.match-life state)
+              m-pos (EngineState.match-pos state)
+              snuff-bits (Float.round (gpu-readback-get-match-snuff))
+              lit-count 0]
+          (do
+            (for [i 0 8]
+              (let [life @(Array.unsafe-nth m-life i)]
+                (when (> life 0.0f)
+                  (let [idx @(Array.unsafe-nth m-idx i)
+                        gen @(Array.unsafe-nth m-gen i)
+                        ent (ECS.Entity.init (Handle.init idx gen))
+                        cb-opt (the (Maybe CompBody) (get-component ecs &ent))]
+                    (match cb-opt
+                      (Maybe.Nothing)
+                        (Array.aset! m-life i 0.0f)
+                      (Maybe.Just cb)
+                        (let [pos (RigidBody.position (CompBody.rb &cb))
+                              mx (Double.to-float @(Vector3.x pos))
+                              my (Double.to-float @(Vector3.y pos))
+                              mz (Double.to-float @(Vector3.z pos))
+                              base (* i 3)
+                              snuffed? (/= 0 (Int.bit-and snuff-bits (Int.bit-shift-left 1 i)))]
+                          (do
+                            (Array.aset! m-pos base mx)
+                            (Array.aset! m-pos (+ base 1) my)
+                            (Array.aset! m-pos (+ base 2) mz)
+                            (if snuffed?
+                              ;; Water snuffed the match (*tssst!* -> Steam burst + charred stick)
+                              (do
+                                (Array.aset! m-life i 0.0f)
+                                (EngineState.set-match-flash! state -1.0f)
+                                (ECS.add-component! ecs &ent (CompColor.init (Vector3.init 0.14 0.11 0.09)))
+                                (ParticleSystem.emit! ps mx my mz 0.0f 3.2f 0.0f 1.4f 22 201.0f 0.55f 0.0f)
+                                (ParticleSystem.emit-smoke! ps mx my mz 8))
+                              (let [new-life (- life fdt)]
+                                (if (<= new-life 0.0f)
+                                  ;; Natural burnout after ~14s
+                                  (do
+                                    (Array.aset! m-life i 0.0f)
+                                    (ECS.add-component! ecs &ent (CompColor.init (Vector3.init 0.14 0.11 0.09)))
+                                    (ParticleSystem.emit-smoke! ps mx my mz 6))
+                                  (let [norm (Float.clamp 0.0f 1.0f (/ new-life 14.0f))
+                                        cr (Double.from-float (+ 2.15f (* 0.80f norm)))
+                                        cg (Double.from-float (+ 1.02f (* 0.48f norm)))]
+                                    (do
+                                      (Array.aset! m-life i new-life)
+                                      (set! lit-count (inc lit-count))
+                                      (ECS.add-component! ecs &ent (CompColor.init (Vector3.init cr cg 0.22)))
+                                      (when (= (Int.mod (+ fc i) 2) 0)
+                                        (ParticleSystem.emit! ps mx (+ my 0.08f) mz 0.0f 1.4f 0.0f 0.42f 2 PARTICLE-TYPE-SPARKS 0.65f 0.4f))
+                                      (when (= (Int.mod (+ fc (* i 3)) 7) 0)
+                                        (ParticleSystem.emit-smoke! ps mx (+ my 0.12f) mz 1))))))))))))))
+            (EngineState.set-match-lit-count! state lit-count)
+            (let [fl @(EngineState.match-flash state)
+                  next-fl (if (> fl 0.02f)
+                            (Float.clamp 0.0f 1.0f (- fl (* fdt 3.2f)))
+                            (if (< fl -0.02f)
+                              (Float.clamp -1.0f 0.0f (+ fl (* fdt 2.2f)))
+                              0.0f))]
+              (do
+                (EngineState.set-match-flash! state next-fl)
+                (js-sync-match lit-count fl))))))))
 )

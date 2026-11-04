@@ -69,6 +69,21 @@
 #endif
   }")
 
+(deftemplate js-sync-match (Fn [Int Float] ())
+  "void $NAME(int lit_count, float flash_state)"
+  "$DECL {
+#ifdef __EMSCRIPTEN__
+      static int prev_lit = -1;
+      static float prev_flash = -9.0f;
+      float df = flash_state - prev_flash; if (df < 0.0f) df = -df;
+      if (lit_count == prev_lit && df < 0.05f) return;
+      prev_lit = lit_count; prev_flash = flash_state;
+      char buf[160];
+      sprintf(buf, \"if (window.sync_matchbox) window.sync_matchbox(%d, %.2f);\", lit_count, flash_state);
+      emscripten_run_script(buf);
+#endif
+  }")
+
 (deftemplate get-js-brush-radius (Fn [] Float) "float $NAME(void)" "$DECL { return js_brush_radius; }")
 (deftemplate get-js-solid-mat (Fn [] Float) "float $NAME(void)" "$DECL { return js_solid_mat; }")
 (deftemplate get-js-liq-mat (Fn [] Float) "float $NAME(void)" "$DECL { return js_liq_mat; }")

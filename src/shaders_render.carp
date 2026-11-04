@@ -36,6 +36,8 @@ struct Uniforms {
     view_proj: mat4x4<f32>,
     flask_pos: vec4<f32>,
     flask_action: vec4<f32>,
+    matches: array<vec4<f32>, 8>,
+    match_info: vec4<f32>,
 }
 
 struct FragmentOutput {
@@ -678,15 +680,27 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                         map_entities(p + vec3<f32>(0.0, 0.0, eps), &dummy) - map_entities(p - vec3<f32>(0.0, 0.0, eps), &dummy)
                     );
                     let normal = normalize(n);
-                    let light_dir = normalize(u.sun_dir.xyz);
-                    let sun_intensity = clamp(u.sun_dir.y * 4.0, 0.0, 1.0);
-                    let diffuse = max(dot(normal, light_dir), 0.0);
-                    let sha = 1.0; // Skipping shadow for fast entities
-                    let ao = 1.0;
-                    let ambient = vec3<f32>(0.2, 0.25, 0.35) * ao;
-                    let direct = vec3<f32>(1.0, 0.95, 0.85) * diffuse * sha * sun_intensity;
-                    
-                    final_ent_color = ent_c * (direct + ambient);
+                    if (max(ent_c.r, max(ent_c.g, ent_c.b)) > 1.05) {
+                        // Self-emissive incandescent ember (lit match head!)
+                        let rim = 0.72 + 0.55 * max(dot(normal, -rd), 0.0);
+                        final_ent_color = ent_c * rim;
+                    } else {
+                        let e_wrap = p - floor(p / 160.0) * 160.0;
+                        let e_uvw = clamp(e_wrap / 160.0, vec3<f32>(0.002), vec3<f32>(0.998));
+                        let e_gi = textureSampleLevel(light_texture, voxel_sampler, e_uvw, 0.0).rgb;
+                        let e_sky = clamp((p.y - 6.0) / 18.0, 0.0, 1.0);
+                        let light_dir = normalize(u.sun_dir.xyz);
+                        let sun_intensity = clamp(u.sun_dir.y * 4.0, 0.0, 1.0) * e_sky;
+                        let diffuse = max(dot(normal, light_dir), 0.0);
+                        let ambient = vec3<f32>(0.18, 0.22, 0.30) * mix(0.25, 1.0, e_sky);
+                        let direct = vec3<f32>(1.0, 0.95, 0.85) * diffuse * sun_intensity;
+                        var e_flash = vec3<f32>(0.0);
+                        if (u.cam_pos.w > 0.5) {
+                            let f_att = 1.0 / (1.0 + 0.04 * ent_t + 0.009 * ent_t * ent_t);
+                            e_flash = vec3<f32>(1.0, 0.96, 0.88) * f_att * 2.4 * max(dot(normal, -rd), 0.15);
+                        }
+                        final_ent_color = ent_c * (direct + ambient + e_gi + e_flash);
+                    }
                     ent_hit = true;
                     break;
                 }

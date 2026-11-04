@@ -190,9 +190,10 @@ canvas.emscripten { border: 0px none; background-color: black; }
         
         <!-- Controls Helper Cheat Sheet -->
         <div style="font-size: 10px; color: #888; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 12px; padding-top: 8px; line-height: 1.45;">
-          <strong style="color:#bbb;">Flask &amp; Sandbox Controls:</strong><br>
+          <strong style="color:#bbb;">Flask, Matchbox &amp; Sandbox:</strong><br>
           • <strong>Right Click</strong>: Big Succ (siphon pool/gas)<br>
           • <strong>Left Click</strong>: Squirt stream + knockback<br>
+          • <strong>Z / Middle Click</strong>: Strike &amp; flick Match<br>
           • <strong>X</strong>: Dump/purge flask | <strong>R</strong>: Spawn physics ball<br>
           • <strong>F + Click</strong>: Solid | <strong>H + Click</strong>: Liq | <strong>G + Click</strong>: Gas<br>
           • <strong>V / N / B</strong>: Cycle mats | <strong>WASD / Q / E</strong>: Move
@@ -207,27 +208,49 @@ canvas.emscripten { border: 0px none; background-color: black; }
         <div id="reticle-hint" style="margin-top: 8px; font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.95); background: rgba(12,12,18,0.68); padding: 2px 7px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); opacity: 0; transition: opacity 0.12s ease; white-space: nowrap;"></div>
       </div>
 
-      <!-- Bottom-Right Alchemical Flask Vial HUD -->
-      <div id="flask-hud" style="position: absolute; bottom: 18px; right: 18px; display: flex; align-items: flex-end; gap: 12px; background: rgba(14, 15, 22, 0.88); padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.16); box-shadow: 0 6px 24px rgba(0,0,0,0.65); pointer-events: none; z-index: 95; font-family: system-ui, -apple-system, sans-serif; color: #eee;">
-        <div style="text-align: right; min-width: 128px;">
-          <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.9px; color: #8c96ab; margin-bottom: 2px;">Alchemical Flask</div>
-          <div id="flask-mat-name" style="font-size: 16px; font-weight: 700; color: #9aa4b8; line-height: 1.2;">Empty</div>
-          <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 4px;">
-            <span id="flask-mode-badge" style="font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,0.08); color: #9aa4b8; letter-spacing: 0.5px;">READY</span>
-            <span id="flask-pct" style="font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; color: #cfd6e6;">0%</span>
+      <!-- Bottom-Right Off-Hand Matchbox + Alchemical Flask Rig HUD -->
+      <div style="position: absolute; bottom: 18px; right: 18px; display: flex; align-items: flex-end; gap: 10px; pointer-events: none; z-index: 95; font-family: system-ui, -apple-system, sans-serif; color: #eee;">
+        <!-- Off-Hand Matchbox Card -->
+        <div id="match-hud" style="display: flex; align-items: center; gap: 10px; background: rgba(14, 15, 22, 0.88); padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.16); box-shadow: 0 6px 24px rgba(0,0,0,0.65); transition: border-color 0.12s ease, box-shadow 0.12s ease;">
+          <!-- Matchstick Icon -->
+          <div style="position: relative; width: 22px; height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;">
+            <div id="match-flame" style="width: 12px; height: 14px; border-radius: 50% 50% 42% 42%; background: radial-gradient(circle at 50% 65%, #fff59d 0%, #ffb300 45%, #ff5722 90%); box-shadow: 0 0 10px rgba(255, 152, 0, 0.75); margin-bottom: -3px; opacity: 0.45; transform: scale(0.85); transition: opacity 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;"></div>
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: #c62828; border: 1px solid rgba(255,255,255,0.2);"></div>
+            <div style="width: 4px; height: 28px; background: linear-gradient(90deg, #d7b377, #a17946); border-radius: 0 0 2px 2px;"></div>
           </div>
-          <div style="font-size: 10px; color: #6e778a; margin-top: 5px;">RMB Succ • LMB Squirt • X Dump</div>
-        </div>
-        <!-- Glass Bottle Silhouette -->
-        <div style="display: flex; flex-direction: column; align-items: center;">
-          <div style="width: 14px; height: 6px; background: #8b6b4a; border-radius: 2px 2px 0 0; border: 1px solid rgba(255,255,255,0.2); border-bottom: none;"></div>
-          <div style="width: 18px; height: 9px; background: rgba(200,225,255,0.12); border: 1.5px solid rgba(210,230,255,0.38); border-bottom: none; border-radius: 2px 2px 0 0;"></div>
-          <div id="flask-glass" style="position: relative; width: 42px; height: 66px; border-radius: 10px 10px 20px 20px; border: 2px solid rgba(210,230,255,0.42); background: rgba(8, 10, 16, 0.78); overflow: hidden; box-shadow: inset 0 0 10px rgba(255,255,255,0.08);">
-            <div id="flask-fill-bar" style="position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: #29b6f6; transition: height 0.06s linear, background 0.15s ease;">
-              <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: rgba(255,255,255,0.45);"></div>
+          <div style="text-align: left; min-width: 96px;">
+            <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.9px; color: #8c96ab; margin-bottom: 2px;">Matchbox</div>
+            <div style="display: flex; align-items: baseline; gap: 6px;">
+              <span style="font-size: 17px; font-weight: 800; color: #ffca62; line-height: 1.1;">&infin;</span>
+              <span id="match-status" style="font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,0.08); color: #9aa4b8; letter-spacing: 0.4px;">DRY</span>
             </div>
-            <!-- Glass highlight -->
-            <div style="position: absolute; top: 6px; left: 5px; width: 5px; height: 48px; border-radius: 4px; background: linear-gradient(180deg, rgba(255,255,255,0.28), rgba(255,255,255,0.03));"></div>
+            <div id="match-active-lbl" style="font-size: 11px; color: #b8c2d6; margin-top: 3px; font-variant-numeric: tabular-nums;">0 burning</div>
+            <div style="font-size: 10px; color: #6e778a; margin-top: 3px;">Z / MMB Strike</div>
+          </div>
+        </div>
+
+        <!-- Alchemical Flask Vial Card -->
+        <div id="flask-hud" style="display: flex; align-items: flex-end; gap: 12px; background: rgba(14, 15, 22, 0.88); padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.16); box-shadow: 0 6px 24px rgba(0,0,0,0.65);">
+          <div style="text-align: right; min-width: 128px;">
+            <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.9px; color: #8c96ab; margin-bottom: 2px;">Alchemical Flask</div>
+            <div id="flask-mat-name" style="font-size: 16px; font-weight: 700; color: #9aa4b8; line-height: 1.2;">Empty</div>
+            <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 4px;">
+              <span id="flask-mode-badge" style="font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,0.08); color: #9aa4b8; letter-spacing: 0.5px;">READY</span>
+              <span id="flask-pct" style="font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; color: #cfd6e6;">0%</span>
+            </div>
+            <div style="font-size: 10px; color: #6e778a; margin-top: 5px;">RMB Succ • LMB Squirt • X Dump</div>
+          </div>
+          <!-- Glass Bottle Silhouette -->
+          <div style="display: flex; flex-direction: column; align-items: center;">
+            <div style="width: 14px; height: 6px; background: #8b6b4a; border-radius: 2px 2px 0 0; border: 1px solid rgba(255,255,255,0.2); border-bottom: none;"></div>
+            <div style="width: 18px; height: 9px; background: rgba(200,225,255,0.12); border: 1.5px solid rgba(210,230,255,0.38); border-bottom: none; border-radius: 2px 2px 0 0;"></div>
+            <div id="flask-glass" style="position: relative; width: 42px; height: 66px; border-radius: 10px 10px 20px 20px; border: 2px solid rgba(210,230,255,0.42); background: rgba(8, 10, 16, 0.78); overflow: hidden; box-shadow: inset 0 0 10px rgba(255,255,255,0.08);">
+              <div id="flask-fill-bar" style="position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: #29b6f6; transition: height 0.06s linear, background 0.15s ease;">
+                <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: rgba(255,255,255,0.45);"></div>
+              </div>
+              <!-- Glass highlight -->
+              <div style="position: absolute; top: 6px; left: 5px; width: 5px; height: 48px; border-radius: 4px; background: linear-gradient(180deg, rgba(255,255,255,0.28), rgba(255,255,255,0.03));"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -522,13 +545,59 @@ canvas.emscripten { border: 0px none; background-color: black; }
         }
       };
       
+      window.sync_matchbox = function(litCount, flashState) {
+        const cardEl   = document.getElementById('match-hud');
+        const flameEl  = document.getElementById('match-flame');
+        const statusEl = document.getElementById('match-status');
+        const activeEl = document.getElementById('match-active-lbl');
+
+        activeEl.innerText = litCount + (litCount === 1 ? ' burning' : ' burning');
+
+        if (flashState < -0.15) {
+          statusEl.innerText = 'SNUFFED!';
+          statusEl.style.background = 'rgba(144, 202, 249, 0.24)';
+          statusEl.style.color = '#90caf9';
+          cardEl.style.borderColor = 'rgba(144, 202, 249, 0.55)';
+          cardEl.style.boxShadow = '0 6px 24px rgba(0,0,0,0.65), 0 0 14px rgba(144, 202, 249, 0.35)';
+          flameEl.style.opacity = '0.2';
+          flameEl.style.transform = 'scale(0.65)';
+        } else if (flashState > 0.15) {
+          statusEl.innerText = 'STRUCK!';
+          statusEl.style.background = 'rgba(255, 179, 0, 0.28)';
+          statusEl.style.color = '#ffd54f';
+          cardEl.style.borderColor = 'rgba(255, 179, 0, 0.65)';
+          cardEl.style.boxShadow = '0 6px 24px rgba(0,0,0,0.65), 0 0 18px rgba(255, 152, 0, 0.45)';
+          flameEl.style.opacity = '1.0';
+          flameEl.style.transform = 'scale(1.22)';
+        } else if (litCount > 0) {
+          statusEl.innerText = 'LIT';
+          statusEl.style.background = 'rgba(255, 152, 0, 0.20)';
+          statusEl.style.color = '#ffca62';
+          cardEl.style.borderColor = 'rgba(255, 167, 38, 0.36)';
+          cardEl.style.boxShadow = '0 6px 24px rgba(0,0,0,0.65)';
+          flameEl.style.opacity = '0.95';
+          flameEl.style.transform = 'scale(1.02)';
+        } else {
+          statusEl.innerText = 'DRY';
+          statusEl.style.background = 'rgba(255,255,255,0.08)';
+          statusEl.style.color = '#9aa4b8';
+          cardEl.style.borderColor = 'rgba(255,255,255,0.16)';
+          cardEl.style.boxShadow = '0 6px 24px rgba(0,0,0,0.65)';
+          flameEl.style.opacity = '0.45';
+          flameEl.style.transform = 'scale(0.85)';
+        }
+      };
+      
       updateHUD(); // Initialize HUD labels
 
-      // Set focus to canvas on click so pointer lock behaves correctly
+      // Set focus to canvas on click & block middle-click browser autoscroll so MMB strikes matches cleanly
+      canvasElement.addEventListener('mousedown', (e) => {
+        if (e.button === 1) e.preventDefault();
+      });
       canvasElement.addEventListener('click', () => {
         canvasElement.focus();
       });
     </script>
-    <script async type="text/javascript" src="index.js?v=1788904000"></script>
+    <script async type="text/javascript" src="index.js?v=1788905000"></script>
   </body>
 </html>

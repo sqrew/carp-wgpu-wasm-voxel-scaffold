@@ -163,6 +163,8 @@ fn get_reaction(id_A: f32, cat_A: u32, id_B: f32, cat_B: u32) -> vec2<f32> {
     view_proj: mat4x4<f32>,
     flask_pos: vec4<f32>,
     flask_action: vec4<f32>,
+    matches: array<vec4<f32>, 8>,
+    match_info: vec4<f32>,
 }
 
 
@@ -421,7 +423,15 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let n5 = get_liquid(ip, vec3<i32>(0,0,-1), win_min).w;
         let n6 = get_liquid(ip, vec3<i32>(0,0,1), win_min).w;
         let my_gas = get_gas(ip, zero_d, win_min).w;
-        if (n1 >= 10.0 && n2 >= 10.0 && n3 >= 10.0 && n4 >= 10.0 && n5 >= 10.0 && n6 >= 10.0 && my_gas >= 10.0 && u.edit_params.y == 0.0 && u.flask_action.y == 0.0) {
+        var match_near = false;
+        if (u.match_info.x > 0.5) {
+            let wp = get_world_pos(ip, u.cam_pos.xyz) + vec3<f32>(0.5);
+            for (var mi: u32 = 0u; mi < 8u; mi = mi + 1u) {
+                let m = u.matches[mi];
+                if (m.w > 0.01 && distance(wp, m.xyz) <= 2.4) { match_near = true; break; }
+            }
+        }
+        if (!match_near && n1 >= 10.0 && n2 >= 10.0 && n3 >= 10.0 && n4 >= 10.0 && n5 >= 10.0 && n6 >= 10.0 && my_gas >= 10.0 && u.edit_params.y == 0.0 && u.flask_action.y == 0.0) {
              output_buffer[idx] = self_liq;
              return;
         }
@@ -692,6 +702,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     view_proj: mat4x4<f32>,
     flask_pos: vec4<f32>,
     flask_action: vec4<f32>,
+    matches: array<vec4<f32>, 8>,
+    match_info: vec4<f32>,
 }
 
 
@@ -852,7 +864,15 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let n5 = get_gas(ip, vec3<i32>(0,0,-1), win_min).w;
         let n6 = get_gas(ip, vec3<i32>(0,0,1), win_min).w;
         let my_liq = get_liquid(ip, zero_d, win_min).w;
-        if (n1 >= 10.0 && n2 >= 10.0 && n3 >= 10.0 && n4 >= 10.0 && n5 >= 10.0 && n6 >= 10.0 && my_liq >= 10.0 && u.edit_params.w == 0.0 && u.flask_action.y == 0.0) {
+        var match_near = false;
+        if (u.match_info.x > 0.5) {
+            let wp = get_world_pos(ip, u.cam_pos.xyz) + vec3<f32>(0.5);
+            for (var mi: u32 = 0u; mi < 8u; mi = mi + 1u) {
+                let m = u.matches[mi];
+                if (m.w > 0.01 && distance(wp, m.xyz) <= 2.4) { match_near = true; break; }
+            }
+        }
+        if (!match_near && n1 >= 10.0 && n2 >= 10.0 && n3 >= 10.0 && n4 >= 10.0 && n5 >= 10.0 && n6 >= 10.0 && my_liq >= 10.0 && u.edit_params.w == 0.0 && u.flask_action.y == 0.0) {
              output_buffer[idx] = self_gas;
              return;
         }
@@ -978,6 +998,26 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     
     let my_liq = get_liquid(ip, zero_d, win_min);
     let my_sol = get_solid(ip, zero_d, win_min);
+
+    // --- 3.3. Thrown Lit Matches: Spawn Fire wisp (igniting CA fuels/explosives) or Steam if wet ---
+    if (u.match_info.x > 0.5) {
+        let m_wp = get_world_pos(ip, u.cam_pos.xyz) + vec3<f32>(0.5);
+        for (var mi: u32 = 0u; mi < 8u; mi = mi + 1u) {
+            let m = u.matches[mi];
+            if (m.w > 0.01 && distance(m_wp, m.xyz) <= 1.25) {
+                let l_id_u = clamp(u32(round(abs(my_liq.x))), 0u, 255u);
+                if (l_id_u > 0u && my_liq.y > 0.08 && (registry_data[(256u + l_id_u) * 8u + 7u] & TAG_EXTINGUISHER) != 0u) {
+                    next_id = 1.0; // MAT_STEAM (tssst!)
+                    next_vol = max(next_vol, 0.85);
+                } else {
+                    next_id = 3.0; // MAT_FIRE (TAG_IGNITER -> ignites Oil, Methane, Gel, Gunpowder, Wood, melts Ice)
+                    next_vol = max(next_vol, 0.82 * clamp(m.w + 0.25, 0.4, 1.0));
+                }
+                next_sleep = 0.0;
+                break;
+            }
+        }
+    }
     let dirs6 = array<vec3<i32>, 6>(
         vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
         vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
@@ -1082,6 +1122,15 @@ struct Uniforms {
     hit_pos: vec4<f32>,
     edit_params: vec4<f32>,
     solid_params: vec4<f32>,
+    entity_count: f32,
+    pad1: f32,
+    pad2: f32,
+    pad3: f32,
+    view_proj: mat4x4<f32>,
+    flask_pos: vec4<f32>,
+    flask_action: vec4<f32>,
+    matches: array<vec4<f32>, 8>,
+    match_info: vec4<f32>,
 }
 
 @group(0) @binding(0) var<storage, read>       input_buffer: array<vec4<f32>>;
@@ -1185,8 +1234,19 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let n4 = get_solid(ip, vec3<i32>(0,1,0), win_min).w;
         let n5 = get_solid(ip, vec3<i32>(0,0,-1), win_min).w;
         let n6 = get_solid(ip, vec3<i32>(0,0,1), win_min).w;
-        // Wake up if the mouse is clicking (u.hit_pos.w == 1.0)
-        if (n1 >= 10.0 && n2 >= 10.0 && n3 >= 10.0 && n4 >= 10.0 && n5 >= 10.0 && n6 >= 10.0 && u.hit_pos.w == 0.0) {
+        var match_near = false;
+        if (u.match_info.x > 0.5) {
+            let wp_s = get_world_pos(ip, u.cam_pos.xyz) + vec3<f32>(0.5);
+            for (var mi = 0u; mi < 8u; mi++) {
+                let m = u.matches[mi];
+                if (m.w > 0.01 && distance(wp_s, m.xyz) <= 2.4) {
+                    match_near = true;
+                    break;
+                }
+            }
+        }
+        // Wake up if the mouse is clicking (u.hit_pos.w == 1.0) or a lit match is nearby
+        if (n1 >= 10.0 && n2 >= 10.0 && n3 >= 10.0 && n4 >= 10.0 && n5 >= 10.0 && n6 >= 10.0 && u.hit_pos.w == 0.0 && !match_near) {
              output_buffer[idx] = self_sol;
              return;
         }
@@ -1394,6 +1454,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     view_proj: mat4x4<f32>,
     flask_pos: vec4<f32>,
     flask_action: vec4<f32>,
+    matches: array<vec4<f32>, 8>,
+    match_info: vec4<f32>,
 }
 
 @group(0) @binding(0) var<storage, read>       field_in: array<vec4<f32>>;
@@ -1692,6 +1754,23 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 );
                 let f_str = bitcast<f32>(registry_data[f_base + 4u]);
                 next_light = max(next_light, f_col * f_str * (0.45 + 0.65 * u.flask_action.w));
+            }
+        }
+    }
+
+    // Thrown Lit Matches act as warm flickering mobile cave torches as they bounce down shafts!
+    if (u.match_info.x > 0.5) {
+        for (var mi = 0u; mi < 8u; mi++) {
+            let m = u.matches[mi];
+            if (m.w > 0.01 && all(abs(m.xyz - u.cam_pos.xyz) < vec3<f32>(76.0))) {
+                let mw = m.xyz - floor(m.xyz / 160.0) * 160.0;
+                let mip = vec3<i32>(clamp(mw, vec3<f32>(0.0), vec3<f32>(159.0)));
+                let d_ip = abs(ip - mip);
+                if (d_ip.x <= 1 && d_ip.y <= 1 && d_ip.z <= 1) {
+                    let flicker = 0.88 + 0.14 * sin(u.time * 23.0 + f32(mi) * 2.1);
+                    let fall = select(0.58, 1.0, all(d_ip == vec3<i32>(0)));
+                    next_light = max(next_light, vec3<f32>(1.0, 0.56, 0.16) * (2.75 * clamp(m.w + 0.25, 0.35, 1.0) * flicker * fall));
+                }
             }
         }
     }

@@ -36,6 +36,8 @@ struct Uniforms {
     view_proj: mat4x4<f32>,
     flask_pos: vec4<f32>,
     flask_action: vec4<f32>,
+    matches: array<vec4<f32>, 8>,
+    match_info: vec4<f32>,
 }
 
 @group(0) @binding(0) var<storage, read>       dummy0: array<vec4<f32>>;
@@ -257,6 +259,34 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
 
     hit_buffer[2] = vec4<f32>(jet_impact, jet_code);
+
+    // -------------------------------------------------------------------------
+    // 4. Active Match Extinguisher Check -> hit_buffer[3].x (8-bit snuff mask)
+    //    Checks if any lit match [0..7] touched an EXTINGUISHER liquid (Water)
+    // -------------------------------------------------------------------------
+    var snuff_mask: u32 = 0u;
+    if (u.match_info.x > 0.5) {
+        for (var mi: u32 = 0u; mi < 8u; mi = mi + 1u) {
+            let m = u.matches[mi];
+            if (m.w > 0.01) {
+                let l0 = get_liquid_world(m.xyz);
+                let l1 = get_liquid_world(m.xyz - vec3<f32>(0.0, 0.35, 0.0));
+                let r0 = u32(clamp(round(abs(l0.x)), 0.0, 255.0));
+                let r1 = u32(clamp(round(abs(l1.x)), 0.0, 255.0));
+                var wet = false;
+                if (r0 > 0u && l0.y > 0.08 && (materials[256u + r0].tags & 8388608u) != 0u) {
+                    wet = true;
+                }
+                if (r1 > 0u && l1.y > 0.08 && (materials[256u + r1].tags & 8388608u) != 0u) {
+                    wet = true;
+                }
+                if (wet) {
+                    snuff_mask = snuff_mask | (1u << mi);
+                }
+            }
+        }
+    }
+    hit_buffer[3] = vec4<f32>(f32(snuff_mask), 0.0, 0.0, 0.0);
 }
 ")
 )
