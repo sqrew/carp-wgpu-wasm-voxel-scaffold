@@ -1,132 +1,261 @@
 (defmodule PlayerSystem
+  (defn revive-player! [state]
+    (let [player (EngineState.player state)
+          world (EngineState.world state)
+          ecs (EngineState.ecs-world state)
+          ps (EngineState.particles state)
+          cam (Player.camera player)
+          old-p @(Camera.pos cam)
+          ox (Double.to-float @(Vector3.x &old-p))
+          oy (Double.to-float @(Vector3.y &old-p))
+          oz (Double.to-float @(Vector3.z &old-p))
+          safe-y (Physics.find-safe-spawn-y world 32.0 32.0)
+          foot-pos (Vector3.init 32.0 safe-y 32.0)
+          eye-pos (Vector3.init 32.0 (+ safe-y 1.2) 32.0)
+          p-ent (ECS.Entity.init (Handle.init (Uint64.from-long (the Long (Long.from-int @(EngineState.player-ent-id state)))) (Uint32.from-long 1l)))
+          cb-opt (the (Maybe CompBody) (get-component ecs &p-ent))]
+      (do
+        ;; Dramatic MAT_BLOOD splash where the player went down
+        (EngineState.push-voxel-action! state ox (- oy 0.5f) oz 1.95f 261.0f 0.85f 0.0f)
+        (ParticleSystem.emit! ps ox (- oy 0.4f) oz 0.0f 5.5f 0.0f 2.2f 28 105.0f 0.55f 0.25f)
+        (Player.set-hp! player @(Player.max-hp player))
+        (Player.set-hurt-timer! player 1.65f)
+        (Player.set-hurt-flash! player 1.0f)
+        (Player.set-heal-timer! player 0.85f)
+        (Player.set-coyote-timer! player 0.0)
+        (Player.set-prev-vy! player 0.0)
+        (Pointer.set (ref-to-ptr (Camera.pos cam)) eye-pos)
+        (match cb-opt
+          (Maybe.Just cb)
+            (let [rb (CompBody.rb &cb)
+                  b (RigidBody.body rb)
+                  t (RigidBody.transform rb)]
+              (do
+                (Body.set-velocity! b (Vector3.init 0.0 0.0 0.0))
+                (Transform.set-position! t foot-pos)
+                (RigidBody.set-body! rb @b)
+                (RigidBody.set-transform! rb @t)
+                (ECS.add-component! ecs &p-ent (CompBody.init @rb))))
+          (Maybe.Nothing) ())
+        (ParticleSystem.emit! ps 32.0f (Double.to-float (+ safe-y 0.8)) 32.0f 0.0f 3.8f 0.0f 1.5f 24 PARTICLE-TYPE-MAGIC 0.55f 0.2f))))
+
+  (defn damage-player! [state amount has-kb? kx ky kz]
+    (let [player (EngineState.player state)]
+      (if (or @(Player.flying player)
+              (or (<= amount 0.05f)
+                  (> @(Player.hurt-timer player) 0.02f)))
+        false
+        (let [ecs (EngineState.ecs-world state)
+              ps (EngineState.particles state)
+              cam (Player.camera player)
+              cpos @(Camera.pos cam)
+              cx (Double.to-float @(Vector3.x &cpos))
+              cy (Double.to-float (- @(Vector3.y &cpos) 0.45))
+              cz (Double.to-float @(Vector3.z &cpos))
+              next-hp (- @(Player.hp player) amount)]
+          (do
+            (Player.set-hurt-timer! player 0.46f)
+            (Player.set-hurt-flash! player 1.0f)
+            (when (>= amount 6.0f)
+              (do
+                (EngineState.push-voxel-action! state cx cy cz 1.15f 261.0f 0.42f 0.0f)
+                (ParticleSystem.emit! ps cx cy cz 0.0f 3.4f 0.0f 1.4f 12 105.0f 0.40f 0.22f)))
+            (if (<= next-hp 0.0f)
+              (PlayerSystem.revive-player! state)
+              (do
+                (Player.set-hp! player next-hp)
+                (when has-kb?
+                  (let [p-ent (ECS.Entity.init (Handle.init (Uint64.from-long (the Long (Long.from-int @(EngineState.player-ent-id state)))) (Uint32.from-long 1l)))
+                        cb-opt (the (Maybe CompBody) (get-component ecs &p-ent))]
+                    (match cb-opt
+                      (Maybe.Just cb)
+                        (let [rb (CompBody.rb &cb)
+                              b (RigidBody.body rb)]
+                          (do
+                            (Body.set-body-type! b (BodyType.Dynamic))
+                            (Body.set-is-sleeping! b false)
+                            (Body.set-velocity! b (Vector3.init kx ky kz))
+                            (RigidBody.set-body! rb @b)
+                            (ECS.add-component! ecs &p-ent (CompBody.init @rb))))
+                      (Maybe.Nothing) ())))))
+            true)))))
+
   (defn update! [state input dt]
     (let [player (EngineState.player state)
           world (EngineState.world state)
           ecs (EngineState.ecs-world state)
           ps (EngineState.particles state)
           cam (Player.camera player)
+          fdt (Double.to-float dt)
+          fc @(EngineState.frame-count state)
           p-ent-id (EngineState.player-ent-id state)
           p-ent (ECS.Entity.init (Handle.init (Uint64.from-long (the Long (Long.from-int @p-ent-id))) (Uint32.from-long 1l)))
           cb-opt (get-component ecs &p-ent)]
-      (match cb-opt
-        (Maybe.Just cb)
-          (let [rb (CompBody.rb &cb)
-                body (RigidBody.body rb)]
-            (do
-              (when (not @(Player.flying player))
-                (Pointer.set (ref-to-ptr (Camera.pos cam))
-                             (Vector3.add (RigidBody.position rb) &(Vector3.init 0.0 1.2 0.0))))
+      (do
+        ;; Decay i-frames, hurt vignette flash & Ambrosia heal glow
+        (Player.set-hurt-timer! player (Float.clamp 0.0f 5.0f (- @(Player.hurt-timer player) fdt)))
+        (Player.set-hurt-flash! player (Float.clamp 0.0f 1.0f (- @(Player.hurt-flash player) (* fdt 2.5f))))
+        (Player.set-heal-timer! player (Float.clamp 0.0f 2.0f (- @(Player.heal-timer player) (* fdt 2.0f))))
 
-              (Player.handle-input! player input dt)
+        (match cb-opt
+          (Maybe.Just cb)
+            (let [rb (CompBody.rb &cb)
+                  body (RigidBody.body rb)]
+              (do
+                (when (not @(Player.flying player))
+                  (Pointer.set (ref-to-ptr (Camera.pos cam))
+                               (Vector3.add (RigidBody.position rb) &(Vector3.init 0.0 1.2 0.0))))
 
-              (if @(Player.flying player)
-                ;; Noclip / Flying Mode ([C] toggle): direct lag-free camera flight, keeping capsule synced
-                (let [cam-p @(Camera.pos cam)
-                      t (RigidBody.transform rb)
-                      phys-pos (Vector3.sub &cam-p &(Vector3.init 0.0 1.2 0.0))]
-                  (do
-                    (Body.set-body-type! body (BodyType.Kinematic))
-                    (Body.set-velocity! body (Vector3.init 0.0 0.0 0.0))
-                    (Transform.set-position! t phys-pos)
-                    (RigidBody.set-transform! rb @t)
-                    (Player.set-coyote-timer! player 0.0)
-                    (Player.set-prev-vy! player 0.0)
-                    (Player.set-floor-mat! player 0.0f)))
+                (Player.handle-input! player input dt)
 
-                ;; First-Person Cave Explorer Mode: gravity, preserved knockback, coyote jump & material footing!
-                (let [pos @(RigidBody.position rb)
-                      curr-vel @(Body.velocity body)
-                      cg-opt (get-component ecs &p-ent)
-                      is-grounded (match cg-opt
-                                    (Maybe.Just cg) @(CompGrounded.grounded &cg)
-                                    (Maybe.Nothing) false)
-                      fmat (if is-grounded (Physics.sample-floor-mat world &pos) 0.0f)
-                      coyote (if is-grounded 0.12 (Physics.dmax 0.0 (- @(Player.coyote-timer player) dt)))
-                      f (Camera.front cam)
-                      fx @(Vector3.x f)
-                      fz @(Vector3.z f)
-                      flen (Double.sqrt (+ (* fx fx) (* fz fz)))
-                      nfx (if (> flen 0.001) (/ fx flen) 0.0)
-                      nfz (if (> flen 0.001) (/ fz flen) 0.0)
-                      r (Camera.right cam)
-                      rx @(Vector3.x r)
-                      rz @(Vector3.z r)
-                      rlen (Double.sqrt (+ (* rx rx) (* rz rz)))
-                      nrx (if (> rlen 0.001) (/ rx rlen) 0.0)
-                      nrz (if (> rlen 0.001) (/ rz rlen) 0.0)
-                      fwd-in (- (if (InputManager.action-digital? input "forward") 1.0 0.0)
-                                (if (InputManager.action-digital? input "backward") 1.0 0.0))
-                      str-in (- (if (InputManager.action-digital? input "right") 1.0 0.0)
-                                (if (InputManager.action-digital? input "left") 1.0 0.0))
-                      raw-wx (+ (* nfx fwd-in) (* nrx str-in))
-                      raw-wz (+ (* nfz fwd-in) (* nrz str-in))
-                      wlen (Double.sqrt (+ (* raw-wx raw-wx) (* raw-wz raw-wz)))
-                      wx (if (> wlen 0.001) (/ raw-wx wlen) 0.0)
-                      wz (if (> wlen 0.001) (/ raw-wz wlen) 0.0)
-                      ice? (and is-grounded (Materials.slippery? fmat))
-                      bouncy-floor? (and is-grounded (Materials.bouncy? fmat))
-                      sticky-floor? (and is-grounded (and (Materials.sticky? fmat) (not bouncy-floor?)))
-                      max-spd (if ice? 15.8 (if sticky-floor? 6.4 11.5))
-                      accel-rate (if (not is-grounded) 1.85 (if ice? 1.55 (if sticky-floor? 7.0 8.5)))
-                      fric (if (not is-grounded) 0.45 (if ice? 0.90 (if sticky-floor? 18.0 10.5)))
-                      vx @(Vector3.x &curr-vel)
-                      vy @(Vector3.y &curr-vel)
-                      vz @(Vector3.z &curr-vel)
-                      hspd (Double.sqrt (+ (* vx vx) (* vz vz)))
-                      prev-vy @(Player.prev-vy player)
-                      jump-held (InputManager.action-digital? input "jump")]
-                  (do
-                    (Body.set-body-type! body (BodyType.Dynamic))
-                    (Body.set-is-sleeping! body false)
-                    (Player.set-floor-mat! player fmat)
+                (if @(Player.flying player)
+                  ;; Noclip / Flying Mode ([C] toggle): direct lag-free camera flight, keeping capsule synced
+                  (let [cam-p @(Camera.pos cam)
+                        t (RigidBody.transform rb)
+                        phys-pos (Vector3.sub &cam-p &(Vector3.init 0.0 1.2 0.0))]
+                    (do
+                      (Body.set-body-type! body (BodyType.Kinematic))
+                      (Body.set-velocity! body (Vector3.init 0.0 0.0 0.0))
+                      (Transform.set-position! t phys-pos)
+                      (RigidBody.set-transform! rb @t)
+                      (Player.set-coyote-timer! player 0.0)
+                      (Player.set-prev-vy! player 0.0)
+                      (Player.set-floor-mat! player 0.0f)))
 
-                    ;; 1. Horizontal Friction (preserves high-velocity explosion/airblast/slime arcs!)
-                    (when (> hspd 0.0001)
-                      (let [idle-ground? (and is-grounded (and (not ice?) (< wlen 0.01)))
-                            ctrl (if (< hspd 2.2) (if idle-ground? 3.8 2.2) hspd)
-                            high-spd-scale (if (and is-grounded (> hspd (+ max-spd 1.0))) 0.55 1.0)
-                            drop (* (* ctrl (* fric high-spd-scale)) dt)
-                            new-hspd (Physics.dmax 0.0 (- hspd drop))
-                            scale (/ new-hspd hspd)]
+                  ;; First-Person Cave Explorer Mode: gravity, preserved knockback, coyote jump & material footing!
+                  (let [pos @(RigidBody.position rb)
+                        curr-vel @(Body.velocity body)
+                        cg-opt (get-component ecs &p-ent)
+                        is-grounded (match cg-opt
+                                      (Maybe.Just cg) @(CompGrounded.grounded &cg)
+                                      (Maybe.Nothing) false)
+                        fmat (if is-grounded (Physics.sample-floor-mat world &pos) 0.0f)
+                        coyote (if is-grounded 0.12 (Physics.dmax 0.0 (- @(Player.coyote-timer player) dt)))
+                        f (Camera.front cam)
+                        fx @(Vector3.x f)
+                        fz @(Vector3.z f)
+                        flen (Double.sqrt (+ (* fx fx) (* fz fz)))
+                        nfx (if (> flen 0.001) (/ fx flen) 0.0)
+                        nfz (if (> flen 0.001) (/ fz flen) 0.0)
+                        r (Camera.right cam)
+                        rx @(Vector3.x r)
+                        rz @(Vector3.z r)
+                        rlen (Double.sqrt (+ (* rx rx) (* rz rz)))
+                        nrx (if (> rlen 0.001) (/ rx rlen) 0.0)
+                        nrz (if (> rlen 0.001) (/ rz rlen) 0.0)
+                        fwd-in (- (if (InputManager.action-digital? input "forward") 1.0 0.0)
+                                  (if (InputManager.action-digital? input "backward") 1.0 0.0))
+                        str-in (- (if (InputManager.action-digital? input "right") 1.0 0.0)
+                                  (if (InputManager.action-digital? input "left") 1.0 0.0))
+                        raw-wx (+ (* nfx fwd-in) (* nrx str-in))
+                        raw-wz (+ (* nfz fwd-in) (* nrz str-in))
+                        wlen (Double.sqrt (+ (* raw-wx raw-wx) (* raw-wz raw-wz)))
+                        wx (if (> wlen 0.001) (/ raw-wx wlen) 0.0)
+                        wz (if (> wlen 0.001) (/ raw-wz wlen) 0.0)
+                        ice? (and is-grounded (Materials.slippery? fmat))
+                        bouncy-floor? (and is-grounded (Materials.bouncy? fmat))
+                        sticky-floor? (and is-grounded (and (Materials.sticky? fmat) (not bouncy-floor?)))
+                        max-spd (if ice? 15.8 (if sticky-floor? 6.4 11.5))
+                        accel-rate (if (not is-grounded) 1.85 (if ice? 1.55 (if sticky-floor? 7.0 8.5)))
+                        fric (if (not is-grounded) 0.45 (if ice? 0.90 (if sticky-floor? 18.0 10.5)))
+                        vx @(Vector3.x &curr-vel)
+                        vy @(Vector3.y &curr-vel)
+                        vz @(Vector3.z &curr-vel)
+                        hspd (Double.sqrt (+ (* vx vx) (* vz vz)))
+                        prev-vy @(Player.prev-vy player)
+                        jump-held (InputManager.action-digital? input "jump")]
+                    (do
+                      (Body.set-body-type! body (BodyType.Dynamic))
+                      (Body.set-is-sleeping! body false)
+                      (Player.set-floor-mat! player fmat)
+
+                      ;; 1. Horizontal Friction (preserves high-velocity explosion/airblast/slime arcs!)
+                      (when (> hspd 0.0001)
+                        (let [idle-ground? (and is-grounded (and (not ice?) (< wlen 0.01)))
+                              ctrl (if (< hspd 2.2) (if idle-ground? 3.8 2.2) hspd)
+                              high-spd-scale (if (and is-grounded (> hspd (+ max-spd 1.0))) 0.55 1.0)
+                              drop (* (* ctrl (* fric high-spd-scale)) dt)
+                              new-hspd (Physics.dmax 0.0 (- hspd drop))
+                              scale (/ new-hspd hspd)]
+                          (do
+                            (set! vx (* vx scale))
+                            (set! vz (* vz scale)))))
+
+                      ;; 2. Directional Wish Acceleration (dot-product projection never deletes knockback!)
+                      (when (> wlen 0.001)
+                        (let [curr-proj (+ (* vx wx) (* vz wz))
+                              add-spd (- max-spd curr-proj)]
+                          (when (> add-spd 0.0)
+                            (let [acc-step (* (* accel-rate max-spd) dt)
+                                  gain (Physics.dmin add-spd acc-step)]
+                              (do
+                                (set! vx (+ vx (* wx gain)))
+                                (set! vz (+ vz (* wz gain))))))))
+
+                      ;; 3. Solid Slime Trampoline Rebound + Coyote-Time Jump
+                      (when (and bouncy-floor? (< prev-vy -5.2))
+                        (let [rebound-raw (* (- 0.0 prev-vy) (if jump-held 0.96 0.78))
+                              rebound-vy (Physics.dmin 24.0 (Physics.dmax 13.0 rebound-raw))]
+                          (do
+                            (set! vy rebound-vy)
+                            (set! coyote 0.0)
+                            (ParticleSystem.emit! ps
+                                                  (Double.to-float @(Vector3.x &pos))
+                                                  (Double.to-float (- @(Vector3.y &pos) 0.45))
+                                                  (Double.to-float @(Vector3.z &pos))
+                                                  0.0f 5.5f 0.0f 1.5f 14 410.0f 0.32f 0.25f))))
+
+                      (when (and jump-held (> coyote 0.0))
+                        (let [jump-v (if sticky-floor? 9.2 (if bouncy-floor? 15.2 12.2))]
+                          (do
+                            (set! vy (Physics.dmax vy jump-v))
+                            (set! coyote 0.0))))
+
+                      (Player.set-coyote-timer! player coyote)
+                      (Player.set-prev-vy! player (- vy (* 25.0 dt)))
+                      (Body.set-velocity! body (Vector3.init vx vy vz)))))
+
+                (RigidBody.set-body! rb @body)
+                (ECS.add-component! ecs &p-ent (CompBody.init @rb))
+
+                ;; 4. Live GPU CA Contact Hazards (Lava, Acid, Fire, Toxic) & Golden Ambrosia Healing!
+                (when (not @(Player.flying player))
+                  (let [raw-rb (gpu-readback-get-raw)
+                        p-liq (Pointer.to-value (Pointer.add raw-rb 144l))
+                        p-gas (Pointer.to-value (Pointer.add raw-rb 145l))
+                        p-ign (Pointer.to-value (Pointer.add raw-rb 146l))
+                        p-heal (Pointer.to-value (Pointer.add raw-rb 147l))
+                        l-id (Float.round p-liq)
+                        g-id (Float.round p-gas)
+                        fl-id (Float.round @(Player.floor-mat player))
+                        cur-hp @(Player.hp player)
+                        max-hp @(Player.max-hp player)]
+                    (if (and (> p-heal 0.5f) (< cur-hp max-hp))
+                      (let [healed (Float.clamp 0.0f max-hp (+ cur-hp (* 24.0f fdt)))]
                         (do
-                          (set! vx (* vx scale))
-                          (set! vz (* vz scale)))))
+                          (Player.set-hp! player healed)
+                          (Player.set-heal-timer! player 0.45f)
+                          (when (= (Int.mod fc 10) 0)
+                            (let [cp @(Camera.pos cam)]
+                              (ParticleSystem.emit! ps (Double.to-float @(Vector3.x &cp))
+                                                    (Double.to-float (- @(Vector3.y &cp) 0.7))
+                                                    (Double.to-float @(Vector3.z &cp))
+                                                    0.0f 2.4f 0.0f 0.8f 4 106.0f 0.3f 0.1f)))))
+                      (when (<= @(Player.hurt-timer player) 0.05f)
+                        (let [dps (if (= l-id 258) 28.0f
+                                  (if (= l-id 259) 22.0f
+                                  (if (> p-ign 0.5f) 14.0f
+                                  (if (or (= l-id 264) (or (= g-id 514) (or (= g-id 517) (= g-id 520)))) 9.5f
+                                  (if (= fl-id 17) 5.0f 0.0f)))))]
+                          (when (> dps 0.1f)
+                            (let [next-hp (- cur-hp (* dps fdt))
+                                  cur-fl @(Player.hurt-flash player)]
+                              (do
+                                (Player.set-hurt-flash! player (if (> cur-fl 0.48f) cur-fl 0.48f))
+                                (if (<= next-hp 0.0f)
+                                  (PlayerSystem.revive-player! state)
+                                  (Player.set-hp! player next-hp))))))))))))
+          (Maybe.Nothing) ())
 
-                    ;; 2. Directional Wish Acceleration (dot-product projection never deletes knockback!)
-                    (when (> wlen 0.001)
-                      (let [curr-proj (+ (* vx wx) (* vz wz))
-                            add-spd (- max-spd curr-proj)]
-                        (when (> add-spd 0.0)
-                          (let [acc-step (* (* accel-rate max-spd) dt)
-                                gain (Physics.dmin add-spd acc-step)]
-                            (do
-                              (set! vx (+ vx (* wx gain)))
-                              (set! vz (+ vz (* wz gain))))))))
-
-                    ;; 3. Solid Slime Trampoline Rebound + Coyote-Time Jump
-                    (when (and bouncy-floor? (< prev-vy -5.2))
-                      (let [rebound-raw (* (- 0.0 prev-vy) (if jump-held 0.96 0.78))
-                            rebound-vy (Physics.dmin 24.0 (Physics.dmax 13.0 rebound-raw))]
-                        (do
-                          (set! vy rebound-vy)
-                          (set! coyote 0.0)
-                          (ParticleSystem.emit! ps
-                                                (Double.to-float @(Vector3.x &pos))
-                                                (Double.to-float (- @(Vector3.y &pos) 0.45))
-                                                (Double.to-float @(Vector3.z &pos))
-                                                0.0f 5.5f 0.0f 1.5f 14 410.0f 0.32f 0.25f))))
-
-                    (when (and jump-held (> coyote 0.0))
-                      (let [jump-v (if sticky-floor? 9.2 (if bouncy-floor? 15.2 12.2))]
-                        (do
-                          (set! vy (Physics.dmax vy jump-v))
-                          (set! coyote 0.0))))
-
-                    (Player.set-coyote-timer! player coyote)
-                    (Player.set-prev-vy! player (- vy (* 25.0 dt)))
-                    (Body.set-velocity! body (Vector3.init vx vy vz)))))
-
-              (RigidBody.set-body! rb @body)
-              (ECS.add-component! ecs &p-ent (CompBody.init @rb))))
-        (Maybe.Nothing) ())))
+        (js-sync-health @(Player.hp player) @(Player.max-hp player) @(Player.hurt-flash player) @(Player.heal-timer player)))))
 )

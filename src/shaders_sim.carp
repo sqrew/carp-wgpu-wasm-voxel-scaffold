@@ -168,6 +168,7 @@ struct Uniforms {
     critter_colors: array<vec4<f32>, 16>,
     vox_pos: array<vec4<f32>, 12>,
     vox_act: array<vec4<f32>, 12>,
+    hopper_pos: array<vec4<f32>, 16>,
 }
 ")
 

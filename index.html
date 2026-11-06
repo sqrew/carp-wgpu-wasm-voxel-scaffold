@@ -148,6 +148,7 @@ canvas.emscripten { border: 0px none; background-color: black; }
 
     <div style="position: relative; width: 1280px; height: 720px; margin: 15px auto;">
       <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1" style="width: 100%; height: 100%; display: block; border: 1px solid #333; image-rendering: pixelated;"></canvas>
+      <div id="damage-vignette" style="position: absolute; inset: 0; pointer-events: none; z-index: 82; opacity: 0; transition: opacity 0.08s ease; border-radius: 2px;"></div>
       
       <!-- Floating HUD Panel -->
       <div id="hud-panel" style="position: absolute; top: 15px; right: 15px; width: 280px; background: rgba(18, 18, 24, 0.9); color: #eee; font-family: system-ui, -apple-system, sans-serif; padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 4px 20px rgba(0,0,0,0.6); pointer-events: auto; z-index: 100; text-align: left;">
@@ -196,7 +197,7 @@ canvas.emscripten { border: 0px none; background-color: black; }
           • <strong>[5] Wand</strong>: <strong>LMB</strong> Cast Spell • <strong>RMB</strong> Cycle 6 Wands<br>
           • <strong>[1–3]</strong>: <strong>RMB</strong> Gather • <strong>LMB</strong> Deploy • <strong>X</strong> Dump<br>
           • <strong>[4] Boot</strong>: <strong>RMB</strong> Yank/Grab/Wrench • <strong>LMB</strong> Kick/Punt<br>
-          • <strong>Z / MMB</strong>: Strike Match | <strong>T</strong>: Grey Slime | <strong>R</strong>: Orb<br>
+          • <strong>Z/MMB</strong>: Match | <strong>T</strong>: Slime | <strong>Y</strong>: Hopper | <strong>R</strong>: Orb<br>
           • <strong>F/H/G + Click</strong>: Sandbox Solid / Liq / Gas
         </div>
       </div>
@@ -209,8 +210,23 @@ canvas.emscripten { border: 0px none; background-color: black; }
         <div id="reticle-hint" style="margin-top: 8px; font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.95); background: rgba(12,12,18,0.68); padding: 2px 7px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); opacity: 0; transition: opacity 0.12s ease; white-space: nowrap;"></div>
       </div>
 
-      <!-- Bottom-Right Gold Pouch + Off-Hand Matchbox + 5-Slot Belt HUD -->
+      <!-- Bottom-Right Vitality + Gold Pouch + Off-Hand Matchbox + 5-Slot Belt HUD -->
       <div style="position: absolute; bottom: 16px; right: 16px; display: flex; align-items: flex-end; gap: 8px; pointer-events: none; z-index: 95; font-family: system-ui, -apple-system, sans-serif; color: #eee;">
+        <!-- Vitality (HP) Card -->
+        <div id="health-hud" style="display: flex; align-items: center; gap: 8px; background: rgba(14, 15, 22, 0.88); padding: 9px 11px; border-radius: 12px; border: 1px solid rgba(239, 83, 80, 0.28); box-shadow: 0 6px 24px rgba(0,0,0,0.65); transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;">
+          <div id="health-vessel" style="position: relative; width: 14px; height: 48px; border-radius: 7px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.18); overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end;">
+            <div id="health-bar" style="width: 100%; height: 100%; background: linear-gradient(180deg, #ff5252 0%, #c62828 100%); box-shadow: 0 0 10px rgba(255, 82, 82, 0.55); transition: height 0.12s ease, background 0.14s ease;"></div>
+          </div>
+          <div style="text-align: left; min-width: 72px;">
+            <div style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.9px; color: #ef9a9a; font-weight: 700; margin-bottom: 2px;">Vitality</div>
+            <div style="display: flex; align-items: baseline; gap: 5px;">
+              <span id="health-val-lbl" style="font-size: 16px; font-weight: 800; color: #ff8a80; font-variant-numeric: tabular-nums; line-height: 1.1;">100</span>
+              <span id="health-badge" style="font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: rgba(239, 83, 80, 0.20); color: #ff8a80; letter-spacing: 0.3px;">OK</span>
+            </div>
+            <div style="font-size: 9px; color: #8c96ab; margin-top: 3px;">/ <span id="health-max-lbl">100</span> HP</div>
+          </div>
+        </div>
+
         <!-- 24k Gold Pouch Card -->
         <div id="gold-hud" style="display: flex; align-items: center; gap: 8px; background: rgba(14, 15, 22, 0.88); padding: 9px 11px; border-radius: 12px; border: 1px solid rgba(255, 213, 79, 0.24); box-shadow: 0 6px 24px rgba(0,0,0,0.65); transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;">
           <div style="position: relative; width: 24px; height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
@@ -730,9 +746,22 @@ canvas.emscripten { border: 0px none; background-color: black; }
           const heldInfo = (gId >= 1 && gId <= 17) ? RIG_REAGENTS[gId] : null;
           const heldAmoeba = (gId >= 1000 && gId < 2000);
           const heldAmoebaInfo = heldAmoeba ? (RIG_REAGENTS[gId - 1000] || null) : null;
+          const heldHopper = (gId >= 2000 && gId < 3000);
+          const heldHopperInfo = heldHopper ? (RIG_REAGENTS[gId - 2000] || { name: 'Stone', col: '#a0a6b2', glow: false }) : null;
 
           let hiCol = RIG_ACCENTS[3];
-          if (heldAmoeba) {
+          if (heldHopper) {
+            const hCol = heldHopperInfo.col;
+            nameEl.innerText = heldHopperInfo.name + ' Hopper';
+            nameEl.style.color = hCol;
+            pctEl.innerText = 'HOSTILE';
+            barEl.style.height = '100%';
+            barEl.style.background = hCol;
+            vesselEl.style.boxShadow = heldHopperInfo.glow
+              ? ('0 0 16px ' + hCol + ', inset 0 0 11px ' + hCol)
+              : 'inset 0 0 10px rgba(255,82,82,0.28)';
+            hiCol = hCol;
+          } else if (heldAmoeba) {
             const aCol = heldAmoebaInfo ? heldAmoebaInfo.col : '#bcc6d4';
             const aGlow = heldAmoebaInfo ? heldAmoebaInfo.glow : false;
             nameEl.innerText = heldAmoebaInfo ? (heldAmoebaInfo.name + ' Slime') : 'Grey Slime';
@@ -777,6 +806,16 @@ canvas.emscripten { border: 0px none; background-color: black; }
             barEl.style.height = '100%';
             barEl.style.background = '#ff8a65';
             vesselEl.style.boxShadow = 'inset 0 0 10px rgba(255,255,255,0.12)';
+          } else if (isActive && pId >= 4000 && pId < 6000) {
+            const hMat = (pId >= 5000) ? (pId - 5000) : (pId - 4000);
+            const hInfo = RIG_REAGENTS[hMat] || { name: 'Stone', col: '#a0a6b2' };
+            nameEl.innerText = hInfo.name + ' Hopper';
+            nameEl.style.color = hInfo.col;
+            pctEl.innerText = 'FOE';
+            barEl.style.height = '78%';
+            barEl.style.background = '#ff5252';
+            vesselEl.style.boxShadow = '0 0 12px rgba(255,82,82,0.55), inset 0 0 9px ' + hInfo.col + '55';
+            hiCol = '#ff5252';
           } else if (isActive && pId >= 2000 && pId < 4000) {
             const tMat = (pId >= 3000) ? (pId - 3000) : (pId - 2000);
             const tInfo = RIG_REAGENTS[tMat] || null;
@@ -872,16 +911,19 @@ canvas.emscripten { border: 0px none; background-color: black; }
           }
 
           if (pId === 920) {
+            const hHopper = (gId >= 2000 && gId < 3000) ? (RIG_REAGENTS[gId - 2000] || { col: '#ff8a80', name: 'Stone' }) : null;
             const hAmoeba = (gId >= 1000 && gId < 2000) ? (RIG_REAGENTS[gId - 1000] || { col: '#bcc6d4', name: 'Grey' }) : null;
             const hGold   = (gId === 905);
-            const hCol = hGold ? '#ffd54f' : (hAmoeba ? hAmoeba.col : ((gId >= 1 && gId <= 17 && RIG_REAGENTS[gId]) ? RIG_REAGENTS[gId].col : '#ffd54f'));
+            const hCol = hGold ? '#ffd54f' : (hHopper ? hHopper.col : (hAmoeba ? hAmoeba.col : ((gId >= 1 && gId <= 17 && RIG_REAGENTS[gId]) ? RIG_REAGENTS[gId].col : '#ffd54f')));
             ringEl.style.borderColor = hCol;
             ringEl.style.boxShadow   = '0 0 9px ' + hCol;
             hintEl.innerText         = hGold
               ? 'Release RMB: Pocket Gold! • LMB: Cannonball Punt!'
-              : (hAmoeba
-                  ? ('LMB: Power-Punt ' + hAmoeba.name + ' Slime! • Release: Drop')
-                  : 'LMB: Power-Punt! • Release: Drop');
+              : (hHopper
+                  ? ('LMB: Wall-Splat ' + hHopper.name + ' Hopper! • Release: Drop')
+                  : (hAmoeba
+                      ? ('LMB: Power-Punt ' + hAmoeba.name + ' Slime! • Release: Drop')
+                      : 'LMB: Power-Punt! • Release: Drop'));
             hintEl.style.color       = hCol;
             hintEl.style.opacity     = '1';
           } else if (pId === 921) {
@@ -889,6 +931,20 @@ canvas.emscripten { border: 0px none; background-color: black; }
             ringEl.style.boxShadow   = '0 0 10px #4fc3f7';
             hintEl.innerText         = 'Reeling Target... • LMB: Punt!';
             hintEl.style.color       = '#4fc3f7';
+            hintEl.style.opacity     = '1';
+          } else if (pId >= 4000 && pId < 5000) {
+            const hInfo = RIG_REAGENTS[pId - 4000] || { name: 'Stone', col: '#ff8a80' };
+            ringEl.style.borderColor = '#ff5252';
+            ringEl.style.boxShadow   = '0 0 10px #ff5252';
+            hintEl.innerText         = 'LMB: Boot-Smash ' + hInfo.name + ' Hopper! • RMB: Grab';
+            hintEl.style.color       = hInfo.col;
+            hintEl.style.opacity     = '1';
+          } else if (pId >= 5000 && pId < 6000) {
+            const hInfo = RIG_REAGENTS[pId - 5000] || { name: 'Stone', col: '#ff8a80' };
+            ringEl.style.borderColor = '#ff5252';
+            ringEl.style.boxShadow   = '0 0 9px #ff5252';
+            hintEl.innerText         = 'RMB: Yank ' + hInfo.name + ' Hopper!';
+            hintEl.style.color       = hInfo.col;
             hintEl.style.opacity     = '1';
           } else if (pId >= 2000 && pId < 3000) {
             const aInfo = RIG_REAGENTS[pId - 2000] || null;
@@ -1128,6 +1184,76 @@ canvas.emscripten { border: 0px none; background-color: black; }
           iconEl.style.transform   = 'scale(1.0) rotate(0deg)';
         }
       };
+
+      window.sync_health = function(hp, maxHp, hurtFlash, healFlash) {
+        const cardEl   = document.getElementById('health-hud');
+        const barEl    = document.getElementById('health-bar');
+        const valEl    = document.getElementById('health-val-lbl');
+        const maxEl    = document.getElementById('health-max-lbl');
+        const badgeEl  = document.getElementById('health-badge');
+        const vigEl    = document.getElementById('damage-vignette');
+
+        const mhp  = Math.max(1, maxHp || 100);
+        const cur  = Math.max(0, Math.min(mhp, hp || 0));
+        const frac = cur / mhp;
+        const hurt = Math.max(0, Math.min(1, hurtFlash || 0));
+        const heal = Math.max(0, Math.min(1, healFlash || 0));
+
+        valEl.innerText = Math.ceil(cur);
+        maxEl.innerText = Math.round(mhp);
+        barEl.style.height = (frac * 100).toFixed(1) + '%';
+
+        if (hurt > 0.08) {
+          vigEl.style.boxShadow = 'inset 0 0 ' + Math.round(60 + hurt * 95) + 'px rgba(211, 24, 24, ' + (0.28 + hurt * 0.56).toFixed(2) + ')';
+          vigEl.style.opacity   = '1';
+        } else if (heal > 0.08) {
+          vigEl.style.boxShadow = 'inset 0 0 68px rgba(255, 213, 79, ' + (0.14 + heal * 0.34).toFixed(2) + ')';
+          vigEl.style.opacity   = '1';
+        } else if (frac < 0.28) {
+          vigEl.style.boxShadow = 'inset 0 0 52px rgba(183, 28, 28, 0.32)';
+          vigEl.style.opacity   = '1';
+        } else {
+          vigEl.style.opacity   = '0';
+        }
+
+        if (hurt > 0.14) {
+          badgeEl.innerText        = 'HIT!';
+          badgeEl.style.background = 'rgba(255, 82, 82, 0.38)';
+          badgeEl.style.color      = '#ffffff';
+          valEl.style.color        = '#ffffff';
+          barEl.style.background   = 'linear-gradient(180deg, #ffffff 0%, #ff5252 100%)';
+          cardEl.style.transform   = 'translateY(-4px)';
+          cardEl.style.borderColor = 'rgba(255, 82, 82, 0.90)';
+          cardEl.style.boxShadow   = '0 8px 26px rgba(0,0,0,0.72), 0 0 18px rgba(255, 82, 82, 0.55)';
+        } else if (heal > 0.14) {
+          badgeEl.innerText        = 'AMBROSIA';
+          badgeEl.style.background = 'rgba(255, 213, 79, 0.28)';
+          badgeEl.style.color      = '#fff59d';
+          valEl.style.color        = '#ffd54f';
+          barEl.style.background   = 'linear-gradient(180deg, #fff59d 0%, #ffb300 100%)';
+          cardEl.style.transform   = 'translateY(-3px)';
+          cardEl.style.borderColor = 'rgba(255, 213, 79, 0.72)';
+          cardEl.style.boxShadow   = '0 8px 26px rgba(0,0,0,0.72), 0 0 16px rgba(255, 213, 79, 0.42)';
+        } else if (frac <= 0.30) {
+          badgeEl.innerText        = 'LOW!';
+          badgeEl.style.background = 'rgba(255, 23, 68, 0.34)';
+          badgeEl.style.color      = '#ff8a80';
+          valEl.style.color        = '#ff5252';
+          barEl.style.background   = 'linear-gradient(180deg, #ff5252 0%, #8e0000 100%)';
+          cardEl.style.transform   = 'translateY(0px)';
+          cardEl.style.borderColor = 'rgba(255, 82, 82, 0.62)';
+          cardEl.style.boxShadow   = '0 6px 24px rgba(0,0,0,0.65), 0 0 12px rgba(255, 23, 68, 0.30)';
+        } else {
+          badgeEl.innerText        = 'OK';
+          badgeEl.style.background = 'rgba(239, 83, 80, 0.18)';
+          badgeEl.style.color      = '#ef9a9a';
+          valEl.style.color        = '#ff8a80';
+          barEl.style.background   = 'linear-gradient(180deg, #ff5252 0%, #c62828 100%)';
+          cardEl.style.transform   = 'translateY(0px)';
+          cardEl.style.borderColor = 'rgba(239, 83, 80, 0.28)';
+          cardEl.style.boxShadow   = '0 6px 24px rgba(0,0,0,0.65)';
+        }
+      };
       
       updateHUD(); // Initialize HUD labels
 
@@ -1139,6 +1265,6 @@ canvas.emscripten { border: 0px none; background-color: black; }
         canvasElement.focus();
       });
     </script>
-    <script async type="text/javascript" src="index.js?v=1788920001"></script>
+    <script async type="text/javascript" src="index.js?v=1788920002"></script>
   </body>
 </html>

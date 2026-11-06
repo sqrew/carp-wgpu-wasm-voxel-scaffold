@@ -1,0 +1,654 @@
+;; =============================================================================
+;; Cave Hoppers (EnemyBank + EnemySystem)
+;; Affinity-tinted cannon-fodder cave gremlins that camouflage against their
+;; home substrate, leap-and-bump tackle the player on sight, squirt live
+;; GPU MAT_BLOOD (261.0) into the 3D fluid grid when damaged, and burst into
+;; blood + 24k Gold Nuggets on death.
+;; =============================================================================
+
+(defmodule EnemySystem
+  (defn fmax [a b] (if (> a b) a b))
+  (defn fmin [a b] (if (< a b) a b))
+  (defn fsin [x] (Double.to-float (sin (Double.from-float x))))
+  (defn fcos [x] (Double.to-float (cos (Double.from-float x))))
+  (defn ffloor [x] (Double.to-float (Double.floor (Double.from-float x))))
+
+  (defn hopper-slot-by-idx [state idx]
+    (let [eb (EngineState.enemies state)
+          h-alive (EnemyBank.alive eb)
+          h-idx (EnemyBank.idx eb)
+          found -1]
+      (do
+        (for [k 0 16]
+          (when (and (< found 0)
+                     (and @(Array.unsafe-nth h-alive k)
+                          (Uint64.= idx @(Array.unsafe-nth h-idx k))))
+            (set! found k)))
+        found)))
+
+  (defn hopper-mat-at [state slot]
+    (if (and (>= slot 0) (< slot 16))
+      @(Array.unsafe-nth (EnemyBank.mat (EngineState.enemies state)) slot)
+      1.0f))
+
+  (defn find-free-slot [state]
+    (let [h-alive (EnemyBank.alive (EngineState.enemies state))
+          found -1]
+      (do
+        (for [k 0 16]
+          (when (and (< found 0) (not @(Array.unsafe-nth h-alive k)))
+            (set! found k)))
+        found)))
+
+  ;; Normalize sampled cave material into a valid elemental affinity
+  (defn normalize-affinity [raw-mat seed]
+    (let [m (Float.round raw-mat)]
+      (if (and (>= m 1) (<= m 17))
+        (Float.from-int m)
+        (if (and (>= m 257) (<= m 264))
+          (Float.from-int m)
+          (if (= m 514) 264.0f
+          (if (= m 515) 258.0f
+          (if (= m 517) 259.0f
+          (if (= m 519) 258.0f
+          (if (= m 520) 13.0f
+            (let [pick (Int.mod (Int.abs seed) 10)]
+              (if (= pick 0) 1.0f
+              (if (= pick 1) 4.0f
+              (if (= pick 2) 8.0f
+              (if (= pick 3) 10.0f
+              (if (= pick 4) 13.0f
+              (if (= pick 5) 14.0f
+              (if (= pick 6) 15.0f
+              (if (= pick 7) 16.0f
+              (if (= pick 8) 17.0f
+                             259.0f)))))))))))))))))))
+
+  (defn hopper-max-hp [mat-id]
+    (let [m (Float.round mat-id)]
+      (if (= m 16) 90.0f
+      (if (= m 5)  85.0f
+      (if (= m 17) 75.0f
+      (if (= m 258) 66.0f
+      (if (= m 1)  60.0f
+      (if (= m 10) 58.0f
+      (if (= m 259) 55.0f
+      (if (= m 15) 54.0f
+      (if (= m 4)  52.0f
+      (if (= m 14) 48.0f
+      (if (= m 8)  44.0f
+      (if (= m 13) 42.0f
+      (if (Materials.explosive? mat-id) 36.0f
+        50.0f)))))))))))))))
+
+  (defn hopper-radius [mat-id]
+    (let [m (Float.round mat-id)]
+      (if (or (= m 16) (= m 5)) 0.60f
+      (if (or (= m 8) (or (= m 13) (or (= m 14) (Materials.explosive? mat-id)))) 0.49f
+        0.54f))))
+
+  ;; Camouflage palette matched to the voxel material registry so Hoppers blend into their home strata!
+  (defn hopper-color [mat-id]
+    (let [m (Float.round mat-id)]
+      (if (= m 1)   (Vector3.init 0.55 0.56 0.58)
+      (if (= m 2)   (Vector3.init 0.22 0.58 0.26)
+      (if (= m 3)   (Vector3.init 0.52 0.32 0.16)
+      (if (= m 4)   (Vector3.init 0.14 0.15 0.18)
+      (if (= m 5)   (Vector3.init 1.28 1.00 0.24)
+      (if (= m 6)   (Vector3.init 0.85 0.80 0.58)
+      (if (= m 7)   (Vector3.init 0.28 0.29 0.35)
+      (if (= m 8)   (Vector3.init 0.62 0.84 0.98)
+      (if (= m 9)   (Vector3.init 0.86 0.92 0.98)
+      (if (= m 10)  (Vector3.init 0.30 0.92 0.40)
+      (if (= m 11)  (Vector3.init 0.88 0.86 0.24)
+      (if (= m 12)  (Vector3.init 0.92 0.40 0.34)
+      (if (= m 13)  (Vector3.init 0.48 1.45 0.42)
+      (if (= m 14)  (Vector3.init 0.22 1.65 1.95)
+      (if (= m 15)  (Vector3.init 1.35 0.42 1.85)
+      (if (= m 16)  (Vector3.init 0.18 0.14 0.28)
+      (if (= m 17)  (Vector3.init 0.85 1.75 0.28)
+      (if (= m 257) (Vector3.init 0.20 0.58 0.95)
+      (if (= m 258) (Vector3.init 2.15 0.72 0.18)
+      (if (= m 259) (Vector3.init 0.28 1.75 0.42)
+      (if (= m 260) (Vector3.init 0.20 0.18 0.15)
+      (if (= m 261) (Vector3.init 0.78 0.08 0.08)
+      (if (= m 262) (Vector3.init 1.85 1.52 0.35)
+      (if (= m 263) (Vector3.init 1.75 0.28 1.25)
+      (if (= m 264) (Vector3.init 0.36 0.86 0.16)
+                    (Vector3.init 0.55 0.56 0.58))))))))))))))))))))))))))))
+
+  ;; Elemental resistance / weakness multiplier
+  ;; elem-tag: 0=Kinetic/Bore, 1=Spark, 2=Fire/Lava, 3=Cryo, 4=Acid, 5=Arcane, 6=Toxic/Rad
+  (defn elem-damage-mult [hmat elem-tag env-dot?]
+    (let [m (Float.round hmat)]
+      (if (= elem-tag 2)
+        (if (or (= m 258) (= m 16))
+          (if env-dot? 0.0f 0.35f)
+          (if (or (= m 8) (or (= m 3) (or (= m 4) (or (= m 11) (or (= m 13) (= m 260))))))
+            2.0f
+            1.0f))
+      (if (= elem-tag 3)
+        (if (= m 8)
+          0.30f
+          (if (or (= m 258) (or (= m 10) (= m 257))) 2.2f 1.0f))
+      (if (= elem-tag 4)
+        (if (or (= m 259) (or (= m 9) (or (= m 5) (= m 16))))
+          (if env-dot? 0.0f 0.35f)
+          (if (Materials.has-tag? hmat Materials.CORRODIBLE) 1.55f 1.0f))
+      (if (= elem-tag 6)
+        (if (or (= m 13) (or (= m 17) (or (= m 259) (= m 264))))
+          0.0f
+          1.0f)
+      (if (= elem-tag 0)
+        (if (Materials.brittle? hmat) 1.55f 1.0f)
+        1.0f)))))))
+
+  ;; Squirt live GPU MAT_BLOOD (261.0f) into the 3D CA simulation + crimson particle droplets!
+  (defn squirt-blood! [state ps fx fy fz dx dy dz intensity]
+    (let [ clamped-i (Float.clamp 0.25f 2.0f intensity)
+           rad (+ 1.18f (* 0.52f clamped-i))
+           amt (Float.clamp 0.38f 0.92f (+ 0.42f (* 0.28f clamped-i)))
+           cnt (+ 10 (Float.round (* 12.0f clamped-i)))
+           sx (+ fx (* dx 0.38f))
+           sy (+ fy (* dy 0.25f))
+           sz (+ fz (* dz 0.38f))]
+      (do
+        (EngineState.push-voxel-action! state sx sy sz rad 261.0f amt 0.0f)
+        (ParticleSystem.emit! ps fx (+ fy 0.12f) fz
+                              (* dx 7.5f) (+ (* dy 5.0f) 4.4f) (* dz 7.5f)
+                              (+ 1.35f (* 0.55f clamped-i)) cnt 105.0f 0.38f 1.0f))))
+
+  (defn destroy-hopper-slot! [state slot]
+    (let [eb (EngineState.enemies state)
+          rig (EngineState.rig state)
+          h-alive (EnemyBank.alive eb)
+          h-idx (EnemyBank.idx eb)
+          h-gen (EnemyBank.gen eb)
+          ecs (EngineState.ecs-world state)]
+      (when @(Array.unsafe-nth h-alive slot)
+        (let [idx @(Array.unsafe-nth h-idx slot)
+              gen @(Array.unsafe-nth h-gen slot)
+              ent (ECS.Entity.init (Handle.init idx gen))]
+          (do
+            (when (Uint64.= @(RigBelt.grab-idx rig) idx)
+              (do
+                (RigBelt.set-grab-idx! rig (Uint64.from-long 0l))
+                (RigBelt.set-grab-mat! rig 0.0f)))
+            (GameWorld.destroy-entity! ecs &ent)
+            (Array.aset! h-alive slot false)
+            (Array.aset! (EnemyBank.hp eb) slot 0.0f)
+            (Array.aset! (EnemyBank.flash eb) slot 0.0f)
+            (Array.aset! (EnemyBank.prev-spd eb) slot 0.0f))))))
+
+  (defn detonate-hopper-blast! [state world ps ecs pos]
+    (let [px @(Vector3.x pos)
+          py @(Vector3.y pos)
+          pz @(Vector3.z pos)
+          fx (Double.to-float px)
+          fy (Double.to-float py)
+          fz (Double.to-float pz)
+          player-id @(EngineState.player-ent-id state)]
+      (do
+        (EngineState.push-voxel-action! state fx fy fz 3.15f 1.0f -1.0f 0.0f)
+        (EngineState.push-voxel-action! state fx fy fz 3.85f 515.0f 0.92f 1.0f)
+        (ignore (World.edit-sdf! world pos 3.0 1.0f true))
+        (ParticleSystem.emit-sparks! ps fx fy fz 0.0f 1.0f 0.0f 40)
+        (ParticleSystem.emit-smoke! ps fx (+ fy 0.4f) fz 20)
+        (query ecs (e (cb CompBody))
+          (let [eid (Long.to-int (Uint64.to-long (ECS.Entity.index &e)))
+                rb (CompBody.rb cb)
+                epos (RigidBody.position rb)
+                dx (- @(Vector3.x epos) px)
+                dy (- @(Vector3.y epos) py)
+                dz (- @(Vector3.z epos) pz)
+                dist (Double.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))]
+            (when (< dist 7.5)
+              (let [inv-d (if (> dist 0.15) (/ 1.0 dist) 0.0)
+                    push (* 22.0 (- 1.0 (/ dist 7.8)))]
+                (if (= eid player-id)
+                  (ignore (PlayerSystem.damage-player! state 24.0f true (* (* dx inv-d) push) (+ (* (* dy inv-d) push) 7.0) (* (* dz inv-d) push)))
+                  (let [b (RigidBody.body rb)
+                        old-v @(Body.velocity b)
+                        dv (Vector3.init (* (* dx inv-d) push) (+ (* (* dy inv-d) push) 6.5) (* (* dz inv-d) push))]
+                    (do
+                      (Body.set-body-type! b (BodyType.Dynamic))
+                      (Body.set-inv-mass! b 1.0)
+                      (Body.set-velocity! b (Vector3.add &old-v &dv))
+                      (RigidBody.set-body! rb @b)
+                      (ECS.add-component! ecs &e (CompBody.init @rb))))))))))))
+
+  (defn kill-hopper! [state slot pos dx dy dz]
+    (let [eb (EngineState.enemies state)
+          world (EngineState.world state)
+          ps (EngineState.particles state)
+          ecs (EngineState.ecs-world state)
+          hmat @(Array.unsafe-nth (EnemyBank.mat eb) slot)
+          m (Float.round hmat)
+          fx (Double.to-float @(Vector3.x pos))
+          fy (Double.to-float @(Vector3.y pos))
+          fz (Double.to-float @(Vector3.z pos))
+          jpt (Materials.jet-ptype hmat)
+          nug-val (if (= m 5) 25 (if (or (= m 15) (or (= m 16) (or (= m 17) (= m 258)))) 15 10))
+          nug-rad (if (>= nug-val 20) 0.34 (if (>= nug-val 15) 0.29 0.25))
+          nug-pos (Vector3.add pos &(Vector3.init 0.0 0.22 0.0))
+          nug-vel (Vector3.init (* (Double.from-float dx) 3.5) 6.2 (* (Double.from-float dz) 3.5))]
+      (do
+        ;; Big juicy MAT_BLOOD puddle + crimson gore burst + affinity mineral shatter!
+        (EngineState.push-voxel-action! state fx fy fz 2.25f 261.0f 0.90f 0.0f)
+        (ParticleSystem.emit! ps fx (+ fy 0.15f) fz (* dx 5.5f) 6.2f (* dz 5.5f) 2.2f 32 105.0f 0.44f 1.0f)
+        (ParticleSystem.emit! ps fx (+ fy 0.20f) fz 0.0f 4.8f 0.0f 1.8f 18 jpt 0.36f 0.8f)
+        (when (Materials.explosive? hmat)
+          (EnemySystem.detonate-hopper-blast! state world ps ecs pos))
+        (ignore (GoldSystem.spawn-nugget! state nug-pos nug-vel nug-rad nug-val))
+        (EnemySystem.destroy-hopper-slot! state slot))))
+
+  ;; Apply combat/hazard damage to a Cave Hopper, squirting MAT_BLOOD and popping knockback!
+  (defn damage-hopper! [state slot raw-dmg dx dy dz kb elem-tag]
+    (let [eb (EngineState.enemies state)
+          h-alive (EnemyBank.alive eb)]
+      (if (or (< slot 0) (or (>= slot 16) (not @(Array.unsafe-nth h-alive slot))))
+        false
+        (let [hmat @(Array.unsafe-nth (EnemyBank.mat eb) slot)
+              mult (EnemySystem.elem-damage-mult hmat elem-tag false)
+              dmg (* raw-dmg mult)]
+          (if (<= dmg 0.25f)
+            false
+            (let [ecs (EngineState.ecs-world state)
+                  ps (EngineState.particles state)
+                  ent (ECS.Entity.init (Handle.init @(Array.unsafe-nth (EnemyBank.idx eb) slot)
+                                                    @(Array.unsafe-nth (EnemyBank.gen eb) slot)))
+                  cb-opt (the (Maybe CompBody) (get-component ecs &ent))]
+              (match cb-opt
+                (Maybe.Nothing)
+                  (do
+                    (Array.aset! h-alive slot false)
+                    false)
+                (Maybe.Just cb)
+                  (let [rb (CompBody.rb &cb)
+                        b (RigidBody.body rb)
+                        pos @(RigidBody.position rb)
+                        fx (Double.to-float @(Vector3.x &pos))
+                        fy (Double.to-float @(Vector3.y &pos))
+                        fz (Double.to-float @(Vector3.z &pos))
+                        fire-boom? (and (or (= elem-tag 1) (= elem-tag 2)) (Materials.explosive? hmat))
+                        next-hp (if fire-boom? -1.0f (- @(Array.unsafe-nth (EnemyBank.hp eb) slot) dmg))]
+                    (do
+                      (Array.aset! (EnemyBank.flash eb) slot 1.0f)
+                      (Array.aset! (EnemyBank.hurt-cd eb) slot 0.16f)
+                      (EnemySystem.squirt-blood! state ps fx fy fz dx dy dz (/ dmg 20.0f))
+                      (if (<= next-hp 0.0f)
+                        (EnemySystem.kill-hopper! state slot &pos dx dy dz)
+                        (do
+                          (Array.aset! (EnemyBank.hp eb) slot next-hp)
+                          (when (> kb 0.2f)
+                            (let [old-v @(Body.velocity b)
+                                  kb-d (Double.from-float kb)
+                                  dv (Vector3.init (* (Double.from-float dx) kb-d)
+                                                   (+ (* (Double.from-float dy) (* kb-d 0.45)) 4.4)
+                                                   (* (Double.from-float dz) kb-d))
+                                  nv (Vector3.add &old-v &dv)
+                                  nv-spd (Double.to-float (Vector3.mag &nv))]
+                              (do
+                                (Body.set-body-type! b (BodyType.Dynamic))
+                                (Body.set-is-sleeping! b false)
+                                (Body.set-velocity! b nv)
+                                (RigidBody.set-body! rb @b)
+                                (ECS.add-component! ecs &ent (CompBody.init @rb))
+                                (Array.aset! (EnemyBank.prev-spd eb) slot nv-spd))))))
+                      true)))))))))
+
+  (defn spawn-hopper! [state spawn-pos vel raw-mat init-dx init-dz]
+    (let [slot (EnemySystem.find-free-slot state)]
+      (if (< slot 0)
+        -1
+        (let [eb (EngineState.enemies state)
+              ecs (EngineState.ecs-world state)
+              fc @(EngineState.frame-count state)
+              aff-mat (EnemySystem.normalize-affinity raw-mat (+ (* fc 7) (* slot 13)))
+              mhp (EnemySystem.hopper-max-hp aff-mat)
+              rad-f (EnemySystem.hopper-radius aff-mat)
+              rad-d (Double.from-float rad-f)
+              col (EnemySystem.hopper-color aff-mat)
+              restit (if (Materials.bouncy? aff-mat) 0.78 0.22)
+              fric (if (Materials.slippery? aff-mat) 0.08 0.58)
+              e (GameWorld.create-entity! ecs)
+              rb (RigidBody.new @&spawn-pos (Quaternion.identity) 1.35 restit fric 0.14 0.25 0.25)
+              vol (Volume.Ball (Sphere.init @&spawn-pos rad-d))
+              b3 (* slot 3)]
+          (do
+            (Body.set-inv-inertia! (RigidBody.body &rb) 0.0)
+            (Body.set-velocity! (RigidBody.body &rb) @&vel)
+            (add-component! ecs &e (CompBody.init rb))
+            (add-component! ecs &e (CompVolume.init vol))
+            (add-component! ecs &e (CompColor.init col))
+            (Array.aset! (EnemyBank.alive eb) slot true)
+            (Array.aset! (EnemyBank.idx eb) slot (ECS.Entity.index &e))
+            (Array.aset! (EnemyBank.gen eb) slot (ECS.Entity.generation &e))
+            (Array.aset! (EnemyBank.mat eb) slot aff-mat)
+            (Array.aset! (EnemyBank.hp eb) slot mhp)
+            (Array.aset! (EnemyBank.max-hp eb) slot mhp)
+            (Array.aset! (EnemyBank.rad eb) slot rad-f)
+            (Array.aset! (EnemyBank.hop-cd eb) slot 0.55f)
+            (Array.aset! (EnemyBank.flash eb) slot 0.0f)
+            (Array.aset! (EnemyBank.hurt-cd eb) slot 0.20f)
+            (Array.aset! (EnemyBank.dir eb) b3 init-dx)
+            (Array.aset! (EnemyBank.dir eb) (+ b3 1) 0.0f)
+            (Array.aset! (EnemyBank.dir eb) (+ b3 2) init-dz)
+            (Array.aset! (EnemyBank.prev-spd eb) slot (Double.to-float (Vector3.mag &vel)))
+            slot)))))
+
+  ;; Probe a deterministic ray to spawn camouflaged Cave Hoppers on natural cavern floors & ledges
+  (defn try-natural-cave-spawn! [state world cam-pos fc]
+    (let [seed (Float.from-int (+ (* fc 23) 53))
+          theta (* seed 2.399963f)
+          u-seed (* seed 0.3183099f)
+          y-raw (- (* (- u-seed (EnemySystem.ffloor u-seed)) 0.96f) 0.68f)
+          r-xy (Float.sqrt (EnemySystem.fmax 0.08f (- 1.0f (* y-raw y-raw))))
+          dx (Double.from-float (* (EnemySystem.fcos theta) r-xy))
+          dy (Double.from-float y-raw)
+          dz (Double.from-float (* (EnemySystem.fsin theta) r-xy))
+          dir (Vector3.init dx dy dz)
+          start-p (Vector3.add cam-pos &(Vector3.mul &dir 16.0))
+          start-sdf (World.sample-sdf-nearest world &start-p)]
+      (when (and (> start-sdf 1.3f) (< start-sdf 500.0f))
+        (match (World.raycast world &start-p &dir 38.0)
+          (Maybe.Nothing) ()
+          (Maybe.Just hit-p)
+            (let [nrm (Physics.estimate-sdf-normal world &hit-p)]
+              (when (and (> @(Vector3.y &nrm) 0.42) (> @(Vector3.y &hit-p) -185.0))
+                (let [hmat (CritterSystem.sample-solid-mat-near world &hit-p)
+                      spawn-p (Vector3.add &hit-p &(Vector3.mul &nrm 0.68))
+                      clear-sdf (World.sample-sdf-nearest world &spawn-p)
+                      to-cam (Vector3.sub cam-pos &spawn-p)
+                      pdist (Vector3.mag &to-cam)]
+                  (when (and (< hmat 250.0f)
+                             (and (> clear-sdf 0.42f)
+                                  (and (> pdist 16.5) (< pdist 56.0))))
+                    (let [inv-p (if (> pdist 0.1) (/ 1.0 pdist) 1.0)
+                          fdx (Double.to-float (* @(Vector3.x &to-cam) inv-p))
+                          fdz (Double.to-float (* @(Vector3.z &to-cam) inv-p))
+                          slot (EnemySystem.spawn-hopper! state spawn-p (Vector3.init 0.0 0.0 0.0) hmat fdx fdz)]
+                      (when (>= slot 0)
+                        (EnemyBank.set-last-spawn-frame! (EngineState.enemies state) fc)))))))))))
+
+  (defn update! [state input dt]
+    (let [world (EngineState.world state)
+          player (EngineState.player state)
+          cam (Player.camera player)
+          cam-pos (Camera.pos cam)
+          cam-dir (Camera.front cam)
+          ps (EngineState.particles state)
+          ecs (EngineState.ecs-world state)
+          rig (EngineState.rig state)
+          eb (EngineState.enemies state)
+          fc @(EngineState.frame-count state)
+          fdt (Double.to-float dt)
+          raw-rb (gpu-readback-get-raw)
+          rslot @(RigBelt.slot rig)
+          lmb? (InputManager.action-digital? input "click-left")
+          jet-x (gpu-readback-get-jet-x)
+          jet-y (gpu-readback-get-jet-y)
+          jet-z (gpu-readback-get-jet-z)
+          jet-w (gpu-readback-get-jet-w)
+          spray-mat (if (not (and lmb? (and (< rslot 3) (> jet-w 0.5f))))
+                      0.0f
+                      (if (= rslot 0)
+                        (if (> @(RigBelt.sack-fill rig) 0.004f) @(RigBelt.sack-mat rig) 0.0f)
+                        (if (= rslot 1)
+                          (if (> @(RigBelt.flask-fill rig) 0.004f) @(RigBelt.flask-mat rig) 0.0f)
+                          (if (> @(RigBelt.bellows-fill rig) 0.004f) @(RigBelt.bellows-mat rig) 0.0f))))
+          flying? @(Player.flying player)
+          h-alive (EnemyBank.alive eb)
+          h-idx (EnemyBank.idx eb)
+          h-gen (EnemyBank.gen eb)
+          h-mat (EnemyBank.mat eb)
+          h-hp (EnemyBank.hp eb)
+          h-max-hp (EnemyBank.max-hp eb)
+          h-rad (EnemyBank.rad eb)
+          h-hop-cd (EnemyBank.hop-cd eb)
+          h-flash (EnemyBank.flash eb)
+          h-hurt-cd (EnemyBank.hurt-cd eb)
+          h-dir (EnemyBank.dir eb)
+          h-prev-spd (EnemyBank.prev-spd eb)
+          active-count 0]
+      (do
+        ;; Y Key: Toss an affinity-matched Cave Hopper right in front of you (adopting aimed terrain or selected material!)
+        (when (and (InputManager.action-pressed? input "spawn-hopper")
+                   (> (- fc @(EnemyBank.last-spawn-frame eb)) 10))
+          (let [hit-w (gpu-readback-get-hit-w)
+                hit-m (gpu-readback-get-hit-mat)
+                pick-mat (if (and (> hit-w 0.5f) (and (> hit-m 0.5f) (< hit-m 254.5f)))
+                           hit-m
+                           @(Player.current-mat player))
+                spawn-p (Vector3.add cam-pos &(Vector3.mul cam-dir 2.35))
+                toss-v (Vector3.init (* @(Vector3.x cam-dir) 8.5)
+                                     (+ (* @(Vector3.y cam-dir) 8.5) 2.6)
+                                     (* @(Vector3.z cam-dir) 8.5))
+                sx (Double.to-float @(Vector3.x &spawn-p))
+                sy (Double.to-float @(Vector3.y &spawn-p))
+                sz (Double.to-float @(Vector3.z &spawn-p))
+                fdx (- 0.0f (Double.to-float @(Vector3.x cam-dir)))
+                fdz (- 0.0f (Double.to-float @(Vector3.z cam-dir)))
+                slot (EnemySystem.spawn-hopper! state spawn-p toss-v pick-mat fdx fdz)]
+            (when (>= slot 0)
+              (let [aff @(Array.unsafe-nth h-mat slot)
+                    jpt (Materials.jet-ptype aff)]
+                (do
+                  (EnemyBank.set-last-spawn-frame! eb fc)
+                  (ParticleSystem.emit! ps sx sy sz 0.0f 2.6f 0.0f 0.9f 14 jpt 0.28f 0.35f))))))
+
+        ;; Step all 16 Cave Hopper slots
+        (for [k 0 16]
+          (when @(Array.unsafe-nth h-alive k)
+            (let [idx @(Array.unsafe-nth h-idx k)
+                  gen @(Array.unsafe-nth h-gen k)
+                  ent (ECS.Entity.init (Handle.init idx gen))
+                  cb-opt (the (Maybe CompBody) (get-component ecs &ent))]
+              (match cb-opt
+                (Maybe.Nothing)
+                  (Array.aset! h-alive k false)
+                (Maybe.Just cb)
+                  (let [rb (CompBody.rb &cb)
+                        pos @(RigidBody.position rb)
+                        px @(Vector3.x &pos)
+                        py @(Vector3.y &pos)
+                        pz @(Vector3.z &pos)
+                        fx (Double.to-float px)
+                        fy (Double.to-float py)
+                        fz (Double.to-float pz)
+                        p-body-pos (Vector3.sub cam-pos &(Vector3.init 0.0 0.55 0.0))
+                        to-p (Vector3.sub &p-body-pos &pos)
+                        p-dist (Vector3.mag &to-p)
+                        held? (Uint64.= @(RigBelt.grab-idx rig) idx)]
+                    ;; Recycle wild hoppers that drift > 76m away or fall below world floor
+                    (if (and (not held?) (or (> p-dist 76.0) (< py -210.0)))
+                      (EnemySystem.destroy-hopper-slot! state k)
+                      (let [rb-base (+ 148 (* k 4))
+                            touch-liq (Pointer.to-value (Pointer.add raw-rb (Long.from-int rb-base)))
+                            touch-gas (Pointer.to-value (Pointer.add raw-rb (Long.from-int (+ rb-base 1))))
+                            has-los (Pointer.to-value (Pointer.add raw-rb (Long.from-int (+ rb-base 2))))
+                            touch-ign-raw (Pointer.to-value (Pointer.add raw-rb (Long.from-int (+ rb-base 3))))
+                            hmat @(Array.unsafe-nth h-mat k)
+                            rad-f @(Array.unsafe-nth h-rad k)
+                            rad-d (Double.from-float rad-f)
+                            jdx (- fx jet-x)
+                            jdy (- fy jet-y)
+                            jdz (- fz jet-z)
+                            jdist (Float.sqrt (+ (+ (* jdx jdx) (* jdy jdy)) (* jdz jdz)))
+                            sprayed? (and (> spray-mat 0.5f) (< jdist (+ rad-f 1.85f)))
+                            eff-liq (if (and sprayed? (and (>= spray-mat 256.5f) (< spray-mat 512.0f))) spray-mat touch-liq)
+                            eff-gas (if (and sprayed? (>= spray-mat 512.5f)) spray-mat touch-gas)
+                            touch-ign (or (> touch-ign-raw 0.5f) (and sprayed? (Materials.igniter? spray-mat)))
+                            b (RigidBody.body rb)
+                            vel @(Body.velocity b)
+                            cur-spd (Double.to-float (Vector3.mag &vel))
+                            prev-spd @(Array.unsafe-nth h-prev-spd k)
+                            next-flash (Float.clamp 0.0f 1.0f (- @(Array.unsafe-nth h-flash k) (* fdt 3.4f)))
+                            next-hurt-cd (Float.clamp 0.0f 2.0f (- @(Array.unsafe-nth h-hurt-cd k) fdt))
+                            next-hop-cd (Float.clamp 0.0f 5.0f (- @(Array.unsafe-nth h-hop-cd k) fdt))
+                            b3 (* k 3)
+                            died? false]
+                        (do
+                          (Array.aset! h-flash k next-flash)
+                          (Array.aset! h-hurt-cd k next-hurt-cd)
+
+                          ;; 1. Kinetic Wall-Splat / Falling Boulder Crush Damage!
+                          (when (and (not held?)
+                                     (and (<= next-hurt-cd 0.01f)
+                                          (> (- prev-spd cur-spd) 13.8f)))
+                            (let [splat-dmg (* (- (- prev-spd cur-spd) 11.5f) 3.1f)
+                                  nrm (Physics.estimate-sdf-normal world &pos)
+                                  nx (Double.to-float @(Vector3.x &nrm))
+                                  ny (Double.to-float @(Vector3.y &nrm))
+                                  nz (Double.to-float @(Vector3.z &nrm))]
+                              (do
+                                (ignore (EnemySystem.damage-hopper! state k splat-dmg nx ny nz 0.0f 0))
+                                (when (not @(Array.unsafe-nth h-alive k))
+                                  (set! died? true)))))
+
+                          ;; 2. Live GPU CA Contact Hazards & Golden Ambrosia Healing!
+                          (when (not died?)
+                            (let [l-id (Float.round eff-liq)
+                                  g-id (Float.round eff-gas)
+                                  cur-hp @(Array.unsafe-nth h-hp k)
+                                  max-hp @(Array.unsafe-nth h-max-hp k)]
+                              (if (= l-id 262)
+                                (Array.aset! h-hp k (Float.clamp 0.0f max-hp (+ cur-hp (* 20.0f fdt))))
+                                (let [raw-dps (if (= l-id 258) 34.0f
+                                              (if (= l-id 259) 28.0f
+                                              (if touch-ign 18.0f
+                                              (if (or (= l-id 264) (or (= g-id 514) (= g-id 517))) 14.0f 0.0f))))
+                                      htag (if (or (= l-id 258) touch-ign) 2
+                                           (if (= l-id 259) 4 6))
+                                      mult (EnemySystem.elem-damage-mult hmat htag true)
+                                      dps (* raw-dps mult)
+                                      fire-boom? (and touch-ign (Materials.explosive? hmat))]
+                                  (if fire-boom?
+                                    (do
+                                      (EnemySystem.kill-hopper! state k &pos 0.0f 1.0f 0.0f)
+                                      (set! died? true))
+                                    (when (> dps 0.2f)
+                                      (let [nhp (- cur-hp (* dps fdt))]
+                                        (do
+                                          (Array.aset! h-flash k (EnemySystem.fmax @(Array.unsafe-nth h-flash k) 0.65f))
+                                          (when (= (Int.mod (+ fc (* k 5)) 16) 0)
+                                            (EnemySystem.squirt-blood! state ps fx fy fz 0.0f 1.0f 0.0f 0.45f))
+                                          (if (<= nhp 0.0f)
+                                            (do
+                                              (EnemySystem.kill-hopper! state k &pos 0.0f 1.0f 0.0f)
+                                              (set! died? true))
+                                            (Array.aset! h-hp k nhp))))))))))
+
+                          ;; 3. Surviving Hopper: Facing, Bump-Tackle Attack, and Leap AI!
+                          (when (not died?)
+                            (let [pdx @(Vector3.x &to-p)
+                                  pdy @(Vector3.y &to-p)
+                                  pdz @(Vector3.z &to-p)
+                                  h-dist (Double.sqrt (+ (* pdx pdx) (* pdz pdz)))
+                                  inv-h (if (> h-dist 0.05) (/ 1.0 h-dist) 0.0)
+                                  tx (if (> h-dist 0.05) (* pdx inv-h) 1.0)
+                                  tz (if (> h-dist 0.05) (* pdz inv-h) 0.0)
+                                  aggro? (and (not flying?)
+                                              (and (< p-dist 27.0)
+                                                   (or (> has-los 0.5f) (< p-dist 9.5))))
+                                  foot-p (Vector3.sub &pos &(Vector3.init 0.0 (+ rad-d 0.14) 0.0))
+                                  d-floor (Physics.sample-euclidean-sdf world &foot-p)
+                                  in-liq? (> touch-liq 256.5f)
+                                  grounded? (or (<= d-floor 0.22) in-liq?)
+                                  m (Float.round hmat)]
+                              (do
+                                (set! active-count (+ active-count 1))
+
+                                ;; Update facing direction smoothly toward target when aggroed
+                                (when aggro?
+                                  (let [odx @(Array.unsafe-nth h-dir b3)
+                                        odz @(Array.unsafe-nth h-dir (+ b3 2))
+                                        blend (Float.clamp 0.0f 1.0f (* 8.5f fdt))
+                                        ndx (+ (* odx (- 1.0f blend)) (* (Double.to-float tx) blend))
+                                        ndz (+ (* odz (- 1.0f blend)) (* (Double.to-float tz) blend))
+                                        nmag (Float.sqrt (+ (* ndx ndx) (* ndz ndz)))
+                                        inm (if (> nmag 0.01f) (/ 1.0f nmag) 1.0f)]
+                                    (do
+                                      (Array.aset! h-dir b3 (* ndx inm))
+                                      (Array.aset! h-dir (+ b3 1) 0.0f)
+                                      (Array.aset! h-dir (+ b3 2) (* ndz inm)))))
+
+                                ;; Bump-Tackle Player on Contact!
+                                (when (and (not held?)
+                                           (and (not flying?)
+                                                (< p-dist (+ rad-d 0.88))))
+                                  (let [bump-dmg (if (or (= m 16) (Materials.spicy-hazard? hmat)) 18.0f 14.0f)
+                                        did-hit? (PlayerSystem.damage-player! state bump-dmg true (* tx 11.8) 6.2 (* tz 11.8))]
+                                    (when did-hit?
+                                      (let [recoil-v (Vector3.init (* tx -5.2) 4.2 (* tz -5.2))]
+                                        (do
+                                          (Body.set-velocity! b recoil-v)
+                                          (RigidBody.set-body! rb @b)
+                                          (ECS.add-component! ecs &ent (CompBody.init @rb))
+                                          (set! next-hop-cd 0.78f)
+                                          (ParticleSystem.emit-dust! ps fx fy fz 8))))))
+
+                                ;; Rhythmic Leap-and-Bump AI when grounded & ready!
+                                (if (and (not held?)
+                                         (and grounded? (<= next-hop-cd 0.0f)))
+                                  (if aggro?
+                                    (let [weave (* 0.22 (sin (Double.from-float (+ (* (Float.from-int fc) 0.13f) (* (Float.from-int k) 2.1f)))))
+                                          lx (- (* tx (cos weave)) (* tz (sin weave)))
+                                          lz (+ (* tx (sin weave)) (* tz (cos weave)))
+                                          base-h (if (= m 8) 14.8 (if (or (= m 16) (= m 5)) 11.0 12.6))
+                                          base-vy (if (= m 10) 12.8 (if (= m 8) 8.2 9.8))
+                                          climb-vy (Physics.clamp 0.0 4.2 (* pdy 0.45))
+                                          leap-v (Vector3.init (* lx base-h) (+ base-vy climb-vy) (* lz base-h))
+                                          leap-spd (Double.to-float (Vector3.mag &leap-v))
+                                          cd-next (if (= m 8) 0.72f (if (or (= m 16) (= m 5)) 1.06f 0.86f))
+                                          jpt (Materials.jet-ptype hmat)]
+                                      (do
+                                        (Body.set-body-type! b (BodyType.Dynamic))
+                                        (Body.set-is-sleeping! b false)
+                                        (Body.set-velocity! b leap-v)
+                                        (RigidBody.set-body! rb @b)
+                                        (ECS.add-component! ecs &ent (CompBody.init @rb))
+                                        (Array.aset! h-dir b3 (Double.to-float lx))
+                                        (Array.aset! h-dir (+ b3 1) 0.0f)
+                                        (Array.aset! h-dir (+ b3 2) (Double.to-float lz))
+                                        (set! next-hop-cd cd-next)
+                                        (Array.aset! h-prev-spd k leap-spd)
+                                        (ParticleSystem.emit! ps fx (- fy rad-f) fz 0.0f 2.2f 0.0f 0.85f 6 jpt 0.24f 0.4f)))
+                                    ;; Idle ambush/patrol hop every ~2.8..3.8s so caves feel alive while camouflaged
+                                    (let [ang (+ (* (Float.from-int (+ (* fc 3) (* k 19))) 2.39996f) (Float.from-int k))
+                                          ix (EnemySystem.fcos ang)
+                                          iz (EnemySystem.fsin ang)
+                                          hop-v (Vector3.init (Double.from-float (* ix 4.2f)) 5.4 (Double.from-float (* iz 4.2f)))
+                                          hop-spd (Double.to-float (Vector3.mag &hop-v))]
+                                      (do
+                                        (Body.set-is-sleeping! b false)
+                                        (Body.set-velocity! b hop-v)
+                                        (RigidBody.set-body! rb @b)
+                                        (ECS.add-component! ecs &ent (CompBody.init @rb))
+                                        (Array.aset! h-dir b3 ix)
+                                        (Array.aset! h-dir (+ b3 1) 0.0f)
+                                        (Array.aset! h-dir (+ b3 2) iz)
+                                        (set! next-hop-cd (+ 2.6f (* 0.12f (Float.from-int (Int.mod (+ fc k) 10)))))
+                                        (Array.aset! h-prev-spd k hop-spd))))
+                                  (do
+                                    ;; Buoyancy nudge when wading in cave pools so non-dissolved hoppers can leap out!
+                                    (when (and (not held?) (and in-liq? (< @(Vector3.y &vel) 2.5)))
+                                      (let [bv (Vector3.init (* @(Vector3.x &vel) 0.94)
+                                                             (+ @(Vector3.y &vel) (* 28.0 dt))
+                                                             (* @(Vector3.z &vel) 0.94))]
+                                        (do
+                                          (Body.set-velocity! b bv)
+                                          (RigidBody.set-body! rb @b)
+                                          (ECS.add-component! ecs &ent (CompBody.init @rb)))))
+                                    (Array.aset! h-prev-spd k cur-spd)))
+
+                                (Array.aset! h-hop-cd k next-hop-cd))))))))))))
+
+        (EnemyBank.set-count! eb active-count)
+
+        ;; Natural cave spawner: keep ~6 camouflaged Cave Hoppers lurking in nearby caverns!
+        (when (and (< active-count 6)
+                   (and (= (Int.mod (+ fc 9) 20) 0)
+                        (> (- fc @(EnemyBank.last-spawn-frame eb)) 30)))
+          (EnemySystem.try-natural-cave-spawn! state world cam-pos fc)))))
+)

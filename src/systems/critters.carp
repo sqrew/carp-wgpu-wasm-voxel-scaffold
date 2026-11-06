@@ -305,14 +305,17 @@
         (ParticleSystem.emit-debris! ps fx fy fz 0.0f 1.0f 0.0f 24)
         (ParticleSystem.emit-smoke! ps fx (+ fy 0.4f) fz 26)
         (ParticleSystem.emit! ps fx fy fz 0.0f 6.5f 0.0f 2.4f 36 203.0f 0.85f 0.15f)
-        ;; Radial shockwave on nearby rigid bodies & non-flying player
+        ;; Radial shockwave on nearby rigid bodies, Cave Hoppers & non-flying player
         (let [a-idx (CritterBank.idx cbank)
               self-idx @(Array.unsafe-nth a-idx slot)
               player-id @(EngineState.player-ent-id state)
-              flying? @(Player.flying (EngineState.player state))]
+              flying? @(Player.flying (EngineState.player state))
+              eb (EngineState.enemies state)
+              h-alive (EnemyBank.alive eb)
+              h-idx (EnemyBank.idx eb)]
           (query ecs (e (cb CompBody))
             (let [eidx (ECS.Entity.index &e)
-                   eid (Long.to-int (Uint64.to-long eidx))]
+                  eid (Long.to-int (Uint64.to-long eidx))]
               (when (and (not (Uint64.= eidx self-idx))
                          (or (/= eid player-id) (not flying?)))
                 (let [rb (CompBody.rb cb)
@@ -322,20 +325,36 @@
                       dz (- @(Vector3.z epos) pz)
                       dist (Double.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))]
                   (when (< dist 8.5)
-                    (let [b (RigidBody.body rb)
-                          old-v @(Body.velocity b)
-                          inv-d (if (> dist 0.15) (/ 1.0 dist) 0.0)
-                          push (* 24.0 (- 1.0 (/ dist 8.8)))
-                          dv (Vector3.init (* (* dx inv-d) push)
-                                           (+ (* (* dy inv-d) push) 7.5)
-                                           (* (* dz inv-d) push))]
-                      (do
-                        (Body.set-body-type! b (BodyType.Dynamic))
-                        (Body.set-inv-mass! b 1.0)
-                        (Body.set-inv-inertia! b 4.0)
-                        (Body.set-velocity! b (Vector3.add &old-v &dv))
-                        (RigidBody.set-body! rb @b)
-                        (ECS.add-component! ecs &e (CompBody.init @rb))))))))))
+                    (let [inv-d (if (> dist 0.15) (/ 1.0 dist) 0.0)
+                          falloff (- 1.0 (/ dist 8.8))
+                          push (* 24.0 falloff)]
+                      (if (= eid player-id)
+                        (ignore (PlayerSystem.damage-player! state
+                                  (Float.clamp 8.0f 30.0f (* 28.0f (Double.to-float falloff)))
+                                  true
+                                  (* (* dx inv-d) push)
+                                  (+ (* (* dy inv-d) push) 7.5)
+                                  (* (* dz inv-d) push)))
+                        (let [b (RigidBody.body rb)
+                              old-v @(Body.velocity b)
+                              dv (Vector3.init (* (* dx inv-d) push)
+                                               (+ (* (* dy inv-d) push) 7.5)
+                                               (* (* dz inv-d) push))
+                              nv (Vector3.add &old-v &dv)
+                              nv-spd (Double.to-float (Vector3.mag &nv))]
+                          (do
+                            (Body.set-body-type! b (BodyType.Dynamic))
+                            (Body.set-inv-mass! b 1.0)
+                            (Body.set-inv-inertia! b 4.0)
+                            (Body.set-velocity! b nv)
+                            (RigidBody.set-body! rb @b)
+                            (ECS.add-component! ecs &e (CompBody.init @rb))
+                            (for [hk 0 16]
+                              (when (and @(Array.unsafe-nth h-alive hk)
+                                         (Uint64.= eidx @(Array.unsafe-nth h-idx hk)))
+                                (do
+                                  (Array.aset! (EnemyBank.hurt-cd eb) hk 0.0f)
+                                  (Array.aset! (EnemyBank.prev-spd eb) hk (+ nv-spd 29.0f)))))))))))))))
         (CritterSystem.destroy-amoeba-slot! state slot))))
 
   (defn update! [state input dt]
@@ -602,23 +621,21 @@
                                                           (RigidBody.set-body! p-rb @pb)
                                                           (ECS.add-component! ecs &p-ent (CompBody.init @p-rb))
                                                           (ParticleSystem.emit! ps fx (+ fy 0.35f) fz 0.0f 6.0f 0.0f 1.6f 18 410.0f 0.35f 0.25f))))
-                                                    ;; Spicy / Burning Amoeba -> Size-Scaled Sizzle Knockback!
+                                                    ;; Spicy / Burning Amoeba -> Size-Scaled Sizzle Bite + Knockback!
                                                     (when (and (or (= next-state 3) (Materials.spicy-hazard? next-mat))
                                                                (and (< full-dist (+ rad-d 0.95))
                                                                     (>= (- fc @(CritterBank.last-hurt-frame cbank)) 22)))
-                                                      (let [pb (RigidBody.body p-rb)
-                                                            inv-h (if (> h-dist 0.05) (/ 1.0 h-dist) 0.0)
+                                                      (let [inv-h (if (> h-dist 0.05) (/ 1.0 h-dist) 0.0)
                                                             kx (if (> h-dist 0.05) (* pdx inv-h) 1.0)
-                                                            kz (if (> h-dist 0.05) (* pdz inv-h) 0.0)
+                                                            kz (if (> h-dist 0.05) (* pdz inv-h) 1.0)
                                                             kb-h (+ 9.5 (* 6.0 fill-d))
                                                             kb-y (+ 6.6 (* 2.8 fill-d))
+                                                            bite-dmg (+ 11.0f (* 6.0f next-fill))
                                                             hpt (Materials.jet-ptype (if (= next-state 3) 515.0f next-mat))]
                                                         (do
                                                           (CritterBank.set-last-hurt-frame! cbank fc)
-                                                          (Body.set-velocity! pb (Vector3.init (* kx kb-h) kb-y (* kz kb-h)))
-                                                          (RigidBody.set-body! p-rb @pb)
-                                                          (ECS.add-component! ecs &p-ent (CompBody.init @p-rb))
-                                                          (ParticleSystem.emit! ps fx (+ fy 0.3f) fz (Double.to-float (* kx 8.0)) 4.5f (Double.to-float (* kz 8.0)) 1.5f 20 hpt 0.35f 0.2f)))))))))
+                                                          (when (PlayerSystem.damage-player! state bite-dmg true (* kx kb-h) kb-y (* kz kb-h))
+                                                            (ParticleSystem.emit! ps fx (+ fy 0.3f) fz (Double.to-float (* kx 8.0)) 4.5f (Double.to-float (* kz 8.0)) 1.5f 20 hpt 0.35f 0.2f))))))))))
 
                                         ;; --- 3. LOCOMOTION, PSEUDOPOD REACH, FEEDING & MITOSIS ---
                                         (if held?

@@ -126,6 +126,26 @@
 #endif
   }")
 
+(deftemplate js-sync-health (Fn [Float Float Float Float] ())
+  "void $NAME(float hp, float max_hp, float hurt_flash, float heal_flash)"
+  "$DECL {
+#ifdef __EMSCRIPTEN__
+      static int prev_hp = -1;
+      static int prev_max = -1;
+      static float prev_hurt = -1.0f;
+      static float prev_heal = -1.0f;
+      int ihp = (int)(hp + 0.5f);
+      int imax = (int)(max_hp + 0.5f);
+      float dh = hurt_flash - prev_hurt; if (dh < 0.0f) dh = -dh;
+      float dl = heal_flash - prev_heal; if (dl < 0.0f) dl = -dl;
+      if (ihp == prev_hp && imax == prev_max && dh < 0.03f && dl < 0.03f) return;
+      prev_hp = ihp; prev_max = imax; prev_hurt = hurt_flash; prev_heal = heal_flash;
+      char buf[224];
+      sprintf(buf, \"if (window.sync_health) window.sync_health(%.1f, %.1f, %.3f, %.3f);\", hp, max_hp, hurt_flash, heal_flash);
+      emscripten_run_script(buf);
+#endif
+  }")
+
 (deftemplate get-js-brush-radius (Fn [] Float) "float $NAME(void)" "$DECL { return js_brush_radius; }")
 (deftemplate get-js-solid-mat (Fn [] Float) "float $NAME(void)" "$DECL { return js_solid_mat; }")
 (deftemplate get-js-liq-mat (Fn [] Float) "float $NAME(void)" "$DECL { return js_liq_mat; }")

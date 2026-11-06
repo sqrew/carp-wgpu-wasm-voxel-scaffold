@@ -23,6 +23,11 @@
   coyote-timer Double
   prev-vy Double
   floor-mat Float
+  hp Float
+  max-hp Float
+  hurt-timer Float
+  heal-timer Float
+  hurt-flash Float
 ])
 
 (defmodule Player
@@ -30,7 +35,7 @@
     (let [cam (Camera.new start-pos -90.0 0.0 1.7777777777777777)]
       (do
         (js-globals-setup)
-        (Player.init cam false 2.0f 1.0f 1.0f 3.0 false false false true false 0.0 0.0 0.0f))))
+        (Player.init cam false 2.0f 1.0f 1.0f 3.0 false false false true false 0.0 0.0 0.0f 100.0f 100.0f 0.0f 0.0f 0.0f))))
 
   (defn handle-input! [player input dt]
     (let [prev-rad @(Player.edit-radius player)

@@ -44,6 +44,7 @@ struct Uniforms {
     critter_colors: array<vec4<f32>, 16>,
     vox_pos: array<vec4<f32>, 12>,
     vox_act: array<vec4<f32>, 12>,
+    hopper_pos: array<vec4<f32>, 16>,
 }
 
 struct FragmentOutput {
@@ -432,6 +433,10 @@ fn map_entities_dist(p: vec3<f32>, active_mask: u32) -> f32 {
             let q = abs(p_local) - e.extents_rad.xyz;
             let d = length(max(q, vec3<f32>(0.0))) + min(max(q.x, max(q.y, q.z)), 0.0);
             if (d < rigid_d) { rigid_d = d; }
+        } else if (e.pos_type.w > 3.5) {
+            let q_hop = vec3<f32>(p_local.x, p_local.y * 1.18, p_local.z);
+            let d = length(q_hop) - e.extents_rad.w;
+            if (d < rigid_d) { rigid_d = d; }
         } else {
             if (!has_jiggle) {
                 jiggle = 0.022 * sin(p.x * 7.2 + u.time * 5.2) * cos(p.y * 7.2 - u.time * 4.3) * sin(p.z * 7.2 + u.time * 4.7);
@@ -479,6 +484,11 @@ fn map_entities_full(
 ) -> f32 {
     var rigid_d = 10000.0;
     var rigid_col = vec3<f32>(0.0);
+    var rigid_kind = 0.0;
+    var rigid_fill = 0.0;
+    var rigid_center = vec3<f32>(0.0);
+    var rigid_pod = vec3<f32>(0.0);
+    var rigid_rad = 0.5;
 
     var amoeba_d = 10000.0;
     var amoeba_col = vec3<f32>(0.48, 0.88, 0.98);
@@ -512,6 +522,8 @@ fn map_entities_full(
             if (d < rigid_d) {
                 rigid_d = d;
                 rigid_col = e.color.rgb;
+                rigid_kind = 0.0;
+                rigid_fill = 0.0;
             }
         } else if (e.pos_type.w < 1.5) {
             let q = abs(p_local) - e.extents_rad.xyz;
@@ -519,6 +531,20 @@ fn map_entities_full(
             if (d < rigid_d) {
                 rigid_d = d;
                 rigid_col = e.color.rgb;
+                rigid_kind = 1.0;
+                rigid_fill = 0.0;
+            }
+        } else if (e.pos_type.w > 3.5) {
+            let q_hop = vec3<f32>(p_local.x, p_local.y * 1.18, p_local.z);
+            let d = length(q_hop) - e.extents_rad.w;
+            if (d < rigid_d) {
+                rigid_d = d;
+                rigid_col = e.color.rgb;
+                rigid_kind = 4.0;
+                rigid_fill = e.color.a;
+                rigid_center = e.pos_type.xyz;
+                rigid_pod = e.extents_rad.xyz;
+                rigid_rad = e.extents_rad.w;
             }
         } else {
             if (!has_jiggle) {
@@ -579,8 +605,11 @@ fn map_entities_full(
         return amoeba_d;
     } else {
         *out_color = rigid_col;
-        *out_kind = 0.0;
-        *out_fill = 0.0;
+        *out_kind = rigid_kind;
+        *out_fill = rigid_fill;
+        *out_center = rigid_center;
+        *out_pod = rigid_pod;
+        *out_rad = rigid_rad;
         return rigid_d;
     }
 }
@@ -847,10 +876,10 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 let e = s_entities[ei];
                 let oc = e.pos_type.xyz - ro;
                 let proj = dot(oc, rd);
-                var r_bound: f32 = e.extents_rad.w + 0.10;
-                if (e.pos_type.w >= 1.5) {
+                var r_bound: f32 = e.extents_rad.w + 0.12;
+                if (e.pos_type.w >= 1.5 && e.pos_type.w < 3.5) {
                     r_bound = e.extents_rad.w + length(e.extents_rad.xyz) + 0.56;
-                } else if (e.pos_type.w >= 0.5) {
+                } else if (e.pos_type.w >= 0.5 && e.pos_type.w < 1.5) {
                     r_bound = length(e.extents_rad.xyz) + 0.10;
                 }
                 if (proj + r_bound > t_start && proj - r_bound < voxel_hit_t) {
@@ -913,7 +942,37 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                         }
                         let lit_env = direct + ambient + e_gi + e_flash;
 
-                        if (ent_kind >= 1.5) {
+                        if (ent_kind > 3.5) {
+                            // Affinity-Tinted Cave Hopper: mineral-camouflaged carapace + fierce front eyespots + crimson hit-flash!
+                            let p_rel = p - ent_center;
+                            let grain = 0.84 + 0.28 * fract(sin(dot(floor(p_rel * 8.5), vec3<f32>(12.9898, 78.233, 37.719))) * 43758.5453);
+                            let ndv_h = max(dot(normal, -rd), 0.0);
+                            let fres_h = pow(1.0 - ndv_h, 2.6);
+                            let peak_h = max(ent_c.r, max(ent_c.g, ent_c.b));
+                            let base_tint = ent_c / max(peak_h, 1.0);
+                            var hop_rgb = base_tint * grain * lit_env + base_tint * fres_h * 0.16;
+                            if (peak_h > 1.05) {
+                                hop_rgb = hop_rgb + ent_c * (0.34 + 0.28 * fres_h) * grain;
+                            }
+
+                            let has_fwd = length(ent_pod) > 0.08;
+                            let h_fwd = select(normalize(ro - ent_center + vec3<f32>(0.001)), normalize(ent_pod), has_fwd);
+                            let h_side = normalize(cross(vec3<f32>(0.0, 1.0, 0.0), h_fwd) + vec3<f32>(0.001, 0.0, 0.001));
+                            let h_up = normalize(cross(h_fwd, h_side));
+                            let e_surf = ent_center + h_fwd * (ent_rad * 0.86) + h_up * (ent_rad * 0.22);
+                            let he1 = e_surf + h_side * (ent_rad * 0.30);
+                            let he2 = e_surf - h_side * (ent_rad * 0.30);
+                            let de = min(length(p - he1), length(p - he2));
+                            let front_vis = smoothstep(0.10, 0.45, dot(normal, h_fwd));
+                            let socket_m = smoothstep(ent_rad * 0.19, ent_rad * 0.12, de) * front_vis;
+                            let iris_m = smoothstep(ent_rad * 0.125, ent_rad * 0.05, de) * front_vis;
+                            hop_rgb = mix(hop_rgb, vec3<f32>(0.04, 0.02, 0.03), socket_m * 0.88);
+                            hop_rgb = mix(hop_rgb, vec3<f32>(2.55, 0.26, 0.10), iris_m);
+
+                            let hit_f = clamp(ent_fill, 0.0, 1.0);
+                            hop_rgb = mix(hop_rgb, vec3<f32>(2.75, 0.38, 0.32), hit_f * 0.82);
+                            final_ent_color = hop_rgb;
+                        } else if (ent_kind >= 1.5) {
                             // Translucent Ditto-Amoeba: refracted cave background + wet Fresnel rim + glowing stomach vacuole + eyespots!
                             let far_y_bg = ro.y + rd.y * min(t_far, 88.0);
                             let bg_sky_vis = clamp((max(ro.y, far_y_bg) - 6.0) / 18.0, 0.0, 1.0);

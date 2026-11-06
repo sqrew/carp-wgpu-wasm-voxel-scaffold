@@ -63,12 +63,18 @@
                                             (+ (* fz 26.0) (* dz 1.6)))
                         ex (Double.to-float @(Vector3.x epos))
                         ey (Double.to-float @(Vector3.y epos))
-                        ez (Double.to-float @(Vector3.z epos))]
+                        ez (Double.to-float @(Vector3.z epos))
+                        hslot (EnemySystem.hopper-slot-by-idx state (ECS.Entity.index &e))]
                     (do
                       (Body.set-velocity! b new-v)
                       (RigidBody.set-body! rb @b)
                       (ParticleSystem.emit-sparks! ps ex ey ez fxf fyf fzf 14)
                       (ParticleSystem.emit-dust! ps ex ey ez 8)
+                      (when (>= hslot 0)
+                        (do
+                          (ignore (EnemySystem.damage-hopper! state hslot 22.0f fxf fyf fzf 0.0f 0))
+                          (Array.aset! (EnemyBank.hurt-cd (EngineState.enemies state)) hslot 0.0f)
+                          (Array.aset! (EnemyBank.prev-spd (EngineState.enemies state)) hslot 29.0f)))
                       (set! punted-count (+ punted-count 1)))))))))
         punted-count)))
 
@@ -170,25 +176,31 @@
             ;; Holding RMB: Check for LMB Power-Punt Combo (30.5 m/s cannonball!) or continue Tug / Spring Hold
             (if (or (InputManager.action-pressed? input "click-left")
                     (and left-pressed (>= (- fc @(RigBelt.last-kick-frame rig)) 16)))
-              (do
-                (query ecs (e (cb CompBody) (cv CompVolume) (cc CompColor))
-                  (when (Uint64.= (ECS.Entity.index &e) g-idx)
-                    (let [rb (CompBody.rb cb)
-                          b (RigidBody.body rb)
-                          epos (RigidBody.position rb)
-                          ex (Double.to-float @(Vector3.x epos))
-                          ey (Double.to-float @(Vector3.y epos))
-                          ez (Double.to-float @(Vector3.z epos))
-                          punt-v (Vector3.init (* fx 30.5) (+ (* fy 30.5) 3.4) (* fz 30.5))]
-                      (do
-                        (Body.set-velocity! b punt-v)
-                        (RigidBody.set-body! rb @b)
-                        (ParticleSystem.emit-sparks! ps ex ey ez fxf fyf fzf 22)
-                        (ParticleSystem.emit-dust! ps ex ey ez 14)))))
-                (RigBelt.set-grab-idx! rig (Uint64.from-long 0l))
-                (RigBelt.set-grab-mat! rig 0.0f)
-                (RigBelt.set-last-kick-frame! rig fc)
-                (set! ui-mode 3.0f))
+              (let [hslot (EnemySystem.hopper-slot-by-idx state g-idx)]
+                (do
+                  (query ecs (e (cb CompBody) (cv CompVolume) (cc CompColor))
+                    (when (Uint64.= (ECS.Entity.index &e) g-idx)
+                      (let [rb (CompBody.rb cb)
+                            b (RigidBody.body rb)
+                            epos (RigidBody.position rb)
+                            ex (Double.to-float @(Vector3.x epos))
+                            ey (Double.to-float @(Vector3.y epos))
+                            ez (Double.to-float @(Vector3.z epos))
+                            punt-v (Vector3.init (* fx 30.5) (+ (* fy 30.5) 3.4) (* fz 30.5))]
+                        (do
+                          (Body.set-velocity! b punt-v)
+                          (RigidBody.set-body! rb @b)
+                          (ParticleSystem.emit-sparks! ps ex ey ez fxf fyf fzf 22)
+                          (ParticleSystem.emit-dust! ps ex ey ez 14)))))
+                  (when (>= hslot 0)
+                    (do
+                      (ignore (EnemySystem.damage-hopper! state hslot 16.0f fxf fyf fzf 0.0f 0))
+                      (Array.aset! (EnemyBank.hurt-cd (EngineState.enemies state)) hslot 0.0f)
+                      (Array.aset! (EnemyBank.prev-spd (EngineState.enemies state)) hslot 31.0f)))
+                  (RigBelt.set-grab-idx! rig (Uint64.from-long 0l))
+                  (RigBelt.set-grab-mat! rig 0.0f)
+                  (RigBelt.set-last-kick-frame! rig fc)
+                  (set! ui-mode 3.0f)))
 
               (let [still-alive false]
                 (do
@@ -268,16 +280,20 @@
 
               (if (> (Uint64.to-long best-idx) 0l)
                 (let [aslot (CritterSystem.amoeba-slot-by-idx state best-idx)
+                      hslot (EnemySystem.hopper-slot-by-idx state best-idx)
                       nslot (GoldSystem.nugget-slot-by-idx state best-idx)
                       is-m? (EditingSystem.match-entity? state best-idx best-gen)]
                   (if (>= aslot 0)
                     (let [amat (Float.from-int (Float.round (CritterSystem.amoeba-mat-at state aslot)))]
                       (set! probe-code (+ (if (<= best-along 4.3) 2000.0f 3000.0f) amat)))
-                    (if (>= nslot 0)
-                      (set! probe-code (if (<= best-along 4.3) 914.0f 915.0f))
-                      (set! probe-code (if is-m?
-                                         (if (<= best-along 4.3) 912.0f 913.0f)
-                                         (if (<= best-along 4.3) 910.0f 911.0f))))))
+                    (if (>= hslot 0)
+                      (let [hmat (Float.from-int (Float.round (EnemySystem.hopper-mat-at state hslot)))]
+                        (set! probe-code (+ (if (<= best-along 4.3) 4000.0f 5000.0f) hmat)))
+                      (if (>= nslot 0)
+                        (set! probe-code (if (<= best-along 4.3) 914.0f 915.0f))
+                        (set! probe-code (if is-m?
+                                           (if (<= best-along 4.3) 912.0f 913.0f)
+                                           (if (<= best-along 4.3) 910.0f 911.0f)))))))
                 (when (and (> hw 0.5f) (and (<= wall-t 8.8) (and (>= hit-mat 0.5f) (< hit-mat 254.5f))))
                   (do
                     (set! probe-code hit-mat)
@@ -287,6 +303,7 @@
               (if (InputManager.action-pressed? input "click-right")
                 (if (> (Uint64.to-long best-idx) 0l)
                   (let [aslot (CritterSystem.amoeba-slot-by-idx state best-idx)
+                        hslot (EnemySystem.hopper-slot-by-idx state best-idx)
                         nslot (GoldSystem.nugget-slot-by-idx state best-idx)
                         is-m? (EditingSystem.match-entity? state best-idx best-gen)]
                     (do
@@ -295,9 +312,11 @@
                       (RigBelt.set-grab-mat! rig
                         (if (>= aslot 0)
                           (+ 1000.0f (Float.from-int (Float.round (CritterSystem.amoeba-mat-at state aslot))))
-                          (if (>= nslot 0)
-                            905.0f
-                            (if is-m? 901.0f 900.0f))))
+                          (if (>= hslot 0)
+                            (+ 2000.0f (Float.from-int (Float.round (EnemySystem.hopper-mat-at state hslot))))
+                            (if (>= nslot 0)
+                              905.0f
+                              (if is-m? 901.0f 900.0f)))))
                       (query ecs (e (cb CompBody) (cv CompVolume) (cc CompColor))
                         (when (Uint64.= (ECS.Entity.index &e) best-idx)
                           (let [rb (CompBody.rb cb)

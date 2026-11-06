@@ -44,6 +44,7 @@ struct Uniforms {
     critter_colors: array<vec4<f32>, 16>,
     vox_pos: array<vec4<f32>, 12>,
     vox_act: array<vec4<f32>, 12>,
+    hopper_pos: array<vec4<f32>, 16>,
 }
 
 @group(0) @binding(0) var<storage, read>       dummy0: array<vec4<f32>>;
@@ -559,6 +560,131 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             }
         }
         hit_buffer[out_smell] = vec4<f32>(best_pos, best_mat);
+    }
+
+    // -------------------------------------------------------------------------
+    // 6. Player CA Contact Probe -> hit_buffer[36] (feet + torso + head)
+    //    vec4(touch_liq_mat, touch_gas_mat, touch_igniter, touch_healing)
+    // -------------------------------------------------------------------------
+    var p_liq: f32 = 0.0;
+    var p_gas: f32 = 0.0;
+    var p_ign: f32 = 0.0;
+    var p_heal: f32 = 0.0;
+    let p_samples = array<vec3<f32>, 4>(
+        ro - vec3<f32>(0.0, 1.25, 0.0),
+        ro - vec3<f32>(0.0, 0.72, 0.0),
+        ro - vec3<f32>(0.0, 0.20, 0.0),
+        ro + vec3<f32>(0.0, 0.15, 0.0)
+    );
+    for (var pi: u32 = 0u; pi < 4u; pi = pi + 1u) {
+        let pp = p_samples[pi];
+        if (pp.x <= box_min.x + 1.5 || pp.x >= box_max.x - 1.5 ||
+            pp.y <= box_min.y + 1.5 || pp.y >= box_max.y - 1.5 ||
+            pp.z <= box_min.z + 1.5 || pp.z >= box_max.z - 1.5) {
+            continue;
+        }
+        let pl = get_liquid_world(pp);
+        let pl_id = u32(clamp(round(abs(pl.x)), 0.0, 255.0));
+        if (pl_id > 0u && pl.y > 0.08) {
+            let lmat = 256.0 + f32(pl_id);
+            let ltags = materials[256u + pl_id].tags;
+            let l_haz = (ltags & (2u | 128u | 32768u)) != 0u;
+            if (p_liq < 0.5 || l_haz) { p_liq = lmat; }
+            if ((ltags & 2u) != 0u) { p_ign = 1.0; }
+            if ((ltags & 65536u) != 0u) { p_heal = 1.0; }
+        }
+        let pg = get_gas_world(pp);
+        let pg_id = u32(clamp(round(abs(pg.x)), 0.0, 255.0));
+        if (pg_id > 0u && pg.y > 0.08) {
+            let gmat = 512.0 + f32(pg_id);
+            let gtags = materials[512u + pg_id].tags;
+            let g_haz = (gtags & (2u | 128u | 32768u)) != 0u;
+            if (p_gas < 0.5 || g_haz) { p_gas = gmat; }
+            if ((gtags & 2u) != 0u) { p_ign = 1.0; }
+        }
+    }
+    hit_buffer[36u] = vec4<f32>(p_liq, p_gas, p_ign, p_heal);
+
+    // -------------------------------------------------------------------------
+    // 7. 16-Slot Cave Hopper Probes -> hit_buffer[37 .. 52]
+    //    vec4(touch_liq_mat, touch_gas_mat, has_los_to_player, touch_igniter)
+    // -------------------------------------------------------------------------
+    let hop_offs = array<vec3<f32>, 5>(
+        vec3<f32>(0.0, 0.0, 0.0),
+        vec3<f32>(0.0, -1.0, 0.0),
+        vec3<f32>(0.0, 0.85, 0.0),
+        vec3<f32>(0.85, 0.0, 0.0),
+        vec3<f32>(0.0, 0.0, 0.85)
+    );
+    for (var hk: u32 = 0u; hk < 16u; hk = hk + 1u) {
+        let hinfo = u.hopper_pos[hk];
+        let out_h = 37u + hk;
+        if (hinfo.w < 0.05) {
+            hit_buffer[out_h] = vec4<f32>(0.0);
+            continue;
+        }
+        let hpos = hinfo.xyz;
+        let hrad = hinfo.w;
+        var h_liq: f32 = 0.0;
+        var h_gas: f32 = 0.0;
+        var h_ign: f32 = 0.0;
+
+        for (var hi: u32 = 0u; hi < 5u; hi = hi + 1u) {
+            let hp = hpos + hop_offs[hi] * (hrad + 0.28);
+            if (hp.x <= box_min.x + 1.5 || hp.x >= box_max.x - 1.5 ||
+                hp.y <= box_min.y + 1.5 || hp.y >= box_max.y - 1.5 ||
+                hp.z <= box_min.z + 1.5 || hp.z >= box_max.z - 1.5) {
+                continue;
+            }
+            let hl = get_liquid_world(hp);
+            let hl_id = u32(clamp(round(abs(hl.x)), 0.0, 255.0));
+            if (hl_id > 0u && hl.y > 0.08) {
+                let lmat = 256.0 + f32(hl_id);
+                let ltags = materials[256u + hl_id].tags;
+                let l_haz = (ltags & (2u | 128u | 32768u)) != 0u;
+                if (h_liq < 0.5 || l_haz) { h_liq = lmat; }
+                if ((ltags & 2u) != 0u) { h_ign = 1.0; }
+            }
+            let hg = get_gas_world(hp);
+            let hg_id = u32(clamp(round(abs(hg.x)), 0.0, 255.0));
+            if (hg_id > 0u && hg.y > 0.08) {
+                let gmat = 512.0 + f32(hg_id);
+                let gtags = materials[512u + hg_id].tags;
+                let g_haz = (gtags & (2u | 128u | 32768u)) != 0u;
+                if (h_gas < 0.5 || g_haz) { h_gas = gmat; }
+                if ((gtags & 2u) != 0u) { h_ign = 1.0; }
+            }
+        }
+
+        // Fast SDF Line-of-Sight check from Hopper eye to Player eye
+        var h_los: f32 = 0.0;
+        let to_p = ro - (hpos + vec3<f32>(0.0, 0.22, 0.0));
+        let p_dist = length(to_p);
+        if (p_dist < 28.0) {
+            h_los = 1.0;
+            if (p_dist > 1.25) {
+                let l_dir = to_p / p_dist;
+                var lt: f32 = hrad + 0.35;
+                let l_end = p_dist - 0.55;
+                for (var ls: i32 = 0; ls < 40; ls = ls + 1) {
+                    if (lt >= l_end) { break; }
+                    let lp = hpos + vec3<f32>(0.0, 0.22, 0.0) + l_dir * lt;
+                    if (lp.x <= box_min.x + 1.0 || lp.x >= box_max.x - 1.0 ||
+                        lp.y <= box_min.y + 1.0 || lp.y >= box_max.y - 1.0 ||
+                        lp.z <= box_min.z + 1.0 || lp.z >= box_max.z - 1.0) {
+                        h_los = 0.0;
+                        break;
+                    }
+                    let sd = get_solid_world(lp).y * 0.5;
+                    if (sd < 0.06) {
+                        h_los = 0.0;
+                        break;
+                    }
+                    lt = lt + clamp(sd, 0.32, 1.85);
+                }
+            }
+        }
+        hit_buffer[out_h] = vec4<f32>(h_liq, h_gas, h_los, h_ign);
     }
 }
 ")

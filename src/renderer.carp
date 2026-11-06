@@ -391,7 +391,7 @@
          
          main-ub-raw (Result.Success (WGPURender.uniform-buffer-get-buffer @(M-UniformBuffer.p &ub)))
          
-         hit-buf-ptr (Renderer.create-zeroed-storage-buffer ctx 144)
+         hit-buf-ptr (Renderer.create-zeroed-storage-buffer ctx 212)
          hit-buf (Result.Success (M-VertexBuffer.init hit-buf-ptr))
          hit-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &hit-buf)))
          map-buf (Result.Success (gpu-readback-create-map-buffer ctx))
@@ -540,7 +540,7 @@
           ()
           (do
             (GPUBatcher.batch-dispatch batch-encoder @(Renderer.raycast-pipeline ren) @(Renderer.raycast-bind-group ren) 1)
-            (GPUBatcher.batch-copy-buffer batch-encoder (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p (Renderer.hit-buffer ren))) @(Renderer.map-buffer ren) 576l)))
+            (GPUBatcher.batch-copy-buffer batch-encoder (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p (Renderer.hit-buffer ren))) @(Renderer.map-buffer ren) 848l)))
         (GPUBatcher.end-batch ctx batch-encoder)
         (if (gpu-readback-is-mapping)
           ()
