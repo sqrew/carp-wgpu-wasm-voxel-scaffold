@@ -320,7 +320,7 @@
          mat-buf (Result.Success (M-VertexBuffer.init mat-buf-ptr))
          mat-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &mat-buf)))
 
-         entities-ptr (Renderer.create-zeroed-storage-buffer ctx 1200000)
+         entities-ptr (Renderer.create-zeroed-storage-buffer ctx 24576)
          entities-buf (Result.Success (M-VertexBuffer.init entities-ptr))
          entities-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &entities-buf)))
 

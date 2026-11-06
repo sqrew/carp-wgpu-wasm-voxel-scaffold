@@ -8,32 +8,6 @@
   (defn clamp [min-val max-val val]
     (if (< val min-val) min-val (if (> val max-val) max-val val)))
 
-  (defn is-solid-at? [world gx gy gz]
-    (let [qx (Double.to-int (Double.floor (/ (Double.from-int gx) 32.0)))
-          qy (Double.to-int (Double.floor (/ (Double.from-int gy) 32.0)))
-          qz (Double.to-int (Double.floor (/ (Double.from-int gz) 32.0)))
-          chunks (World.chunks world)
-          tx (World.positive-mod qx 5)
-          ty (World.positive-mod qy 5)
-          tz (World.positive-mod qz 5)
-          slot-idx (+ tx (+ (* ty 5) (* tz 25)))]
-      (if (< slot-idx (Array.length chunks))
-        (let [chunk (Array.unsafe-nth chunks slot-idx)]
-          (if (and (= qx @(Chunk.coord-x chunk))
-                   (and (= qy @(Chunk.coord-y chunk))
-                        (= qz @(Chunk.coord-z chunk))))
-            (let [lx (Physics.clamp 0 31 (- gx (* qx 32)))
-                  ly (Physics.clamp 0 31 (- gy (* qy 32)))
-                  lz (Physics.clamp 0 31 (- gz (* qz 32)))
-                  idx (+ (* lz 1024) (+ (* ly 32) lx))
-                  offset (* idx 4)
-                  mat-id @(Array.unsafe-nth (Chunk.voxel-data chunk) offset)
-                  sdf @(Array.unsafe-nth (Chunk.voxel-data chunk) (+ offset 1))]
-              (and (>= mat-id 1.0f) (<= sdf 0.05f)))
-            false))
-        false)))
-
-
   (defn sample-sdf-at [world gx gy gz]
     (let [qx (Double.to-int (Double.floor (/ (Double.from-int gx) 32.0)))
           qy (Double.to-int (Double.floor (/ (Double.from-int gy) 32.0)))
@@ -116,185 +90,6 @@
 
   (defn dmin [a b] (if (< a b) a b))
   (defn dmax [a b] (if (> a b) a b))
-
-  (defn get-player-aabb-shrunk [pos sx sy sz]
-    (let [px @(Vector3.x pos)
-          py @(Vector3.y pos)
-          pz @(Vector3.z pos)]
-      (AABB.init (Vector3.init (- px (- 0.3 sx)) (- py (- 1.6 sy)) (- pz (- 0.3 sz)))
-                 (Vector3.init (+ px (- 0.3 sx)) (+ py (- 0.2 sy)) (+ pz (- 0.3 sz))))))
-
-  (defn resolve-camera-collision! [world cam prev-pos vel-y-ptr on-ground-ptr]
-    (let [p-pos (ref-to-ptr (Camera.pos cam))
-          cand-pos (Pointer.to-value p-pos)
-          
-          res-x @(Vector3.x prev-pos)
-          res-y @(Vector3.y prev-pos)
-          res-z @(Vector3.z prev-pos)
-          
-          cand-x @(Vector3.x &cand-pos)
-          cand-y @(Vector3.y &cand-pos)
-          cand-z @(Vector3.z &cand-pos)
-          
-          prev-x @(Vector3.x prev-pos)
-          prev-y @(Vector3.y prev-pos)
-          prev-z @(Vector3.z prev-pos)]
-      (do
-        (Pointer.set on-ground-ptr false)
-        
-        ;; 1. Resolve X Axis
-        (set! res-x cand-x)
-        (let [p-aabb (Physics.get-player-aabb-shrunk &(Vector3.init res-x res-y res-z) 0.0 0.05 0.02)
-              amin (AABB.min &p-aabb)
-              amax (AABB.max &p-aabb)
-              min-x (Double.to-int (Double.floor @(Vector3.x amin)))
-              max-x (Double.to-int (Double.floor @(Vector3.x amax)))
-              min-y (Double.to-int (Double.floor @(Vector3.y amin)))
-              max-y (Double.to-int (Double.floor @(Vector3.y amax)))
-              min-z (Double.to-int (Double.floor @(Vector3.z amin)))
-              max-z (Double.to-int (Double.floor @(Vector3.z amax)))]
-          (for [z min-z (inc max-z)]
-            (for [y min-y (inc max-y)]
-              (for [x min-x (inc max-x)]
-                (when (Physics.is-solid-at? world x y z)
-                  (let [voxel-min-x (Double.from-int x)
-                        voxel-max-x (Double.from-int (inc x))
-                        voxel-min-y (Double.from-int y)
-                        voxel-max-y (Double.from-int (inc y))
-                        voxel-min-z (Double.from-int z)
-                        voxel-max-z (Double.from-int (inc z))
-                        
-                        p-min (AABB.min &p-aabb)
-                        p-max (AABB.max &p-aabb)
-                        p-min-x @(Vector3.x p-min)
-                        p-max-x @(Vector3.x p-max)
-                        p-min-y @(Vector3.y p-min)
-                        p-max-y @(Vector3.y p-max)
-                        p-min-z @(Vector3.z p-min)
-                        p-max-z @(Vector3.z p-max)
-                        
-                        ox (- (Physics.dmin p-max-x voxel-max-x) (Physics.dmax p-min-x voxel-min-x))
-                        oy (- (Physics.dmin p-max-y voxel-max-y) (Physics.dmax p-min-y voxel-min-y))
-                        oz (- (Physics.dmin p-max-z voxel-max-z) (Physics.dmax p-min-z voxel-min-z))]
-                    (when (and (and (> ox 0.0) (> oy 0.0)) (> oz 0.0))
-                      (do
-                        (if (> cand-x prev-x)
-                          (set! res-x (- res-x ox))
-                          (if (< cand-x prev-x)
-                            (set! res-x (+ res-x ox))
-                            (let [diff (- res-x (+ voxel-min-x 0.5))]
-                              (if (< diff 0.0)
-                                (set! res-x (- res-x ox))
-                                (set! res-x (+ res-x ox))))))
-                        (set! p-aabb (Physics.get-player-aabb-shrunk &(Vector3.init res-x res-y res-z) 0.0 0.05 0.02))))))))))
-        
-        ;; 2. Resolve Z Axis
-        (set! res-z cand-z)
-        (let [p-aabb (Physics.get-player-aabb-shrunk &(Vector3.init res-x res-y res-z) 0.02 0.05 0.0)
-              amin (AABB.min &p-aabb)
-              amax (AABB.max &p-aabb)
-              min-x (Double.to-int (Double.floor @(Vector3.x amin)))
-              max-x (Double.to-int (Double.floor @(Vector3.x amax)))
-              min-y (Double.to-int (Double.floor @(Vector3.y amin)))
-              max-y (Double.to-int (Double.floor @(Vector3.y amax)))
-              min-z (Double.to-int (Double.floor @(Vector3.z amin)))
-              max-z (Double.to-int (Double.floor @(Vector3.z amax)))]
-          (for [z min-z (inc max-z)]
-            (for [y min-y (inc max-y)]
-              (for [x min-x (inc max-x)]
-                (when (Physics.is-solid-at? world x y z)
-                  (let [voxel-min-x (Double.from-int x)
-                        voxel-max-x (Double.from-int (inc x))
-                        voxel-min-y (Double.from-int y)
-                        voxel-max-y (Double.from-int (inc y))
-                        voxel-min-z (Double.from-int z)
-                        voxel-max-z (Double.from-int (inc z))
-                        
-                        p-min (AABB.min &p-aabb)
-                        p-max (AABB.max &p-aabb)
-                        p-min-x @(Vector3.x p-min)
-                        p-max-x @(Vector3.x p-max)
-                        p-min-y @(Vector3.y p-min)
-                        p-max-y @(Vector3.y p-max)
-                        p-min-z @(Vector3.z p-min)
-                        p-max-z @(Vector3.z p-max)
-                        
-                        ox (- (Physics.dmin p-max-x voxel-max-x) (Physics.dmax p-min-x voxel-min-x))
-                        oy (- (Physics.dmin p-max-y voxel-max-y) (Physics.dmax p-min-y voxel-min-y))
-                        oz (- (Physics.dmin p-max-z voxel-max-z) (Physics.dmax p-min-z voxel-min-z))]
-                    (when (and (and (> ox 0.0) (> oy 0.0)) (> oz 0.0))
-                      (do
-                        (if (> cand-z prev-z)
-                          (set! res-z (- res-z oz))
-                          (if (< cand-z prev-z)
-                            (set! res-z (+ res-z oz))
-                            (let [diff (- res-z (+ voxel-min-z 0.5))]
-                              (if (< diff 0.0)
-                                (set! res-z (- res-z oz))
-                                (set! res-z (+ res-z oz))))))
-                        (set! p-aabb (Physics.get-player-aabb-shrunk &(Vector3.init res-x res-y res-z) 0.02 0.05 0.0))))))))))
-                              
-        ;; 3. Resolve Y Axis
-        (set! res-y cand-y)
-        (let [p-aabb (Physics.get-player-aabb-shrunk &(Vector3.init res-x res-y res-z) 0.02 0.0 0.02)
-              amin (AABB.min &p-aabb)
-              amax (AABB.max &p-aabb)
-              min-x (Double.to-int (Double.floor @(Vector3.x amin)))
-              max-x (Double.to-int (Double.floor @(Vector3.x amax)))
-              min-y (Double.to-int (Double.floor @(Vector3.y amin)))
-              max-y (Double.to-int (Double.floor @(Vector3.y amax)))
-              min-z (Double.to-int (Double.floor @(Vector3.z amin)))
-              max-z (Double.to-int (Double.floor @(Vector3.z amax)))]
-          (for [z min-z (inc max-z)]
-            (for [y min-y (inc max-y)]
-              (for [x min-x (inc max-x)]
-                (when (Physics.is-solid-at? world x y z)
-                  (let [voxel-min-x (Double.from-int x)
-                        voxel-max-x (Double.from-int (inc x))
-                        voxel-min-y (Double.from-int y)
-                        voxel-max-y (Double.from-int (inc y))
-                        voxel-min-z (Double.from-int z)
-                        voxel-max-z (Double.from-int (inc z))
-                        
-                        p-min (AABB.min &p-aabb)
-                        p-max (AABB.max &p-aabb)
-                        p-min-x @(Vector3.x p-min)
-                        p-max-x @(Vector3.x p-max)
-                        p-min-y @(Vector3.y p-min)
-                        p-max-y @(Vector3.y p-max)
-                        p-min-z @(Vector3.z p-min)
-                        p-max-z @(Vector3.z p-max)
-                        
-                        ox (- (Physics.dmin p-max-x voxel-max-x) (Physics.dmax p-min-x voxel-min-x))
-                        oy (- (Physics.dmin p-max-y voxel-max-y) (Physics.dmax p-min-y voxel-min-y))
-                        oz (- (Physics.dmin p-max-z voxel-max-z) (Physics.dmax p-min-z voxel-min-z))]
-                    (when (and (and (> ox 0.0) (> oy 0.0)) (> oz 0.0))
-                      (do
-                        (if (> cand-y prev-y)
-                          (do
-                            (set! res-y (- res-y oy))
-                            (when (> (Pointer.to-value vel-y-ptr) 0.0)
-                              (Pointer.set vel-y-ptr 0.0)))
-                          (if (< cand-y prev-y)
-                            (do
-                              (set! res-y (+ res-y oy))
-                              (Pointer.set on-ground-ptr true)
-                              (when (< (Pointer.to-value vel-y-ptr) 0.0)
-                                (Pointer.set vel-y-ptr 0.0)))
-                            (let [diff (- res-y (+ voxel-min-y 0.5))]
-                              (if (< diff 0.0)
-                                (do
-                                  (set! res-y (- res-y oy))
-                                  (when (> (Pointer.to-value vel-y-ptr) 0.0)
-                                    (Pointer.set vel-y-ptr 0.0)))
-                                (do
-                                  (set! res-y (+ res-y oy))
-                                  (Pointer.set on-ground-ptr true)
-                                  (when (< (Pointer.to-value vel-y-ptr) 0.0)
-                                    (Pointer.set vel-y-ptr 0.0)))))))
-                        (set! p-aabb (Physics.get-player-aabb-shrunk &(Vector3.init res-x res-y res-z) 0.02 0.0 0.02))))))))))
-        
-        (Pointer.set p-pos (Vector3.init res-x res-y res-z)))))
 )
 
 ;; --- CARP-PHYSICS-3D INTEGRATION ---
@@ -361,19 +156,81 @@
         (Vector3.init (/ nx n-len) (/ ny n-len) (/ nz n-len))
         (Vector3.init 0.0 1.0 0.0))))
 
-  (sig step-physics-entities! (Fn [(Ref World) (Ref GameWorld) (Ref (SpatialGrid Int)) Double] ()))
-      (defn step-physics-entities! [world game-world grid dt]
+  (defn sample-mat-at [world gx gy gz]
+    (let [qx (Double.to-int (Double.floor (/ (Double.from-int gx) 32.0)))
+          qy (Double.to-int (Double.floor (/ (Double.from-int gy) 32.0)))
+          qz (Double.to-int (Double.floor (/ (Double.from-int gz) 32.0)))
+          chunks (World.chunks world)
+          tx (World.positive-mod qx 5)
+          ty (World.positive-mod qy 5)
+          tz (World.positive-mod qz 5)
+          slot-idx (+ tx (+ (* ty 5) (* tz 25)))]
+      (if (< slot-idx (Array.length chunks))
+        (let [chunk (Array.unsafe-nth chunks slot-idx)]
+          (if (and (= qx @(Chunk.coord-x chunk))
+                   (and (= qy @(Chunk.coord-y chunk))
+                        (= qz @(Chunk.coord-z chunk))))
+            (let [lx (Physics.clamp 0 31 (- gx (* qx 32)))
+                  ly (Physics.clamp 0 31 (- gy (* qy 32)))
+                  lz (Physics.clamp 0 31 (- gz (* qz 32)))
+                  idx (+ (* lz 1024) (+ (* ly 32) lx))
+                  offset (* idx 4)]
+              @(Array.unsafe-nth (Chunk.voxel-data chunk) offset))
+            0.0f))
+        0.0f)))
+
+  (defn sample-floor-mat [world pos]
+    (let [px @(Vector3.x pos)
+          py @(Vector3.y pos)
+          pz @(Vector3.z pos)
+          gx (Double.to-int (Double.floor px))
+          gz (Double.to-int (Double.floor pz))
+          gy0 (Double.to-int (Double.floor (- py 0.68)))
+          m0 (Physics.sample-mat-at world gx gy0 gz)]
+      (if (> m0 0.5f)
+        m0
+        (let [gy1 (Double.to-int (Double.floor (- py 1.25)))
+              m1 (Physics.sample-mat-at world gx gy1 gz)]
+          (if (> m1 0.5f)
+            m1
+            (let [m2 (Physics.sample-mat-at world (+ gx 1) gy0 gz)]
+              (if (> m2 0.5f)
+                m2
+                (Physics.sample-mat-at world (- gx 1) gy0 gz))))))))
+
+  (defn find-safe-spawn-y [world sx sz]
+    (let [y 52.0
+          found-y 44.0
+          done false]
+      (do
+        (while (and (> y 8.0) (not done))
+          (let [p (Vector3.init sx y sz)
+                d (World.sample-sdf-nearest world &p)]
+            (if (<= d 0.15f)
+              (do
+                (set! found-y (+ y 1.35))
+                (set! done true))
+              (set! y (- y 0.5)))))
+        found-y)))
+
+  (sig step-physics-entities! (Fn [(Ref World) (Ref GameWorld) (Ref (SpatialGrid Int)) (Ref (Vector3 Double)) Double] ()))
+  (defn step-physics-entities! [world game-world grid center-pos dt]
     (let [manifolds (the (Array Collision) [])
           ent-idxs (the (Array Uint64) [])
           ent-gens (the (Array Uint32) [])
           fixed-dt dt
           iterations 8
-          dummy-static (RigidBody.static (Vector3.init 0.0 0.0 0.0) (Quaternion.identity) 0.5 0.5)]
+          dummy-static (RigidBody.static (Vector3.init 0.0 0.0 0.0) (Quaternion.identity) 0.5 0.5)
+          gx (* (Double.floor (/ (- @(Vector3.x center-pos) 96.0) 8.0)) 8.0)
+          gy (* (Double.floor (/ (- @(Vector3.y center-pos) 144.0) 8.0)) 8.0)
+          gz (* (Double.floor (/ (- @(Vector3.z center-pos) 96.0) 8.0)) 8.0)]
       (do
-        ;; 1. Step active bodies
+        ;; 1. Reset per-tick grounded flags & step active dynamic bodies
         (query game-world (e (cb CompBody))
           (let [rb (CompBody.rb cb)]
             (do
+              (when (has-component? game-world &e CompGrounded)
+                (ECS.add-component! game-world &e (CompGrounded.init false)))
               (let [b (RigidBody.body rb)]
                 (do
                   (Body.apply-force! b &(Vector3.init 0.0 -25.0 0.0))
@@ -381,7 +238,8 @@
               (RigidBody.step-custom! rb fixed-dt fixed-dt)
               (ECS.add-component! game-world &e (CompBody.init @rb)))))
         
-        ;; 2. Rebuild Spatial Grid (1-based list IDs so 0 is strictly dummy-static, preserving entity generations!)
+        ;; 2. Re-center & rebuild Spatial Grid (1-based list IDs so 0 is strictly dummy-static)
+        (SpatialGrid.set-origin! grid (Vector3.init gx gy gz))
         (SpatialGrid.clear! grid)
         (query game-world (e (cb CompBody) (cv CompVolume))
           (let [rb (CompBody.rb cb)
@@ -399,7 +257,11 @@
                       (AABB.set-min! b (Vector3.sub pos &half-extents))
                       (AABB.set-max! b (Vector3.add pos &half-extents))))
                 _ ())
-              (let [aabb (Collision.get-aabb vol)]
+              (let [raw-aabb (Collision.get-aabb vol)
+                    aabb (if (has-component? game-world &e CompPlayer)
+                           (AABB.init @(AABB.min &raw-aabb)
+                                      (Vector3.add (AABB.max &raw-aabb) &(Vector3.init 0.0 1.05 0.0)))
+                           raw-aabb)]
                 (SpatialGrid.insert! grid &aabb list-id)))))
 
         ;; 3. Detect Collisions
@@ -408,28 +270,72 @@
             (do
               (set! cur-lid (+ cur-lid 1))
               (let [rb (CompBody.rb cb)
+                    b-ref (RigidBody.body rb)
+                    is-dyn (match-ref (Body.body-type b-ref)
+                             (BodyType.Dynamic) (> @(Body.inv-mass b-ref) 0.0)
+                             _ false)
+                    is-player (has-component? game-world &e CompPlayer)
                     pos (RigidBody.position rb)
                     vol (CompVolume.vol cv)
-                    aabb (Collision.get-aabb vol)
+                    raw-aabb (Collision.get-aabb vol)
+                    aabb (if is-player
+                           (AABB.init @(AABB.min &raw-aabb)
+                                      (Vector3.add (AABB.max &raw-aabb) &(Vector3.init 0.0 1.05 0.0)))
+                           raw-aabb)
                     candidates (SpatialGrid.query-unique grid &aabb)
                     contacts (the (Array Contact) [])
                     i cur-lid]
                 (do
-                  ;; 3a. SDF Collision (Dynamic bodies only; Kinematic bodies glide on iso-surface directly)
-                  (when (> @(Body.inv-mass (RigidBody.body rb)) 0.0)
+                  ;; 3a. SDF Collision (Dynamic bodies only; Kinematic noclip/crawlers bypass SDF solver)
+                  (when is-dyn
                     (match-ref vol
                       (Volume.Ball s)
                         (let [rad @(Sphere.radius s)
                               d (Physics.sample-euclidean-sdf world pos)]
-                          (when (< d rad)
-                            (let [depth (Physics.dmin 0.35 (- rad d))
-                                  normal (Physics.smooth-sdf-normal world pos)
-                                  contact-pt (Vector3.sub pos &(Vector3.mul &normal rad))]
-                              (do
-                                (when (> @(Vector3.y &normal) 0.5)
-                                  (when (has-component? game-world &e CompGrounded)
-                                    (ECS.add-component! game-world &e (CompGrounded.init true))))
-                                (Array.push-back! &contacts (Contact.init depth contact-pt normal))))))
+                          (do
+                            (when (< d rad)
+                              (let [depth (Physics.dmin 0.40 (- rad d))
+                                    normal (Physics.smooth-sdf-normal world pos)
+                                    contact-pt (Vector3.sub pos &(Vector3.mul &normal rad))]
+                                (do
+                                  (when (> @(Vector3.y &normal) 0.52)
+                                    (when (has-component? game-world &e CompGrounded)
+                                      (ECS.add-component! game-world &e (CompGrounded.init true))))
+                                  (Array.push-back! &contacts (Contact.init depth contact-pt normal)))))
+                            ;; Upper torso/head sphere for upright 2-sphere Player Capsule!
+                            (when is-player
+                              (let [head-pos (Vector3.add pos &(Vector3.init 0.0 1.05 0.0))
+                                    head-r 0.44
+                                    d-head (Physics.sample-euclidean-sdf world &head-pos)]
+                                (when (< d-head head-r)
+                                  (let [depth-h (Physics.dmin 0.40 (- head-r d-head))
+                                        norm-h (Physics.smooth-sdf-normal world &head-pos)
+                                        cp-h (Vector3.sub &head-pos &(Vector3.mul &norm-h head-r))]
+                                    (Array.push-back! &contacts (Contact.init depth-h cp-h norm-h))))))))
+                      (Volume.Box b)
+                        (let [he (Vector3.mul &(Vector3.sub (AABB.max b) (AABB.min b)) 0.5)
+                              hx @(Vector3.x &he)
+                              hy @(Vector3.y &he)
+                              hz @(Vector3.z &he)
+                              px @(Vector3.x pos)
+                              py @(Vector3.y pos)
+                              pz @(Vector3.z pos)]
+                          (for [cz 0 2]
+                            (for [cy 0 2]
+                              (for [cx 0 2]
+                                (let [sx (if (= cx 0) (- 0.0 hx) hx)
+                                      sy (if (= cy 0) (- 0.0 hy) hy)
+                                      sz (if (= cz 0) (- 0.0 hz) hz)
+                                      corner (Vector3.init (+ px sx) (+ py sy) (+ pz sz))
+                                      dc (Physics.sample-euclidean-sdf world &corner)]
+                                  (when (< dc 0.0)
+                                    (let [depth-c (Physics.dmin 0.35 (- 0.0 dc))
+                                          norm-c (Physics.smooth-sdf-normal world &corner)]
+                                      (do
+                                        (when (> @(Vector3.y &norm-c) 0.52)
+                                          (when (has-component? game-world &e CompGrounded)
+                                            (ECS.add-component! game-world &e (CompGrounded.init true))))
+                                        (Array.push-back! &contacts (Contact.init depth-c corner norm-c))))))))))
                       _ ()))
                   
                   (when (not (Array.empty? &contacts))
@@ -441,7 +347,7 @@
                   
                   ;; 3b. Entity Collision
                   (let [c 0
-                        cand-len (Physics.clamp 0 4 (Array.length &candidates))
+                        cand-len (Physics.clamp 0 6 (Array.length &candidates))
                         n-ents (Array.length &ent-idxs)]
                     (while (< c cand-len)
                       (do
@@ -458,7 +364,18 @@
                                  res (CollisionChecker.check-pair &col1 &col2)]
                                 (match res
                                   (CollisionResult.Physical actual-col)
-                                    (do (Array.push-back! &manifolds actual-col) (Maybe.Just ()))
+                                    (let [cs (Collision.contact-set &actual-col)
+                                          cts (ContactSet.contacts cs)]
+                                      (do
+                                        (when (not (Array.empty? cts))
+                                          (let [ny @(Vector3.y (Contact.normal (Array.unsafe-nth cts 0)))]
+                                            (do
+                                              (when (and (> ny 0.52) (has-component? game-world &e CompGrounded))
+                                                (ECS.add-component! game-world &e (CompGrounded.init true)))
+                                              (when (and (< ny -0.52) (has-component? game-world &other-ent CompGrounded))
+                                                (ECS.add-component! game-world &other-ent (CompGrounded.init true))))))
+                                        (Array.push-back! &manifolds actual-col)
+                                        (Maybe.Just ())))
                                   _ (Maybe.Just ())))))))
                         (set! c (+ c 1))))))))))
 

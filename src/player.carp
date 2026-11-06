@@ -9,22 +9,20 @@
 )
 
 (deftype Player [
-  vel-y Double
   camera Camera
-  on-ground Bool
   flying Bool
   current-mat Float
   current-liq Float
   current-gas Float
   edit-radius Double
-  v-last Bool
-  b-last Bool
-  n-last Bool
   c-last Bool
   lbracket-last Bool
   rbracket-last Bool
   flashlight-on Bool
   l-last Bool
+  coyote-timer Double
+  prev-vy Double
+  floor-mat Float
 ])
 
 (defmodule Player
@@ -32,7 +30,7 @@
     (let [cam (Camera.new start-pos -90.0 0.0 1.7777777777777777)]
       (do
         (js-globals-setup)
-        (Player.init 0.0 cam false true 2.0f 1.0f 1.0f 3.0 false false false false false false true false))))
+        (Player.init cam false 2.0f 1.0f 1.0f 3.0 false false false true false 0.0 0.0 0.0f))))
 
   (defn handle-input! [player input dt]
     (let [prev-rad @(Player.edit-radius player)
@@ -45,9 +43,6 @@
           c-pressed (InputManager.action-digital? input "toggle-flying")
           lbr-pressed (InputManager.action-digital? input "brush-dec")
           rbr-pressed (InputManager.action-digital? input "brush-inc")
-          v-pressed (InputManager.action-digital? input "cycle-solid")
-          b-pressed (InputManager.action-digital? input "cycle-gas")
-          n-pressed (InputManager.action-digital? input "cycle-liquid")
           l-pressed (InputManager.action-digital? input "toggle-flashlight")
           cam (Player.camera player)]
       (do
@@ -89,13 +84,7 @@
             (Pointer.set p-rad next-rad)))
         (Pointer.set (ref-to-ptr (Player.rbracket-last player)) rbr-pressed)
 
-        ;; 5. Cycle solid type (V key)
-        
-        ;; 6. Cycle liquid type (N key)
-        
-        ;; 7. Cycle gas type (B key)
-        
-        ;; 8. If anything changed via keyboard, update C globals & sync to HTML UI
+        ;; 5. If anything changed via keyboard, update C globals & sync to HTML UI
         (let [curr-rad @(Player.edit-radius player)
               curr-mat @(Player.current-mat player)
               curr-liq @(Player.current-liq player)
@@ -123,8 +112,9 @@
                 (if curr-fly 1.0f 0.0f)
                 (if curr-light 1.0f 0.0f)))))
 
-        ;; 9. Handle camera movement & look inputs
-        (Camera.update-input input cam dt @(Player.flying player))
-        (Camera.update-look input cam))))
+        ;; 6. Always apply mouse look; only translate Camera directly in Noclip/Fly mode
+        (Camera.update-look input cam)
+        (when @(Player.flying player)
+          (Camera.update-input input cam dt true)))))
 
   )

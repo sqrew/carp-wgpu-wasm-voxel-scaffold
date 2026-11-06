@@ -1,54 +1,8 @@
 (defmodule EditingSystem
-  (defn jet-ptype [mat-id]
-    (if (< mat-id 256.0f)
-      (+ 400.0f mat-id)
-      (if (< mat-id 512.0f)
-        (+ 100.0f (- mat-id 256.0f))
-        (+ 200.0f (- mat-id 512.0f)))))
-
-  (defn succ-ptype [mat-id]
-    (if (< mat-id 256.0f)
-      (+ 500.0f mat-id)
-      (if (< mat-id 512.0f)
-        (+ 300.0f (- mat-id 256.0f))
-        (+ 308.0f (- mat-id 512.0f)))))
-
-  (defn granular-solid? [mat-id]
-    (let [m (Float.round mat-id)]
-      (or (= m 6) (= m 7))))
-
-  (defn brittle-solid? [mat-id]
-    (let [m (Float.round mat-id)]
-      (or (= m 4)
-          (or (= m 8)
-              (or (= m 9)
-                  (or (= m 13)
-                      (or (= m 14)
-                          (or (= m 15) (= m 16)))))))))
-
-  (defn solid-boulder-color [mat-id]
-    (let [m (Float.round mat-id)]
-      (if (= m 1) (Vector3.init 0.56 0.59 0.65)
-      (if (= m 2) (Vector3.init 0.55 0.38 0.25)
-      (if (= m 3) (Vector3.init 0.72 0.49 0.29)
-      (if (= m 4) (Vector3.init 0.22 0.24 0.28)
-      (if (= m 5) (Vector3.init 1.00 0.84 0.28)
-      (if (= m 6) (Vector3.init 0.94 0.81 0.49)
-      (if (= m 7) (Vector3.init 0.42 0.44 0.49)
-      (if (= m 8) (Vector3.init 0.62 0.92 1.05)
-      (if (= m 9) (Vector3.init 0.74 0.95 1.05)
-      (if (= m 10) (Vector3.init 0.30 0.92 0.40)
-      (if (= m 11) (Vector3.init 0.89 0.77 0.31)
-      (if (= m 12) (Vector3.init 0.94 0.36 0.29)
-      (if (= m 13) (Vector3.init 1.45 2.35 0.55)
-      (if (= m 14) (Vector3.init 0.35 2.05 2.35)
-      (if (= m 15) (Vector3.init 1.85 0.48 2.40)
-      (if (= m 16) (Vector3.init 0.34 0.27 0.48)
-        (Vector3.init 0.48 2.35 0.30)))))))))))))))))))
-
   (defn match-entity? [state idx gen]
-    (let [m-idx (EngineState.match-idx state)
-          m-life (EngineState.match-life state)
+    (let [mb (EngineState.matches state)
+          m-idx (MatchBook.idx mb)
+          m-life (MatchBook.life mb)
           found false]
       (do
         (for [i 0 8]
@@ -60,10 +14,9 @@
   (defn spawn-boulder! [state spawn-pos vel radius mat-id ttl-ms]
     (let [ecs (EngineState.ecs-world state)
           e (GameWorld.create-entity! ecs)
-          m (Float.round mat-id)
-          col (EditingSystem.solid-boulder-color mat-id)
-          restit (if (= m 10) 0.92 0.46)
-          fric (if (= m 8) 0.05 0.45)
+          col (Materials.boulder-color mat-id)
+          restit (Materials.boulder-restitution mat-id)
+          fric (Materials.boulder-friction mat-id)
           rb (RigidBody.new @&spawn-pos (Quaternion.identity) 1.5 restit fric 0.08 0.12 0.22)
           vol (Volume.Ball (Sphere.init @&spawn-pos radius))]
       (do
@@ -161,6 +114,7 @@
 
   (defn handle-gauntlet-boot! [state input world ps ro rd right up hx hy hz hw left-pressed right-pressed x-pressed]
     (let [ecs (EngineState.ecs-world state)
+          rig (EngineState.rig state)
           player-id @(EngineState.player-ent-id state)
           fc @(EngineState.frame-count state)
           hit-mat (gpu-readback-get-hit-mat)
@@ -188,8 +142,8 @@
           wdy (- (Double.from-float hy) ry)
           wdz (- (Double.from-float hz) rz)
           wall-t (if (> hw 0.5f) (Double.sqrt (+ (+ (* wdx wdx) (* wdy wdy)) (* wdz wdz))) 999.0)
-          g-idx @(EngineState.grab-idx state)
-          g-gen @(EngineState.grab-gen state)
+          g-idx @(RigBelt.grab-idx rig)
+          g-gen @(RigBelt.grab-gen rig)
           ui-mode 0.0f
           probe-code 0.0f
           probe-stress 0.0f]
@@ -210,12 +164,12 @@
                     (do
                       (Body.set-velocity! b (Vector3.init vx vy vz))
                       (RigidBody.set-body! rb @b)))))
-              (EngineState.set-grab-idx! state (Uint64.from-long 0l))
-              (EngineState.set-grab-mat! state 0.0f))
+              (RigBelt.set-grab-idx! rig (Uint64.from-long 0l))
+              (RigBelt.set-grab-mat! rig 0.0f))
 
             ;; Holding RMB: Check for LMB Power-Punt Combo (30.5 m/s cannonball!) or continue Tug / Spring Hold
             (if (or (InputManager.action-pressed? input "click-left")
-                    (and left-pressed (>= (- fc @(EngineState.last-kick-frame state)) 16)))
+                    (and left-pressed (>= (- fc @(RigBelt.last-kick-frame rig)) 16)))
               (do
                 (query ecs (e (cb CompBody) (cv CompVolume) (cc CompColor))
                   (when (Uint64.= (ECS.Entity.index &e) g-idx)
@@ -231,9 +185,9 @@
                         (RigidBody.set-body! rb @b)
                         (ParticleSystem.emit-sparks! ps ex ey ez fxf fyf fzf 22)
                         (ParticleSystem.emit-dust! ps ex ey ez 14)))))
-                (EngineState.set-grab-idx! state (Uint64.from-long 0l))
-                (EngineState.set-grab-mat! state 0.0f)
-                (EngineState.set-last-kick-frame! state fc)
+                (RigBelt.set-grab-idx! rig (Uint64.from-long 0l))
+                (RigBelt.set-grab-mat! rig 0.0f)
+                (RigBelt.set-last-kick-frame! rig fc)
                 (set! ui-mode 3.0f))
 
               (let [still-alive false]
@@ -278,11 +232,11 @@
                                 (set! probe-code 920.0f))))))))
                   (when (not still-alive)
                     (do
-                      (EngineState.set-grab-idx! state (Uint64.from-long 0l))
-                      (EngineState.set-grab-mat! state 0.0f))))))))
+                      (RigBelt.set-grab-idx! rig (Uint64.from-long 0l))
+                      (RigBelt.set-grab-mat! rig 0.0f))))))))
 
         ;; 2. Empty Hands: Scan Aim Cone (<= 14.5m), Handle RMB Yank/Wrench & LMB Seismic Boot Kick
-        (when (and (= (Uint64.to-long @(EngineState.grab-idx state)) 0l) (< (Float.abs ui-mode) 0.1f))
+        (when (and (= (Uint64.to-long @(RigBelt.grab-idx rig)) 0l) (< (Float.abs ui-mode) 0.1f))
           (let [best-idx (Uint64.from-long 0l)
                 best-gen (Uint32.from-long 0l)
                 best-score 999.0
@@ -336,9 +290,9 @@
                         nslot (GoldSystem.nugget-slot-by-idx state best-idx)
                         is-m? (EditingSystem.match-entity? state best-idx best-gen)]
                     (do
-                      (EngineState.set-grab-idx! state best-idx)
-                      (EngineState.set-grab-gen! state best-gen)
-                      (EngineState.set-grab-mat! state
+                      (RigBelt.set-grab-idx! rig best-idx)
+                      (RigBelt.set-grab-gen! rig best-gen)
+                      (RigBelt.set-grab-mat! rig
                         (if (>= aslot 0)
                           (+ 1000.0f (Float.from-int (Float.round (CritterSystem.amoeba-mat-at state aslot))))
                           (if (>= nslot 0)
@@ -370,7 +324,7 @@
                              (and (<= wall-t 8.8)
                                   (and (>= hit-mat 0.5f)
                                        (and (< hit-mat 254.5f)
-                                            (>= (- fc @(EngineState.last-wrench-frame state)) 12)))))
+                                            (>= (- fc @(RigBelt.last-wrench-frame rig)) 12)))))
                     (let [hvec (Vector3.init (Double.from-float hx) (Double.from-float hy) (Double.from-float hz))
                           bx (- (Double.from-float hx) (* fx 0.65))
                           by (- (Double.from-float hy) (* fy 0.65))
@@ -386,15 +340,10 @@
                           boulder (if is-gold?
                                     (GoldSystem.spawn-nugget! state bpos bvel 0.38 25)
                                     (EditingSystem.spawn-boulder! state bpos bvel 0.52 hit-mat 45000l))
-                          spt (EditingSystem.succ-ptype hit-mat)]
+                          spt (Materials.succ-ptype hit-mat)]
                       (do
-                        (EngineState.set-last-wrench-frame! state fc)
-                        (EngineState.set-flask-px! state hx)
-                        (EngineState.set-flask-py! state hy)
-                        (EngineState.set-flask-pz! state hz)
-                        (EngineState.set-flask-pr! state 1.38f)
-                        (EngineState.set-flask-ax! state hit-mat)
-                        (EngineState.set-flask-ay! state -1.0f)
+                        (RigBelt.set-last-wrench-frame! rig fc)
+                        (EngineState.push-voxel-action! state hx hy hz 1.38f hit-mat -1.0f 0.0f)
                         (ignore (World.edit-sdf! world &hvec 1.38 hit-mat true))
                         (when is-gold?
                           (do
@@ -403,27 +352,29 @@
                         (ParticleSystem.emit-dust! ps hx hy hz 12)
                         (ParticleSystem.emit! ps hx hy hz (* fxf -8.0f) 2.5f (* fzf -8.0f) 0.35f 10 spt 0.12f 0.0f)
                         (when (= (Float.round hit-mat) 13)
-                          (ParticleSystem.emit! ps hx hy hz 0.0f 3.5f 0.0f 1.8f 24 208.0f 0.65f 0.0f))
-                        (EngineState.set-grab-idx! state (ECS.Entity.index &boulder))
-                        (EngineState.set-grab-gen! state (ECS.Entity.generation &boulder))
-                        (EngineState.set-grab-mat! state (if is-gold? 905.0f hit-mat))
+                          (do
+                            (EngineState.push-voxel-action! state hx hy hz 3.18f 520.0f 0.88f 1.0f)
+                            (ParticleSystem.emit! ps hx hy hz 0.0f 3.5f 0.0f 1.8f 24 208.0f 0.65f 0.0f)))
+                        (RigBelt.set-grab-idx! rig (ECS.Entity.index &boulder))
+                        (RigBelt.set-grab-gen! rig (ECS.Entity.generation &boulder))
+                        (RigBelt.set-grab-mat! rig (if is-gold? 905.0f hit-mat))
                         (set! ui-mode -2.0f)))))
 
                 ;; 2b. LMB Seismic Boot Kick (16-frame cadence): Cone Entity Punt + Puddle Splash + Pillar Shatter!
-                (when (and left-pressed (>= (- fc @(EngineState.last-kick-frame state)) 16))
+                (when (and left-pressed (>= (- fc @(RigBelt.last-kick-frame rig)) 16))
                   (let [boot-x (Double.to-float (- (+ rx (* fx 1.35)) (* upx 0.28)))
                         boot-y (Double.to-float (- (+ ry (* fy 1.35)) (* upy 0.28)))
                         boot-z (Double.to-float (- (+ rz (* fz 1.35)) (* upz 0.28)))
                         punted (EditingSystem.punt-cone-entities! state ro rd ps)]
                     (do
-                      (EngineState.set-last-kick-frame! state fc)
+                      (RigBelt.set-last-kick-frame! rig fc)
                       (ParticleSystem.emit-dust! ps boot-x boot-y boot-z 8)
                       (when (>= hit-splash 256.5f)
-                        (let [lpt (EditingSystem.jet-ptype hit-splash)]
+                        (let [lpt (Materials.jet-ptype hit-splash)]
                           (ParticleSystem.emit! ps boot-x boot-y boot-z (* fxf 19.5f) (+ (* fyf 16.0f) 5.8f) (* fzf 19.5f) 1.65f 24 lpt 0.45f 0.30f)))
                       (if (and (> hw 0.5f) (and (<= wall-t 4.55) (and (>= hit-mat 0.5f) (< hit-mat 254.5f))))
                         (let [hvec (Vector3.init (Double.from-float hx) (Double.from-float hy) (Double.from-float hz))
-                              shatter? (or (>= hit-stress 0.22f) (EditingSystem.brittle-solid? hit-mat))
+                              shatter? (or (>= hit-stress 0.22f) (Materials.brittle? hit-mat))
                               bx (- (Double.from-float hx) (* fx 0.55))
                               by (- (Double.from-float hy) (* fy 0.55))
                               bz (- (Double.from-float hz) (* fz 0.55))]
@@ -436,12 +387,7 @@
                                   v1 (Vector3.init (+ (* fx 11.5) (* rtx 5.2)) (+ (* fy 9.5) 5.5) (+ (* fz 11.5) (* rtz 5.2)))
                                   v2 (Vector3.init (- (* fx 11.5) (* rtx 5.2)) (+ (* fy 9.5) 3.8) (- (* fz 11.5) (* rtz 5.2)))]
                               (do
-                                (EngineState.set-flask-px! state hx)
-                                (EngineState.set-flask-py! state hy)
-                                (EngineState.set-flask-pz! state hz)
-                                (EngineState.set-flask-pr! state 2.20f)
-                                (EngineState.set-flask-ax! state hit-mat)
-                                (EngineState.set-flask-ay! state -1.0f)
+                                (EngineState.push-voxel-action! state hx hy hz 2.20f hit-mat -1.0f 0.0f)
                                 (ignore (World.edit-sdf! world &hvec 2.20 hit-mat true))
                                 (ignore (EditingSystem.spawn-boulder! state p0 v0 0.50 hit-mat 35000l))
                                 (ignore (EditingSystem.spawn-boulder! state p1 v1 0.44 hit-mat 35000l))
@@ -450,18 +396,15 @@
                                 (ParticleSystem.emit-debris! ps hx hy hz fxf 1.0f fzf 16)
                                 (ParticleSystem.emit-dust! ps hx hy hz 24)
                                 (when (= (Float.round hit-mat) 13)
-                                  (ParticleSystem.emit! ps hx hy hz 0.0f 4.2f 0.0f 2.2f 28 208.0f 0.70f 0.0f))
+                                  (do
+                                    (EngineState.push-voxel-action! state hx hy hz 4.00f 520.0f 0.88f 1.0f)
+                                    (ParticleSystem.emit! ps hx hy hz 0.0f 4.2f 0.0f 2.2f 28 208.0f 0.70f 0.0f)))
                                 (set! ui-mode 4.0f)))
                             ;; Solid Unstressed Wall -> Heavy Seismic Chip + 1 Loose Rock Chunk!
                             (let [p0 (Vector3.init bx by bz)
                                   v0 (Vector3.init (* fx -6.5) 4.2 (* fz -6.5))]
                               (do
-                                (EngineState.set-flask-px! state hx)
-                                (EngineState.set-flask-py! state hy)
-                                (EngineState.set-flask-pz! state hz)
-                                (EngineState.set-flask-pr! state 1.25f)
-                                (EngineState.set-flask-ax! state hit-mat)
-                                (EngineState.set-flask-ay! state -1.0f)
+                                (EngineState.push-voxel-action! state hx hy hz 1.25f hit-mat -1.0f 0.0f)
                                 (ignore (World.edit-sdf! world &hvec 1.25 hit-mat true))
                                 (ignore (EditingSystem.spawn-boulder! state p0 v0 0.38 hit-mat 30000l))
                                 (ParticleSystem.emit-sparks! ps hx hy hz (* fxf -1.0f) 0.8f (* fzf -1.0f) 14)
@@ -472,8 +415,8 @@
 
         ;; Keep brief kick flash on HUD for 9 frames (~150ms) so single clicks register crisply
         (when (and (< (Float.abs ui-mode) 0.1f)
-                   (and (> @(EngineState.last-kick-frame state) 0)
-                        (< (- fc @(EngineState.last-kick-frame state)) 9)))
+                   (and (> @(RigBelt.last-kick-frame rig) 0)
+                        (< (- fc @(RigBelt.last-kick-frame rig)) 9)))
           (set! ui-mode 1.0f))
 
         (Vector3.init ui-mode probe-code probe-stress))))
@@ -483,6 +426,7 @@
           player (EngineState.player state)
           ren (EngineState.renderer state)
           ps (EngineState.particles state)
+          rig (EngineState.rig state)
           cam (Player.camera player)
           ro (Camera.pos cam)
           rd (Camera.front cam)
@@ -502,29 +446,24 @@
           hit-opt (if (> hw 0.5f) (Maybe.Just (Vector3.init (Double.from-float hx) (Double.from-float hy) (Double.from-float hz))) (Maybe.Nothing))]
       (do
         ;; Sync active Rig Slot (0 = Solid Sack [1], 1 = Liquid Flask [2], 2 = Gas Bellows [3], 3 = Gauntlet & Boot [4])
-        (EngineState.set-rig-slot! state (get-js-rig-slot))
+        (RigBelt.set-slot! rig (get-js-rig-slot))
         (when (InputManager.action-pressed? input "mat-solid")
-          (do (EngineState.set-rig-slot! state 0) (set-js-rig-slot 0)))
+          (do (RigBelt.set-slot! rig 0) (set-js-rig-slot 0)))
         (when (InputManager.action-pressed? input "mat-liquid")
-          (do (EngineState.set-rig-slot! state 1) (set-js-rig-slot 1)))
+          (do (RigBelt.set-slot! rig 1) (set-js-rig-slot 1)))
         (when (InputManager.action-pressed? input "mat-gas")
-          (do (EngineState.set-rig-slot! state 2) (set-js-rig-slot 2)))
+          (do (RigBelt.set-slot! rig 2) (set-js-rig-slot 2)))
         (when (InputManager.action-pressed? input "rig-interact")
-          (do (EngineState.set-rig-slot! state 3) (set-js-rig-slot 3)))
+          (do (RigBelt.set-slot! rig 3) (set-js-rig-slot 3)))
         (when (InputManager.action-pressed? input "rig-wand")
-          (do (EngineState.set-rig-slot! state 4) (set-js-rig-slot 4)))
+          (do (RigBelt.set-slot! rig 4) (set-js-rig-slot 4)))
 
         ;; If player swapped away from [4] Gauntlet & Boot while holding something, drop it cleanly!
-        (when (and (/= @(EngineState.rig-slot state) 3)
-                   (> (Uint64.to-long @(EngineState.grab-idx state)) 0l))
+        (when (and (/= @(RigBelt.slot rig) 3)
+                   (> (Uint64.to-long @(RigBelt.grab-idx rig)) 0l))
           (do
-            (EngineState.set-grab-idx! state (Uint64.from-long 0l))
-            (EngineState.set-grab-mat! state 0.0f)))
-
-        ;; Reset per-frame GPU action defaults before deciding active verb
-        (EngineState.set-flask-pr! state 0.0f)
-        (EngineState.set-flask-ax! state 0.0f)
-        (EngineState.set-flask-ay! state 0.0f)
+            (RigBelt.set-grab-idx! rig (Uint64.from-long 0l))
+            (RigBelt.set-grab-mat! rig 0.0f)))
 
         ;; 1. Sandbox Modifier Brushes (Hold F = Solid Carve/Build, H = Liquid Brush, G = Gas Brush)
         (if brush-mod
@@ -579,6 +518,7 @@
                           (do
                             (ParticleSystem.emit-dust! ps phx phy phz 20)
                             (ParticleSystem.emit-debris! ps phx phy phz 0.0f 1.0f 0.0f 4)))
+                        (EngineState.mark-dirty-sphere! state phx phy phz (Double.to-float radius) 2)
                         (ignore (World.edit-sdf! world &hit-pos radius mat-id carve?))))))))
 
           ;; 2. Triple-Stack Alchemist's Rig (1: Solid Sack | 2: Liquid Flask | 3: Gas Bellows)
@@ -607,17 +547,17 @@
                 noz-z (+ (+ pz (* rz 0.36f)) (- (* fz 0.65f) (* uz 0.22f)))
                 fdt (Double.to-float dt)
                 fc @(EngineState.frame-count state)
-                slot @(EngineState.rig-slot state)
+                slot @(RigBelt.slot rig)
                 cur-mat (if (= slot 0)
-                          @(EngineState.sack-mat state)
+                          @(RigBelt.sack-mat rig)
                           (if (= slot 1)
-                            @(EngineState.flask-mat state)
-                            @(EngineState.bellows-mat state)))
+                            @(RigBelt.flask-mat rig)
+                            @(RigBelt.bellows-mat rig)))
                 cur-fill (if (= slot 0)
-                           @(EngineState.sack-fill state)
+                           @(RigBelt.sack-fill rig)
                            (if (= slot 1)
-                             @(EngineState.flask-fill state)
-                             @(EngineState.bellows-fill state)))
+                             @(RigBelt.flask-fill rig)
+                             @(RigBelt.bellows-fill rig)))
                 ui-mode 0.0f
                 probe-out succ-w
                 stress-out 0.0f]
@@ -639,52 +579,42 @@
                 ;; [1..3] MATTER VESSELS (Solid Sack | Liquid Flask | Gas Bellows); slot 4 ([5] Wand) is handled by WandSystem
                 (when (< slot 3)
                 ;; 2a. X Key: Dump / Purge ONLY the currently active vessel so the other two stay safe!
-                (if (and (and x-pressed (not @(EngineState.x-last state))) (and (> cur-mat 0.5f) (> cur-fill 0.002f)))
-                  (let [dump-pt (EditingSystem.jet-ptype cur-mat)]
+                (if (and (and x-pressed (not @(RigBelt.x-last rig))) (and (> cur-mat 0.5f) (> cur-fill 0.002f)))
+                  (let [dump-pt (Materials.jet-ptype cur-mat)]
                     (do
                       (if (= slot 0)
                         ;; Dump Solid Sack (pile of grains or cohesive mound safely 2.5m ahead)
                         (let [dx (+ noz-x (* fx 1.9f))
                               dy (+ noz-y (* fy 1.9f))
                               dz (+ noz-z (* fz 1.9f))
-                              gran? (EditingSystem.granular-solid? cur-mat)
+                              gran? (Materials.granular? cur-mat)
                               dr (if gran? 1.9f (+ 1.15f (* 0.55f cur-fill)))]
                           (do
-                            (EngineState.set-flask-px! state dx)
-                            (EngineState.set-flask-py! state dy)
-                            (EngineState.set-flask-pz! state dz)
-                            (EngineState.set-flask-pr! state dr)
-                            (EngineState.set-flask-ax! state (if gran? (- 0.0f cur-mat) cur-mat))
-                            (EngineState.set-flask-ay! state 1.0f)
+                            (EngineState.push-voxel-action! state dx dy dz dr (if gran? (- 0.0f cur-mat) cur-mat) 1.0f 0.0f)
                             (when (not gran?)
                               (let [dvec (Vector3.init (Double.from-float dx) (Double.from-float dy) (Double.from-float dz))]
                                 (ignore (World.edit-sdf! world &dvec (Double.from-float dr) cur-mat false))))
                             (ParticleSystem.emit! ps noz-x noz-y noz-z (* fx 9.5f) (- (* fy 9.5f) 1.5f) (* fz 9.5f) 0.85f 32 dump-pt 0.35f 0.25f)
-                            (EngineState.set-sack-mat! state 0.0f)
-                            (EngineState.set-sack-fill! state 0.0f)))
+                            (RigBelt.set-sack-mat! rig 0.0f)
+                            (RigBelt.set-sack-fill! rig 0.0f)))
                         (let [dx (+ noz-x (* fx 1.35f))
                               dy (+ noz-y (* fy 1.35f))
                               dz (+ noz-z (* fz 1.35f))]
                           (do
-                            (EngineState.set-flask-px! state dx)
-                            (EngineState.set-flask-py! state dy)
-                            (EngineState.set-flask-pz! state dz)
-                            (EngineState.set-flask-pr! state (if (= slot 1) 2.2f 3.1f))
-                            (EngineState.set-flask-ax! state cur-mat)
-                            (EngineState.set-flask-ay! state (* 0.85f cur-fill))
+                            (EngineState.push-voxel-action! state dx dy dz (if (= slot 1) 2.2f 3.1f) cur-mat (* 0.85f cur-fill) 0.0f)
                             (ParticleSystem.emit! ps noz-x noz-y noz-z (* fx 9.0f) (- (* fy 9.0f) 1.0f) (* fz 9.0f) 0.85f 36 dump-pt 0.34f 0.2f)
                             (if (= slot 1)
-                              (do (EngineState.set-flask-mat! state 0.0f) (EngineState.set-flask-fill! state 0.0f))
-                              (do (EngineState.set-bellows-mat! state 0.0f) (EngineState.set-bellows-fill! state 0.0f))))))
+                              (do (RigBelt.set-flask-mat! rig 0.0f) (RigBelt.set-flask-fill! rig 0.0f))
+                              (do (RigBelt.set-bellows-mat! rig 0.0f) (RigBelt.set-bellows-fill! rig 0.0f))))))
                       (set! ui-mode 2.0f)))
 
                   ;; 2b. Left-Click: Deploy Active Vessel ([1] Pack/Pour Solid | [2] Squirt Liquid | [3] Blast Gas Bellows)
                   (if (and left-pressed (and (> cur-mat 0.5f) (> cur-fill 0.002f)))
-                    (let [jpt (EditingSystem.jet-ptype cur-mat)]
+                    (let [jpt (Materials.jet-ptype cur-mat)]
                       (do
                         (if (= slot 0)
                           ;; [1] SOLID SACK: Heavy Lob -> Granular CA Cascade or Cohesive 3D Mound Pack!
-                          (let [gran? (EditingSystem.granular-solid? cur-mat)
+                          (let [gran? (Materials.granular? cur-mat)
                                 next-fill (Float.clamp 0.0f 1.0f (- cur-fill (* 0.20f fdt)))]
                             (do
                               (ParticleSystem.emit! ps noz-x noz-y noz-z (* fx 21.0f) (+ (* fy 21.0f) 2.2f) (* fz 21.0f) 1.25f 9 jpt 0.055f 0.28f)
@@ -693,14 +623,9 @@
                                   (EditingSystem.apply-firehose-knockback! state jet-x jet-y jet-z jet-w rd dt 1.1f)
                                   (if gran?
                                     (do
-                                      (EngineState.set-flask-px! state jet-x)
-                                      (EngineState.set-flask-py! state jet-y)
-                                      (EngineState.set-flask-pz! state jet-z)
-                                      (EngineState.set-flask-pr! state 1.35f)
-                                      (EngineState.set-flask-ax! state (- 0.0f cur-mat))
-                                      (EngineState.set-flask-ay! state 1.0f)
+                                      (EngineState.push-voxel-action! state jet-x jet-y jet-z 1.35f (- 0.0f cur-mat) 1.0f 0.0f)
                                       (ParticleSystem.emit! ps jet-x jet-y jet-z (* fx -2.2f) 3.4f (* fz -2.2f) 0.45f 5 jpt 0.52f 0.25f))
-                                    (when (>= (- fc @(EngineState.last-sack-bite-frame state)) 4)
+                                    (when (>= (- fc @(RigBelt.last-sack-bite-frame rig)) 4)
                                       (let [pvec (Vector3.init (Double.from-float jet-x) (Double.from-float jet-y) (Double.from-float jet-z))
                                             pdx (- jet-x px)
                                             pdy (- jet-y py)
@@ -708,19 +633,14 @@
                                             pdist (Float.sqrt (+ (+ (* pdx pdx) (* pdy pdy)) (* pdz pdz)))]
                                         (when (> pdist 1.95f)
                                           (do
-                                            (EngineState.set-last-sack-bite-frame! state fc)
-                                            (EngineState.set-flask-px! state jet-x)
-                                            (EngineState.set-flask-py! state jet-y)
-                                            (EngineState.set-flask-pz! state jet-z)
-                                            (EngineState.set-flask-pr! state 1.42f)
-                                            (EngineState.set-flask-ax! state cur-mat)
-                                            (EngineState.set-flask-ay! state 1.0f)
+                                            (RigBelt.set-last-sack-bite-frame! rig fc)
+                                            (EngineState.push-voxel-action! state jet-x jet-y jet-z 1.42f cur-mat 1.0f 0.0f)
                                             (ignore (World.edit-sdf! world &pvec 1.42 cur-mat false))
                                             (ParticleSystem.emit-dust! ps jet-x jet-y jet-z 6)
                                             (ParticleSystem.emit! ps jet-x jet-y jet-z (* fx -2.5f) 3.8f (* fz -2.5f) 0.48f 6 jpt 0.50f 0.28f))))))))
                               (if (<= next-fill 0.002f)
-                                (do (EngineState.set-sack-fill! state 0.0f) (EngineState.set-sack-mat! state 0.0f))
-                                (EngineState.set-sack-fill! state next-fill))))
+                                (do (RigBelt.set-sack-fill! rig 0.0f) (RigBelt.set-sack-mat! rig 0.0f))
+                                (RigBelt.set-sack-fill! rig next-fill))))
 
                           (if (= slot 1)
                             ;; [2] LIQUID FLASK: High-pressure parabolic squirt stream + knockback
@@ -729,17 +649,12 @@
                                 (ParticleSystem.emit! ps noz-x noz-y noz-z (* fx 26.0f) (+ (* fy 26.0f) 1.8f) (* fz 26.0f) 1.35f 14 jpt 0.042f 0.25f)
                                 (when (> jet-w 0.5f)
                                   (do
-                                    (EngineState.set-flask-px! state jet-x)
-                                    (EngineState.set-flask-py! state jet-y)
-                                    (EngineState.set-flask-pz! state jet-z)
-                                    (EngineState.set-flask-pr! state 2.15f)
-                                    (EngineState.set-flask-ax! state cur-mat)
-                                    (EngineState.set-flask-ay! state 0.55f)
+                                    (EngineState.push-voxel-action! state jet-x jet-y jet-z 2.15f cur-mat 0.55f 0.0f)
                                     (ParticleSystem.emit! ps jet-x jet-y jet-z (* fx -3.0f) 4.2f (* fz -3.0f) 0.5f 7 jpt 0.48f 0.25f)
                                     (EditingSystem.apply-firehose-knockback! state jet-x jet-y jet-z jet-w rd dt 1.0f)))
                                 (if (<= next-fill 0.002f)
-                                  (do (EngineState.set-flask-fill! state 0.0f) (EngineState.set-flask-mat! state 0.0f))
-                                  (EngineState.set-flask-fill! state next-fill))))
+                                  (do (RigBelt.set-flask-fill! rig 0.0f) (RigBelt.set-flask-mat! rig 0.0f))
+                                  (RigBelt.set-flask-fill! rig next-fill))))
 
                             ;; [3] GAS BELLOWS: Wide billowing gust / roaring flamethrower cone + heavy airblast!
                             (let [next-fill (Float.clamp 0.0f 1.0f (- cur-fill (* 0.22f fdt)))]
@@ -747,17 +662,12 @@
                                 (ParticleSystem.emit! ps noz-x noz-y noz-z (* fx 19.0f) (+ (* fy 19.0f) 0.6f) (* fz 19.0f) 1.15f 16 jpt 0.20f 0.12f)
                                 (when (> jet-w 0.5f)
                                   (do
-                                    (EngineState.set-flask-px! state jet-x)
-                                    (EngineState.set-flask-py! state jet-y)
-                                    (EngineState.set-flask-pz! state jet-z)
-                                    (EngineState.set-flask-pr! state 3.25f)
-                                    (EngineState.set-flask-ax! state cur-mat)
-                                    (EngineState.set-flask-ay! state 0.68f)
+                                    (EngineState.push-voxel-action! state jet-x jet-y jet-z 3.25f cur-mat 0.68f 0.0f)
                                     (ParticleSystem.emit! ps jet-x jet-y jet-z (* fx 2.5f) 2.6f (* fz 2.5f) 0.55f 6 jpt 0.55f 0.12f)
                                     (EditingSystem.apply-firehose-knockback! state jet-x jet-y jet-z jet-w rd dt 1.45f)))
                                 (if (<= next-fill 0.002f)
-                                  (do (EngineState.set-bellows-fill! state 0.0f) (EngineState.set-bellows-mat! state 0.0f))
-                                  (EngineState.set-bellows-fill! state next-fill))))))
+                                  (do (RigBelt.set-bellows-fill! rig 0.0f) (RigBelt.set-bellows-mat! rig 0.0f))
+                                  (RigBelt.set-bellows-fill! rig next-fill))))))
                         (set! ui-mode 1.0f)))
 
                     ;; 2c. Right-Click: Gather into Active Vessel ([1] Dredge/Mine Wall | [2] Siphon Pool | [3] Inhale Gas/Fire)
@@ -768,7 +678,7 @@
                                           (and (< cur-fill 0.999f)
                                                (or (< cur-mat 0.5f) (< (Float.abs (- cur-mat succ-w)) 0.5f))))))
                         (let [lock-mat (if mining-gold? 5.0f (if (< cur-mat 0.5f) succ-w cur-mat))
-                              spt (EditingSystem.succ-ptype lock-mat)
+                              spt (Materials.succ-ptype lock-mat)
                               dx (- noz-x succ-x)
                               dy (- noz-y succ-y)
                               dz (- noz-z succ-z)
@@ -785,19 +695,14 @@
                                 (do
                                   (when (not mining-gold?)
                                     (do
-                                      (EngineState.set-sack-mat! state lock-mat)
-                                      (EngineState.set-sack-fill! state next-fill)))
+                                      (RigBelt.set-sack-mat! rig lock-mat)
+                                      (RigBelt.set-sack-fill! rig next-fill)))
                                   (ParticleSystem.emit! ps succ-x succ-y succ-z svx svy svz travel 10 spt 0.065f 0.0f)
-                                  (when (>= (- fc @(EngineState.last-sack-bite-frame state)) 4)
+                                  (when (>= (- fc @(RigBelt.last-sack-bite-frame rig)) 4)
                                     (let [svec (Vector3.init (Double.from-float succ-x) (Double.from-float succ-y) (Double.from-float succ-z))]
                                       (do
-                                        (EngineState.set-last-sack-bite-frame! state fc)
-                                        (EngineState.set-flask-px! state succ-x)
-                                        (EngineState.set-flask-py! state succ-y)
-                                        (EngineState.set-flask-pz! state succ-z)
-                                        (EngineState.set-flask-pr! state 1.75f)
-                                        (EngineState.set-flask-ax! state lock-mat)
-                                        (EngineState.set-flask-ay! state -1.0f)
+                                        (RigBelt.set-last-sack-bite-frame! rig fc)
+                                        (EngineState.push-voxel-action! state succ-x succ-y succ-z 1.75f lock-mat -1.0f 0.0f)
                                         (ParticleSystem.emit-dust! ps succ-x succ-y succ-z 5)
                                         (ignore (World.edit-sdf! world &svec 1.75 lock-mat true)))))))
 
@@ -805,41 +710,31 @@
                               ;; [2] LIQUID FLASK: Siphon pool
                               (let [next-fill (Float.clamp 0.0f 1.0f (+ cur-fill (* 0.46f fdt)))]
                                 (do
-                                  (EngineState.set-flask-mat! state lock-mat)
-                                  (EngineState.set-flask-fill! state next-fill)
-                                  (EngineState.set-flask-px! state succ-x)
-                                  (EngineState.set-flask-py! state succ-y)
-                                  (EngineState.set-flask-pz! state succ-z)
-                                  (EngineState.set-flask-pr! state 2.85f)
-                                  (EngineState.set-flask-ax! state lock-mat)
-                                  (EngineState.set-flask-ay! state -0.45f)
+                                  (RigBelt.set-flask-mat! rig lock-mat)
+                                  (RigBelt.set-flask-fill! rig next-fill)
+                                  (EngineState.push-voxel-action! state succ-x succ-y succ-z 2.85f lock-mat -0.45f 0.0f)
                                   (ParticleSystem.emit! ps succ-x succ-y succ-z svx svy svz travel 12 spt 0.055f 0.0f)))
 
                               ;; [3] GAS BELLOWS: Wide-cone inhale (snags rising Methane & live Match Fire!)
                               (let [next-fill (Float.clamp 0.0f 1.0f (+ cur-fill (* 0.54f fdt)))]
                                 (do
-                                  (EngineState.set-bellows-mat! state lock-mat)
-                                  (EngineState.set-bellows-fill! state next-fill)
-                                  (EngineState.set-flask-px! state succ-x)
-                                  (EngineState.set-flask-py! state succ-y)
-                                  (EngineState.set-flask-pz! state succ-z)
-                                  (EngineState.set-flask-pr! state 3.60f)
-                                  (EngineState.set-flask-ax! state lock-mat)
-                                  (EngineState.set-flask-ay! state -0.55f)
+                                  (RigBelt.set-bellows-mat! rig lock-mat)
+                                  (RigBelt.set-bellows-fill! rig next-fill)
+                                  (EngineState.push-voxel-action! state succ-x succ-y succ-z 3.60f lock-mat -0.55f 0.0f)
                                   (ParticleSystem.emit! ps succ-x succ-y succ-z svx svy svz travel 14 spt 0.085f 0.0f)))))
                           (set! ui-mode -1.0f)))))))))
 
-              (js-sync-rig @(EngineState.rig-slot state)
-                           @(EngineState.sack-mat state)
-                           @(EngineState.sack-fill state)
-                           @(EngineState.flask-mat state)
-                           @(EngineState.flask-fill state)
-                           @(EngineState.bellows-mat state)
-                           @(EngineState.bellows-fill state)
-                           @(EngineState.grab-mat state)
+              (js-sync-rig @(RigBelt.slot rig)
+                           @(RigBelt.sack-mat rig)
+                           @(RigBelt.sack-fill rig)
+                           @(RigBelt.flask-mat rig)
+                           @(RigBelt.flask-fill rig)
+                           @(RigBelt.bellows-mat rig)
+                           @(RigBelt.bellows-fill rig)
+                           @(RigBelt.grab-mat rig)
                            ui-mode
                            probe-out
                            stress-out))))
 
-        (EngineState.set-x-last! state x-pressed))))
+        (RigBelt.set-x-last! rig x-pressed))))
 )

@@ -17,7 +17,7 @@
    float js_solid_mat = 2.0f;
    float js_liq_mat = 1.0f;
    float js_gas_mat = 1.0f;
-   float js_flying = 1.0f;
+   float js_flying = 0.0f;
    float js_flashlight = 1.0f;
    int js_rig_slot = 0;
 

@@ -184,13 +184,14 @@ canvas.emscripten { border: 0px none; background-color: black; }
             <input type="checkbox" id="fly-chk" onchange="toggleFlying(this.checked)"> Flying Mode
           </label>
           <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-            <input type="checkbox" id="light-chk" onchange="toggleFlashlight(this.checked)"> Flashlight
+            <input type="checkbox" id="light-chk" checked onchange="toggleFlashlight(this.checked)"> Flashlight
           </label>
         </div>
         
         <!-- Controls Helper Cheat Sheet -->
         <div style="font-size: 10px; color: #888; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 12px; padding-top: 8px; line-height: 1.45;">
           <strong style="color:#bbb;">5-Slot Belt, Wands, Matchbox &amp; Sandbox:</strong><br>
+          • <strong>WASD + Space</strong>: Walk &amp; Jump • <strong>C</strong>: Fly/Noclip<br>
           • <strong>1–5 or Wheel</strong>: Sack / Flask / Bellows / Boot / <strong>Wand</strong><br>
           • <strong>[5] Wand</strong>: <strong>LMB</strong> Cast Spell • <strong>RMB</strong> Cycle 6 Wands<br>
           • <strong>[1–3]</strong>: <strong>RMB</strong> Gather • <strong>LMB</strong> Deploy • <strong>X</strong> Dump<br>
@@ -450,7 +451,7 @@ canvas.emscripten { border: 0px none; background-color: black; }
       window.player_solid_mat = 2.0;
       window.player_liq_mat = 1.0;
       window.player_gas_mat = 1.0;
-      window.player_flying = true;
+      window.player_flying = false;
       window.player_flashlight = true;
 
             const SOLIDS = [
@@ -1138,6 +1139,6 @@ canvas.emscripten { border: 0px none; background-color: black; }
         canvasElement.focus();
       });
     </script>
-    <script async type="text/javascript" src="index.js?v=1788920000"></script>
+    <script async type="text/javascript" src="index.js?v=1788920001"></script>
   </body>
 </html>

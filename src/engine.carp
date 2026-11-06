@@ -34,6 +34,196 @@
       (Array.replicate 16 &0.0f)))
 )
 
+(deftype VoxelQueue [
+  count Int
+  pos (Array Float)
+  act (Array Float)
+  dirty-count Int
+  dirty-coords (Array Int)
+  sync-qx Int
+  sync-qy Int
+  sync-qz Int
+])
+
+(defmodule VoxelQueue
+  (defn make []
+    (VoxelQueue.init 0
+      (Array.replicate 48 &0.0f)
+      (Array.replicate 48 &0.0f)
+      0
+      (Array.replicate 64 &0)
+      0 0 0))
+
+  (defn clear-actions! [vq]
+    (VoxelQueue.set-count! vq 0))
+
+  (defn enqueue-dirty-chunk! [vq qx qy qz ready-frame]
+    (let [dc @(VoxelQueue.dirty-count vq)
+          coords (VoxelQueue.dirty-coords vq)
+          dup? false]
+      (do
+        (for [i 0 dc]
+          (let [b (* i 4)]
+            (when (and (= @(Array.unsafe-nth coords b) qx)
+                       (and (= @(Array.unsafe-nth coords (+ b 1)) qy)
+                            (= @(Array.unsafe-nth coords (+ b 2)) qz)))
+              (set! dup? true))))
+        (when (and (not dup?) (< dc 16))
+          (let [b (* dc 4)]
+            (do
+              (Array.aset! coords b qx)
+              (Array.aset! coords (+ b 1) qy)
+              (Array.aset! coords (+ b 2) qz)
+              (Array.aset! coords (+ b 3) ready-frame)
+              (VoxelQueue.set-dirty-count! vq (+ dc 1))))))))
+
+  (defn pop-ready-dirty! [vq fc]
+    (let [dc @(VoxelQueue.dirty-count vq)
+          coords (VoxelQueue.dirty-coords vq)
+          found-idx -1]
+      (do
+        (for [i 0 dc]
+          (when (and (< found-idx 0)
+                     (>= fc @(Array.unsafe-nth coords (+ (* i 4) 3))))
+            (set! found-idx i)))
+        (if (< found-idx 0)
+          false
+          (let [fb (* found-idx 4)
+                qx @(Array.unsafe-nth coords fb)
+                qy @(Array.unsafe-nth coords (+ fb 1))
+                qz @(Array.unsafe-nth coords (+ fb 2))
+                last-idx (- dc 1)
+                lb (* last-idx 4)]
+            (do
+              (VoxelQueue.set-sync-qx! vq qx)
+              (VoxelQueue.set-sync-qy! vq qy)
+              (VoxelQueue.set-sync-qz! vq qz)
+              (when (< found-idx last-idx)
+                (do
+                  (Array.aset! coords fb @(Array.unsafe-nth coords lb))
+                  (Array.aset! coords (+ fb 1) @(Array.unsafe-nth coords (+ lb 1)))
+                  (Array.aset! coords (+ fb 2) @(Array.unsafe-nth coords (+ lb 2)))
+                  (Array.aset! coords (+ fb 3) @(Array.unsafe-nth coords (+ lb 3)))))
+              (VoxelQueue.set-dirty-count! vq last-idx)
+              true))))))
+)
+
+(deftype RigBelt [
+  slot Int
+  sack-mat Float
+  sack-fill Float
+  flask-mat Float
+  flask-fill Float
+  bellows-mat Float
+  bellows-fill Float
+  x-last Bool
+  last-sack-bite-frame Int
+  grab-idx Uint64
+  grab-gen Uint32
+  grab-mat Float
+  last-kick-frame Int
+  last-wrench-frame Int
+])
+
+(defmodule RigBelt
+  (defn make []
+    (RigBelt.init 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f false 0
+      (Uint64.from-long 0l)
+      (Uint32.from-long 0l)
+      0.0f 0 0))
+)
+
+(deftype MatchBook [
+  idx (Array Uint64)
+  gen (Array Uint32)
+  life (Array Float)
+  pos (Array Float)
+  slot Int
+  lit-count Int
+  flash Float
+  last-frame Int
+  last-spawn-frame Int
+])
+
+(defmodule MatchBook
+  (defn make []
+    (MatchBook.init
+      (Array.replicate 8 &(Uint64.from-long 0l))
+      (Array.replicate 8 &(Uint32.from-long 0l))
+      (Array.replicate 8 &0.0f)
+      (Array.replicate 24 &0.0f)
+      0 0 0.0f 0 0))
+)
+
+(deftype CritterBank [
+  alive (Array Bool)
+  idx (Array Uint64)
+  gen (Array Uint32)
+  mat (Array Float)
+  fill (Array Float)
+  rad (Array Float)
+  state (Array Int)
+  timer (Array Float)
+  phase (Array Float)
+  pod (Array Float)
+  norm (Array Float)
+  goal (Array Float)
+  count Int
+  last-spawn-frame Int
+  last-bite-frame Int
+  last-hurt-frame Int
+])
+
+(defmodule CritterBank
+  (defn make []
+    (CritterBank.init
+      (Array.replicate 16 &false)
+      (Array.replicate 16 &(Uint64.from-long 0l))
+      (Array.replicate 16 &(Uint32.from-long 0l))
+      (Array.replicate 16 &0.0f)
+      (Array.replicate 16 &0.0f)
+      (Array.replicate 16 &0.5f)
+      (Array.replicate 16 &0)
+      (Array.replicate 16 &0.0f)
+      (Array.replicate 16 &0.0f)
+      (Array.replicate 48 &0.0f)
+      (Array.replicate 48 &0.0f)
+      (Array.replicate 48 &0.0f)
+      0 0 0 0))
+)
+
+(deftype WandBelt [
+  idx Int
+  cooldown Float
+  flash Float
+  rmb-last Bool
+  mana (Array Float)
+  bolt-alive (Array Bool)
+  bolt-idx (Array Uint64)
+  bolt-gen (Array Uint32)
+  bolt-pos (Array Float)
+  bolt-vel (Array Float)
+  bolt-life (Array Float)
+  bolt-bounces (Array Int)
+  bolt-wand (Array Int)
+  bolt-slot Int
+])
+
+(defmodule WandBelt
+  (defn make []
+    (WandBelt.init 0 0.0f 0.0f false
+      (Array.replicate 6 &100.0f)
+      (Array.replicate 24 &false)
+      (Array.replicate 24 &(Uint64.from-long 0l))
+      (Array.replicate 24 &(Uint32.from-long 0l))
+      (Array.replicate 72 &0.0f)
+      (Array.replicate 72 &0.0f)
+      (Array.replicate 24 &0.0f)
+      (Array.replicate 24 &0)
+      (Array.replicate 24 &0)
+      0))
+)
+
 (deftype EngineState [
   eng Engine
   renderer Renderer
@@ -54,80 +244,16 @@
   player-ent-id Int
   grid (SpatialGrid Int)
   coord (Coordinator AppEvent)
-  sync-qx Int
-  sync-qy Int
-  sync-qz Int
+  voxels VoxelQueue
   input InputManager
   scratch-arena Arena.T
   clock Clock
   accumulator Double
   particles ParticleSystem
-  rig-slot Int
-  sack-mat Float
-  sack-fill Float
-  flask-mat Float
-  flask-fill Float
-  bellows-mat Float
-  bellows-fill Float
-  flask-px Float
-  flask-py Float
-  flask-pz Float
-  flask-pr Float
-  flask-ax Float
-  flask-ay Float
-  last-spawn-frame Int
-  last-sack-bite-frame Int
-  x-last Bool
-  match-idx (Array Uint64)
-  match-gen (Array Uint32)
-  match-life (Array Float)
-  match-pos (Array Float)
-  match-slot Int
-  match-lit-count Int
-  match-flash Float
-  last-match-frame Int
-  grab-idx Uint64
-  grab-gen Uint32
-  grab-mat Float
-  last-kick-frame Int
-  last-wrench-frame Int
-  amoeba-alive (Array Bool)
-  amoeba-idx (Array Uint64)
-  amoeba-gen (Array Uint32)
-  amoeba-mat (Array Float)
-  amoeba-fill (Array Float)
-  amoeba-rad (Array Float)
-  amoeba-state (Array Int)
-  amoeba-timer (Array Float)
-  amoeba-phase (Array Float)
-  amoeba-pod (Array Float)
-  amoeba-norm (Array Float)
-  amoeba-goal (Array Float)
-  critter-px Float
-  critter-py Float
-  critter-pz Float
-  critter-pr Float
-  critter-ax Float
-  critter-ay Float
-  critter-az Float
-  amoeba-count Int
-  last-amoeba-spawn-frame Int
-  last-amoeba-bite-frame Int
-  last-amoeba-hurt-frame Int
-  wand-idx Int
-  wand-cooldown Float
-  wand-flash Float
-  wand-rmb-last Bool
-  wand-mana (Array Float)
-  bolt-alive (Array Bool)
-  bolt-idx (Array Uint64)
-  bolt-gen (Array Uint32)
-  bolt-pos (Array Float)
-  bolt-vel (Array Float)
-  bolt-life (Array Float)
-  bolt-bounces (Array Int)
-  bolt-wand (Array Int)
-  bolt-slot Int
+  rig RigBelt
+  matches MatchBook
+  critters CritterBank
+  wands WandBelt
   gold GoldBank
 ])
 
@@ -141,11 +267,14 @@
                                (Result.Error (str* "Renderer failed: " e)))
           (Result.Success ren)
             (let [world (World.create)
-                  player (Player.create (Vector3.init 32.0 45.0 32.0))
-                  uniforms (Array.allocate 416)
+                  spawn-foot-y (Physics.find-safe-spawn-y &world 32.0 32.0)
+                  spawn-foot-pos (Vector3.init 32.0 spawn-foot-y 32.0)
+                  spawn-eye-pos (Vector3.init 32.0 (+ spawn-foot-y 1.2) 32.0)
+                  player (Player.create spawn-eye-pos)
+                  uniforms (Array.replicate 416 &0.0f)
                   diag (Diagnostics.new @"diagnostics.log")
                   ecs-world (GameWorld.new)
-                  grid (SpatialGrid.new-with-origin 8.0 24 36 24 (Vector3.init -64.0 -224.0 -64.0))
+                  grid (SpatialGrid.new-with-origin 8.0 24 36 24 (Vector3.init -64.0 (- spawn-foot-y 144.0) -64.0))
                   scratch-arena (Arena.init 16777216l)]
               (do
                 ; Upload all chunks to world texture and sync 3D textures so Frame 1 sim sees seeded fluids
@@ -158,22 +287,37 @@
                 (Camera.update-basis! (Player.camera &player))
                 
                 (let [player-ent (GameWorld.create-entity! &ecs-world)
-                      p-pos (Camera.pos (Player.camera &player))
-                      rb (RigidBody.new @p-pos (Quaternion.identity) 1.0 0.0 0.8 0.9 0.9 0.9)
-                      vol (Volume.Ball (Sphere.init @p-pos 0.5))]
+                      rb (RigidBody.new @&spawn-foot-pos (Quaternion.identity) 1.0 0.0 0.0 0.99 1.0 1.0)
+                      vol (Volume.Ball (Sphere.init spawn-foot-pos 0.5))]
                   (do
+                    ;; Lock capsule rotation (inv-inertia = 0) so 2-sphere contacts stay strictly upright!
+                    (Body.set-inv-inertia! (RigidBody.body &rb) 0.0)
                     (ECS.add-component! &ecs-world &player-ent (CompBody.init rb))
                     (ECS.add-component! &ecs-world &player-ent (CompVolume.init vol))
                     (ECS.add-component! &ecs-world &player-ent (CompPlayer.init))
                     (ECS.add-component! &ecs-world &player-ent (CompGrounded.init false))
                     (let [backend (GLFWBackend.init)
-                            ctx (glfw-window->voidptr @(M-GLFWWindow.p (Engine.win &platform-eng)))
-                            input (InputManager.create ctx backend)
-                            ps-ctx @(M-WGPUContext.p (Engine.ctx &platform-eng))
-                            surf-format (WGPURender.surface-format @(M-WGPUSurface.p (Engine.surf &platform-eng)))
-                            solid-tex @(M-RenderTexture.p (Renderer.voxel-texture &ren))
-                            ps (ParticleSystem.create ps-ctx &surf-format solid-tex)]
-                        (Result.Success (EngineState.init platform-eng ren world player uniforms (Array.replicate 1200000 &0.0f) diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid (Coordinator.new) 0 0 0 input scratch-arena (Clock.new) 0.0 ps 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0 0 false (Array.replicate 8 &(Uint64.from-long 0l)) (Array.replicate 8 &(Uint32.from-long 0l)) (Array.replicate 8 &0.0f) (Array.replicate 24 &0.0f) 0 0 0.0f 0 (Uint64.from-long 0l) (Uint32.from-long 0l) 0.0f 0 0 (Array.replicate 16 &false) (Array.replicate 16 &(Uint64.from-long 0l)) (Array.replicate 16 &(Uint32.from-long 0l)) (Array.replicate 16 &0.0f) (Array.replicate 16 &0.0f) (Array.replicate 16 &0.5f) (Array.replicate 16 &0) (Array.replicate 16 &0.0f) (Array.replicate 16 &0.0f) (Array.replicate 48 &0.0f) (Array.replicate 48 &0.0f) (Array.replicate 48 &0.0f) 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0 0 0 0 0 0.0f 0.0f false (Array.replicate 6 &100.0f) (Array.replicate 24 &false) (Array.replicate 24 &(Uint64.from-long 0l)) (Array.replicate 24 &(Uint32.from-long 0l)) (Array.replicate 72 &0.0f) (Array.replicate 72 &0.0f) (Array.replicate 24 &0.0f) (Array.replicate 24 &0) (Array.replicate 24 &0) 0 (GoldBank.make)))))))))))
+                          ctx (glfw-window->voidptr @(M-GLFWWindow.p (Engine.win &platform-eng)))
+                          input (InputManager.create ctx backend)
+                          ps-ctx @(M-WGPUContext.p (Engine.ctx &platform-eng))
+                          surf-format (WGPURender.surface-format @(M-WGPUSurface.p (Engine.surf &platform-eng)))
+                          solid-tex @(M-RenderTexture.p (Renderer.voxel-texture &ren))
+                          ps (ParticleSystem.create ps-ctx &surf-format solid-tex)]
+                      (Result.Success (EngineState.init
+                        platform-eng ren world player uniforms
+                        (Array.replicate 24576 &0.0f)
+                        diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f
+                        ecs-world
+                        (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent)))
+                        grid
+                        (Coordinator.new)
+                        (VoxelQueue.make)
+                        input scratch-arena (Clock.new) 0.0 ps
+                        (RigBelt.make)
+                        (MatchBook.make)
+                        (CritterBank.make)
+                        (WandBelt.make)
+                        (GoldBank.make)))))))))))
 
   (defn draw-bounds-wireframe! [ren min-x min-y min-z max-x max-y max-z color]
     (let [w0 (Vector3.init min-x min-y min-z)
@@ -258,10 +402,6 @@
         (InputManager.add-binding! input "brush-dec" (InputSource.Key GLFW.Keycode.LEFT_BRACKET) 1.0)
         (InputManager.add-binding! input "brush-inc" (InputSource.Key GLFW.Keycode.RIGHT_BRACKET) 1.0)
         
-        (InputManager.add-binding! input "cycle-solid" (InputSource.Key GLFW.Keycode.V) 1.0)
-        (InputManager.add-binding! input "cycle-liquid" (InputSource.Key GLFW.Keycode.N) 1.0)
-        (InputManager.add-binding! input "cycle-gas" (InputSource.Key GLFW.Keycode.B) 1.0)
-        
         (InputManager.add-binding! input "mat-solid" (InputSource.Key GLFW.Keycode.NUM_1) 1.0)
         (InputManager.add-binding! input "mat-liquid" (InputSource.Key GLFW.Keycode.NUM_2) 1.0)
         (InputManager.add-binding! input "mat-gas" (InputSource.Key GLFW.Keycode.NUM_3) 1.0)
@@ -292,6 +432,81 @@
         (Diagnostics.start-zone! diag "Input & Camera")
         (InputManager.update! (EngineState.input state))
         (Diagnostics.end-zone! diag "Input & Camera"))))
+
+  (defn mark-dirty-sphere! [state x y z rad delay-frames]
+    (let [vq (EngineState.voxels state)
+          ready (+ @(EngineState.frame-count state) delay-frames)
+          pad (+ (Double.from-float rad) 2.0)
+          dx (Double.from-float x)
+          dy (Double.from-float y)
+          dz (Double.from-float z)
+          cx0 (Double.to-int (Double.floor (/ (- dx pad) 32.0)))
+          cx1 (Double.to-int (Double.floor (/ (+ dx pad) 32.0)))
+          cy0 (Double.to-int (Double.floor (/ (- dy pad) 32.0)))
+          cy1 (Double.to-int (Double.floor (/ (+ dy pad) 32.0)))
+          cz0 (Double.to-int (Double.floor (/ (- dz pad) 32.0)))
+          cz1 (Double.to-int (Double.floor (/ (+ dz pad) 32.0)))]
+      (for [qz cz0 (+ cz1 1)]
+        (for [qy cy0 (+ cy1 1)]
+          (for [qx cx0 (+ cx1 1)]
+            (VoxelQueue.enqueue-dirty-chunk! vq qx qy qz ready))))))
+
+  (defn push-voxel-action! [state x y z rad mat-id amount flags]
+    (when (and (> rad 0.05f)
+               (and (> (Float.abs mat-id) 0.5f)
+                    (> (Float.abs amount) 0.001f)))
+      (let [vq (EngineState.voxels state)
+            cnt @(VoxelQueue.count vq)
+            vpos (VoxelQueue.pos vq)
+            vact (VoxelQueue.act vq)
+            merged? false]
+        (do
+          (for [i 0 cnt]
+            (when (not merged?)
+              (let [b (* i 4)
+                    ex-x @(Array.unsafe-nth vpos b)
+                    ex-y @(Array.unsafe-nth vpos (+ b 1))
+                    ex-z @(Array.unsafe-nth vpos (+ b 2))
+                    ex-mat @(Array.unsafe-nth vact b)
+                    ex-amt @(Array.unsafe-nth vact (+ b 1))
+                    ex-flg @(Array.unsafe-nth vact (+ b 2))
+                    ddx (- ex-x x)
+                    ddy (- ex-y y)
+                    ddz (- ex-z z)
+                    d2 (+ (+ (* ddx ddx) (* ddy ddy)) (* ddz ddz))]
+                (when (and (< d2 0.36f)
+                           (and (< (Float.abs (- ex-mat mat-id)) 0.1f)
+                                (and (> (* ex-amt amount) 0.0f)
+                                     (< (Float.abs (- ex-flg flags)) 0.1f))))
+                  (do
+                    (Array.aset! vpos b x)
+                    (Array.aset! vpos (+ b 1) y)
+                    (Array.aset! vpos (+ b 2) z)
+                    (let [ex-r @(Array.unsafe-nth vpos (+ b 3))]
+                      (Array.aset! vpos (+ b 3) (if (> rad ex-r) rad ex-r)))
+                    (set! merged? true))))))
+          (when (and (not merged?) (< cnt 12))
+            (let [b (* cnt 4)]
+              (do
+                (Array.aset! vpos b x)
+                (Array.aset! vpos (+ b 1) y)
+                (Array.aset! vpos (+ b 2) z)
+                (Array.aset! vpos (+ b 3) rad)
+                (Array.aset! vact b mat-id)
+                (Array.aset! vact (+ b 1) amount)
+                (Array.aset! vact (+ b 2) flags)
+                (Array.aset! vact (+ b 3) 0.0f)
+                (VoxelQueue.set-count! vq (+ cnt 1)))))
+          (let [abs-m (Float.abs mat-id)
+                rm (Float.round abs-m)]
+            (if (< abs-m 255.0f)
+              (EngineState.mark-dirty-sphere! state x y z rad (if (< mat-id -0.5f) 6 2))
+              (when (or (= rm 257)
+                        (or (= rm 258)
+                            (or (= rm 259)
+                                (or (= rm 515)
+                                    (or (= rm 517) (= rm 519))))))
+                (EngineState.mark-dirty-sphere! state x y z rad 6))))))))
 
   )
 
@@ -339,7 +554,17 @@
           (CritterSystem.update! state input dt))
 
         (Diagnostics.with-zone diag "Physics Solver"
-          (Physics.step-physics-entities! world (EngineState.ecs-world state) (EngineState.grid state) dt))
+          (do
+            (Physics.step-physics-entities! world (EngineState.ecs-world state) (EngineState.grid state) (Camera.pos cam) dt)
+            ;; Sync Camera.pos immediately post-solver so streaming, raycasts & rendering have zero 1-frame lag!
+            (when (not @(Player.flying player))
+              (let [p-ent (ECS.Entity.init (Handle.init (Uint64.from-long (the Long (Long.from-int @(EngineState.player-ent-id state)))) (Uint32.from-long 1l)))
+                    cb-opt (get-component (EngineState.ecs-world state) &p-ent)]
+                (match cb-opt
+                  (Maybe.Just cb)
+                    (Pointer.set (ref-to-ptr (Camera.pos cam))
+                                 (Vector3.add (RigidBody.position (CompBody.rb &cb)) &(Vector3.init 0.0 1.2 0.0)))
+                  (Maybe.Nothing) ())))))
         
         (Diagnostics.with-zone diag "Chunk Streaming"
           (EngineState.stream-chunks! world platform-eng ren (Camera.pos cam)))
@@ -354,17 +579,17 @@
           (GoldSystem.update! state dt))
           
         (Diagnostics.with-zone diag "Chunk Sync"
-          (do
-            (if (gpu-readback-is-chunk-ready)
-              (let [qx @(EngineState.sync-qx state)
-                    qy @(EngineState.sync-qy state)
-                    qz @(EngineState.sync-qz state)
-                    tx (EngineState.positive-mod qx 5)
-                    ty (EngineState.positive-mod qy 5)
-                    tz (EngineState.positive-mod qz 5)
-                    slot-idx (+ tx (+ (* ty 5) (* tz 25)))
-                    chunks (World.chunks world)]
-                (do
+          (let [vq (EngineState.voxels state)]
+            (do
+              (if (gpu-readback-is-chunk-ready)
+                (let [qx @(VoxelQueue.sync-qx vq)
+                      qy @(VoxelQueue.sync-qy vq)
+                      qz @(VoxelQueue.sync-qz vq)
+                      tx (EngineState.positive-mod qx 5)
+                      ty (EngineState.positive-mod qy 5)
+                      tz (EngineState.positive-mod qz 5)
+                      slot-idx (+ tx (+ (* ty 5) (* tz 25)))
+                      chunks (World.chunks world)]
                   (if (< slot-idx (Array.length chunks))
                     (let [chunk (Array.unsafe-nth chunks slot-idx)]
                       (if (and (= qx @(Chunk.coord-x chunk))
@@ -376,26 +601,28 @@
                         (let [dummy (the (Ptr Float) (Arena.calloc-array (EngineState.scratch-arena state) 131072l))]
                           (gpu-readback-consume-chunk dummy))))
                     (let [dummy (the (Ptr Float) (Arena.calloc-array (EngineState.scratch-arena state) 131072l))]
-                      (gpu-readback-consume-chunk dummy)))))
-              ())
-            (if (not (gpu-readback-is-chunk-mapping))
-              (let [p-pos (Camera.pos cam)
-                    px @(Vector3.x p-pos)
-                    py @(Vector3.y p-pos)
-                    pz @(Vector3.z p-pos)
-                    fc @(EngineState.frame-count state)
-                    dx (- (Int.mod fc 3) 1)
-                    dy (- (Int.mod (/ fc 3) 3) 1)
-                    dz (- (Int.mod (/ fc 9) 3) 1)
-                    cx (+ (Double.to-int (Double.floor (/ px 32.0))) dx)
-                    cy (+ (Double.to-int (Double.floor (/ py 32.0))) dy)
-                    cz (+ (Double.to-int (Double.floor (/ pz 32.0))) dz)]
-                (do
-                  (EngineState.set-sync-qx! state cx)
-                  (EngineState.set-sync-qy! state cy)
-                  (EngineState.set-sync-qz! state cz)
-                  (Renderer.sync-chunk-async! platform-eng ren cx cy cz)))
-              ()))))))
+                      (gpu-readback-consume-chunk dummy))))
+                ())
+              (if (not (gpu-readback-is-chunk-mapping))
+                (let [fc @(EngineState.frame-count state)]
+                  (if (VoxelQueue.pop-ready-dirty! vq fc)
+                    (Renderer.sync-chunk-async! platform-eng ren @(VoxelQueue.sync-qx vq) @(VoxelQueue.sync-qy vq) @(VoxelQueue.sync-qz vq))
+                    (let [p-pos (Camera.pos cam)
+                          px @(Vector3.x p-pos)
+                          py @(Vector3.y p-pos)
+                          pz @(Vector3.z p-pos)
+                          dx (- (Int.mod fc 3) 1)
+                          dy (- (Int.mod (/ fc 3) 3) 1)
+                          dz (- (Int.mod (/ fc 9) 3) 1)
+                          cx (+ (Double.to-int (Double.floor (/ px 32.0))) dx)
+                          cy (+ (Double.to-int (Double.floor (/ py 32.0))) dy)
+                          cz (+ (Double.to-int (Double.floor (/ pz 32.0))) dz)]
+                      (do
+                        (VoxelQueue.set-sync-qx! vq cx)
+                        (VoxelQueue.set-sync-qy! vq cy)
+                        (VoxelQueue.set-sync-qz! vq cz)
+                        (Renderer.sync-chunk-async! platform-eng ren cx cy cz)))))
+                ())))))))
 
   (defn post-update! [state]
     ())
@@ -466,15 +693,16 @@
         
         (let [ecs (EngineState.ecs-world state)
               entities-data (EngineState.entities-data state)
-              a-state (EngineState.amoeba-state state)
-              a-fill (EngineState.amoeba-fill state)
-              a-timer (EngineState.amoeba-timer state)
-              a-rad (EngineState.amoeba-rad state)
-              a-pod (EngineState.amoeba-pod state)
+              cbank (EngineState.critters state)
+              a-state (CritterBank.state cbank)
+              a-fill (CritterBank.fill cbank)
+              a-timer (CritterBank.timer cbank)
+              a-rad (CritterBank.rad cbank)
+              a-pod (CritterBank.pod cbank)
               num-entities 0]
           (do
             (query ecs (e (cv CompVolume) (cc CompColor))
-              (when (< num-entities 100000)
+              (when (< num-entities 2048)
                 (let [idx (* num-entities 12)
                       vol (CompVolume.vol cv)
                       color (CompColor.col cc)
@@ -544,71 +772,83 @@
               (for [i 0 16]
                 (Array.aset! uniforms (+ 40 i) @(Array.unsafe-nth vp-data i))))
 
-            (let [rslot @(EngineState.rig-slot state)
-                  holding? (> (Uint64.to-long @(EngineState.grab-idx state)) 0l)
-                  gmat @(EngineState.grab-mat state)
-                  wch (WandSystem.get-chassis @(EngineState.wand-idx state))
-                  wmana @(Array.unsafe-nth (EngineState.wand-mana state) @(EngineState.wand-idx state))
+            (let [rig (EngineState.rig state)
+                  wb (EngineState.wands state)
+                  mb (EngineState.matches state)
+                  rslot @(RigBelt.slot rig)
+                  holding? (> (Uint64.to-long @(RigBelt.grab-idx rig)) 0l)
+                  gmat @(RigBelt.grab-mat rig)
+                  wch (WandSystem.get-chassis @(WandBelt.idx wb))
+                  wmana @(Array.unsafe-nth (WandBelt.mana wb) @(WandBelt.idx wb))
                   act-mat (if (= rslot 0)
-                            @(EngineState.sack-mat state)
+                            @(RigBelt.sack-mat rig)
                             (if (= rslot 1)
-                              @(EngineState.flask-mat state)
+                              @(RigBelt.flask-mat rig)
                               (if (= rslot 2)
-                                @(EngineState.bellows-mat state)
+                                @(RigBelt.bellows-mat rig)
                                 (if (= rslot 4)
                                   @(WandChassis.lantern-mat &wch)
                                   (if (and holding? (< gmat 254.5f)) gmat 0.0f)))))
                   act-fill (if (= rslot 0)
-                             @(EngineState.sack-fill state)
+                             @(RigBelt.sack-fill rig)
                              (if (= rslot 1)
-                               @(EngineState.flask-fill state)
+                               @(RigBelt.flask-fill rig)
                                (if (= rslot 2)
-                                 @(EngineState.bellows-fill state)
+                                 @(RigBelt.bellows-fill rig)
                                  (if (= rslot 4)
                                    (Float.clamp 0.12f 1.0f (/ wmana @(WandChassis.mana-max &wch)))
                                    (if (and holding? (and (> gmat 0.5f) (< gmat 254.5f))) 0.85f 0.0f)))))]
               (do
-                (Array.aset! uniforms 56 @(EngineState.flask-px state))
-                (Array.aset! uniforms 57 @(EngineState.flask-py state))
-                (Array.aset! uniforms 58 @(EngineState.flask-pz state))
-                (Array.aset! uniforms 59 @(EngineState.flask-pr state))
-                (Array.aset! uniforms 60 @(EngineState.flask-ax state))
-                (Array.aset! uniforms 61 @(EngineState.flask-ay state))
+                (Array.aset! uniforms 56 0.0f)
+                (Array.aset! uniforms 57 0.0f)
+                (Array.aset! uniforms 58 0.0f)
+                (Array.aset! uniforms 59 0.0f)
+                (Array.aset! uniforms 60 0.0f)
+                (Array.aset! uniforms 61 0.0f)
                 (Array.aset! uniforms 62 act-mat)
                 (Array.aset! uniforms 63 (Float.from-int rslot))
 
-                (let [m-life (EngineState.match-life state)
-                      m-pos (EngineState.match-pos state)]
-                  (for [mi 0 8]
-                    (let [u-base (+ 64 (* mi 4))
-                          p-base (* mi 3)
-                          ml @(Array.unsafe-nth m-life mi)
-                          m-norm (if (> ml 0.0f) (Float.clamp 0.0f 1.0f (/ ml 14.0f)) 0.0f)]
+                (let [m-life (MatchBook.life mb)
+                      m-pos (MatchBook.pos mb)
+                      vq (EngineState.voxels state)
+                      vcnt @(VoxelQueue.count vq)
+                      vpos (VoxelQueue.pos vq)
+                      vact (VoxelQueue.act vq)]
+                  (do
+                    (for [mi 0 8]
+                      (let [u-base (+ 64 (* mi 4))
+                            p-base (* mi 3)
+                            ml @(Array.unsafe-nth m-life mi)
+                            m-norm (if (> ml 0.0f) (Float.clamp 0.0f 1.0f (/ ml 14.0f)) 0.0f)]
+                        (do
+                          (Array.aset! uniforms u-base @(Array.unsafe-nth m-pos p-base))
+                          (Array.aset! uniforms (+ u-base 1) @(Array.unsafe-nth m-pos (+ p-base 1)))
+                          (Array.aset! uniforms (+ u-base 2) @(Array.unsafe-nth m-pos (+ p-base 2)))
+                          (Array.aset! uniforms (+ u-base 3) m-norm))))
+                    (Array.aset! uniforms 96 (Float.from-int @(MatchBook.lit-count mb)))
+                    (Array.aset! uniforms 97 act-fill)
+                    (Array.aset! uniforms 98 (Float.from-int vcnt))
+                    (Array.aset! uniforms 99 0.0f)
+                    (for [vi 0 48]
                       (do
-                        (Array.aset! uniforms u-base @(Array.unsafe-nth m-pos p-base))
-                        (Array.aset! uniforms (+ u-base 1) @(Array.unsafe-nth m-pos (+ p-base 1)))
-                        (Array.aset! uniforms (+ u-base 2) @(Array.unsafe-nth m-pos (+ p-base 2)))
-                        (Array.aset! uniforms (+ u-base 3) m-norm)))))
-                (Array.aset! uniforms 96 (Float.from-int @(EngineState.match-lit-count state)))
-                (Array.aset! uniforms 97 act-fill)
-                (Array.aset! uniforms 98 0.0f)
-                (Array.aset! uniforms 99 0.0f)
+                        (Array.aset! uniforms (+ 236 vi) @(Array.unsafe-nth vpos vi))
+                        (Array.aset! uniforms (+ 284 vi) @(Array.unsafe-nth vact vi))))))
 
-                ;; Ditto-Amoeba GPU voxel action + 16-slot chemoreception & 3D GI light emitters (+ flying wand bolts!)
-                (Array.aset! uniforms 100 @(EngineState.critter-px state))
-                (Array.aset! uniforms 101 @(EngineState.critter-py state))
-                (Array.aset! uniforms 102 @(EngineState.critter-pz state))
-                (Array.aset! uniforms 103 @(EngineState.critter-pr state))
-                (Array.aset! uniforms 104 @(EngineState.critter-ax state))
-                (Array.aset! uniforms 105 @(EngineState.critter-ay state))
-                (Array.aset! uniforms 106 @(EngineState.critter-az state))
-                (let [a-alive (EngineState.amoeba-alive state)
-                      a-idx (EngineState.amoeba-idx state)
-                      a-gen (EngineState.amoeba-gen state)
-                      a-mat (EngineState.amoeba-mat state)
-                      b-alive (EngineState.bolt-alive state)
-                      b-pos (EngineState.bolt-pos state)
-                      b-wand (EngineState.bolt-wand state)
+                ;; 16-slot Ditto-Amoeba chemoreception & 3D GI light emitters (+ flying wand bolts!)
+                (Array.aset! uniforms 100 0.0f)
+                (Array.aset! uniforms 101 0.0f)
+                (Array.aset! uniforms 102 0.0f)
+                (Array.aset! uniforms 103 0.0f)
+                (Array.aset! uniforms 104 0.0f)
+                (Array.aset! uniforms 105 0.0f)
+                (Array.aset! uniforms 106 0.0f)
+                (let [a-alive (CritterBank.alive cbank)
+                      a-idx (CritterBank.idx cbank)
+                      a-gen (CritterBank.gen cbank)
+                      a-mat (CritterBank.mat cbank)
+                      b-alive (WandBelt.bolt-alive wb)
+                      b-pos (WandBelt.bolt-pos wb)
+                      b-wand (WandBelt.bolt-wand wb)
                       bolt-cur 0
                       glow-mask 0
                       bit-val 1]
@@ -657,7 +897,7 @@
                                         af @(Array.unsafe-nth a-fill ak)
                                         ar @(Array.unsafe-nth a-rad ak)
                                         ast @(Array.unsafe-nth a-state ak)
-                                        gi (CritterSystem.amoeba-gi-emission amat ast af)
+                                        gi (Materials.gi-emission amat ast af)
                                         gi-sum (+ (+ @(Vector3.x &gi) @(Vector3.y &gi)) @(Vector3.z &gi))]
                                     (do
                                       (when (> gi-sum 0.12)
@@ -680,19 +920,8 @@
 
   (defn pre-render! [state]
     (let [platform-eng (EngineState.eng state)
-          ren (EngineState.renderer state)
-          cam (Player.camera (EngineState.player state))
           diag (EngineState.diag state)]
       (do
-        (let [cx (Double.to-int (Double.floor (/ @(Vector3.x (Camera.pos cam)) 32.0)))
-              cy (Double.to-int (Double.floor (/ @(Vector3.y (Camera.pos cam)) 32.0)))
-              cz (Double.to-int (Double.floor (/ @(Vector3.z (Camera.pos cam)) 32.0)))
-              bx (Double.from-int (* (- cx 2) 32))
-              by (Double.from-int (* (- cy 2) 32))
-              bz (Double.from-int (* (- cz 2) 32))
-              red-color (Vector3.init 1.0 0.1 0.1)]
-          (EngineState.draw-bounds-wireframe! ren bx by bz (+ bx 160.0) (+ by 160.0) (+ bz 160.0) &red-color))
-        
         (Engine.handle-resize platform-eng)
         (Diagnostics.start-zone! diag "Renderer & Draw")
         (EngineState.update-gpu-uniforms state))))
@@ -719,6 +948,7 @@
           curr-frames (Pointer.to-value p-frames)
           next-frames (inc curr-frames)]
       (do
+        (VoxelQueue.clear-actions! (EngineState.voxels state))
         (Diagnostics.end-zone! diag "Renderer & Draw")
         (Engine.poll-events platform-eng)
         (Diagnostics.end-zone! diag "Total Frame Time")
