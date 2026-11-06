@@ -314,22 +314,26 @@
 
               (if (> (Uint64.to-long best-idx) 0l)
                 (let [aslot (CritterSystem.amoeba-slot-by-idx state best-idx)
+                      nslot (GoldSystem.nugget-slot-by-idx state best-idx)
                       is-m? (EditingSystem.match-entity? state best-idx best-gen)]
                   (if (>= aslot 0)
                     (let [amat (Float.from-int (Float.round (CritterSystem.amoeba-mat-at state aslot)))]
                       (set! probe-code (+ (if (<= best-along 4.3) 2000.0f 3000.0f) amat)))
-                    (set! probe-code (if is-m?
-                                       (if (<= best-along 4.3) 912.0f 913.0f)
-                                       (if (<= best-along 4.3) 910.0f 911.0f)))))
+                    (if (>= nslot 0)
+                      (set! probe-code (if (<= best-along 4.3) 914.0f 915.0f))
+                      (set! probe-code (if is-m?
+                                         (if (<= best-along 4.3) 912.0f 913.0f)
+                                         (if (<= best-along 4.3) 910.0f 911.0f))))))
                 (when (and (> hw 0.5f) (and (<= wall-t 8.8) (and (>= hit-mat 0.5f) (< hit-mat 254.5f))))
                   (do
                     (set! probe-code hit-mat)
                     (set! probe-stress hit-stress))))
 
-              ;; 2a. RMB Press: Hook & Yank Targeted Entity OR Wrench Boulder Out of Wall!
+              ;; 2a. RMB Press: Hook & Yank Targeted Entity OR Wrench Boulder / Jumbo Gold Nugget Out of Wall!
               (if (InputManager.action-pressed? input "click-right")
                 (if (> (Uint64.to-long best-idx) 0l)
                   (let [aslot (CritterSystem.amoeba-slot-by-idx state best-idx)
+                        nslot (GoldSystem.nugget-slot-by-idx state best-idx)
                         is-m? (EditingSystem.match-entity? state best-idx best-gen)]
                     (do
                       (EngineState.set-grab-idx! state best-idx)
@@ -337,7 +341,9 @@
                       (EngineState.set-grab-mat! state
                         (if (>= aslot 0)
                           (+ 1000.0f (Float.from-int (Float.round (CritterSystem.amoeba-mat-at state aslot))))
-                          (if is-m? 901.0f 900.0f)))
+                          (if (>= nslot 0)
+                            905.0f
+                            (if is-m? 901.0f 900.0f))))
                       (query ecs (e (cb CompBody) (cv CompVolume) (cc CompColor))
                         (when (Uint64.= (ECS.Entity.index &e) best-idx)
                           (let [rb (CompBody.rb cb)
@@ -376,7 +382,10 @@
                           inv-d (if (> d 0.01) (/ 1.0 d) 0.0)
                           bpos (Vector3.init bx by bz)
                           bvel (Vector3.init (* (* dx inv-d) 19.5) (+ (* (* dy inv-d) 19.5) 2.2) (* (* dz inv-d) 19.5))
-                          boulder (EditingSystem.spawn-boulder! state bpos bvel 0.52 hit-mat 45000l)
+                          is-gold? (= (Float.round hit-mat) 5)
+                          boulder (if is-gold?
+                                    (GoldSystem.spawn-nugget! state bpos bvel 0.38 25)
+                                    (EditingSystem.spawn-boulder! state bpos bvel 0.52 hit-mat 45000l))
                           spt (EditingSystem.succ-ptype hit-mat)]
                       (do
                         (EngineState.set-last-wrench-frame! state fc)
@@ -387,13 +396,17 @@
                         (EngineState.set-flask-ax! state hit-mat)
                         (EngineState.set-flask-ay! state -1.0f)
                         (ignore (World.edit-sdf! world &hvec 1.38 hit-mat true))
+                        (when is-gold?
+                          (do
+                            (World.set-carved-gold-count! world 0)
+                            (ParticleSystem.emit-sparks! ps hx hy hz (* fxf -1.0f) 0.8f (* fzf -1.0f) 18)))
                         (ParticleSystem.emit-dust! ps hx hy hz 12)
                         (ParticleSystem.emit! ps hx hy hz (* fxf -8.0f) 2.5f (* fzf -8.0f) 0.35f 10 spt 0.12f 0.0f)
                         (when (= (Float.round hit-mat) 13)
                           (ParticleSystem.emit! ps hx hy hz 0.0f 3.5f 0.0f 1.8f 24 208.0f 0.65f 0.0f))
                         (EngineState.set-grab-idx! state (ECS.Entity.index &boulder))
                         (EngineState.set-grab-gen! state (ECS.Entity.generation &boulder))
-                        (EngineState.set-grab-mat! state hit-mat)
+                        (EngineState.set-grab-mat! state (if is-gold? 905.0f hit-mat))
                         (set! ui-mode -2.0f)))))
 
                 ;; 2b. LMB Seismic Boot Kick (16-frame cadence): Cone Entity Punt + Puddle Splash + Pillar Shatter!
@@ -748,41 +761,45 @@
                         (set! ui-mode 1.0f)))
 
                     ;; 2c. Right-Click: Gather into Active Vessel ([1] Dredge/Mine Wall | [2] Siphon Pool | [3] Inhale Gas/Fire)
-                    (when (and right-pressed
-                               (and (> succ-w 0.5f)
-                                    (and (< cur-fill 0.999f)
-                                         (or (< cur-mat 0.5f) (< (Float.abs (- cur-mat succ-w)) 0.5f)))))
-                      (let [lock-mat (if (< cur-mat 0.5f) succ-w cur-mat)
-                            spt (EditingSystem.succ-ptype lock-mat)
-                            dx (- noz-x succ-x)
-                            dy (- noz-y succ-y)
-                            dz (- noz-z succ-z)
-                            dist (Float.clamp 0.30f 20.0f (Float.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz))))
-                            travel (Float.clamp 0.11f 0.52f (/ dist 22.0f))
-                            spd (/ dist travel)
-                            svx (* (/ dx dist) spd)
-                            svy (* (/ dy dist) spd)
-                            svz (* (/ dz dist) spd)]
-                        (do
-                          (if (= slot 0)
-                            ;; [1] SOLID SACK: Chew into rock/crystal/wood wall & vacuum chunks into Sack!
-                            (let [next-fill (Float.clamp 0.0f 1.0f (+ cur-fill (* 0.34f fdt)))]
-                              (do
-                                (EngineState.set-sack-mat! state lock-mat)
-                                (EngineState.set-sack-fill! state next-fill)
-                                (ParticleSystem.emit! ps succ-x succ-y succ-z svx svy svz travel 10 spt 0.065f 0.0f)
-                                (when (>= (- fc @(EngineState.last-sack-bite-frame state)) 4)
-                                  (let [svec (Vector3.init (Double.from-float succ-x) (Double.from-float succ-y) (Double.from-float succ-z))]
+                    (let [mining-gold? (and (= slot 0) (= (Float.round succ-w) 5))]
+                      (when (and right-pressed
+                                 (and (> succ-w 0.5f)
+                                      (or mining-gold?
+                                          (and (< cur-fill 0.999f)
+                                               (or (< cur-mat 0.5f) (< (Float.abs (- cur-mat succ-w)) 0.5f))))))
+                        (let [lock-mat (if mining-gold? 5.0f (if (< cur-mat 0.5f) succ-w cur-mat))
+                              spt (EditingSystem.succ-ptype lock-mat)
+                              dx (- noz-x succ-x)
+                              dy (- noz-y succ-y)
+                              dz (- noz-z succ-z)
+                              dist (Float.clamp 0.30f 20.0f (Float.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz))))
+                              travel (Float.clamp 0.11f 0.52f (/ dist 22.0f))
+                              spd (/ dist travel)
+                              svx (* (/ dx dist) spd)
+                              svy (* (/ dy dist) spd)
+                              svz (* (/ dz dist) spd)]
+                          (do
+                            (if (= slot 0)
+                              ;; [1] SOLID SACK: Chew into wall & vacuum chunks into Sack (or pop pure Gold Nuggets if mining Gold!)
+                              (let [next-fill (Float.clamp 0.0f 1.0f (+ cur-fill (* 0.34f fdt)))]
+                                (do
+                                  (when (not mining-gold?)
                                     (do
-                                      (EngineState.set-last-sack-bite-frame! state fc)
-                                      (EngineState.set-flask-px! state succ-x)
-                                      (EngineState.set-flask-py! state succ-y)
-                                      (EngineState.set-flask-pz! state succ-z)
-                                      (EngineState.set-flask-pr! state 1.75f)
-                                      (EngineState.set-flask-ax! state lock-mat)
-                                      (EngineState.set-flask-ay! state -1.0f)
-                                      (ParticleSystem.emit-dust! ps succ-x succ-y succ-z 5)
-                                      (ignore (World.edit-sdf! world &svec 1.75 lock-mat true)))))))
+                                      (EngineState.set-sack-mat! state lock-mat)
+                                      (EngineState.set-sack-fill! state next-fill)))
+                                  (ParticleSystem.emit! ps succ-x succ-y succ-z svx svy svz travel 10 spt 0.065f 0.0f)
+                                  (when (>= (- fc @(EngineState.last-sack-bite-frame state)) 4)
+                                    (let [svec (Vector3.init (Double.from-float succ-x) (Double.from-float succ-y) (Double.from-float succ-z))]
+                                      (do
+                                        (EngineState.set-last-sack-bite-frame! state fc)
+                                        (EngineState.set-flask-px! state succ-x)
+                                        (EngineState.set-flask-py! state succ-y)
+                                        (EngineState.set-flask-pz! state succ-z)
+                                        (EngineState.set-flask-pr! state 1.75f)
+                                        (EngineState.set-flask-ax! state lock-mat)
+                                        (EngineState.set-flask-ay! state -1.0f)
+                                        (ParticleSystem.emit-dust! ps succ-x succ-y succ-z 5)
+                                        (ignore (World.edit-sdf! world &svec 1.75 lock-mat true)))))))
 
                             (if (= slot 1)
                               ;; [2] LIQUID FLASK: Siphon pool
@@ -810,7 +827,7 @@
                                   (EngineState.set-flask-ax! state lock-mat)
                                   (EngineState.set-flask-ay! state -0.55f)
                                   (ParticleSystem.emit! ps succ-x succ-y succ-z svx svy svz travel 14 spt 0.085f 0.0f)))))
-                          (set! ui-mode -1.0f))))))))
+                          (set! ui-mode -1.0f)))))))))
 
               (js-sync-rig @(EngineState.rig-slot state)
                            @(EngineState.sack-mat state)

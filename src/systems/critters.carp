@@ -64,7 +64,7 @@
         (if (= m 2)    (Vector3.init 0.46 0.72 0.34)
         (if (= m 3)    (Vector3.init 0.78 0.54 0.30)
         (if (= m 4)    (Vector3.init 0.28 0.31 0.38)
-        (if (= m 5)    (Vector3.init 1.02 0.86 0.26)
+        (if (= m 5)    (Vector3.init 1.32 1.04 0.26)
         (if (= m 6)    (Vector3.init 0.95 0.83 0.52)
         (if (= m 7)    (Vector3.init 0.50 0.52 0.60)
         (if (= m 8)    (Vector3.init 0.66 0.94 1.04)
@@ -100,6 +100,7 @@
       (if (= state-id 3)
         (Vector3.init (* 3.10 boost) (* 1.35 boost) (* 0.28 boost))
         (let [m (Float.round mat-id)]
+          (if (= m 5)   (Vector3.init (* 1.85 boost) (* 1.40 boost) (* 0.30 boost))
           (if (= m 13)  (Vector3.init (* 0.85 boost) (* 2.05 boost) (* 0.45 boost))
           (if (= m 14)  (Vector3.init (* 0.32 boost) (* 2.45 boost) (* 2.85 boost))
           (if (= m 15)  (Vector3.init (* 2.15 boost) (* 0.55 boost) (* 2.75 boost))
@@ -110,7 +111,7 @@
           (if (= m 263) (Vector3.init (* 2.15 boost) (* 0.35 boost) (* 1.55 boost))
           (if (= m 515) (Vector3.init (* 2.95 boost) (* 1.50 boost) (* 0.32 boost))
           (if (= m 519) (Vector3.init (* 2.75 boost) (* 0.85 boost) (* 0.20 boost))
-                        (Vector3.init 0.0 0.0 0.0)))))))))))))))
+                        (Vector3.init 0.0 0.0 0.0))))))))))))))))
 
   ;; Alchemical Refinement: what reagent a full Amoeba excretes right as it undergoes mitosis!
   (defn transmute-product [mat-id]
@@ -776,18 +777,25 @@
                                                         pos-b (Vector3.add &(Vector3.sub &pos &off) &lift)
                                                         vel-b (Vector3.init 0.0 0.0 0.0)]
                                                     (do
-                                                      (when (< @(EngineState.critter-pr state) 0.1f)
-                                                        (let [gran? (CritterSystem.granular-solid? prod)
-                                                              prad (if (< prod 256.0f) 1.18f (if (< prod 512.0f) 1.85f 2.65f))]
+                                                      (if (= (Float.round prod) 5)
+                                                        (let [gv1 (Vector3.add &(Vector3.mul &raw-n 5.2) &(Vector3.mul &axis 2.4))
+                                                              gv2 (Vector3.sub &(Vector3.mul &raw-n 5.2) &(Vector3.mul &axis 2.4))]
                                                           (do
-                                                            (EngineState.set-critter-px! state ex-x)
-                                                            (EngineState.set-critter-py! state ex-y)
-                                                            (EngineState.set-critter-pz! state ex-z)
-                                                            (EngineState.set-critter-pr! state prad)
-                                                            (EngineState.set-critter-ax! state (if gran? (- 0.0f prod) prod))
-                                                            (EngineState.set-critter-ay! state 0.85f)
-                                                            (when (and (< prod 256.0f) (not gran?))
-                                                              (CritterSystem.edit-amoeba-sdf! world &ex-p 1.12 prod false)))))
+                                                            (ignore (GoldSystem.spawn-nugget! state @&ex-p gv1 0.30 20))
+                                                            (ignore (GoldSystem.spawn-nugget! state ex-p gv2 0.30 20))
+                                                            (ParticleSystem.emit-sparks! ps ex-x ex-y ex-z 0.0f 1.0f 0.0f 18)))
+                                                        (when (< @(EngineState.critter-pr state) 0.1f)
+                                                          (let [gran? (CritterSystem.granular-solid? prod)
+                                                                prad (if (< prod 256.0f) 1.18f (if (< prod 512.0f) 1.85f 2.65f))]
+                                                            (do
+                                                              (EngineState.set-critter-px! state ex-x)
+                                                              (EngineState.set-critter-py! state ex-y)
+                                                              (EngineState.set-critter-pz! state ex-z)
+                                                              (EngineState.set-critter-pr! state prad)
+                                                              (EngineState.set-critter-ax! state (if gran? (- 0.0f prod) prod))
+                                                              (EngineState.set-critter-ay! state 0.85f)
+                                                              (when (and (< prod 256.0f) (not gran?))
+                                                                (CritterSystem.edit-amoeba-sdf! world &ex-p 1.12 prod false))))))
                                                       (ParticleSystem.emit! ps ex-x ex-y ex-z 0.0f 4.2f 0.0f 1.5f 24 ppt 0.35f 0.25f)
                                                       (Transform.set-position! (RigidBody.transform rb) pos-a)
                                                       (set! next-fill 0.0f)

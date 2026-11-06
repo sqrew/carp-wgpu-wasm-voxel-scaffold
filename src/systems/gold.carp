@@ -1,0 +1,220 @@
+;; =============================================================================
+;; Physical 24-Karat Gold System: Voxel Vein Harvesting, Clinking Nuggets,
+;; Magnetic Pouch Pickup, [4] Gauntlet Yank/Punt, & Gold Dittamoeba Ranching!
+;; =============================================================================
+
+(defmodule GoldSystem
+  (defn fsin [x] (Double.to-float (sin (Double.from-float x))))
+  (defn fcos [x] (Double.to-float (cos (Double.from-float x))))
+
+  (defn destroy-nugget-slot! [state slot]
+    (let [gb (EngineState.gold state)
+          n-alive (GoldBank.alive gb)
+          n-idx (GoldBank.idx gb)
+          n-gen (GoldBank.gen gb)
+          ecs (EngineState.ecs-world state)]
+      (when @(Array.unsafe-nth n-alive slot)
+        (let [idx @(Array.unsafe-nth n-idx slot)
+              gen @(Array.unsafe-nth n-gen slot)
+              ent (ECS.Entity.init (Handle.init idx gen))]
+          (do
+            (GameWorld.destroy-entity! ecs &ent)
+            (Array.aset! n-alive slot false)
+            (Array.aset! (GoldBank.val gb) slot 0)
+            (Array.aset! (GoldBank.age gb) slot 0.0f))))))
+
+  (defn spawn-nugget! [state spawn-pos vel radius val]
+    (let [gb (EngineState.gold state)
+          slot (Int.mod @(GoldBank.slot gb) 16)
+          ecs (EngineState.ecs-world state)
+          col (Vector3.init 1.48 1.14 0.24)
+          rb (RigidBody.new @&spawn-pos (Quaternion.identity) 2.2 0.56 0.36 0.06 0.10 0.16)
+          vol (Volume.Ball (Sphere.init @&spawn-pos radius))]
+      (do
+        (GoldSystem.destroy-nugget-slot! state slot)
+        (GoldBank.set-slot! gb (+ slot 1))
+        (let [e (GameWorld.create-entity! ecs)]
+          (do
+            (Body.set-velocity! (RigidBody.body &rb) vel)
+            (add-component! ecs &e (CompBody.init rb))
+            (add-component! ecs &e (CompVolume.init vol))
+            (add-component! ecs &e (CompColor.init col))
+            (Array.aset! (GoldBank.alive gb) slot true)
+            (Array.aset! (GoldBank.idx gb) slot (ECS.Entity.index &e))
+            (Array.aset! (GoldBank.gen gb) slot (ECS.Entity.generation &e))
+            (Array.aset! (GoldBank.val gb) slot val)
+            (Array.aset! (GoldBank.age gb) slot 0.0f)
+            e)))))
+
+  (defn nugget-slot-by-idx [state idx]
+    (let [gb (EngineState.gold state)
+          n-alive (GoldBank.alive gb)
+          n-idx (GoldBank.idx gb)
+          found -1]
+      (do
+        (for [i 0 16]
+          (when (and (< found 0)
+                     (and @(Array.unsafe-nth n-alive i)
+                          (Uint64.= idx @(Array.unsafe-nth n-idx i))))
+            (set! found i)))
+        found)))
+
+  (defn nugget-val-at [state slot]
+    (if (and (>= slot 0) (< slot 16))
+      @(Array.unsafe-nth (GoldBank.val (EngineState.gold state)) slot)
+      10))
+
+  ;; Convert any MAT_GOLD voxels liberated by World.edit-sdf! this frame into physical nuggets!
+  (defn harvest-carved-gold! [state]
+    (let [world (EngineState.world state)
+          cnt @(World.carved-gold-count world)]
+      (when (> cnt 0)
+        (let [ps (EngineState.particles state)
+              fc @(EngineState.frame-count state)
+              cx @(World.carved-gold-x world)
+              cy @(World.carved-gold-y world)
+              cz @(World.carved-gold-z world)
+              cpos (Vector3.init (Double.from-float cx) (Double.from-float cy) (Double.from-float cz))
+              nrm (Physics.estimate-sdf-normal world &cpos)
+              nx @(Vector3.x &nrm)
+              ny @(Vector3.y &nrm)
+              nz @(Vector3.z &nrm)
+              raw-nugs (+ 1 (/ cnt 7))
+              num-nugs (if (> raw-nugs 4) 4 raw-nugs)
+              per-val (if (> cnt 18) 15 10)]
+          (do
+            (World.set-carved-gold-count! world 0)
+            (ParticleSystem.emit-sparks! ps cx cy cz (Double.to-float nx) (Double.to-float ny) (Double.to-float nz) (+ 10 (* num-nugs 5)))
+            (for [k 0 num-nugs]
+              (let [ang (+ (* (Float.from-int (+ (* fc 5) (* k 11))) 2.39996f) (Float.from-int k))
+                    jx (Double.from-float (* (GoldSystem.fcos ang) 2.6f))
+                    jz (Double.from-float (* (GoldSystem.fsin ang) 2.6f))
+                    spos (Vector3.init (+ (Double.from-float cx) (+ (* nx 0.48) (* jx 0.08)))
+                                       (+ (Double.from-float cy) (+ (* ny 0.48) 0.12))
+                                       (+ (Double.from-float cz) (+ (* nz 0.48) (* jz 0.08))))
+                    svel (Vector3.init (+ (* nx 5.8) jx)
+                                       (+ (* ny 4.8) 4.2)
+                                       (+ (* nz 5.8) jz))
+                    nrad (if (>= per-val 15) 0.30 0.25)]
+                (ignore (GoldSystem.spawn-nugget! state spos svel nrad per-val)))))))))
+
+  (defn update! [state dt]
+    (let [ecs (EngineState.ecs-world state)
+          ps (EngineState.particles state)
+          cam (Player.camera (EngineState.player state))
+          ppos (Camera.pos cam)
+          px @(Vector3.x ppos)
+          py (- @(Vector3.y ppos) 0.22)
+          pz @(Vector3.z ppos)
+          fdt (Double.to-float dt)
+          fc @(EngineState.frame-count state)
+          g-idx @(EngineState.grab-idx state)
+          gb (EngineState.gold state)
+          n-alive (GoldBank.alive gb)
+          n-idx (GoldBank.idx gb)
+          n-gen (GoldBank.gen gb)
+          n-val (GoldBank.val gb)
+          n-age (GoldBank.age gb)
+          next-flash (Float.clamp 0.0f 1.0f (* @(GoldBank.flash gb) 0.88f))
+          a-alive (EngineState.amoeba-alive state)
+          a-idx (EngineState.amoeba-idx state)
+          a-gen (EngineState.amoeba-gen state)
+          a-mat (EngineState.amoeba-mat state)
+          a-fill (EngineState.amoeba-fill state)
+          a-state (EngineState.amoeba-state state)]
+      (do
+        ;; 1. Spawn physical Gold Nuggets from any gold veins carved this frame
+        (GoldSystem.harvest-carved-gold! state)
+
+        ;; 2. Step active Gold Nuggets: Dittamoeba schlorping + Magnetic Pouch Swoop!
+        (for [i 0 16]
+          (when @(Array.unsafe-nth n-alive i)
+            (let [idx @(Array.unsafe-nth n-idx i)
+                  gen @(Array.unsafe-nth n-gen i)
+                  ent (ECS.Entity.init (Handle.init idx gen))
+                  cb-opt (the (Maybe CompBody) (get-component ecs &ent))
+                  age (+ @(Array.unsafe-nth n-age i) fdt)
+                  held-by-player? (and (> (Uint64.to-long g-idx) 0l) (Uint64.= g-idx idx))]
+              (match cb-opt
+                (Maybe.Nothing)
+                  (do
+                    (Array.aset! n-alive i false)
+                    (Array.aset! n-val i 0)
+                    (Array.aset! n-age i 0.0f))
+                (Maybe.Just cb)
+                  (if (> age 75.0f)
+                    (GoldSystem.destroy-nugget-slot! state i)
+                    (let [rb (CompBody.rb &cb)
+                          b (RigidBody.body rb)
+                          epos @(RigidBody.position rb)
+                          ex @(Vector3.x &epos)
+                          ey @(Vector3.y &epos)
+                          ez @(Vector3.z &epos)
+                          dx (- px ex)
+                          dy (- py ey)
+                          dz (- pz ez)
+                          pdist (Double.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))
+                          val @(Array.unsafe-nth n-val i)
+                          eaten-by-slime? false]
+                      (do
+                        (Array.aset! n-age i age)
+
+                        ;; Subtle cave-glint sparkle every ~0.5s so nuggets catch the eye in dark pits
+                        (when (= (Int.mod (+ fc (* i 7)) 28) 0)
+                          (ParticleSystem.emit! ps (Double.to-float ex) (+ (Double.to-float ey) 0.15f) (Double.to-float ez)
+                                                0.0f 1.6f 0.0f 0.35f 2 405.0f 0.32f 0.0f))
+
+                        ;; Wandering Dittamoebas can schlorp uncollected nuggets -> 24-Karat Gold Slime!
+                        (when (and (not held-by-player?) (> age 1.35f))
+                          (for [k 0 16]
+                            (when (and (not eaten-by-slime?)
+                                       (and @(Array.unsafe-nth a-alive k)
+                                            (and (/= @(Array.unsafe-nth a-state k) 2)
+                                                 (< @(Array.unsafe-nth a-fill k) 0.96f))))
+                              (let [aent (ECS.Entity.init (Handle.init @(Array.unsafe-nth a-idx k) @(Array.unsafe-nth a-gen k)))
+                                    acb-opt (the (Maybe CompBody) (get-component ecs &aent))]
+                                (match acb-opt
+                                  (Maybe.Nothing) ()
+                                  (Maybe.Just acb)
+                                    (let [apos (RigidBody.position (CompBody.rb &acb))
+                                          sx (- @(Vector3.x apos) ex)
+                                          sy (- @(Vector3.y apos) ey)
+                                          sz (- @(Vector3.z apos) ez)
+                                          sd2 (+ (+ (* sx sx) (* sy sy)) (* sz sz))]
+                                      (when (< sd2 1.30)
+                                        (let [new-fill (Float.clamp 0.0f 1.0f (+ @(Array.unsafe-nth a-fill k) 0.38f))]
+                                          (do
+                                            (Array.aset! a-mat k 5.0f)
+                                            (Array.aset! a-fill k new-fill)
+                                            (ECS.add-component! ecs &aent (CompColor.init (Vector3.init 1.35 1.04 0.24)))
+                                            (ParticleSystem.emit-sparks! ps (Double.to-float ex) (Double.to-float ey) (Double.to-float ez) 0.0f 1.0f 0.0f 12)
+                                            (GoldSystem.destroy-nugget-slot! state i)
+                                            (set! eaten-by-slime? true))))))))))
+
+                        ;; Magnetic Pouch Swoop & Pickup (after brief 0.36s pop bounce, when not held in [4])
+                        (when (and (not eaten-by-slime?) (and (not held-by-player?) (> age 0.36f)))
+                          (if (<= pdist 1.48)
+                            (let [new-tot (+ @(GoldBank.total gb) val)]
+                              (do
+                                (GoldBank.set-total! gb new-tot)
+                                (GoldBank.set-last-gain! gb val)
+                                (set! next-flash 1.0f)
+                                (ParticleSystem.emit-sparks! ps (Double.to-float ex) (Double.to-float ey) (Double.to-float ez) 0.0f 1.0f 0.0f 14)
+                                (GoldSystem.destroy-nugget-slot! state i)))
+                            (when (<= pdist 4.15)
+                              (let [inv-d (if (> pdist 0.05) (/ 1.0 pdist) 0.0)
+                                    pull-spd (+ 14.0 (* 18.0 (- 1.0 (/ pdist 4.15))))
+                                    mv (Vector3.init (* (* dx inv-d) pull-spd)
+                                                     (+ (* (* dy inv-d) pull-spd) 1.4)
+                                                     (* (* dz inv-d) pull-spd))]
+                                (do
+                                  (Body.set-body-type! b (BodyType.Dynamic))
+                                  (Body.set-inv-mass! b 1.0)
+                                  (Body.set-velocity! b mv)
+                                  (RigidBody.set-body! rb @b)
+                                  (ECS.add-component! ecs &ent (CompBody.init @rb))))))))))))))
+
+        ;; 3. Persist flash & sync Gold Pouch HUD
+        (GoldBank.set-flash! gb next-flash)
+        (js-sync-gold @(GoldBank.total gb) @(GoldBank.last-gain gb) next-flash))))
+)

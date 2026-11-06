@@ -186,7 +186,9 @@
           10.0f
           (if (and cave-skin? (and (> n3 -0.22) (< n3 -0.08)))
             3.0f
-            (if (< n-det -0.54) 4.0f 1.0f))))
+            (if (> n-det 0.65)
+              5.0f
+              (if (< n-det -0.54) 4.0f 1.0f)))))
     (if (= b 1)
       ;; 1: Firedamp Coal Seam (thick Coal veins + Gunpowder pockets + faint Crystal lanterns + Gold)
       (if (and cave-skin? (> n3 0.54))

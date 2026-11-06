@@ -15,6 +15,10 @@
   voxel-resolution Int
   noise-state NoiseState
   strata StrataConfig
+  carved-gold-count Int
+  carved-gold-x Float
+  carved-gold-y Float
+  carved-gold-z Float
 ])(deftype ChunkCoord [x Int y Int z Int])
 
 (defmodule Chunk
@@ -52,7 +56,7 @@
                     qy (if (= ty 4) -1 ty)
                     qz (if (= tz 4) -1 tz)]
                 (Array.push-back! &world-chunks (Chunk.create &noise-state &strata qx qy qz))))))
-        (World.init world-chunks 32 noise-state strata))))
+        (World.init world-chunks 32 noise-state strata 0 0.0f 0.0f 0.0f))))
 
   (defn positive-mod [n m]
     (let [r (Int.mod n m)]
@@ -125,7 +129,11 @@
           hz @(Vector3.z hit-pos)
           ;; Expansion for the SDF gradient update (we update voxels a bit outside the visual radius)
           pad 16.0
-          r-pad (+ radius pad)]
+          r-pad (+ radius pad)
+          gold-cnt 0
+          gold-sx 0.0
+          gold-sy 0.0
+          gold-sz 0.0]
       (do
         (for [i 0 len]
           (let [chunk (Array.unsafe-nth chunks i)
@@ -181,11 +189,29 @@
                                               (Float.min old-sdf sphere-sdf))]
                               (when (not (and carve? (= old-id 255.0f)))
                                 (do
+                                  (when (and carve? (and (= old-id 5.0f) (and (<= old-sdf 0.16f) (> new-sdf 0.06f))))
+                                    (do
+                                      (set! gold-cnt (+ gold-cnt 1))
+                                      (set! gold-sx (+ gold-sx gx))
+                                      (set! gold-sy (+ gold-sy gy))
+                                      (set! gold-sz (+ gold-sz gz))))
                                   (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) new-sdf)
                                   (when (and (not carve?) (< dist-to-hit radius))
                                     (Pointer.set (Pointer.add p-data (Long.from-int offset)) mat-id))
                                   (set! chunk-modified true)))))))))
                   (when chunk-modified
                     (Array.push-back! &modified (ChunkCoord.init qx qy qz))))))))
+        (when (> gold-cnt 0)
+          (let [prev-c @(World.carved-gold-count world)
+                tot-c (+ prev-c gold-cnt)
+                inv-c (/ 1.0 (Double.from-int gold-cnt))
+                cx (Double.to-float (* gold-sx inv-c))
+                cy (Double.to-float (* gold-sy inv-c))
+                cz (Double.to-float (* gold-sz inv-c))]
+            (do
+              (World.set-carved-gold-count! world tot-c)
+              (World.set-carved-gold-x! world cx)
+              (World.set-carved-gold-y! world cy)
+              (World.set-carved-gold-z! world cz))))
         modified)))
 )

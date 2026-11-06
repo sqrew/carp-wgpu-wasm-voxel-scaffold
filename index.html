@@ -208,8 +208,23 @@ canvas.emscripten { border: 0px none; background-color: black; }
         <div id="reticle-hint" style="margin-top: 8px; font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.95); background: rgba(12,12,18,0.68); padding: 2px 7px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); opacity: 0; transition: opacity 0.12s ease; white-space: nowrap;"></div>
       </div>
 
-      <!-- Bottom-Right Off-Hand Matchbox + 4-Slot Belt HUD -->
+      <!-- Bottom-Right Gold Pouch + Off-Hand Matchbox + 5-Slot Belt HUD -->
       <div style="position: absolute; bottom: 16px; right: 16px; display: flex; align-items: flex-end; gap: 8px; pointer-events: none; z-index: 95; font-family: system-ui, -apple-system, sans-serif; color: #eee;">
+        <!-- 24k Gold Pouch Card -->
+        <div id="gold-hud" style="display: flex; align-items: center; gap: 8px; background: rgba(14, 15, 22, 0.88); padding: 9px 11px; border-radius: 12px; border: 1px solid rgba(255, 213, 79, 0.24); box-shadow: 0 6px 24px rgba(0,0,0,0.65); transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;">
+          <div style="position: relative; width: 24px; height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div id="gold-nugget-icon" style="width: 20px; height: 18px; background: linear-gradient(135deg, #fff59d 0%, #ffd54f 45%, #ffb300 85%, #bf8000 100%); clip-path: polygon(22% 4%, 78% 0%, 100% 38%, 86% 92%, 34% 100%, 0% 62%); box-shadow: 0 0 12px rgba(255, 202, 40, 0.65); transition: transform 0.14s ease, filter 0.14s ease;"></div>
+          </div>
+          <div style="text-align: left; min-width: 68px;">
+            <div style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.9px; color: #d4b96a; font-weight: 700; margin-bottom: 2px;">Gold Pouch</div>
+            <div style="display: flex; align-items: baseline; gap: 5px;">
+              <span id="gold-total-lbl" style="font-size: 16px; font-weight: 800; color: #ffd54f; font-variant-numeric: tabular-nums; line-height: 1.1;">0g</span>
+              <span id="gold-gain-badge" style="font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: rgba(255, 213, 79, 0.24); color: #fff59d; opacity: 0; transition: opacity 0.14s ease;">+10g</span>
+            </div>
+            <div style="font-size: 9px; color: #8c96ab; margin-top: 3px;">24k Bullion</div>
+          </div>
+        </div>
+
         <!-- Off-Hand Matchbox Card -->
         <div id="match-hud" style="display: flex; align-items: center; gap: 9px; background: rgba(14, 15, 22, 0.88); padding: 9px 11px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.16); box-shadow: 0 6px 24px rgba(0,0,0,0.65); transition: border-color 0.12s ease, box-shadow 0.12s ease;">
           <div style="position: relative; width: 20px; height: 50px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;">
@@ -738,6 +753,14 @@ canvas.emscripten { border: 0px none; background-color: black; }
               ? ('0 0 16px ' + heldInfo.col + ', inset 0 0 11px ' + heldInfo.col)
               : 'inset 0 0 10px rgba(255,255,255,0.12)';
             hiCol = heldInfo.col;
+          } else if (gId === 905) {
+            nameEl.innerText = 'Gold Nugget';
+            nameEl.style.color = '#ffd54f';
+            pctEl.innerText = '24K';
+            barEl.style.height = '100%';
+            barEl.style.background = '#ffd54f';
+            vesselEl.style.boxShadow = '0 0 16px #ffd54f, inset 0 0 11px #ffd54f';
+            hiCol = '#ffd54f';
           } else if (gId === 901) {
             nameEl.innerText = 'Lit Match';
             nameEl.style.color = '#ffab2e';
@@ -764,6 +787,14 @@ canvas.emscripten { border: 0px none; background-color: black; }
             barEl.style.background = tCol;
             vesselEl.style.boxShadow = '0 0 12px ' + tCol + '66, inset 0 0 9px ' + tCol + '44';
             hiCol = tCol;
+          } else if (isActive && (pId === 914 || pId === 915)) {
+            nameEl.innerText = 'Gold Nugget';
+            nameEl.style.color = '#ffd54f';
+            pctEl.innerText = 'LOOT';
+            barEl.style.height = '85%';
+            barEl.style.background = '#ffd54f';
+            vesselEl.style.boxShadow = '0 0 14px rgba(255,213,79,0.55), inset 0 0 9px rgba(255,213,79,0.35)';
+            hiCol = '#ffd54f';
           } else if (isActive && pId >= 1 && pId <= 17 && pInfo) {
             const loadPct = Math.round(stress * 100);
             const isCrit  = (stress >= 0.22 || BRITTLE_SOLIDS.includes(pId));
@@ -841,12 +872,15 @@ canvas.emscripten { border: 0px none; background-color: black; }
 
           if (pId === 920) {
             const hAmoeba = (gId >= 1000 && gId < 2000) ? (RIG_REAGENTS[gId - 1000] || { col: '#76e8fa', name: 'Ditto' }) : null;
-            const hCol = hAmoeba ? hAmoeba.col : ((gId >= 1 && gId <= 17 && RIG_REAGENTS[gId]) ? RIG_REAGENTS[gId].col : '#ffd54f');
+            const hGold   = (gId === 905);
+            const hCol = hGold ? '#ffd54f' : (hAmoeba ? hAmoeba.col : ((gId >= 1 && gId <= 17 && RIG_REAGENTS[gId]) ? RIG_REAGENTS[gId].col : '#ffd54f'));
             ringEl.style.borderColor = hCol;
             ringEl.style.boxShadow   = '0 0 9px ' + hCol;
-            hintEl.innerText         = hAmoeba
-              ? ('LMB: Power-Punt ' + hAmoeba.name + ' Amoeba! • Release: Drop')
-              : 'LMB: Power-Punt! • Release: Drop';
+            hintEl.innerText         = hGold
+              ? 'Release RMB: Pocket Gold! • LMB: Cannonball Punt!'
+              : (hAmoeba
+                  ? ('LMB: Power-Punt ' + hAmoeba.name + ' Amoeba! • Release: Drop')
+                  : 'LMB: Power-Punt! • Release: Drop');
             hintEl.style.color       = hCol;
             hintEl.style.opacity     = '1';
           } else if (pId === 921) {
@@ -872,6 +906,18 @@ canvas.emscripten { border: 0px none; background-color: black; }
             ringEl.style.boxShadow   = '0 0 9px ' + aCol;
             hintEl.innerText         = 'RMB: Yank ' + aLbl + '!';
             hintEl.style.color       = aCol;
+            hintEl.style.opacity     = '1';
+          } else if (pId === 914) {
+            ringEl.style.borderColor = '#ffd54f';
+            ringEl.style.boxShadow   = '0 0 10px #ffd54f';
+            hintEl.innerText         = 'Walk Over: Pocket Gold • RMB: Grab!';
+            hintEl.style.color       = '#ffd54f';
+            hintEl.style.opacity     = '1';
+          } else if (pId === 915) {
+            ringEl.style.borderColor = '#ffd54f';
+            ringEl.style.boxShadow   = '0 0 10px #ffd54f';
+            hintEl.innerText         = 'RMB: Yank Gold Nugget!';
+            hintEl.style.color       = '#ffd54f';
             hintEl.style.opacity     = '1';
           } else if (pId === 910) {
             ringEl.style.borderColor = '#ffab91';
@@ -899,13 +945,15 @@ canvas.emscripten { border: 0px none; background-color: black; }
             hintEl.style.opacity     = '1';
           } else if (pId >= 1 && pId <= 17 && pInfo) {
             const shatterable = (stress >= 0.22 || BRITTLE_SOLIDS.includes(pId));
-            const hCol = shatterable ? '#ff8a65' : pInfo.col;
+            const hCol = (pId === 5) ? '#ffd54f' : (shatterable ? '#ff8a65' : pInfo.col);
             const loadTag = (stress >= 0.22) ? (' (' + Math.round(stress * 100) + '% Load)') : '';
             ringEl.style.borderColor = hCol;
             ringEl.style.boxShadow   = '0 0 9px ' + hCol;
-            hintEl.innerText         = shatterable
-              ? ('LMB: Shatter ' + pInfo.name + loadTag + ' • RMB: Wrench')
-              : ('RMB: Wrench ' + pInfo.name + ' • LMB: Kick');
+            hintEl.innerText         = (pId === 5)
+              ? 'RMB: Wrench 25g Nugget! • LMB: Chip Gold Vein'
+              : (shatterable
+                  ? ('LMB: Shatter ' + pInfo.name + loadTag + ' • RMB: Wrench')
+                  : ('RMB: Wrench ' + pInfo.name + ' • LMB: Kick'));
             hintEl.style.color       = hCol;
             hintEl.style.opacity     = '1';
           } else {
@@ -925,7 +973,13 @@ canvas.emscripten { border: 0px none; background-color: black; }
             ringEl.style.transform = 'scale(1.0)';
           }
 
-          if (pInfo && actFill < 0.995) {
+          if (activeSlot === 0 && pId === 5) {
+            ringEl.style.borderColor = '#ffd54f';
+            ringEl.style.boxShadow   = '0 0 10px #ffd54f';
+            hintEl.innerText         = (mode < -0.5) ? 'Mining Gold Nuggets!' : 'RMB: Mine Gold Vein!';
+            hintEl.style.color       = '#ffd54f';
+            hintEl.style.opacity     = '1';
+          } else if (pInfo && actFill < 0.995) {
             ringEl.style.borderColor = pInfo.col;
             ringEl.style.boxShadow   = '0 0 8px ' + pInfo.col;
             hintEl.innerText         = (mode < -0.5 ? RIG_IN_HINT[activeSlot] : RIG_IDLE_HINT[activeSlot]) + pInfo.name;
@@ -1049,6 +1103,30 @@ canvas.emscripten { border: 0px none; background-color: black; }
           flameEl.style.transform = 'scale(0.85)';
         }
       };
+
+      window.sync_gold = function(total, lastGain, flash) {
+        const cardEl  = document.getElementById('gold-hud');
+        const iconEl  = document.getElementById('gold-nugget-icon');
+        const totalEl = document.getElementById('gold-total-lbl');
+        const badgeEl = document.getElementById('gold-gain-badge');
+
+        totalEl.innerText = (total | 0) + 'g';
+
+        if (flash > 0.12) {
+          badgeEl.innerText        = '+' + (lastGain | 0) + 'g!';
+          badgeEl.style.opacity    = '1';
+          cardEl.style.transform   = 'translateY(-4px)';
+          cardEl.style.borderColor = 'rgba(255, 213, 79, 0.85)';
+          cardEl.style.boxShadow   = '0 8px 26px rgba(0,0,0,0.72), 0 0 18px rgba(255, 202, 40, 0.50)';
+          iconEl.style.transform   = 'scale(1.28) rotate(8deg)';
+        } else {
+          badgeEl.style.opacity    = '0';
+          cardEl.style.transform   = 'translateY(0px)';
+          cardEl.style.borderColor = (total > 0) ? 'rgba(255, 213, 79, 0.36)' : 'rgba(255, 213, 79, 0.18)';
+          cardEl.style.boxShadow   = '0 6px 24px rgba(0,0,0,0.65)';
+          iconEl.style.transform   = 'scale(1.0) rotate(0deg)';
+        }
+      };
       
       updateHUD(); // Initialize HUD labels
 
@@ -1060,6 +1138,6 @@ canvas.emscripten { border: 0px none; background-color: black; }
         canvasElement.focus();
       });
     </script>
-    <script async type="text/javascript" src="index.js?v=1788915000"></script>
+    <script async type="text/javascript" src="index.js?v=1788919000"></script>
   </body>
 </html>

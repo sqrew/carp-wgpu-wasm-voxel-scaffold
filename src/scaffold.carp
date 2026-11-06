@@ -110,6 +110,22 @@
 #endif
   }")
 
+(deftemplate js-sync-gold (Fn [Int Int Float] ())
+  "void $NAME(int total, int last_gain, float flash)"
+  "$DECL {
+#ifdef __EMSCRIPTEN__
+      static int prev_total = -1;
+      static int prev_gain = -1;
+      static float prev_flash = -1.0f;
+      float df = flash - prev_flash; if (df < 0.0f) df = -df;
+      if (total == prev_total && last_gain == prev_gain && df < 0.05f) return;
+      prev_total = total; prev_gain = last_gain; prev_flash = flash;
+      char buf[192];
+      sprintf(buf, \"if (window.sync_gold) window.sync_gold(%d, %d, %.2f);\", total, last_gain, flash);
+      emscripten_run_script(buf);
+#endif
+  }")
+
 (deftemplate get-js-brush-radius (Fn [] Float) "float $NAME(void)" "$DECL { return js_brush_radius; }")
 (deftemplate get-js-solid-mat (Fn [] Float) "float $NAME(void)" "$DECL { return js_solid_mat; }")
 (deftemplate get-js-liq-mat (Fn [] Float) "float $NAME(void)" "$DECL { return js_liq_mat; }")
