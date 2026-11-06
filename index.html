@@ -195,7 +195,7 @@ canvas.emscripten { border: 0px none; background-color: black; }
           • <strong>[5] Wand</strong>: <strong>LMB</strong> Cast Spell • <strong>RMB</strong> Cycle 6 Wands<br>
           • <strong>[1–3]</strong>: <strong>RMB</strong> Gather • <strong>LMB</strong> Deploy • <strong>X</strong> Dump<br>
           • <strong>[4] Boot</strong>: <strong>RMB</strong> Yank/Grab/Wrench • <strong>LMB</strong> Kick/Punt<br>
-          • <strong>Z / MMB</strong>: Strike Match | <strong>T</strong>: Amoeba | <strong>R</strong>: Orb<br>
+          • <strong>Z / MMB</strong>: Strike Match | <strong>T</strong>: Grey Slime | <strong>R</strong>: Orb<br>
           • <strong>F/H/G + Click</strong>: Sandbox Solid / Liq / Gas
         </div>
       </div>
@@ -732,16 +732,16 @@ canvas.emscripten { border: 0px none; background-color: black; }
 
           let hiCol = RIG_ACCENTS[3];
           if (heldAmoeba) {
-            const aCol = heldAmoebaInfo ? heldAmoebaInfo.col : '#76e8fa';
-            const aGlow = heldAmoebaInfo ? heldAmoebaInfo.glow : true;
-            nameEl.innerText = heldAmoebaInfo ? (heldAmoebaInfo.name + ' Amoeba') : 'Ditto-Amoeba';
+            const aCol = heldAmoebaInfo ? heldAmoebaInfo.col : '#bcc6d4';
+            const aGlow = heldAmoebaInfo ? heldAmoebaInfo.glow : false;
+            nameEl.innerText = heldAmoebaInfo ? (heldAmoebaInfo.name + ' Slime') : 'Grey Slime';
             nameEl.style.color = aCol;
-            pctEl.innerText = 'SQUISH';
+            pctEl.innerText = heldAmoebaInfo ? 'LOCKED' : 'GREY';
             barEl.style.height = '100%';
             barEl.style.background = aCol;
             vesselEl.style.boxShadow = aGlow
               ? ('0 0 16px ' + aCol + ', inset 0 0 11px ' + aCol)
-              : 'inset 0 0 10px rgba(255,255,255,0.14)';
+              : 'inset 0 0 10px rgba(255,255,255,0.16)';
             hiCol = aCol;
           } else if (heldInfo) {
             nameEl.innerText = heldInfo.name + ' Rock';
@@ -779,10 +779,10 @@ canvas.emscripten { border: 0px none; background-color: black; }
           } else if (isActive && pId >= 2000 && pId < 4000) {
             const tMat = (pId >= 3000) ? (pId - 3000) : (pId - 2000);
             const tInfo = RIG_REAGENTS[tMat] || null;
-            const tCol = tInfo ? tInfo.col : '#76e8fa';
-            nameEl.innerText = tInfo ? (tInfo.name + ' Amoeba') : 'Ditto-Amoeba';
+            const tCol = tInfo ? tInfo.col : '#bcc6d4';
+            nameEl.innerText = tInfo ? (tInfo.name + ' Slime') : 'Grey Slime';
             nameEl.style.color = tCol;
-            pctEl.innerText = 'LIVE';
+            pctEl.innerText = tInfo ? 'LOCKED' : 'GREY';
             barEl.style.height = '65%';
             barEl.style.background = tCol;
             vesselEl.style.boxShadow = '0 0 12px ' + tCol + '66, inset 0 0 9px ' + tCol + '44';
@@ -871,7 +871,7 @@ canvas.emscripten { border: 0px none; background-color: black; }
           }
 
           if (pId === 920) {
-            const hAmoeba = (gId >= 1000 && gId < 2000) ? (RIG_REAGENTS[gId - 1000] || { col: '#76e8fa', name: 'Ditto' }) : null;
+            const hAmoeba = (gId >= 1000 && gId < 2000) ? (RIG_REAGENTS[gId - 1000] || { col: '#bcc6d4', name: 'Grey' }) : null;
             const hGold   = (gId === 905);
             const hCol = hGold ? '#ffd54f' : (hAmoeba ? hAmoeba.col : ((gId >= 1 && gId <= 17 && RIG_REAGENTS[gId]) ? RIG_REAGENTS[gId].col : '#ffd54f'));
             ringEl.style.borderColor = hCol;
@@ -879,7 +879,7 @@ canvas.emscripten { border: 0px none; background-color: black; }
             hintEl.innerText         = hGold
               ? 'Release RMB: Pocket Gold! • LMB: Cannonball Punt!'
               : (hAmoeba
-                  ? ('LMB: Power-Punt ' + hAmoeba.name + ' Amoeba! • Release: Drop')
+                  ? ('LMB: Power-Punt ' + hAmoeba.name + ' Slime! • Release: Drop')
                   : 'LMB: Power-Punt! • Release: Drop');
             hintEl.style.color       = hCol;
             hintEl.style.opacity     = '1';
@@ -891,8 +891,8 @@ canvas.emscripten { border: 0px none; background-color: black; }
             hintEl.style.opacity     = '1';
           } else if (pId >= 2000 && pId < 3000) {
             const aInfo = RIG_REAGENTS[pId - 2000] || null;
-            const aCol  = aInfo ? aInfo.col : '#76e8fa';
-            const aLbl  = aInfo ? (aInfo.name + ' Amoeba') : 'Ditto-Amoeba';
+            const aCol  = aInfo ? aInfo.col : '#bcc6d4';
+            const aLbl  = aInfo ? (aInfo.name + ' Slime') : 'Grey Slime';
             ringEl.style.borderColor = aCol;
             ringEl.style.boxShadow   = '0 0 9px ' + aCol;
             hintEl.innerText         = 'RMB: Grab ' + aLbl + ' • LMB: Boot Punt!';
@@ -900,8 +900,8 @@ canvas.emscripten { border: 0px none; background-color: black; }
             hintEl.style.opacity     = '1';
           } else if (pId >= 3000 && pId < 4000) {
             const aInfo = RIG_REAGENTS[pId - 3000] || null;
-            const aCol  = aInfo ? aInfo.col : '#76e8fa';
-            const aLbl  = aInfo ? (aInfo.name + ' Amoeba') : 'Ditto-Amoeba';
+            const aCol  = aInfo ? aInfo.col : '#bcc6d4';
+            const aLbl  = aInfo ? (aInfo.name + ' Slime') : 'Grey Slime';
             ringEl.style.borderColor = aCol;
             ringEl.style.boxShadow   = '0 0 9px ' + aCol;
             hintEl.innerText         = 'RMB: Yank ' + aLbl + '!';
@@ -1138,6 +1138,6 @@ canvas.emscripten { border: 0px none; background-color: black; }
         canvasElement.focus();
       });
     </script>
-    <script async type="text/javascript" src="index.js?v=1788919000"></script>
+    <script async type="text/javascript" src="index.js?v=1788920000"></script>
   </body>
 </html>

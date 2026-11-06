@@ -121,12 +121,13 @@
           a-gen (EngineState.amoeba-gen state)
           a-mat (EngineState.amoeba-mat state)
           a-fill (EngineState.amoeba-fill state)
+          a-rad (EngineState.amoeba-rad state)
           a-state (EngineState.amoeba-state state)]
       (do
         ;; 1. Spawn physical Gold Nuggets from any gold veins carved this frame
         (GoldSystem.harvest-carved-gold! state)
 
-        ;; 2. Step active Gold Nuggets: Dittamoeba schlorping + Magnetic Pouch Swoop!
+        ;; 2. Step active Gold Nuggets: Grey/Gold Slime schlorping + Magnetic Pouch Swoop!
         (for [i 0 16]
           (when @(Array.unsafe-nth n-alive i)
             (let [idx @(Array.unsafe-nth n-idx i)
@@ -164,32 +165,38 @@
                           (ParticleSystem.emit! ps (Double.to-float ex) (+ (Double.to-float ey) 0.15f) (Double.to-float ez)
                                                 0.0f 1.6f 0.0f 0.35f 2 405.0f 0.32f 0.0f))
 
-                        ;; Wandering Dittamoebas can schlorp uncollected nuggets -> 24-Karat Gold Slime!
+                        ;; Only Grey stem-cell Slimes (imprinting -> Gold!) or already Gold-locked Slimes schlorp nuggets!
                         (when (and (not held-by-player?) (> age 1.35f))
                           (for [k 0 16]
-                            (when (and (not eaten-by-slime?)
-                                       (and @(Array.unsafe-nth a-alive k)
-                                            (and (/= @(Array.unsafe-nth a-state k) 2)
-                                                 (< @(Array.unsafe-nth a-fill k) 0.96f))))
-                              (let [aent (ECS.Entity.init (Handle.init @(Array.unsafe-nth a-idx k) @(Array.unsafe-nth a-gen k)))
-                                    acb-opt (the (Maybe CompBody) (get-component ecs &aent))]
-                                (match acb-opt
-                                  (Maybe.Nothing) ()
-                                  (Maybe.Just acb)
-                                    (let [apos (RigidBody.position (CompBody.rb &acb))
-                                          sx (- @(Vector3.x apos) ex)
-                                          sy (- @(Vector3.y apos) ey)
-                                          sz (- @(Vector3.z apos) ez)
-                                          sd2 (+ (+ (* sx sx) (* sy sy)) (* sz sz))]
-                                      (when (< sd2 1.30)
-                                        (let [new-fill (Float.clamp 0.0f 1.0f (+ @(Array.unsafe-nth a-fill k) 0.38f))]
-                                          (do
-                                            (Array.aset! a-mat k 5.0f)
-                                            (Array.aset! a-fill k new-fill)
-                                            (ECS.add-component! ecs &aent (CompColor.init (Vector3.init 1.35 1.04 0.24)))
-                                            (ParticleSystem.emit-sparks! ps (Double.to-float ex) (Double.to-float ey) (Double.to-float ez) 0.0f 1.0f 0.0f 12)
-                                            (GoldSystem.destroy-nugget-slot! state i)
-                                            (set! eaten-by-slime? true))))))))))
+                            (let [km (Float.round @(Array.unsafe-nth a-mat k))]
+                              (when (and (not eaten-by-slime?)
+                                         (and @(Array.unsafe-nth a-alive k)
+                                              (and (or (<= km 0) (= km 5))
+                                                   (and (/= @(Array.unsafe-nth a-state k) 2)
+                                                        (< @(Array.unsafe-nth a-fill k) 0.99f)))))
+                                (let [aent (ECS.Entity.init (Handle.init @(Array.unsafe-nth a-idx k) @(Array.unsafe-nth a-gen k)))
+                                      acb-opt (the (Maybe CompBody) (get-component ecs &aent))]
+                                  (match acb-opt
+                                    (Maybe.Nothing) ()
+                                    (Maybe.Just acb)
+                                      (let [apos (RigidBody.position (CompBody.rb &acb))
+                                            sx (- @(Vector3.x apos) ex)
+                                            sy (- @(Vector3.y apos) ey)
+                                            sz (- @(Vector3.z apos) ez)
+                                            sd2 (+ (+ (* sx sx) (* sy sy)) (* sz sz))
+                                            reach (+ (Double.from-float @(Array.unsafe-nth a-rad k)) 0.65)
+                                            reach2 (* reach reach)]
+                                        (when (< sd2 reach2)
+                                          (let [new-fill (Float.clamp 0.0f 1.0f (+ @(Array.unsafe-nth a-fill k) 0.36f))
+                                                new-rad (+ 0.42f (* 0.50f new-fill))]
+                                            (do
+                                              (Array.aset! a-mat k 5.0f)
+                                              (Array.aset! a-fill k new-fill)
+                                              (Array.aset! a-rad k new-rad)
+                                              (ECS.add-component! ecs &aent (CompColor.init (Vector3.init 1.35 1.04 0.24)))
+                                              (ParticleSystem.emit-sparks! ps (Double.to-float ex) (Double.to-float ey) (Double.to-float ez) 0.0f 1.0f 0.0f 12)
+                                              (GoldSystem.destroy-nugget-slot! state i)
+                                              (set! eaten-by-slime? true)))))))))))
 
                         ;; Magnetic Pouch Swoop & Pickup (after brief 0.36s pop bounce, when not held in [4])
                         (when (and (not eaten-by-slime?) (and (not held-by-player?) (> age 0.36f)))

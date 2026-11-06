@@ -427,7 +427,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
         let apos = c_info.xyz;
         let my_mat = round(c_info.w - 1.0);
-        let arad = clamp(u.critter_colors[ak].w, 0.35, 0.85);
+        let arad = clamp(u.critter_colors[ak].w, 0.32, 1.05);
 
         // 5a. Direct body contact probe (liquids, gases, igniters, extinguishers, lit matches)
         var touch_liq: f32 = 0.0;
@@ -485,7 +485,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             let sdir = vec3<f32>(cos(theta) * r_xy, y_dir, sin(theta) * r_xy);
 
             for (var tier: u32 = 0u; tier < 3u; tier = tier + 1u) {
-                let dist = select(select(1.25, 3.1, tier == 1u), 6.4, tier == 2u);
+                let dist = select(select(arad + 0.85, arad + 2.65, tier == 1u), arad + 5.85, tier == 2u);
                 let sp = apos + sdir * dist;
                 if (sp.x <= box_min.x + 2.5 || sp.x >= box_max.x - 2.5 ||
                     sp.y <= box_min.y + 2.5 || sp.y >= box_max.y - 2.5 ||
@@ -501,27 +501,25 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 let sl_raw = round(abs(sl.x));
                 if (sl_raw >= 0.5 && sl.y > 0.08) {
                     cand_mat = 256.0 + sl_raw;
-                    // Ambrosia (262), Volatile Gel (263), Oil (260), Acid (259), Toxic Sludge (264), Lava (258), Blood (261), Water (257)
-                    appetite = select(14.0, 24.0, sl_raw >= 2.0);
-                    if (sl_raw == 6.0 || sl_raw == 7.0) { appetite = 30.0; }
+                    appetite = select(16.0, 25.0, sl_raw >= 2.0);
+                    if (sl_raw == 6.0 || sl_raw == 7.0) { appetite = 32.0; }
                 } else {
-                    // Tasty reactive cave solids (skip dull Stone 1, Obsidian 16, Bedrock 255)
+                    // Reactive cave solids (skip dull filler Stone 1, Soil 2, Sand 6, Obsidian 16, Bedrock 255)
                     let ss = get_solid_world(sp);
                     let ss_raw = round(abs(ss.x));
-                    if (ss.y <= 0.18 && ss_raw >= 1.5 && ss_raw < 254.5 && ss_raw != 16.0) {
+                    if (ss.y <= 0.18 && ss_raw >= 2.5 && ss_raw < 254.5 && ss_raw != 6.0 && ss_raw != 16.0) {
                         cand_mat = ss_raw;
-                        appetite = select(15.0, 6.5, ss_raw == 2.0 || ss_raw == 6.0);
-                        // Slime (10), Spore Pod (13), Crystal (14), Amethyst (15), Rad-Ore (17), Gold (5), Coal (4), Gunpowder (7), C4 (12)
+                        appetite = 16.0;
                         if (ss_raw == 10.0 || ss_raw == 13.0 || ss_raw == 14.0 || ss_raw == 15.0 || ss_raw == 17.0) {
                             appetite = 27.0;
                         } else if (ss_raw == 4.0 || ss_raw == 5.0 || ss_raw == 7.0 || ss_raw == 12.0) {
-                            appetite = 21.0;
+                            appetite = 23.0;
                         }
                     } else {
-                        // Dense energetic gases (Spore Cloud 520, Methane 518)
+                        // Dense energetic gases (Steam 513, Acid Vapor 517, Methane 518, Spore Cloud 520)
                         let sg = get_gas_world(sp);
                         let sg_raw = round(abs(sg.x));
-                        if (sg.y > 0.16 && (sg_raw == 6.0 || sg_raw == 8.0)) {
+                        if (sg.y > 0.16 && (sg_raw == 1.0 || sg_raw == 5.0 || sg_raw == 6.0 || sg_raw == 8.0)) {
                             cand_mat = 512.0 + sg_raw;
                             appetite = 18.0;
                         }
@@ -529,14 +527,31 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 }
 
                 if (cand_mat > 0.5) {
-                    if (my_mat > 0.5 && abs(cand_mat - my_mat) < 0.5 && cand_mat != 2.0 && cand_mat != 6.0) {
-                        appetite = appetite + 14.0;
+                    var diet_ok = false;
+                    if (my_mat < 0.5) {
+                        // Grey Slime: curious stem-cell omnivore for any reactive element!
+                        diet_ok = true;
+                    } else {
+                        // Element-Locked Slime: strictly craves its locked element family (or golden Ambrosia 262!)
+                        let exact = abs(cand_mat - my_mat) < 0.5;
+                        let ambrosia = abs(cand_mat - 262.0) < 0.5;
+                        let hydro = (my_mat == 8.0 || my_mat == 257.0 || my_mat == 513.0) && (cand_mat == 8.0 || cand_mat == 257.0 || cand_mat == 513.0);
+                        let acid_fam = (my_mat == 259.0 || my_mat == 517.0) && (cand_mat == 259.0 || cand_mat == 517.0);
+                        let spore_fam = (my_mat == 13.0 || my_mat == 520.0) && (cand_mat == 13.0 || cand_mat == 520.0);
+                        let pyro_fam = (my_mat == 258.0 || my_mat == 515.0 || my_mat == 519.0) && (cand_mat == 258.0 || cand_mat == 515.0 || cand_mat == 519.0);
+                        let boom_fam = (my_mat == 7.0 || my_mat == 12.0 || my_mat == 263.0 || my_mat == 518.0) && (cand_mat == 7.0 || cand_mat == 12.0 || cand_mat == 263.0 || cand_mat == 518.0);
+                        let sponge_drink = (my_mat == 11.0) && (cand_mat >= 256.5 && cand_mat <= 264.5);
+                        diet_ok = exact || ambrosia || hydro || acid_fam || spore_fam || pyro_fam || boom_fam || sponge_drink;
+                        if (exact) { appetite = appetite + 16.0; }
                     }
-                    let score = appetite / (1.0 + 0.24 * dist);
-                    if (score > best_score) {
-                        best_score = score;
-                        best_pos = sp;
-                        best_mat = cand_mat;
+
+                    if (diet_ok) {
+                        let score = appetite / (1.0 + 0.24 * dist);
+                        if (score > best_score) {
+                            best_score = score;
+                            best_pos = sp;
+                            best_mat = cand_mat;
+                        }
                     }
                 }
             }

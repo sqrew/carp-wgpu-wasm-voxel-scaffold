@@ -159,6 +159,7 @@
           a-gen (EngineState.amoeba-gen state)
           a-mat (EngineState.amoeba-mat state)
           a-fill (EngineState.amoeba-fill state)
+          a-rad (EngineState.amoeba-rad state)
           a-state (EngineState.amoeba-state state)]
       (do
         ;; 1. Elemental Ditto-Amoeba reactions within blast/touch radius
@@ -177,8 +178,9 @@
                         adist (Double.sqrt (+ (+ (* adx adx) (* ady ady)) (* adz adz)))
                         cmat @(Array.unsafe-nth a-mat k)
                         cst @(Array.unsafe-nth a-state k)
-                        afill @(Array.unsafe-nth a-fill k)]
-                    (when (< adist (+ max-r 0.75))
+                        afill @(Array.unsafe-nth a-fill k)
+                        arad-d (Double.from-float @(Array.unsafe-nth a-rad k))]
+                    (when (< adist (+ (+ max-r arad-d) 0.30))
                       (let [afx (Double.to-float @(Vector3.x &apos))
                             afy (Double.to-float @(Vector3.y &apos))
                             afz (Double.to-float @(Vector3.z &apos))
@@ -189,39 +191,39 @@
                           ;; Spark / Fireball vs Ice Amoeba -> Melts into Water splash!
                           (if (and fire-like? (= (Float.round cmat) 8))
                             (do
-                              (WandSystem.inject-gpu-reagent! state afx afy afz 2.2f 257.0f 0.75f)
+                              (WandSystem.inject-gpu-reagent! state afx afy afz (+ 2.0f (* 0.8f afill)) 257.0f 0.75f)
                               (ParticleSystem.emit! ps afx afy afz 0.0f 3.8f 0.0f 1.5f 20 101.0f 0.45f 0.25f)
                               (CritterSystem.destroy-amoeba-slot! state k))
                             ;; Cryo-Architect vs Lava / Burning Amoeba -> *tssst!* Obsidian boulder!
                             (if (and (= elem-tag 3) (or (= cst 3) (CritterSystem.igniter-mat? cmat)))
-                              (let [obs-col (Vector3.init 0.34 0.27 0.48)]
+                              (let [obs-col (Vector3.init 0.34 0.27 0.48)
+                                    obs-r (+ 0.46 (* 0.42 (Double.from-float afill)))]
                                 (do
-                                  (WandSystem.inject-gpu-reagent! state afx afy afz 2.4f 513.0f 0.85f)
-                                  (ignore (CritterSystem.spawn-reagent-boulder! state apos (Vector3.init 0.0 4.5 0.0) 0.56 16.0f obs-col 60000l))
+                                  (WandSystem.inject-gpu-reagent! state afx afy afz (+ 2.2f (* 0.8f afill)) 513.0f 0.85f)
+                                  (ignore (CritterSystem.spawn-reagent-boulder! state apos (Vector3.init 0.0 4.5 0.0) obs-r 16.0f obs-col 60000l))
                                   (ParticleSystem.emit-smoke! ps afx (+ afy 0.2f) afz 14)
                                   (CritterSystem.destroy-amoeba-slot! state k)))
-                              ;; Non-lethal elemental mutations + airborne launch!
-                              (do
-                                (when (and fire-like? (and (/= cst 3) (CritterSystem.flammable-mat? cmat)))
-                                  (do
-                                    (Array.aset! a-state k 3)
-                                    (Array.aset! (EngineState.amoeba-timer state) k 0.0f)
-                                    (ECS.add-component! ecs &aent (CompColor.init (CritterSystem.amoeba-visual-color cmat 3)))))
-                                (when (and (= elem-tag 3) (/= cst 2))
-                                  (do
-                                    (Array.aset! a-mat k 8.0f)
-                                    (Array.aset! a-fill k (Float.clamp 0.25f 0.95f (+ afill 0.22f)))
-                                    (ECS.add-component! ecs &aent (CompColor.init (CritterSystem.amoeba-visual-color 8.0f 0)))))
-                                (when (and (= elem-tag 4) (/= cst 2))
-                                  (do
-                                    (Array.aset! a-mat k 259.0f)
-                                    (Array.aset! a-fill k (Float.clamp 0.25f 0.95f (+ afill 0.24f)))
-                                    (ECS.add-component! ecs &aent (CompColor.init (CritterSystem.amoeba-visual-color 259.0f 0)))))
-                                (when (and (= elem-tag 5) (/= cst 2))
-                                  (do
-                                    (Array.aset! a-mat k 262.0f)
-                                    (Array.aset! a-fill k (Float.clamp 0.25f 0.95f (+ afill 0.20f)))
-                                    (ECS.add-component! ecs &aent (CompColor.init (CritterSystem.amoeba-visual-color 262.0f 0))))))))))))))))
+                              ;; Non-lethal wand splashes: Grey Slimes imprint & lock; Locked Slimes only feed on compatible elements (or Ambrosia)!
+                              (let [splash-m (if (= elem-tag 3) 8.0f
+                                             (if (= elem-tag 4) 259.0f
+                                             (if (= elem-tag 5) 262.0f 0.0f)))]
+                                (do
+                                  (when (and fire-like? (and (/= cst 3) (CritterSystem.flammable-mat? cmat)))
+                                    (do
+                                      (Array.aset! a-state k 3)
+                                      (Array.aset! (EngineState.amoeba-timer state) k 0.0f)
+                                      (ECS.add-component! ecs &aent (CompColor.init (CritterSystem.amoeba-visual-color cmat 3)))))
+                                  (when (and (> splash-m 0.5f)
+                                             (and (/= cst 2)
+                                                  (CritterSystem.compatible-diet? cmat splash-m)))
+                                    (let [res-mat (if (<= (Float.round cmat) 0) splash-m cmat)
+                                          res-fill (Float.clamp 0.20f 1.0f (+ afill 0.24f))
+                                          res-rad (CritterSystem.amoeba-radius res-mat res-fill)]
+                                      (do
+                                        (Array.aset! a-mat k res-mat)
+                                        (Array.aset! a-fill k res-fill)
+                                        (Array.aset! a-rad k res-rad)
+                                        (ECS.add-component! ecs &aent (CompColor.init (CritterSystem.amoeba-visual-color res-mat cst))))))))))))))))))
 
         ;; 2. Radial / Directional Knockback on all nearby CompBody entities (including surviving Amoebas & Boulders!)
         (when (> kb 0.5)

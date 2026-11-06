@@ -54,12 +54,49 @@
                               (or (= m 515)
                                   (or (= m 517) (= m 519)))))))))))
 
+  ;; Growth curve: Grey stem-cell babies start at 0.36m; locked slimes swell from 0.42m -> 0.92m (~16.6x volume!)
+  (defn amoeba-radius [mat-id fill]
+    (if (<= (Float.round mat-id) 0)
+      0.36f
+      (+ 0.42f (* 0.50f (Float.clamp 0.0f 1.0f fill)))))
+
+  ;; Reactive cave elements that can imprint a Grey Slime (skips dull filler Stone 1, Soil 2, Sand 6, Obsidian 16, Smoke 516)
+  (defn imprintable-mat? [mat-id]
+    (let [m (Float.round mat-id)]
+      (if (< m 256)
+        (and (>= m 3) (and (<= m 17) (and (/= m 6) (/= m 16))))
+        (if (< m 512)
+          (and (>= m 257) (<= m 264))
+          (and (>= m 513) (and (<= m 520) (/= m 516)))))))
+
+  ;; Once a Grey Slime imprints on an element, its breed is permanently locked:
+  ;; it only fattens up on its own element family (or golden Ambrosia 262 universal chow)!
+  (defn compatible-diet? [locked-mat cand-mat]
+    (let [l (Float.round locked-mat)
+          c (Float.round cand-mat)]
+      (if (<= l 0)
+        (CritterSystem.imprintable-mat? cand-mat)
+        (if (or (= c l) (= c 262))
+          true
+          (let [hydro? (and (or (= l 8) (or (= l 257) (= l 513)))
+                            (or (= c 8) (or (= c 257) (= c 513))))
+                acid?  (and (or (= l 259) (= l 517))
+                            (or (= c 259) (= c 517)))
+                spore? (and (or (= l 13) (= l 520))
+                            (or (= c 13) (= c 520)))
+                pyro?  (and (or (= l 258) (or (= l 515) (= l 519)))
+                            (or (= c 258) (or (= c 515) (= c 519))))
+                boom?  (and (or (= l 7) (or (= l 12) (or (= l 263) (= l 518))))
+                            (or (= c 7) (or (= c 12) (or (= c 263) (= c 518)))))
+                sponge? (and (= l 11) (and (>= c 257) (<= c 264)))]
+            (or hydro? (or acid? (or spore? (or pyro? (or boom? sponge?))))))))))
+
   ;; Vibrant jelly tint (values > 1.05 trigger bioluminescent core & vacuole glow in shaders_render)
   (defn amoeba-visual-color [mat-id state-id]
     (if (= state-id 3)
       (Vector3.init 2.80 1.15 0.24)
       (let [m (Float.round mat-id)]
-        (if (<= m 0)   (Vector3.init 0.46 0.88 0.98)
+        (if (<= m 0)   (Vector3.init 0.74 0.78 0.84)
         (if (= m 1)    (Vector3.init 0.62 0.66 0.74)
         (if (= m 2)    (Vector3.init 0.46 0.72 0.34)
         (if (= m 3)    (Vector3.init 0.78 0.54 0.30)
@@ -96,7 +133,7 @@
 
   ;; 3D Global Illumination light color * strength injected into field-sim-wgsl (0 if non-glowing)
   (defn amoeba-gi-emission [mat-id state-id fill]
-    (let [boost (Double.from-float (+ 0.78f (* 0.45f fill)))]
+    (let [boost (Double.from-float (+ 0.68f (* 0.74f fill)))]
       (if (= state-id 3)
         (Vector3.init (* 3.10 boost) (* 1.35 boost) (* 0.28 boost))
         (let [m (Float.round mat-id)]
@@ -213,7 +250,7 @@
               m (Float.round init-mat)
               restit (if (= m 10) 0.96 0.34)
               fric (if (= m 8) 0.08 0.55)
-              rad-f (+ 0.50f (* 0.16f init-fill))
+              rad-f (CritterSystem.amoeba-radius init-mat init-fill)
               rad-d (Double.from-float rad-f)
               col (CritterSystem.amoeba-visual-color init-mat init-state)
               rb (RigidBody.new @&spawn-pos (Quaternion.identity) 1.0 restit fric 0.18 0.18 0.25)
@@ -348,17 +385,12 @@
             (let [hmat (CritterSystem.sample-solid-mat-near world &hit-p)]
               (when (and (< hmat 250.0f) (> @(Vector3.y &hit-p) -185.0))
                 (let [nrm (Physics.estimate-sdf-normal world &hit-p)
-                      spawn-p (Vector3.add &hit-p &(Vector3.mul &nrm 0.62))
+                      spawn-p (Vector3.add &hit-p &(Vector3.mul &nrm 0.56))
                       clear-sdf (World.sample-sdf-nearest world &spawn-p)
-                      pdist (Vector3.mag &(Vector3.sub &spawn-p cam-pos))
-                      ;; Wild cave morphs: mostly hungry naive jellies, occasional Slime/Crystal/Spore morph!
-                      roll (Int.mod fc 11)
-                      wild-mat (if (= roll 3) 10.0f
-                               (if (= roll 7) 14.0f
-                               (if (= roll 10) 13.0f 0.0f)))
-                      wild-fill (if (> wild-mat 0.5f) 0.30f 0.08f)]
-                  (when (and (> clear-sdf 0.42f) (and (> pdist 14.0) (< pdist 54.0)))
-                    (let [slot (CritterSystem.spawn-amoeba! state spawn-p (Vector3.init 0.0 0.0 0.0) wild-mat wild-fill 0)]
+                      pdist (Vector3.mag &(Vector3.sub &spawn-p cam-pos))]
+                  ;; Every wild cave slime starts as a pure Grey stem-cell baby (0.0f) and imprints on local cave chemistry!
+                  (when (and (> clear-sdf 0.36f) (and (> pdist 14.0) (< pdist 54.0)))
+                    (let [slot (CritterSystem.spawn-amoeba! state spawn-p (Vector3.init 0.0 0.0 0.0) 0.0f 0.0f 0)]
                       (when (>= slot 0)
                         (let [b3 (* slot 3)]
                           (do
@@ -367,23 +399,26 @@
                             (Array.aset! (EngineState.amoeba-norm state) (+ b3 2) (Double.to-float @(Vector3.z &nrm)))
                             (EngineState.set-last-amoeba-spawn-frame! state fc)))))))))))))
 
-  ;; Detonate an Explosive Amoeba into a 3.8m crater, GPU MAT_FIRE bloom, and radial shockwave!
+  ;; Detonate an Explosive Amoeba into a size-scaled crater, GPU MAT_FIRE bloom, and radial shockwave!
   (defn detonate-amoeba! [state world ps ecs pos slot]
     (let [px @(Vector3.x pos)
           py @(Vector3.y pos)
           pz @(Vector3.z pos)
           fx (Double.to-float px)
           fy (Double.to-float py)
-          fz (Double.to-float pz)]
+          fz (Double.to-float pz)
+          cfill @(Array.unsafe-nth (EngineState.amoeba-fill state) slot)
+          blast-r (+ 3.20f (* 1.35f cfill))
+          carve-r (Double.from-float (- blast-r 0.15f))]
       (do
         (EngineState.set-critter-px! state fx)
         (EngineState.set-critter-py! state fy)
         (EngineState.set-critter-pz! state fz)
-        (EngineState.set-critter-pr! state 3.80f)
+        (EngineState.set-critter-pr! state blast-r)
         (EngineState.set-critter-ax! state 515.0f)
         (EngineState.set-critter-ay! state -1.0f)
         (EngineState.set-critter-az! state 1.0f)
-        (ignore (World.edit-sdf! world pos 3.65 1.0f true))
+        (ignore (World.edit-sdf! world pos carve-r 1.0f true))
         (ParticleSystem.emit-sparks! ps fx fy fz 0.0f 1.0f 0.0f 48)
         (ParticleSystem.emit-debris! ps fx fy fz 0.0f 1.0f 0.0f 24)
         (ParticleSystem.emit-smoke! ps fx (+ fy 0.4f) fz 26)
@@ -468,7 +503,7 @@
         (EngineState.set-critter-ay! state 0.0f)
         (EngineState.set-critter-az! state 0.0f)
 
-        ;; T Key: Toss a fresh hungry Ditto-Amoeba right from the camera for instant alchemy experiments!
+        ;; T Key: Toss a fresh Grey stem-cell Slime right from the camera for instant alchemy imprinting!
         (when (and (InputManager.action-pressed? input "spawn-amoeba")
                    (> (- fc @(EngineState.last-amoeba-spawn-frame state)) 10))
           (let [spawn-p (Vector3.add cam-pos &(Vector3.mul cam-dir 1.85))
@@ -478,7 +513,7 @@
                 sx (Double.to-float @(Vector3.x &spawn-p))
                 sy (Double.to-float @(Vector3.y &spawn-p))
                 sz (Double.to-float @(Vector3.z &spawn-p))
-                slot (CritterSystem.spawn-amoeba! state spawn-p toss-v 0.0f 0.10f 4)]
+                slot (CritterSystem.spawn-amoeba! state spawn-p toss-v 0.0f 0.0f 4)]
             (when (>= slot 0)
               (do
                 (EngineState.set-last-amoeba-spawn-frame! state fc)
@@ -526,18 +561,18 @@
                             jdy (- fy jet-y)
                             jdz (- fz jet-z)
                             jdist (Float.sqrt (+ (+ (* jdx jdx) (* jdy jdy)) (* jdz jdz)))
-                            sprayed? (and (> spray-mat 0.5f) (< jdist 2.15f))
-                            touch-ign (or (> touch-ign-raw 0.5f)
-                                          (and sprayed? (CritterSystem.igniter-mat? spray-mat)))
-                            touch-ext (or (> touch-ext-raw 0.5f)
-                                          (and sprayed? (CritterSystem.extinguisher-mat? spray-mat)))
                             cur-mat @(Array.unsafe-nth a-mat k)
                             cur-fill @(Array.unsafe-nth a-fill k)
                             cur-state @(Array.unsafe-nth a-state k)
                             cur-timer @(Array.unsafe-nth a-timer k)
                             cur-phase @(Array.unsafe-nth a-phase k)
-                            rad-f (+ 0.48f (* 0.22f cur-fill))
+                            rad-f (CritterSystem.amoeba-radius cur-mat cur-fill)
                             rad-d (Double.from-float rad-f)
+                            sprayed? (and (> spray-mat 0.5f) (< jdist (+ rad-f 1.85f)))
+                            touch-ign (or (> touch-ign-raw 0.5f)
+                                          (and sprayed? (CritterSystem.igniter-mat? spray-mat)))
+                            touch-ext (or (> touch-ext-raw 0.5f)
+                                          (and sprayed? (CritterSystem.extinguisher-mat? spray-mat)))
                             b (RigidBody.body rb)
                             vel @(Body.velocity b)
                             speed (Vector3.mag &vel)
@@ -562,13 +597,13 @@
                                     (let [opos (RigidBody.position (CompBody.rb &ocb))
                                           away (Vector3.sub &pos opos)
                                           od (Vector3.mag &away)
-                                          min-sep (* (+ rad-d orad) 0.88)]
+                                          min-sep (* (+ rad-d orad) 0.90)]
                                       (do
                                         (when (and (or (= os 3) (CritterSystem.igniter-mat? om))
-                                                   (< od (+ rad-d 0.95)))
+                                                   (< od (+ (+ rad-d orad) 0.55)))
                                           (set! hot-sibling? true))
                                         (when (and (< od min-sep) (> od 0.02))
-                                          (let [push (/ (* (- min-sep od) 1.35) od)]
+                                          (let [push (/ (* (- min-sep od) 1.45) od)]
                                             (do
                                               (set! sep-x (+ sep-x (* @(Vector3.x &away) push)))
                                               (set! sep-y (+ sep-y (* @(Vector3.y &away) push)))
@@ -580,14 +615,15 @@
                             (if (and (CritterSystem.igniter-mat? cur-mat) touch-ext)
                               (let [was-held? held?
                                     obs-col (Vector3.init 0.34 0.27 0.48)
-                                    obs-ent (CritterSystem.spawn-reagent-boulder! state pos (Vector3.mul &vel 0.35) 0.56 16.0f obs-col 60000l)]
+                                    obs-r (+ 0.46 (* 0.42 (Double.from-float cur-fill)))
+                                    obs-ent (CritterSystem.spawn-reagent-boulder! state pos (Vector3.mul &vel 0.35) obs-r 16.0f obs-col 60000l)]
                                 (do
                                   (when (< @(EngineState.critter-pr state) 0.1f)
                                     (do
                                       (EngineState.set-critter-px! state fx)
                                       (EngineState.set-critter-py! state fy)
                                       (EngineState.set-critter-pz! state fz)
-                                      (EngineState.set-critter-pr! state 2.60f)
+                                      (EngineState.set-critter-pr! state (+ 2.30f (* 0.85f cur-fill)))
                                       (EngineState.set-critter-ax! state 513.0f)
                                       (EngineState.set-critter-ay! state 0.85f)))
                                   (ParticleSystem.emit! ps fx fy fz 0.0f 4.2f 0.0f 1.8f 28 201.0f 0.55f 0.0f)
@@ -613,7 +649,7 @@
                                         (EngineState.set-critter-px! state fx)
                                         (EngineState.set-critter-py! state fy)
                                         (EngineState.set-critter-pz! state fz)
-                                        (EngineState.set-critter-pr! state 2.25f)
+                                        (EngineState.set-critter-pr! state (+ 2.00f (* 0.90f cur-fill)))
                                         (EngineState.set-critter-ax! state 257.0f)
                                         (EngineState.set-critter-ay! state 0.75f)))
                                     (ParticleSystem.emit! ps fx fy fz 0.0f 3.5f 0.0f 1.5f 24 101.0f 0.45f 0.25f)
@@ -621,9 +657,10 @@
 
                                   ;; 1d. Burning Amoeba burnout check (after ~5.5s -> chars into Coal lump)
                                   (if (and (= cur-state 3) (and (not touch-ext) (>= (+ cur-timer fdt) 5.5f)))
-                                    (let [coal-col (Vector3.init 0.22 0.24 0.28)]
+                                    (let [coal-col (Vector3.init 0.22 0.24 0.28)
+                                          coal-r (+ 0.36 (* 0.32 (Double.from-float cur-fill)))]
                                       (do
-                                        (ignore (CritterSystem.spawn-reagent-boulder! state pos (Vector3.mul &vel 0.25) 0.42 4.0f coal-col 45000l))
+                                        (ignore (CritterSystem.spawn-reagent-boulder! state pos (Vector3.mul &vel 0.25) coal-r 4.0f coal-col 45000l))
                                         (ParticleSystem.emit-smoke! ps fx (+ fy 0.25f) fz 16)
                                         (CritterSystem.destroy-amoeba-slot! state k)))
 
@@ -632,7 +669,8 @@
                                           next-fill cur-fill
                                           next-state cur-state
                                           next-timer cur-timer
-                                          next-phase (+ cur-phase (* fdt (if (= cur-state 3) 6.8f 3.2f)))]
+                                          gait-rate (if (= cur-state 3) 6.8f (- 3.65f (* 1.05f cur-fill)))
+                                          next-phase (+ cur-phase (* fdt gait-rate))]
                                       (do
                                         (set! active-count (+ active-count 1))
 
@@ -648,22 +686,18 @@
                                             (set! next-timer 0.0f)
                                             (ParticleSystem.emit! ps fx fy fz 0.0f 2.8f 0.0f 1.1f 14 201.0f 0.4f 0.0f)))
 
-                                        ;; Direct Rig stream feeding! Squirt Ambrosia, Acid, Slime, Spore Cloud, etc. onto an Amoeba!
+                                        ;; Direct [1]/[2]/[3] Rig stream feeding:
+                                        ;; Grey Slimes (mat == 0) permanently lock onto the first valid element sprayed!
+                                        ;; Locked Slimes strictly fatten up on their locked element family (or golden Ambrosia)!
                                         (when (and sprayed?
                                                    (and (/= next-state 2)
-                                                        (and (< spray-mat 250.0f)
+                                                        (and (CritterSystem.compatible-diet? next-mat spray-mat)
                                                              (not (and (CritterSystem.igniter-mat? next-mat) (CritterSystem.extinguisher-mat? spray-mat))))))
-                                          (do
-                                            (set! next-mat spray-mat)
-                                            (set! next-fill (Float.clamp 0.0f 1.0f (+ next-fill (* 0.55f fdt))))))
-                                        (when (and sprayed?
-                                                   (and (/= next-state 2)
-                                                        (and (> spray-mat 256.5f)
-                                                             (not (and (CritterSystem.igniter-mat? next-mat) (CritterSystem.extinguisher-mat? spray-mat))))))
-                                          (do
-                                            (when (not (and (> next-mat 0.5f) (CritterSystem.extinguisher-mat? spray-mat)))
-                                              (set! next-mat spray-mat))
-                                            (set! next-fill (Float.clamp 0.0f 1.0f (+ next-fill (* 0.62f fdt))))))
+                                          (if (<= (Float.round next-mat) 0)
+                                            (do
+                                              (set! next-mat spray-mat)
+                                              (set! next-fill (Float.clamp 0.16f 1.0f (+ next-fill (* 0.65f fdt)))))
+                                            (set! next-fill (Float.clamp 0.0f 1.0f (+ next-fill (* 0.56f fdt))))))
 
                                         ;; Burning amoeba trails live GPU Fire & sparks!
                                         (when (= next-state 3)
@@ -682,7 +716,7 @@
                                                 (EngineState.set-critter-ax! state 515.0f)
                                                 (EngineState.set-critter-ay! state 0.55f)))))
 
-                                        ;; Player interactions (Slime Trampoline Bounce, Ambrosia Blessing, or Spicy Enemy Bite!)
+                                        ;; Player interactions (Chonk-scaled Slime Trampoline Bounce or Spicy Enemy Bite!)
                                         (when (and (not held?) (not flying?))
                                           (let [p-cb-opt (the (Maybe CompBody) (get-component ecs &p-ent))]
                                             (match p-cb-opt
@@ -694,31 +728,35 @@
                                                       pdy (- @(Vector3.y p-pos) py)
                                                       pdz (- @(Vector3.z p-pos) pz)
                                                       h-dist (Double.sqrt (+ (* pdx pdx) (* pdz pdz)))
-                                                      full-dist (Double.sqrt (+ (+ (* pdx pdx) (* pdy pdy)) (* pdz pdz)))]
-                                                  ;; Slime Amoeba -> Living Super-Trampoline!
+                                                      full-dist (Double.sqrt (+ (+ (* pdx pdx) (* pdy pdy)) (* pdz pdz)))
+                                                      fill-d (Double.from-float next-fill)]
+                                                  ;; Slime Amoeba -> Living Super-Trampoline (bigger chonk = higher launch!)
                                                   (if (and (= (Float.round next-mat) 10)
                                                            (and (< h-dist (+ rad-d 0.85))
                                                                 (and (> pdy -0.35) (< pdy (+ rad-d 1.25)))))
                                                     (let [pb (RigidBody.body p-rb)
-                                                          pv @(Body.velocity pb)]
+                                                          pv @(Body.velocity pb)
+                                                          boing-vy (+ 17.5 (* 6.0 fill-d))]
                                                       (when (< @(Vector3.y &pv) 10.0)
                                                         (do
-                                                          (Body.set-velocity! pb (Vector3.init @(Vector3.x &pv) 18.5 @(Vector3.z &pv)))
+                                                          (Body.set-velocity! pb (Vector3.init @(Vector3.x &pv) boing-vy @(Vector3.z &pv)))
                                                           (RigidBody.set-body! p-rb @pb)
                                                           (ECS.add-component! ecs &p-ent (CompBody.init @p-rb))
                                                           (ParticleSystem.emit! ps fx (+ fy 0.35f) fz 0.0f 6.0f 0.0f 1.6f 18 410.0f 0.35f 0.25f))))
-                                                    ;; Spicy / Burning Amoeba -> Sizzle Knockback Hazard!
+                                                    ;; Spicy / Burning Amoeba -> Size-Scaled Sizzle Knockback!
                                                     (when (and (or (= next-state 3) (CritterSystem.spicy-hazard-mat? next-mat))
-                                                               (and (< full-dist (+ rad-d 0.98))
+                                                               (and (< full-dist (+ rad-d 0.95))
                                                                     (>= (- fc @(EngineState.last-amoeba-hurt-frame state)) 22)))
                                                       (let [pb (RigidBody.body p-rb)
                                                             inv-h (if (> h-dist 0.05) (/ 1.0 h-dist) 0.0)
                                                             kx (if (> h-dist 0.05) (* pdx inv-h) 1.0)
                                                             kz (if (> h-dist 0.05) (* pdz inv-h) 0.0)
+                                                            kb-h (+ 9.5 (* 6.0 fill-d))
+                                                            kb-y (+ 6.6 (* 2.8 fill-d))
                                                             hpt (CritterSystem.jet-ptype (if (= next-state 3) 515.0f next-mat))]
                                                         (do
                                                           (EngineState.set-last-amoeba-hurt-frame! state fc)
-                                                          (Body.set-velocity! pb (Vector3.init (* kx 10.5) 7.2 (* kz 10.5)))
+                                                          (Body.set-velocity! pb (Vector3.init (* kx kb-h) kb-y (* kz kb-h)))
                                                           (RigidBody.set-body! p-rb @pb)
                                                           (ECS.add-component! ecs &p-ent (CompBody.init @p-rb))
                                                           (ParticleSystem.emit! ps fx (+ fy 0.3f) fz (Double.to-float (* kx 8.0)) 4.5f (Double.to-float (* kz 8.0)) 1.5f 20 hpt 0.35f 0.2f)))))))))
@@ -726,9 +764,9 @@
                                         ;; --- 3. LOCOMOTION, PSEUDOPOD REACH, FEEDING & MITOSIS ---
                                         (if held?
                                           ;; 3a. Held in [4] Gauntlet: Dynamic body so spring grasp & LMB Power-Punt work seamlessly!
-                                          (let [wiggle-x (+ (* (Double.to-float @(Vector3.x cam-dir)) 0.55f) (* 0.22f (CritterSystem.fsin (* next-phase 1.7f))))
-                                                wiggle-y (+ (* (Double.to-float @(Vector3.y cam-dir)) 0.55f) (* 0.18f (CritterSystem.fcos (* next-phase 1.3f))))
-                                                wiggle-z (+ (* (Double.to-float @(Vector3.z cam-dir)) 0.55f) (* 0.22f (CritterSystem.fcos (* next-phase 1.7f))))]
+                                          (let [wiggle-x (+ (* (Double.to-float @(Vector3.x cam-dir)) (* rad-f 0.95f)) (* 0.22f (CritterSystem.fsin (* next-phase 1.7f))))
+                                                wiggle-y (+ (* (Double.to-float @(Vector3.y cam-dir)) (* rad-f 0.95f)) (* 0.18f (CritterSystem.fcos (* next-phase 1.3f))))
+                                                wiggle-z (+ (* (Double.to-float @(Vector3.z cam-dir)) (* rad-f 0.95f)) (* 0.22f (CritterSystem.fcos (* next-phase 1.7f))))]
                                             (do
                                               (Body.set-body-type! b (BodyType.Dynamic))
                                               (Body.set-inv-mass! b 1.0)
@@ -740,7 +778,7 @@
                                               (Array.aset! a-pod (+ b3 2) wiggle-z)))
 
                                           (if (= next-state 2)
-                                            ;; 3b. MITOSIS PINCHING DUMBBELL: anchor calmly -> wobble symmetric lobes -> excrete -> split!
+                                            ;; 3b. MITOSIS PINCHING DUMBBELL: giant chonk anchors -> wobbles two lobes -> excretes -> splits into 1 LOCKED + 1 GREY!
                                             (let [raw-n (Physics.smooth-sdf-normal world &pos)
                                                   ny @(Vector3.y &raw-n)
                                                   ref-v (if (< (Double.abs ny) 0.85) (Vector3.init 0.0 1.0 0.0) (Vector3.init 1.0 0.0 0.0))
@@ -749,7 +787,7 @@
                                                   axis (if (> t-mag 0.01) (Vector3.mul &t-raw (/ 1.0 t-mag)) (Vector3.init 1.0 0.0 0.0))
                                                   prog (+ next-timer fdt)
                                                   split-norm (Float.clamp 0.0f 1.0f (/ prog 1.32f))
-                                                  wob (+ (* split-norm 0.62f) (* 0.06f (CritterSystem.fsin (* prog 22.0f))))
+                                                  wob (+ (* split-norm (* rad-f 0.90f)) (* 0.06f (CritterSystem.fsin (* prog 22.0f))))
                                                   target-d (* rad-d 0.72)
                                                   dn (Double.clamp -0.12 0.12 (* (- target-d d-sdf) 0.35))]
                                               (do
@@ -764,14 +802,14 @@
                                                 (Array.aset! a-pod (+ b3 2) (* (Double.to-float @(Vector3.z &axis)) wob))
                                                 (if (< prog 1.32f)
                                                   (set! next-timer prog)
-                                                  ;; *BLOOP!* Excrete refined reagent & gently bud into two daughter Amoebas!
+                                                  ;; *BLOOP!* Excrete refined reagent & bud into 1 LOCKED original + 1 fresh GREY baby!
                                                   (let [prod (CritterSystem.transmute-product next-mat)
                                                         ppt (CritterSystem.jet-ptype prod)
-                                                        ex-p (Vector3.add &pos &(Vector3.mul &raw-n 0.58))
+                                                        ex-p (Vector3.add &pos &(Vector3.mul &raw-n (* rad-d 0.78)))
                                                         ex-x (Double.to-float @(Vector3.x &ex-p))
                                                         ex-y (Double.to-float @(Vector3.y &ex-p))
                                                         ex-z (Double.to-float @(Vector3.z &ex-p))
-                                                        off (Vector3.mul &axis 0.52)
+                                                        off (Vector3.mul &axis (* rad-d 0.68))
                                                         lift (Vector3.mul &raw-n 0.10)
                                                         pos-a (Vector3.add &(Vector3.add &pos &off) &lift)
                                                         pos-b (Vector3.add &(Vector3.sub &pos &off) &lift)
@@ -797,13 +835,15 @@
                                                               (when (and (< prod 256.0f) (not gran?))
                                                                 (CritterSystem.edit-amoeba-sdf! world &ex-p 1.12 prod false))))))
                                                       (ParticleSystem.emit! ps ex-x ex-y ex-z 0.0f 4.2f 0.0f 1.5f 24 ppt 0.35f 0.25f)
+                                                      ;; Daughter A: Keeps locked breed (next-mat), shrinks back to 0.42m hungry breeder!
                                                       (Transform.set-position! (RigidBody.transform rb) pos-a)
                                                       (set! next-fill 0.0f)
                                                       (set! next-state 0)
-                                                      (set! next-timer -12.0f)
-                                                      (let [cslot (CritterSystem.spawn-amoeba! state pos-b vel-b next-mat 0.0f 0)]
+                                                      (set! next-timer -10.0f)
+                                                      ;; Daughter B: Fresh 0.36m Grey stem-cell baby (0.0f) ready to imprint or relocate!
+                                                      (let [cslot (CritterSystem.spawn-amoeba! state pos-b vel-b 0.0f 0.0f 0)]
                                                         (when (>= cslot 0)
-                                                          (Array.aset! a-timer cslot -12.0f))))))))
+                                                          (Array.aset! a-timer cslot -5.5f))))))))
 
                                             ;; 3c. AIRBORNE BALLISTIC ARC vs KINEMATIC ISO-SURFACE CRAWL
                                             (let [smooth-n (Physics.smooth-sdf-normal world &pos)
@@ -815,9 +855,9 @@
                                                                     (and slime-bounce? (> d-sdf (- rad-d 0.15)))))]
                                               (if airborne?
                                                 ;; Airborne arc (tossed with T, punted, or falling): Dynamic gravity + trailing tail!
-                                                (let [tx (Float.clamp -0.85f 0.85f (* (Double.to-float @(Vector3.x &vel)) -0.045f))
-                                                      ty (Float.clamp -0.85f 0.85f (* (Double.to-float @(Vector3.y &vel)) -0.045f))
-                                                      tz (Float.clamp -0.85f 0.85f (* (Double.to-float @(Vector3.z &vel)) -0.045f))]
+                                                (let [tx (Float.clamp -0.95f 0.95f (* (Double.to-float @(Vector3.x &vel)) -0.045f))
+                                                      ty (Float.clamp -0.95f 0.95f (* (Double.to-float @(Vector3.y &vel)) -0.045f))
+                                                      tz (Float.clamp -0.95f 0.95f (* (Double.to-float @(Vector3.z &vel)) -0.045f))]
                                                   (do
                                                     (Body.set-body-type! b (BodyType.Dynamic))
                                                     (Body.set-inv-mass! b 1.0)
@@ -837,10 +877,13 @@
                                                                             (+ (* old-nz 0.76) (* @(Vector3.z &smooth-n) 0.24)))
                                                       bn-mag (Vector3.mag &blend-n)
                                                       nrm (if (> bn-mag 0.01) (Vector3.mul &blend-n (/ 1.0 bn-mag)) @&smooth-n)
-                                                      has-smell? (and (> smell-mat 0.5f) (/= next-state 3))
+                                                      has-smell? (and (> smell-mat 0.5f)
+                                                                      (and (/= next-state 3)
+                                                                           (CritterSystem.compatible-diet? next-mat smell-mat)))
                                                       s-pos (Vector3.init (Double.from-float smell-x) (Double.from-float smell-y) (Double.from-float smell-z))
                                                       to-snack (Vector3.sub &s-pos &pos)
                                                       snack-dist (if has-smell? (Vector3.mag &to-snack) 999.0)
+                                                      snack-reach (+ rad-d 1.78)
                                                       ;; Refresh wander tangent leisurely when no snack is smelled
                                                       wander-ang (+ (* (Float.from-int (+ k 1)) 2.1f) (* (CritterSystem.ffloor (/ next-phase 6.28318f)) 1.65f))
                                                       w-raw (Vector3.init (Double.from-float (CritterSystem.fcos wander-ang))
@@ -864,16 +907,20 @@
                                                       sep-v (Vector3.init sep-x sep-y sep-z)
                                                       sep-dot (Vector3.dot &sep-v &nrm)
                                                       sep-tang (Vector3.sub &sep-v &(Vector3.mul &nrm sep-dot))
-                                                      ;; Squishy smin inchworm gait: anchor & stretch trunk out -> shlorp body forward!
+                                                      ;; Squishy smin inchworm gait scaled to body size (chonkers lumber heavily!)
                                                       cyc (CritterSystem.fsin next-phase)
                                                       cyc-cos (CritterSystem.fcos next-phase)
-                                                      reach-len (if (and has-smell? (< snack-dist 2.35))
-                                                                  (Float.clamp 0.35f 1.38f (+ (Double.to-float snack-dist) (* 0.14f cyc)))
-                                                                  (+ 0.42f (* 0.56f (CritterSystem.fmax 0.0f cyc))))
+                                                      max-pod (* rad-f 2.05f)
+                                                      reach-len (if (and has-smell? (< snack-dist snack-reach))
+                                                                  (Float.clamp (* rad-f 0.65f) max-pod (+ (Double.to-float snack-dist) (* 0.14f cyc)))
+                                                                  (+ (* rad-f 0.82f) (* (* rad-f 1.05f) (CritterSystem.fmax 0.0f cyc))))
                                                       shlorp (Double.from-float (CritterSystem.fmax 0.0f (- 0.0f cyc-cos)))
+                                                      chonk-mul (if (<= (Float.round next-mat) 0)
+                                                                  1.16
+                                                                  (- 1.08 (* 0.32 (Double.from-float next-fill))))
                                                       base-spd (if (= next-state 3)
                                                                  2.85
-                                                                 (if (or has-smell? stalk-player?) 1.42 0.82))
+                                                                 (* (if (or has-smell? stalk-player?) 1.44 0.84) chonk-mul))
                                                       surge (* base-spd (+ 0.14 (* 0.96 shlorp)))
                                                       step-dt (Double.clamp 0.0 0.05 dt)
                                                       target-d (* rad-d 0.70)
@@ -895,27 +942,28 @@
                                                     (Array.aset! a-norm (+ b3 1) (Double.to-float @(Vector3.y &nrm)))
                                                     (Array.aset! a-norm (+ b3 2) (Double.to-float @(Vector3.z &nrm)))
 
-                                                    (if (and has-smell? (< snack-dist 2.35))
+                                                    (if (and has-smell? (< snack-dist snack-reach))
                                                       ;; Point reaching smin pseudopod directly into the snack and SLURP!
                                                       (let [sdir (if (> snack-dist 0.05) (Vector3.mul &to-snack (/ 1.0 snack-dist)) @&tang)
                                                             rl-d (Double.from-float reach-len)
                                                             pod-v (Vector3.mul &sdir rl-d)
                                                             eat-mat smell-mat
                                                             eat-m (Float.round eat-mat)
-                                                            mundane? (or (= eat-m 2) (or (= eat-m 6) (= eat-m 3)))
                                                             base-absorb (if (and (= (Float.round next-mat) 11) (and (> eat-mat 256.5f) (< eat-mat 512.0f)))
                                                                           0.32f
-                                                                          (if mundane? 0.062f 0.115f))
-                                                            absorb-rate (if (< next-timer 0.0f) (* base-absorb 0.25f) base-absorb)]
+                                                                          (if (= eat-m 3) 0.085f 0.135f))
+                                                            absorb-rate (if (< next-timer 0.0f) (* base-absorb 0.30f) base-absorb)]
                                                         (do
                                                           (when (/= next-state 3) (set! next-state 1))
                                                           (Array.aset! a-pod b3 (Double.to-float @(Vector3.x &pod-v)))
                                                           (Array.aset! a-pod (+ b3 1) (Double.to-float @(Vector3.y &pod-v)))
                                                           (Array.aset! a-pod (+ b3 2) (Double.to-float @(Vector3.z &pod-v)))
-                                                          ;; Lock/absorb quirk from eaten reagent!
-                                                          (when (not (and (> next-mat 0.5f) (= eat-m 257)))
-                                                            (set! next-mat eat-mat))
-                                                          (set! next-fill (Float.clamp 0.0f 1.0f (+ next-fill (* absorb-rate fdt))))
+                                                          ;; Grey Slime locks permanently onto its first meal; Locked Slime grows strictly on its element!
+                                                          (if (<= (Float.round next-mat) 0)
+                                                            (do
+                                                              (set! next-mat eat-mat)
+                                                              (set! next-fill (Float.clamp 0.16f 1.0f (+ next-fill (* absorb-rate fdt)))))
+                                                            (set! next-fill (Float.clamp 0.0f 1.0f (+ next-fill (* absorb-rate fdt)))))
                                                           ;; Take real smooth SDF bites / fluid siphons out of the GPU + CPU world!
                                                           (when (and (< @(EngineState.critter-pr state) 0.1f)
                                                                      (>= (- fc @(EngineState.last-amoeba-bite-frame state)) 16))
@@ -937,21 +985,29 @@
                                                                                       (* (- fz smell-z) 3.2f)
                                                                                       0.28f 6 spt 0.08f 0.0f))))))
 
-                                                      ;; Touch-sipping if sitting directly in an edible puddle/cloud even before smell locks
+                                                      ;; Touch-sipping if sitting directly in a diet-compatible puddle/cloud!
                                                       (let [rl-d (Double.from-float reach-len)
                                                             pod-v (Vector3.sub &(Vector3.mul &tang rl-d) &(Vector3.mul &nrm 0.12))
-                                                            sip-mat (if (> touch-liq 256.5f) touch-liq
-                                                                    (if (or (= (Float.round touch-gas) 518) (= (Float.round touch-gas) 520)) touch-gas 0.0f))
-                                                            sip-rate (if (< next-timer 0.0f) 0.03f 0.08f)]
+                                                            raw-sip (if (> touch-liq 256.5f) touch-liq
+                                                                    (if (or (= (Float.round touch-gas) 513)
+                                                                            (or (= (Float.round touch-gas) 517)
+                                                                                (or (= (Float.round touch-gas) 518) (= (Float.round touch-gas) 520))))
+                                                                      touch-gas
+                                                                      0.0f))
+                                                            sip-ok? (and (> raw-sip 0.5f)
+                                                                         (and (/= next-state 3)
+                                                                              (CritterSystem.compatible-diet? next-mat raw-sip)))
+                                                            sip-rate (if (< next-timer 0.0f) 0.03f 0.09f)]
                                                         (do
                                                           (when (/= next-state 3) (set! next-state 0))
                                                           (Array.aset! a-pod b3 (Double.to-float @(Vector3.x &pod-v)))
                                                           (Array.aset! a-pod (+ b3 1) (Double.to-float @(Vector3.y &pod-v)))
                                                           (Array.aset! a-pod (+ b3 2) (Double.to-float @(Vector3.z &pod-v)))
-                                                          (when (and (> sip-mat 0.5f) (/= next-state 3))
-                                                            (do
-                                                              (when (not (and (> next-mat 0.5f) (= (Float.round sip-mat) 257)))
-                                                                (set! next-mat sip-mat))
+                                                          (when sip-ok?
+                                                            (if (<= (Float.round next-mat) 0)
+                                                              (do
+                                                                (set! next-mat raw-sip)
+                                                                (set! next-fill (Float.clamp 0.14f 1.0f (+ next-fill (* sip-rate fdt)))))
                                                               (set! next-fill (Float.clamp 0.0f 1.0f (+ next-fill (* sip-rate fdt)))))))))))))))
 
                                         ;; Tick post-mitosis youth/digestion cooldown toward 0.0
@@ -959,17 +1015,18 @@
                                                    (and (/= next-state 2) (/= next-state 3)))
                                           (set! next-timer (if (< (+ next-timer fdt) 0.0f) (+ next-timer fdt) 0.0f)))
 
-                                        ;; Trigger Mitosis Wobble once full, mature, and below colony cap!
-                                        (when (and (>= next-fill 0.995f)
-                                                   (and (>= next-timer 0.0f)
-                                                        (and (< @(EngineState.amoeba-count state) 12)
-                                                             (and (/= next-state 2) (/= next-state 3)))))
+                                        ;; Trigger Mitosis Wobble once locked, full chonk, mature, and below colony cap!
+                                        (when (and (> (Float.round next-mat) 0)
+                                                   (and (>= next-fill 0.995f)
+                                                        (and (>= next-timer 0.0f)
+                                                             (and (< @(EngineState.amoeba-count state) 12)
+                                                                  (and (/= next-state 2) (/= next-state 3))))))
                                           (do
                                             (set! next-state 2)
                                             (set! next-timer 0.0f)))
 
                                         ;; Commit updated physics, radius, visual color & quirk state back to ECS + arrays
-                                        (let [new-rad-f (+ 0.48f (* 0.22f next-fill))
+                                        (let [new-rad-f (CritterSystem.amoeba-radius next-mat next-fill)
                                               new-rad-d (Double.from-float new-rad-f)
                                               new-restit (if (= (Float.round next-mat) 10) 0.92 0.08)
                                               new-col (CritterSystem.amoeba-visual-color next-mat next-state)]
@@ -988,7 +1045,7 @@
 
         (EngineState.set-amoeba-count! state active-count)
 
-        ;; Natural cave ecology spawner: keep ~6 wild Ditto-Amoebas inhabiting nearby caverns!
+        ;; Natural cave ecology spawner: keep ~6 wild Slimes inhabiting nearby caverns!
         (when (and (< active-count 6)
                    (and (= (Int.mod fc 18) 0)
                         (> (- fc @(EngineState.last-amoeba-spawn-frame state)) 24)))
