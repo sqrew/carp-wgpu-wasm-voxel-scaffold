@@ -37,7 +37,7 @@
    EMSCRIPTEN_KEEPALIVE void set_gas_mat(float m) { js_gas_mat = m; }
    EMSCRIPTEN_KEEPALIVE void set_flying(float f) { js_flying = f; }
    EMSCRIPTEN_KEEPALIVE void set_flashlight(float f) { js_flashlight = f; }
-   EMSCRIPTEN_KEEPALIVE void set_rig_slot(int s) { if (s >= 0 && s <= 3) js_rig_slot = s; }
+   EMSCRIPTEN_KEEPALIVE void set_rig_slot(int s) { if (s >= 0 && s <= 4) js_rig_slot = s; }
    #endif
    #endif
 
@@ -93,6 +93,23 @@
 #endif
   }")
 
+(deftemplate js-sync-wand (Fn [Int Int Float Int] ())
+  "void $NAME(int slot, int wand_idx, float mana_frac, int cast_state)"
+  "$DECL {
+#ifdef __EMSCRIPTEN__
+      static int prev_slot = -1;
+      static int prev_wand = -1;
+      static int prev_state = -9;
+      static float prev_mana = -1.0f;
+      float dm = mana_frac - prev_mana; if (dm < 0.0f) dm = -dm;
+      if (slot == prev_slot && wand_idx == prev_wand && cast_state == prev_state && dm < 0.005f) return;
+      prev_slot = slot; prev_wand = wand_idx; prev_state = cast_state; prev_mana = mana_frac;
+      char buf[192];
+      sprintf(buf, \"if (window.sync_wand) window.sync_wand(%d, %d, %.4f, %d);\", slot, wand_idx, mana_frac, cast_state);
+      emscripten_run_script(buf);
+#endif
+  }")
+
 (deftemplate get-js-brush-radius (Fn [] Float) "float $NAME(void)" "$DECL { return js_brush_radius; }")
 (deftemplate get-js-solid-mat (Fn [] Float) "float $NAME(void)" "$DECL { return js_solid_mat; }")
 (deftemplate get-js-liq-mat (Fn [] Float) "float $NAME(void)" "$DECL { return js_liq_mat; }")
@@ -107,7 +124,7 @@
 (deftemplate set-js-gas-mat (Fn [Float] ()) "void $NAME(float m)" "$DECL { js_gas_mat = m; }")
 (deftemplate set-js-flying (Fn [Float] ()) "void $NAME(float f)" "$DECL { js_flying = f; }")
 (deftemplate set-js-flashlight (Fn [Float] ()) "void $NAME(float f)" "$DECL { js_flashlight = f; }")
-(deftemplate set-js-rig-slot (Fn [Int] ()) "void $NAME(int s)" "$DECL { if (s >= 0 && s <= 3) js_rig_slot = s; }")
+(deftemplate set-js-rig-slot (Fn [Int] ()) "void $NAME(int s)" "$DECL { if (s >= 0 && s <= 4) js_rig_slot = s; }")
 
 (register-type GLFWwindow)
 

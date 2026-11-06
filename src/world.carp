@@ -74,21 +74,30 @@
         (Maybe.Nothing))))
 
   (defn sample-sdf-nearest [world p]
-    (let [x (Vector3.x p)
-          y (Vector3.y p)
-          z (Vector3.z p)
-          qx (Double.to-int (Double.floor (/ @x 32.0)))
-          qy (Double.to-int (Double.floor (/ @y 32.0)))
-          qz (Double.to-int (Double.floor (/ @z 32.0)))]
-      (match (World.find-chunk world qx qy qz)
-        (Maybe.Nothing) 1000.0f
-        (Maybe.Just chunk)
-          (let [lx (Double.to-int (Double.clamp 0.0 31.0 (- @x (Double.from-int (* qx 32)))))
-                ly (Double.to-int (Double.clamp 0.0 31.0 (- @y (Double.from-int (* qy 32)))))
-                lz (Double.to-int (Double.clamp 0.0 31.0 (- @z (Double.from-int (* qz 32)))))
-                idx (+ (* lz 1024) (+ (* ly 32) lx))
-                offset (* idx 4)]
-            @(Array.unsafe-nth (Chunk.voxel-data &chunk) (+ offset 1))))))
+    (let [x @(Vector3.x p)
+          y @(Vector3.y p)
+          z @(Vector3.z p)
+          qx (Double.to-int (Double.floor (/ x 32.0)))
+          qy (Double.to-int (Double.floor (/ y 32.0)))
+          qz (Double.to-int (Double.floor (/ z 32.0)))
+          chunks (World.chunks world)
+          tx (World.positive-mod qx 5)
+          ty (World.positive-mod qy 5)
+          tz (World.positive-mod qz 5)
+          slot-idx (+ tx (+ (* ty 5) (* tz 25)))]
+      (if (< slot-idx (Array.length chunks))
+        (let [chunk (Array.unsafe-nth chunks slot-idx)]
+          (if (and (= qx @(Chunk.coord-x chunk))
+                   (and (= qy @(Chunk.coord-y chunk))
+                        (= qz @(Chunk.coord-z chunk))))
+            (let [lx (Double.to-int (Double.clamp 0.0 31.0 (- x (Double.from-int (* qx 32)))))
+                  ly (Double.to-int (Double.clamp 0.0 31.0 (- y (Double.from-int (* qy 32)))))
+                  lz (Double.to-int (Double.clamp 0.0 31.0 (- z (Double.from-int (* qz 32)))))
+                  idx (+ (* lz 1024) (+ (* ly 32) lx))
+                  offset (* idx 4)]
+              @(Array.unsafe-nth (Chunk.voxel-data chunk) (+ offset 1)))
+            1000.0f))
+        1000.0f)))
 
   (defn raycast [world ro rd max-dist]
     (let [t 0.0

@@ -38,6 +38,10 @@ struct Uniforms {
     flask_action: vec4<f32>,
     matches: array<vec4<f32>, 8>,
     match_info: vec4<f32>,
+    critter_pos: vec4<f32>,
+    critter_action: vec4<f32>,
+    critter_lights: array<vec4<f32>, 16>,
+    critter_colors: array<vec4<f32>, 16>,
 }
 
 @group(0) @binding(0) var<storage, read>       dummy0: array<vec4<f32>>;
@@ -312,7 +316,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 let e = s_entities[ei];
                 let pl = jpos - e.pos_type.xyz;
                 var ed: f32 = 1000.0;
-                if (e.pos_type.w < 0.5) {
+                if (e.pos_type.w < 0.5 || e.pos_type.w >= 1.5) {
                     ed = length(pl) - e.extents_rad.w;
                 } else {
                     let q = abs(pl) - e.extents_rad.xyz;
@@ -404,6 +408,141 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
 
     hit_buffer[3] = vec4<f32>(f32(snuff_mask), hit_sol_mat, hit_stress, splash_mat);
+
+    // -------------------------------------------------------------------------
+    // 5. Ditto-Amoeba Chemoreception & Contact Hazard Probe -> hit_buffer[4 .. 35]
+    //    Slot k (0..15):
+    //      hit_buffer[4 + 2*k] = vec4(best_snack_x, best_snack_y, best_snack_z, best_snack_mat)
+    //      hit_buffer[5 + 2*k] = vec4(touch_liq_mat, touch_gas_mat, touch_igniter, touch_extinguisher)
+    // -------------------------------------------------------------------------
+    for (var ak: u32 = 0u; ak < 16u; ak = ak + 1u) {
+        let c_info = u.critter_lights[ak];
+        let out_smell = 4u + ak * 2u;
+        let out_touch = 5u + ak * 2u;
+        if (c_info.w < 0.5) {
+            hit_buffer[out_smell] = vec4<f32>(0.0);
+            hit_buffer[out_touch] = vec4<f32>(0.0);
+            continue;
+        }
+
+        let apos = c_info.xyz;
+        let my_mat = round(c_info.w - 1.0);
+        let arad = clamp(u.critter_colors[ak].w, 0.35, 0.85);
+
+        // 5a. Direct body contact probe (liquids, gases, igniters, extinguishers, lit matches)
+        var touch_liq: f32 = 0.0;
+        var touch_gas: f32 = 0.0;
+        var touch_ign: f32 = 0.0;
+        var touch_ext: f32 = 0.0;
+
+        if (u.match_info.x > 0.5) {
+            for (var mi: u32 = 0u; mi < 8u; mi = mi + 1u) {
+                let m = u.matches[mi];
+                if (m.w > 0.01 && distance(apos, m.xyz) <= arad + 1.35) {
+                    touch_ign = 1.0;
+                }
+            }
+        }
+
+        for (var pk = 0u; pk < 7u; pk = pk + 1u) {
+            let cp = apos + offsets[pk] * (arad + 0.35);
+            if (cp.x <= box_min.x + 2.0 || cp.x >= box_max.x - 2.0 ||
+                cp.y <= box_min.y + 2.0 || cp.y >= box_max.y - 2.0 ||
+                cp.z <= box_min.z + 2.0 || cp.z >= box_max.z - 2.0) {
+                continue;
+            }
+            let cl = get_liquid_world(cp);
+            let cl_id = u32(clamp(round(abs(cl.x)), 0.0, 255.0));
+            if (cl_id > 0u && cl.y > 0.08) {
+                let lmat = 256.0 + f32(cl_id);
+                if (touch_liq < 0.5 || cl_id != 1u) { touch_liq = lmat; }
+                let ltags = materials[256u + cl_id].tags;
+                if ((ltags & 2u) != 0u) { touch_ign = 1.0; }
+                if ((ltags & 8388608u) != 0u) { touch_ext = 1.0; }
+            }
+            let cg = get_gas_world(cp);
+            let cg_id = u32(clamp(round(abs(cg.x)), 0.0, 255.0));
+            if (cg_id > 0u && cg.y > 0.08) {
+                let gmat = 512.0 + f32(cg_id);
+                if (touch_gas < 0.5 || cg_id == 3u || cg_id == 6u || cg_id == 8u) { touch_gas = gmat; }
+                let gtags = materials[512u + cg_id].tags;
+                if ((gtags & 2u) != 0u) { touch_ign = 1.0; }
+            }
+        }
+        hit_buffer[out_touch] = vec4<f32>(touch_liq, touch_gas, touch_ign, touch_ext);
+
+        // 5b. 3D Chemoreceptor Smell Scan (24 golden-sphere rays across 1.1m .. 7.8m)
+        var best_score: f32 = 0.0;
+        var best_pos = vec3<f32>(0.0);
+        var best_mat: f32 = 0.0;
+        let phase = u.time * 2.9 + f32(ak) * 1.73;
+
+        for (var si: u32 = 0u; si < 24u; si = si + 1u) {
+            let fi = f32(si);
+            let y_dir = 1.0 - (fi + 0.5) * (2.0 / 24.0);
+            let r_xy = sqrt(max(0.0, 1.0 - y_dir * y_dir));
+            let theta = fi * 2.399963 + phase;
+            let sdir = vec3<f32>(cos(theta) * r_xy, y_dir, sin(theta) * r_xy);
+
+            for (var tier: u32 = 0u; tier < 3u; tier = tier + 1u) {
+                let dist = select(select(1.25, 3.1, tier == 1u), 6.4, tier == 2u);
+                let sp = apos + sdir * dist;
+                if (sp.x <= box_min.x + 2.5 || sp.x >= box_max.x - 2.5 ||
+                    sp.y <= box_min.y + 2.5 || sp.y >= box_max.y - 2.5 ||
+                    sp.z <= box_min.z + 2.5 || sp.z >= box_max.z - 2.5 || sp.y <= -190.5) {
+                    continue;
+                }
+
+                var cand_mat: f32 = 0.0;
+                var appetite: f32 = 0.0;
+
+                // Liquids are juicy, easy to slurp, and great player bait!
+                let sl = get_liquid_world(sp);
+                let sl_raw = round(abs(sl.x));
+                if (sl_raw >= 0.5 && sl.y > 0.08) {
+                    cand_mat = 256.0 + sl_raw;
+                    // Ambrosia (262), Volatile Gel (263), Oil (260), Acid (259), Toxic Sludge (264), Lava (258), Blood (261), Water (257)
+                    appetite = select(14.0, 24.0, sl_raw >= 2.0);
+                    if (sl_raw == 6.0 || sl_raw == 7.0) { appetite = 30.0; }
+                } else {
+                    // Tasty reactive cave solids (skip dull Stone 1, Obsidian 16, Bedrock 255)
+                    let ss = get_solid_world(sp);
+                    let ss_raw = round(abs(ss.x));
+                    if (ss.y <= 0.18 && ss_raw >= 1.5 && ss_raw < 254.5 && ss_raw != 16.0) {
+                        cand_mat = ss_raw;
+                        appetite = select(15.0, 6.5, ss_raw == 2.0 || ss_raw == 6.0);
+                        // Slime (10), Spore Pod (13), Crystal (14), Amethyst (15), Rad-Ore (17), Gold (5), Coal (4), Gunpowder (7), C4 (12)
+                        if (ss_raw == 10.0 || ss_raw == 13.0 || ss_raw == 14.0 || ss_raw == 15.0 || ss_raw == 17.0) {
+                            appetite = 27.0;
+                        } else if (ss_raw == 4.0 || ss_raw == 5.0 || ss_raw == 7.0 || ss_raw == 12.0) {
+                            appetite = 21.0;
+                        }
+                    } else {
+                        // Dense energetic gases (Spore Cloud 520, Methane 518)
+                        let sg = get_gas_world(sp);
+                        let sg_raw = round(abs(sg.x));
+                        if (sg.y > 0.16 && (sg_raw == 6.0 || sg_raw == 8.0)) {
+                            cand_mat = 512.0 + sg_raw;
+                            appetite = 18.0;
+                        }
+                    }
+                }
+
+                if (cand_mat > 0.5) {
+                    if (my_mat > 0.5 && abs(cand_mat - my_mat) < 0.5 && cand_mat != 2.0 && cand_mat != 6.0) {
+                        appetite = appetite + 14.0;
+                    }
+                    let score = appetite / (1.0 + 0.24 * dist);
+                    if (score > best_score) {
+                        best_score = score;
+                        best_pos = sp;
+                        best_mat = cand_mat;
+                    }
+                }
+            }
+        }
+        hit_buffer[out_smell] = vec4<f32>(best_pos, best_mat);
+    }
 }
 ")
 )

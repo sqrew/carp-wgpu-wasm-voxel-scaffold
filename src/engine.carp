@@ -71,6 +71,43 @@
   grab-mat Float
   last-kick-frame Int
   last-wrench-frame Int
+  amoeba-alive (Array Bool)
+  amoeba-idx (Array Uint64)
+  amoeba-gen (Array Uint32)
+  amoeba-mat (Array Float)
+  amoeba-fill (Array Float)
+  amoeba-rad (Array Float)
+  amoeba-state (Array Int)
+  amoeba-timer (Array Float)
+  amoeba-phase (Array Float)
+  amoeba-pod (Array Float)
+  amoeba-norm (Array Float)
+  amoeba-goal (Array Float)
+  critter-px Float
+  critter-py Float
+  critter-pz Float
+  critter-pr Float
+  critter-ax Float
+  critter-ay Float
+  critter-az Float
+  amoeba-count Int
+  last-amoeba-spawn-frame Int
+  last-amoeba-bite-frame Int
+  last-amoeba-hurt-frame Int
+  wand-idx Int
+  wand-cooldown Float
+  wand-flash Float
+  wand-rmb-last Bool
+  wand-mana (Array Float)
+  bolt-alive (Array Bool)
+  bolt-idx (Array Uint64)
+  bolt-gen (Array Uint32)
+  bolt-pos (Array Float)
+  bolt-vel (Array Float)
+  bolt-life (Array Float)
+  bolt-bounces (Array Int)
+  bolt-wand (Array Int)
+  bolt-slot Int
 ])
 
 (defmodule EngineState
@@ -115,7 +152,7 @@
                             surf-format (WGPURender.surface-format @(M-WGPUSurface.p (Engine.surf &platform-eng)))
                             solid-tex @(M-RenderTexture.p (Renderer.voxel-texture &ren))
                             ps (ParticleSystem.create ps-ctx &surf-format solid-tex)]
-                        (Result.Success (EngineState.init platform-eng ren world player uniforms (Array.replicate 1200000 &0.0f) diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid (Coordinator.new) 0 0 0 input scratch-arena (Clock.new) 0.0 ps 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0 0 false (Array.replicate 8 &(Uint64.from-long 0l)) (Array.replicate 8 &(Uint32.from-long 0l)) (Array.replicate 8 &0.0f) (Array.replicate 24 &0.0f) 0 0 0.0f 0 (Uint64.from-long 0l) (Uint32.from-long 0l) 0.0f 0 0))))))))))
+                        (Result.Success (EngineState.init platform-eng ren world player uniforms (Array.replicate 1200000 &0.0f) diag 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f ecs-world (Long.to-int (Uint64.to-long (ECS.Entity.index &player-ent))) grid (Coordinator.new) 0 0 0 input scratch-arena (Clock.new) 0.0 ps 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0 0 false (Array.replicate 8 &(Uint64.from-long 0l)) (Array.replicate 8 &(Uint32.from-long 0l)) (Array.replicate 8 &0.0f) (Array.replicate 24 &0.0f) 0 0 0.0f 0 (Uint64.from-long 0l) (Uint32.from-long 0l) 0.0f 0 0 (Array.replicate 16 &false) (Array.replicate 16 &(Uint64.from-long 0l)) (Array.replicate 16 &(Uint32.from-long 0l)) (Array.replicate 16 &0.0f) (Array.replicate 16 &0.0f) (Array.replicate 16 &0.5f) (Array.replicate 16 &0) (Array.replicate 16 &0.0f) (Array.replicate 16 &0.0f) (Array.replicate 48 &0.0f) (Array.replicate 48 &0.0f) (Array.replicate 48 &0.0f) 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0 0 0 0 0 0.0f 0.0f false (Array.replicate 6 &100.0f) (Array.replicate 24 &false) (Array.replicate 24 &(Uint64.from-long 0l)) (Array.replicate 24 &(Uint32.from-long 0l)) (Array.replicate 72 &0.0f) (Array.replicate 72 &0.0f) (Array.replicate 24 &0.0f) (Array.replicate 24 &0) (Array.replicate 24 &0) 0))))))))))
 
   (defn draw-bounds-wireframe! [ren min-x min-y min-z max-x max-y max-z color]
     (let [w0 (Vector3.init min-x min-y min-z)
@@ -208,12 +245,14 @@
         (InputManager.add-binding! input "mat-liquid" (InputSource.Key GLFW.Keycode.NUM_2) 1.0)
         (InputManager.add-binding! input "mat-gas" (InputSource.Key GLFW.Keycode.NUM_3) 1.0)
         (InputManager.add-binding! input "rig-interact" (InputSource.Key GLFW.Keycode.NUM_4) 1.0)
+        (InputManager.add-binding! input "rig-wand" (InputSource.Key GLFW.Keycode.NUM_5) 1.0)
         
         (InputManager.add-binding! input "edit-add" (InputSource.Key GLFW.Keycode.F) 1.0)
         (InputManager.add-binding! input "edit-remove" (InputSource.Key GLFW.Keycode.H) 1.0)
         (InputManager.add-binding! input "edit-paint" (InputSource.Key GLFW.Keycode.G) 1.0)
         
         (InputManager.add-binding! input "spawn-entity" (InputSource.Key GLFW.Keycode.R) 1.0)
+        (InputManager.add-binding! input "spawn-amoeba" (InputSource.Key GLFW.Keycode.T) 1.0)
         (InputManager.add-binding! input "spawn-particles" (InputSource.Key GLFW.Keycode.P) 1.0)
         (InputManager.add-binding! input "spawn-magic" (InputSource.Key GLFW.Keycode.O) 1.0)
         (InputManager.add-binding! input "purge-flask" (InputSource.Key GLFW.Keycode.X) 1.0)
@@ -237,7 +276,9 @@
 
 (load "systems/player.carp")
 (load "systems/spawning.carp")
+(load "systems/critters.carp")
 (load "systems/editing.carp")
+(load "systems/wands.carp")
 
 (defmodule EngineState
 
@@ -272,6 +313,9 @@
         (Diagnostics.with-zone diag "Spawning"
           (SpawningSystem.update! state input dt))
 
+        (Diagnostics.with-zone diag "Critters & Cave Ecology"
+          (CritterSystem.update! state input dt))
+
         (Diagnostics.with-zone diag "Physics Solver"
           (Physics.step-physics-entities! world (EngineState.ecs-world state) (EngineState.grid state) dt))
         
@@ -280,6 +324,9 @@
         
         (Diagnostics.with-zone diag "Voxel Editing & Raycast"
           (EditingSystem.update! state input dt))
+
+        (Diagnostics.with-zone diag "Wands & Projectiles"
+          (WandSystem.update! state input dt))
           
         (Diagnostics.with-zone diag "Chunk Sync"
           (do
@@ -394,47 +441,73 @@
         
         (let [ecs (EngineState.ecs-world state)
               entities-data (EngineState.entities-data state)
+              a-state (EngineState.amoeba-state state)
+              a-fill (EngineState.amoeba-fill state)
+              a-timer (EngineState.amoeba-timer state)
+              a-rad (EngineState.amoeba-rad state)
+              a-pod (EngineState.amoeba-pod state)
               num-entities 0]
           (do
             (query ecs (e (cv CompVolume) (cc CompColor))
               (when (< num-entities 100000)
                 (let [idx (* num-entities 12)
                       vol (CompVolume.vol cv)
-                      color (CompColor.col cc)]
+                      color (CompColor.col cc)
+                      aslot (CritterSystem.amoeba-slot-by-idx state (ECS.Entity.index &e))]
                   (do
                     (Array.aset! entities-data (+ idx 8) (Double.to-float @(Vector3.x color)))
                     (Array.aset! entities-data (+ idx 9) (Double.to-float @(Vector3.y color)))
                     (Array.aset! entities-data (+ idx 10) (Double.to-float @(Vector3.z color)))
                     (Array.aset! entities-data (+ idx 11) 1.0f)
-                    (match-ref vol
-                      (Volume.Ball s)
-                        (do
-                          (Array.aset! entities-data (+ idx 0) (Double.to-float @(Vector3.x (Sphere.center s))))
-                          (Array.aset! entities-data (+ idx 1) (Double.to-float @(Vector3.y (Sphere.center s))))
-                          (Array.aset! entities-data (+ idx 2) (Double.to-float @(Vector3.z (Sphere.center s))))
-                          (Array.aset! entities-data (+ idx 3) 0.0f)
-                          (Array.aset! entities-data (+ idx 4) 0.0f)
-                          (Array.aset! entities-data (+ idx 5) 0.0f)
-                          (Array.aset! entities-data (+ idx 6) 0.0f)
-                          (Array.aset! entities-data (+ idx 7) (Double.to-float @(Sphere.radius s))))
-                      (Volume.Box aabb)
-                        (let [vmin (AABB.min aabb)
-                              vmax (AABB.max aabb)
-                              cx (/ (+ @(Vector3.x vmin) @(Vector3.x vmax)) 2.0)
-                              cy (/ (+ @(Vector3.y vmin) @(Vector3.y vmax)) 2.0)
-                              cz (/ (+ @(Vector3.z vmin) @(Vector3.z vmax)) 2.0)
-                              ex (/ (- @(Vector3.x vmax) @(Vector3.x vmin)) 2.0)
-                              ey (/ (- @(Vector3.y vmax) @(Vector3.y vmin)) 2.0)
-                              ez (/ (- @(Vector3.z vmax) @(Vector3.z vmin)) 2.0)]
+                    (if (>= aslot 0)
+                      ;; Pack Ditto-Amoeba smin pseudopod / pinching mitosis dumbbell!
+                      (match-ref vol
+                        (Volume.Ball s)
+                          (let [ast @(Array.unsafe-nth a-state aslot)
+                                af @(Array.unsafe-nth a-fill aslot)
+                                at @(Array.unsafe-nth a-timer aslot)
+                                ar @(Array.unsafe-nth a-rad aslot)
+                                b3 (* aslot 3)]
+                            (do
+                              (Array.aset! entities-data (+ idx 0) (Double.to-float @(Vector3.x (Sphere.center s))))
+                              (Array.aset! entities-data (+ idx 1) (Double.to-float @(Vector3.y (Sphere.center s))))
+                              (Array.aset! entities-data (+ idx 2) (Double.to-float @(Vector3.z (Sphere.center s))))
+                              (Array.aset! entities-data (+ idx 3) (if (= ast 2) 3.0f 2.0f))
+                              (Array.aset! entities-data (+ idx 4) @(Array.unsafe-nth a-pod b3))
+                              (Array.aset! entities-data (+ idx 5) @(Array.unsafe-nth a-pod (+ b3 1)))
+                              (Array.aset! entities-data (+ idx 6) @(Array.unsafe-nth a-pod (+ b3 2)))
+                              (Array.aset! entities-data (+ idx 7) ar)
+                              (Array.aset! entities-data (+ idx 11) (if (= ast 2) (Float.clamp 0.0f 1.0f (/ at 1.32f)) af))))
+                        _ ())
+                      (match-ref vol
+                        (Volume.Ball s)
                           (do
-                            (Array.aset! entities-data (+ idx 0) (Double.to-float cx))
-                            (Array.aset! entities-data (+ idx 1) (Double.to-float cy))
-                            (Array.aset! entities-data (+ idx 2) (Double.to-float cz))
-                            (Array.aset! entities-data (+ idx 3) 1.0f)
-                            (Array.aset! entities-data (+ idx 4) (Double.to-float ex))
-                            (Array.aset! entities-data (+ idx 5) (Double.to-float ey))
-                            (Array.aset! entities-data (+ idx 6) (Double.to-float ez))
-                            (Array.aset! entities-data (+ idx 7) 0.0f))))
+                            (Array.aset! entities-data (+ idx 0) (Double.to-float @(Vector3.x (Sphere.center s))))
+                            (Array.aset! entities-data (+ idx 1) (Double.to-float @(Vector3.y (Sphere.center s))))
+                            (Array.aset! entities-data (+ idx 2) (Double.to-float @(Vector3.z (Sphere.center s))))
+                            (Array.aset! entities-data (+ idx 3) 0.0f)
+                            (Array.aset! entities-data (+ idx 4) 0.0f)
+                            (Array.aset! entities-data (+ idx 5) 0.0f)
+                            (Array.aset! entities-data (+ idx 6) 0.0f)
+                            (Array.aset! entities-data (+ idx 7) (Double.to-float @(Sphere.radius s))))
+                        (Volume.Box aabb)
+                          (let [vmin (AABB.min aabb)
+                                vmax (AABB.max aabb)
+                                cx (/ (+ @(Vector3.x vmin) @(Vector3.x vmax)) 2.0)
+                                cy (/ (+ @(Vector3.y vmin) @(Vector3.y vmax)) 2.0)
+                                cz (/ (+ @(Vector3.z vmin) @(Vector3.z vmax)) 2.0)
+                                ex (/ (- @(Vector3.x vmax) @(Vector3.x vmin)) 2.0)
+                                ey (/ (- @(Vector3.y vmax) @(Vector3.y vmin)) 2.0)
+                                ez (/ (- @(Vector3.z vmax) @(Vector3.z vmin)) 2.0)]
+                            (do
+                              (Array.aset! entities-data (+ idx 0) (Double.to-float cx))
+                              (Array.aset! entities-data (+ idx 1) (Double.to-float cy))
+                              (Array.aset! entities-data (+ idx 2) (Double.to-float cz))
+                              (Array.aset! entities-data (+ idx 3) 1.0f)
+                              (Array.aset! entities-data (+ idx 4) (Double.to-float ex))
+                              (Array.aset! entities-data (+ idx 5) (Double.to-float ey))
+                              (Array.aset! entities-data (+ idx 6) (Double.to-float ez))
+                              (Array.aset! entities-data (+ idx 7) 0.0f)))))
                     (set! num-entities (+ num-entities 1))))))
             (Array.aset! uniforms 36 (Float.from-int num-entities))
             (Array.aset! uniforms 37 0.0f)
@@ -449,20 +522,26 @@
             (let [rslot @(EngineState.rig-slot state)
                   holding? (> (Uint64.to-long @(EngineState.grab-idx state)) 0l)
                   gmat @(EngineState.grab-mat state)
+                  wch (WandSystem.get-chassis @(EngineState.wand-idx state))
+                  wmana @(Array.unsafe-nth (EngineState.wand-mana state) @(EngineState.wand-idx state))
                   act-mat (if (= rslot 0)
                             @(EngineState.sack-mat state)
                             (if (= rslot 1)
                               @(EngineState.flask-mat state)
                               (if (= rslot 2)
                                 @(EngineState.bellows-mat state)
-                                (if (and holding? (< gmat 254.5f)) gmat 0.0f))))
+                                (if (= rslot 4)
+                                  @(WandChassis.lantern-mat &wch)
+                                  (if (and holding? (< gmat 254.5f)) gmat 0.0f)))))
                   act-fill (if (= rslot 0)
                              @(EngineState.sack-fill state)
                              (if (= rslot 1)
                                @(EngineState.flask-fill state)
                                (if (= rslot 2)
                                  @(EngineState.bellows-fill state)
-                                 (if (and holding? (and (> gmat 0.5f) (< gmat 254.5f))) 0.85f 0.0f))))]
+                                 (if (= rslot 4)
+                                   (Float.clamp 0.12f 1.0f (/ wmana @(WandChassis.mana-max &wch)))
+                                   (if (and holding? (and (> gmat 0.5f) (< gmat 254.5f))) 0.85f 0.0f)))))]
               (do
                 (Array.aset! uniforms 56 @(EngineState.flask-px state))
                 (Array.aset! uniforms 57 @(EngineState.flask-py state))
@@ -488,7 +567,87 @@
                 (Array.aset! uniforms 96 (Float.from-int @(EngineState.match-lit-count state)))
                 (Array.aset! uniforms 97 act-fill)
                 (Array.aset! uniforms 98 0.0f)
-                (Array.aset! uniforms 99 0.0f)))
+                (Array.aset! uniforms 99 0.0f)
+
+                ;; Ditto-Amoeba GPU voxel action + 16-slot chemoreception & 3D GI light emitters (+ flying wand bolts!)
+                (Array.aset! uniforms 100 @(EngineState.critter-px state))
+                (Array.aset! uniforms 101 @(EngineState.critter-py state))
+                (Array.aset! uniforms 102 @(EngineState.critter-pz state))
+                (Array.aset! uniforms 103 @(EngineState.critter-pr state))
+                (Array.aset! uniforms 104 @(EngineState.critter-ax state))
+                (Array.aset! uniforms 105 @(EngineState.critter-ay state))
+                (Array.aset! uniforms 106 @(EngineState.critter-az state))
+                (let [a-alive (EngineState.amoeba-alive state)
+                      a-idx (EngineState.amoeba-idx state)
+                      a-gen (EngineState.amoeba-gen state)
+                      a-mat (EngineState.amoeba-mat state)
+                      b-alive (EngineState.bolt-alive state)
+                      b-pos (EngineState.bolt-pos state)
+                      b-wand (EngineState.bolt-wand state)
+                      bolt-cur 0
+                      glow-mask 0
+                      bit-val 1]
+                  (do
+                    (for [ak 0 16]
+                      (let [l-base (+ 108 (* ak 4))
+                            c-base (+ 172 (* ak 4))]
+                        (do
+                          (if (not @(Array.unsafe-nth a-alive ak))
+                            (do
+                              (while (and (< bolt-cur 24) (not @(Array.unsafe-nth b-alive bolt-cur)))
+                                (set! bolt-cur (+ bolt-cur 1)))
+                              (if (< bolt-cur 24)
+                                (let [b3 (* bolt-cur 3)
+                                      bpay (WandSystem.get-payload @(Array.unsafe-nth b-wand bolt-cur))]
+                                  (do
+                                    (set! glow-mask (+ glow-mask bit-val))
+                                    (Array.aset! uniforms l-base @(Array.unsafe-nth b-pos b3))
+                                    (Array.aset! uniforms (+ l-base 1) @(Array.unsafe-nth b-pos (+ b3 1)))
+                                    (Array.aset! uniforms (+ l-base 2) @(Array.unsafe-nth b-pos (+ b3 2)))
+                                    (Array.aset! uniforms (+ l-base 3) -1.0f)
+                                    (Array.aset! uniforms c-base (* @(SpellPayload.col-r &bpay) 0.92f))
+                                    (Array.aset! uniforms (+ c-base 1) (* @(SpellPayload.col-g &bpay) 0.92f))
+                                    (Array.aset! uniforms (+ c-base 2) (* @(SpellPayload.col-b &bpay) 0.92f))
+                                    (Array.aset! uniforms (+ c-base 3) @(SpellPayload.radius &bpay))
+                                    (set! bolt-cur (+ bolt-cur 1))))
+                                (do
+                                  (Array.aset! uniforms l-base 0.0f)
+                                  (Array.aset! uniforms (+ l-base 1) 0.0f)
+                                  (Array.aset! uniforms (+ l-base 2) 0.0f)
+                                  (Array.aset! uniforms (+ l-base 3) 0.0f)
+                                  (Array.aset! uniforms c-base 0.0f)
+                                  (Array.aset! uniforms (+ c-base 1) 0.0f)
+                                  (Array.aset! uniforms (+ c-base 2) 0.0f)
+                                  (Array.aset! uniforms (+ c-base 3) 0.0f))))
+                            (let [aent (ECS.Entity.init (Handle.init @(Array.unsafe-nth a-idx ak) @(Array.unsafe-nth a-gen ak)))
+                                  acb-opt (the (Maybe CompBody) (get-component ecs &aent))]
+                              (match acb-opt
+                                (Maybe.Nothing)
+                                  (do
+                                    (Array.aset! uniforms (+ l-base 3) 0.0f)
+                                    (Array.aset! uniforms (+ c-base 3) 0.0f))
+                                (Maybe.Just acb)
+                                  (let [apos (RigidBody.position (CompBody.rb &acb))
+                                        amat @(Array.unsafe-nth a-mat ak)
+                                        af @(Array.unsafe-nth a-fill ak)
+                                        ar @(Array.unsafe-nth a-rad ak)
+                                        ast @(Array.unsafe-nth a-state ak)
+                                        gi (CritterSystem.amoeba-gi-emission amat ast af)
+                                        gi-sum (+ (+ @(Vector3.x &gi) @(Vector3.y &gi)) @(Vector3.z &gi))]
+                                    (do
+                                      (when (> gi-sum 0.12)
+                                        (set! glow-mask (+ glow-mask bit-val)))
+                                      (Array.aset! uniforms l-base (Double.to-float @(Vector3.x apos)))
+                                      (Array.aset! uniforms (+ l-base 1) (Double.to-float @(Vector3.y apos)))
+                                      (Array.aset! uniforms (+ l-base 2) (Double.to-float @(Vector3.z apos)))
+                                      (Array.aset! uniforms (+ l-base 3) (+ 1.0f (Float.from-int (Float.round amat))))
+                                      (Array.aset! uniforms c-base (Double.to-float @(Vector3.x &gi)))
+                                      (Array.aset! uniforms (+ c-base 1) (Double.to-float @(Vector3.y &gi)))
+                                      (Array.aset! uniforms (+ c-base 2) (Double.to-float @(Vector3.z &gi)))
+                                      (Array.aset! uniforms (+ c-base 3) ar))))))
+                          (set! bit-val (* bit-val 2)))))
+                    (Array.aset! uniforms 107 (Float.from-int glow-mask))))
+                ))
             
             (Engine.update-uniform-buffer eng @(M-UniformBuffer.p (Renderer.uniform-buffer ren)) uniforms)
             (WGPUVertexBufferWrapper.update-offset @(M-WGPUContext.p (Engine.ctx eng)) @(M-VertexBuffer.p (Renderer.entities-buffer ren)) (Uint64.from-long 0l) (WGPU.array->ptr entities-data) (Uint64.from-long (Long.from-int (* num-entities 48)))))))))

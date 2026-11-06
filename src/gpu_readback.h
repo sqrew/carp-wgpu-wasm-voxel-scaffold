@@ -3,16 +3,19 @@
 #include <string.h>
 #include <stdbool.h>
 
-static float latest_hit_pos[16] = {0.0f};
+#define RAYCAST_READBACK_FLOATS 144
+#define RAYCAST_READBACK_BYTES (RAYCAST_READBACK_FLOATS * sizeof(float))
+
+static float latest_hit_pos[RAYCAST_READBACK_FLOATS] = {0.0f};
 static bool is_mapping = false;
 
 static void buffer_map_callback(WGPUMapAsyncStatus status, WGPUStringView message, void* userdata1, void* userdata2) {
     is_mapping = false;
     if (status == WGPUMapAsyncStatus_Success) {
         WGPUBuffer buffer = (WGPUBuffer)userdata1;
-        const void* mapped = wgpuBufferGetConstMappedRange(buffer, 0, 64);
+        const void* mapped = wgpuBufferGetConstMappedRange(buffer, 0, RAYCAST_READBACK_BYTES);
         if (mapped) {
-            memcpy(latest_hit_pos, mapped, 64);
+            memcpy(latest_hit_pos, mapped, RAYCAST_READBACK_BYTES);
         }
         wgpuBufferUnmap(buffer);
     }
@@ -30,8 +33,10 @@ static void gpu_readback_hit_pos_async(WGPUBuffer buffer) {
         .userdata2 = NULL
     };
     
-    wgpuBufferMapAsync(buffer, WGPUMapMode_Read, 0, 64, cb_info);
+    wgpuBufferMapAsync(buffer, WGPUMapMode_Read, 0, RAYCAST_READBACK_BYTES, cb_info);
 }
+
+static float* gpu_readback_get_raw() { return latest_hit_pos; }
 
 static float gpu_readback_get_hit_x() { return latest_hit_pos[0]; }
 static float gpu_readback_get_hit_y() { return latest_hit_pos[1]; }
@@ -58,7 +63,7 @@ static WGPUBuffer gpu_readback_create_map_buffer(WGPUContext* ctx) {
         .nextInChain = NULL,
         .label = "RaycastMapBuffer",
         .usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst,
-        .size = 64,
+        .size = RAYCAST_READBACK_BYTES,
         .mappedAtCreation = false
     };
     return wgpuDeviceCreateBuffer(ctx->device, &desc);

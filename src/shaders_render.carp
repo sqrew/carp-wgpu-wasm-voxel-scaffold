@@ -38,6 +38,10 @@ struct Uniforms {
     flask_action: vec4<f32>,
     matches: array<vec4<f32>, 8>,
     match_info: vec4<f32>,
+    critter_pos: vec4<f32>,
+    critter_action: vec4<f32>,
+    critter_lights: array<vec4<f32>, 16>,
+    critter_colors: array<vec4<f32>, 16>,
 }
 
 struct FragmentOutput {
@@ -393,27 +397,190 @@ fn eval_fracture_3d(p: vec3<f32>, strain: f32, surf_n: vec3<f32>, mat_id_u: u32,
     return vec4<f32>(bevel, crack_core);
 }
 
-fn map_entities(p: vec3<f32>, out_color: ptr<function, vec3<f32>>) -> f32 {
-    var min_d = 10000.0;
+fn smin_poly(a: f32, b: f32, k: f32) -> f32 {
+    let h = clamp(0.5 + 0.5 * (b - a) / max(k, 0.001), 0.0, 1.0);
+    return mix(b, a, h) - k * h * (1.0 - h);
+}
+
+fn map_entities_dist(p: vec3<f32>, active_mask: u32) -> f32 {
+    var rigid_d = 10000.0;
+    var amoeba_d = 10000.0;
     let count = u32(u.entity_count);
-    for (var i: u32 = 0u; i < count; i = i + 1u) {
+    var has_jiggle = false;
+    var jiggle = 0.0;
+    var m: u32 = active_mask & 0x7fffffffu;
+    var tail_i: u32 = select(count, 31u, (active_mask & 0x80000000u) != 0u);
+    loop {
+        var i: u32 = 0u;
+        if (m != 0u) {
+            i = firstTrailingBit(m);
+            m = m & (m - 1u);
+        } else if (tail_i < count) {
+            i = tail_i;
+            tail_i = tail_i + 1u;
+        } else {
+            break;
+        }
         let e = s_entities[i];
         let p_local = p - e.pos_type.xyz;
-        var d = 10000.0;
         if (e.pos_type.w < 0.5) {
-            // Sphere
-            d = length(p_local) - e.extents_rad.w;
-        } else {
-            // Box
+            let d = length(p_local) - e.extents_rad.w;
+            if (d < rigid_d) { rigid_d = d; }
+        } else if (e.pos_type.w < 1.5) {
             let q = abs(p_local) - e.extents_rad.xyz;
-            d = length(max(q, vec3<f32>(0.0))) + min(max(q.x, max(q.y, q.z)), 0.0);
-        }
-        if (d < min_d) {
-            min_d = d;
-            *out_color = e.color.rgb;
+            let d = length(max(q, vec3<f32>(0.0))) + min(max(q.x, max(q.y, q.z)), 0.0);
+            if (d < rigid_d) { rigid_d = d; }
+        } else {
+            if (!has_jiggle) {
+                jiggle = 0.022 * sin(p.x * 7.2 + u.time * 5.2) * cos(p.y * 7.2 - u.time * 4.3) * sin(p.z * 7.2 + u.time * 4.7);
+                has_jiggle = true;
+            }
+            let r = e.extents_rad.w;
+            let pod = e.extents_rad.xyz;
+            var d = 10000.0;
+            if (e.pos_type.w < 2.5) {
+                let d0 = length(p_local) - r;
+                let d1 = length(p_local - pod * 0.52) - r * 0.66;
+                let d2 = length(p_local - pod) - r * 0.54;
+                d = smin_poly(d0, smin_poly(d1, d2, r * 0.58), r * 0.68) + jiggle;
+            } else {
+                let split_t = clamp(e.color.a, 0.0, 1.0);
+                let lobe_r = r * mix(0.84, 0.68, split_t);
+                let k_pinch = r * mix(0.85, 0.14, split_t);
+                let dl = length(p_local + pod) - lobe_r;
+                let dr = length(p_local - pod) - lobe_r;
+                d = smin_poly(dl, dr, k_pinch) + jiggle * 1.35;
+            }
+            amoeba_d = smin_poly(amoeba_d, d, 0.34);
         }
     }
-    return min_d;
+    if (amoeba_d < 0.36) {
+        let m_wrap = p - floor(p / 160.0) * 160.0;
+        let m_uvw = clamp(m_wrap / 160.0, vec3<f32>(0.002), vec3<f32>(0.998));
+        let d_rock = textureSampleLevel(solid_texture, voxel_sampler, m_uvw, 0.0).g * 0.5;
+        let h_men = clamp(0.5 + 0.5 * (d_rock - amoeba_d) / 0.34, 0.0, 1.0);
+        let fillet = 0.34 * h_men * (1.0 - h_men) * smoothstep(0.35, 0.05, amoeba_d);
+        amoeba_d = amoeba_d - fillet * 1.15;
+    }
+    return min(rigid_d, amoeba_d);
+}
+
+fn map_entities_full(
+    p: vec3<f32>,
+    active_mask: u32,
+    out_color: ptr<function, vec3<f32>>,
+    out_kind: ptr<function, f32>,
+    out_fill: ptr<function, f32>,
+    out_center: ptr<function, vec3<f32>>,
+    out_pod: ptr<function, vec3<f32>>,
+    out_rad: ptr<function, f32>
+) -> f32 {
+    var rigid_d = 10000.0;
+    var rigid_col = vec3<f32>(0.0);
+
+    var amoeba_d = 10000.0;
+    var amoeba_col = vec3<f32>(0.48, 0.88, 0.98);
+    var best_amoeba_d = 10000.0;
+    var best_kind = 2.0;
+    var best_fill = 0.0;
+    var best_center = vec3<f32>(0.0);
+    var best_pod = vec3<f32>(0.0);
+    var best_rad = 0.5;
+
+    let count = u32(u.entity_count);
+    var has_jiggle = false;
+    var jiggle = 0.0;
+    var m: u32 = active_mask & 0x7fffffffu;
+    var tail_i: u32 = select(count, 31u, (active_mask & 0x80000000u) != 0u);
+    loop {
+        var i: u32 = 0u;
+        if (m != 0u) {
+            i = firstTrailingBit(m);
+            m = m & (m - 1u);
+        } else if (tail_i < count) {
+            i = tail_i;
+            tail_i = tail_i + 1u;
+        } else {
+            break;
+        }
+        let e = s_entities[i];
+        let p_local = p - e.pos_type.xyz;
+        if (e.pos_type.w < 0.5) {
+            let d = length(p_local) - e.extents_rad.w;
+            if (d < rigid_d) {
+                rigid_d = d;
+                rigid_col = e.color.rgb;
+            }
+        } else if (e.pos_type.w < 1.5) {
+            let q = abs(p_local) - e.extents_rad.xyz;
+            let d = length(max(q, vec3<f32>(0.0))) + min(max(q.x, max(q.y, q.z)), 0.0);
+            if (d < rigid_d) {
+                rigid_d = d;
+                rigid_col = e.color.rgb;
+            }
+        } else {
+            if (!has_jiggle) {
+                jiggle = 0.022 * sin(p.x * 7.2 + u.time * 5.2) * cos(p.y * 7.2 - u.time * 4.3) * sin(p.z * 7.2 + u.time * 4.7);
+                has_jiggle = true;
+            }
+            let r = e.extents_rad.w;
+            let pod = e.extents_rad.xyz;
+            var d = 10000.0;
+            if (e.pos_type.w < 2.5) {
+                let d0 = length(p_local) - r;
+                let d1 = length(p_local - pod * 0.52) - r * 0.66;
+                let d2 = length(p_local - pod) - r * 0.54;
+                d = smin_poly(d0, smin_poly(d1, d2, r * 0.58), r * 0.68) + jiggle;
+            } else {
+                let split_t = clamp(e.color.a, 0.0, 1.0);
+                let lobe_r = r * mix(0.84, 0.68, split_t);
+                let k_pinch = r * mix(0.85, 0.14, split_t);
+                let dl = length(p_local + pod) - lobe_r;
+                let dr = length(p_local - pod) - lobe_r;
+                d = smin_poly(dl, dr, k_pinch) + jiggle * 1.35;
+            }
+            if (amoeba_d > 9000.0) {
+                amoeba_d = d;
+                amoeba_col = e.color.rgb;
+            } else {
+                let h = clamp(0.5 + 0.5 * (d - amoeba_d) / 0.34, 0.0, 1.0);
+                amoeba_col = mix(e.color.rgb, amoeba_col, h);
+                amoeba_d = mix(d, amoeba_d, h) - 0.34 * h * (1.0 - h);
+            }
+            if (d < best_amoeba_d) {
+                best_amoeba_d = d;
+                best_kind = e.pos_type.w;
+                best_fill = e.color.a;
+                best_center = e.pos_type.xyz;
+                best_pod = pod;
+                best_rad = r;
+            }
+        }
+    }
+
+    if (amoeba_d < 0.36) {
+        let m_wrap = p - floor(p / 160.0) * 160.0;
+        let m_uvw = clamp(m_wrap / 160.0, vec3<f32>(0.002), vec3<f32>(0.998));
+        let d_rock = textureSampleLevel(solid_texture, voxel_sampler, m_uvw, 0.0).g * 0.5;
+        let h_men = clamp(0.5 + 0.5 * (d_rock - amoeba_d) / 0.34, 0.0, 1.0);
+        let fillet = 0.34 * h_men * (1.0 - h_men) * smoothstep(0.35, 0.05, amoeba_d);
+        amoeba_d = amoeba_d - fillet * 1.15;
+    }
+
+    if (amoeba_d < rigid_d) {
+        *out_color = amoeba_col;
+        *out_kind = best_kind;
+        *out_fill = best_fill;
+        *out_center = best_center;
+        *out_pod = best_pod;
+        *out_rad = best_rad;
+        return amoeba_d;
+    } else {
+        *out_color = rigid_col;
+        *out_kind = 0.0;
+        *out_fill = 0.0;
+        return rigid_d;
+    }
 }
 
 @fragment
@@ -661,30 +828,64 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         }
 
         if (u.entity_count > 0.5) {
-            var ent_t = t_start;
-            var ent_hit = false;
-            var final_ent_color = vec3<f32>(0.0);
-            
-            for (var step = 0; step < 64; step = step + 1) {
-                if (ent_t > voxel_hit_t) { break; }
-                let p = ro + rd * ent_t;
-                
-                var ent_c = vec3<f32>(0.0);
-                let dist = map_entities(p, &ent_c);
-                if (dist < 0.008) {
-                    let eps = 0.01;
-                    var dummy = vec3<f32>(0.0);
-                    let n = vec3<f32>(
-                        map_entities(p + vec3<f32>(eps, 0.0, 0.0), &dummy) - map_entities(p - vec3<f32>(eps, 0.0, 0.0), &dummy),
-                        map_entities(p + vec3<f32>(0.0, eps, 0.0), &dummy) - map_entities(p - vec3<f32>(0.0, eps, 0.0), &dummy),
-                        map_entities(p + vec3<f32>(0.0, 0.0, eps), &dummy) - map_entities(p - vec3<f32>(0.0, 0.0, eps), &dummy)
-                    );
-                    let normal = normalize(n);
-                    if (max(ent_c.r, max(ent_c.g, ent_c.b)) > 1.05) {
-                        // Self-emissive incandescent ember (lit match head!)
-                        let rim = 0.72 + 0.55 * max(dot(normal, -rd), 0.0);
-                        final_ent_color = ent_c * rim;
-                    } else {
+            var active_mask: u32 = 0u;
+            var min_ent_t: f32 = voxel_hit_t;
+            var max_ent_t: f32 = t_start;
+            let ent_count = u32(u.entity_count);
+            for (var ei: u32 = 0u; ei < ent_count; ei = ei + 1u) {
+                let e = s_entities[ei];
+                let oc = e.pos_type.xyz - ro;
+                let proj = dot(oc, rd);
+                var r_bound: f32 = e.extents_rad.w + 0.10;
+                if (e.pos_type.w >= 1.5) {
+                    r_bound = e.extents_rad.w + length(e.extents_rad.xyz) + 0.56;
+                } else if (e.pos_type.w >= 0.5) {
+                    r_bound = length(e.extents_rad.xyz) + 0.10;
+                }
+                if (proj + r_bound > t_start && proj - r_bound < voxel_hit_t) {
+                    let perp2 = dot(oc, oc) - proj * proj;
+                    let r2 = r_bound * r_bound;
+                    if (perp2 < r2) {
+                        let thc = sqrt(r2 - perp2);
+                        let t0 = max(t_start, proj - thc);
+                        let t1 = min(voxel_hit_t, proj + thc);
+                        if (t0 <= t1) {
+                            if (ei < 31u) {
+                                active_mask = active_mask | (1u << ei);
+                            } else {
+                                active_mask = active_mask | 0x80000000u;
+                            }
+                            min_ent_t = min(min_ent_t, t0);
+                            max_ent_t = max(max_ent_t, t1);
+                        }
+                    }
+                }
+            }
+
+            if (active_mask != 0u) {
+                var ent_t = min_ent_t;
+                var ent_hit = false;
+                var final_ent_color = vec3<f32>(0.0);
+
+                for (var step = 0; step < 38; step = step + 1) {
+                    if (ent_t > max_ent_t) { break; }
+                    let p = ro + rd * ent_t;
+
+                    var ent_c = vec3<f32>(0.0);
+                    var ent_kind: f32 = 0.0;
+                    var ent_fill: f32 = 0.0;
+                    var ent_center = vec3<f32>(0.0);
+                    var ent_pod = vec3<f32>(0.0);
+                    var ent_rad: f32 = 0.5;
+                    let dist = map_entities_full(p, active_mask, &ent_c, &ent_kind, &ent_fill, &ent_center, &ent_pod, &ent_rad);
+                    if (dist < 0.008) {
+                        let eps = 0.012;
+                        let n = vec3<f32>(
+                            map_entities_dist(p + vec3<f32>(eps, 0.0, 0.0), active_mask) - map_entities_dist(p - vec3<f32>(eps, 0.0, 0.0), active_mask),
+                            map_entities_dist(p + vec3<f32>(0.0, eps, 0.0), active_mask) - map_entities_dist(p - vec3<f32>(0.0, eps, 0.0), active_mask),
+                            map_entities_dist(p + vec3<f32>(0.0, 0.0, eps), active_mask) - map_entities_dist(p - vec3<f32>(0.0, 0.0, eps), active_mask)
+                        );
+                        let normal = normalize(n);
                         let e_wrap = p - floor(p / 160.0) * 160.0;
                         let e_uvw = clamp(e_wrap / 160.0, vec3<f32>(0.002), vec3<f32>(0.998));
                         let e_gi = textureSampleLevel(light_texture, voxel_sampler, e_uvw, 0.0).rgb;
@@ -699,17 +900,73 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                             let f_att = 1.0 / (1.0 + 0.04 * ent_t + 0.009 * ent_t * ent_t);
                             e_flash = vec3<f32>(1.0, 0.96, 0.88) * f_att * 2.4 * max(dot(normal, -rd), 0.15);
                         }
-                        final_ent_color = ent_c * (direct + ambient + e_gi + e_flash);
+                        let lit_env = direct + ambient + e_gi + e_flash;
+
+                        if (ent_kind >= 1.5) {
+                            // Translucent Ditto-Amoeba: refracted cave background + wet Fresnel rim + glowing stomach vacuole + eyespots!
+                            let far_y_bg = ro.y + rd.y * min(t_far, 88.0);
+                            let bg_sky_vis = clamp((max(ro.y, far_y_bg) - 6.0) / 18.0, 0.0, 1.0);
+                            let fallback_bg = mix(color * bg_sky_vis, accum_color, accum_alpha);
+                            let bg_behind = select(fallback_bg, hit_color, hit);
+
+                            let ndv = max(dot(normal, -rd), 0.0);
+                            let fresnel = pow(1.0 - ndv, 2.35);
+                            let refl = reflect(rd, normal);
+                            let view_l = normalize(-rd + vec3<f32>(0.25, 0.68, 0.20));
+                            let spec = pow(max(dot(refl, view_l), 0.0), 34.0);
+
+                            let peak_c = max(ent_c.r, max(ent_c.g, ent_c.b));
+                            let is_lum = peak_c > 1.05;
+                            let tint = ent_c / max(peak_c, 1.0);
+                            let fill_amt = select(clamp(ent_fill, 0.0, 1.0), 0.85, ent_kind >= 2.5);
+
+                            let vac_center = ent_center + ent_pod * select(0.16, 0.0, ent_kind >= 2.5);
+                            let to_vac = vac_center - p;
+                            let proj_t = max(dot(to_vac, rd), 0.0);
+                            let vac_d = length(to_vac - rd * proj_t);
+                            let vac_r = ent_rad * mix(0.22, 0.66, fill_amt);
+                            let vac_core = smoothstep(vac_r, vac_r * 0.18, vac_d) * mix(0.20, 0.94, fill_amt);
+
+                            let has_pod = length(ent_pod) > 0.14;
+                            let raw_fwd = select(normalize(ro - ent_center + vec3<f32>(0.001)), normalize(ent_pod), has_pod);
+                            let side_ax = normalize(cross(vec3<f32>(0.0, 1.0, 0.0), raw_fwd) + vec3<f32>(0.001, 0.0, 0.001));
+                            let up_ax = normalize(cross(raw_fwd, side_ax));
+                            let eye_base = ent_center + raw_fwd * (ent_rad * 0.58) + up_ax * (ent_rad * 0.20);
+                            let eye1 = eye_base + side_ax * (ent_rad * 0.23);
+                            let eye2 = eye_base - side_ax * (ent_rad * 0.23);
+                            let t_e1 = max(dot(eye1 - p, rd), 0.0);
+                            let t_e2 = max(dot(eye2 - p, rd), 0.0);
+                            let d_eye = min(length((eye1 - p) - rd * t_e1), length((eye2 - p) - rd * t_e2));
+                            let eye_mask = smoothstep(ent_rad * 0.115, ent_rad * 0.045, d_eye) * select(1.0, 0.0, ent_kind >= 2.5);
+
+                            let refracted_bg = bg_behind * mix(vec3<f32>(0.92, 0.96, 1.0), tint * 1.15 + vec3<f32>(0.12), 0.56);
+                            let lum_rim = select(0.0, (peak_c - 0.85) * 0.55, is_lum);
+                            let jelly_skin = tint * (lit_env * 0.88 + vec3<f32>(0.08, 0.11, 0.15))
+                                           + tint * fresnel * (0.58 + lum_rim)
+                                           + vec3<f32>(0.92, 0.97, 1.0) * spec * 0.58;
+                            let vac_col = select(tint * (lit_env * 1.18 + vec3<f32>(0.08)), ent_c * 1.22, is_lum);
+
+                            var amoeba_rgb = mix(refracted_bg, jelly_skin, clamp(0.38 + 0.46 * fresnel, 0.0, 0.86));
+                            amoeba_rgb = mix(amoeba_rgb, vac_col, vac_core);
+                            amoeba_rgb = mix(amoeba_rgb, vec3<f32>(0.03, 0.02, 0.06), eye_mask * 0.90);
+                            final_ent_color = amoeba_rgb;
+                        } else if (max(ent_c.r, max(ent_c.g, ent_c.b)) > 1.05) {
+                            // Self-emissive incandescent ember (lit match head / glowing crystal boulder!)
+                            let rim = 0.72 + 0.55 * max(dot(normal, -rd), 0.0);
+                            final_ent_color = ent_c * rim;
+                        } else {
+                            final_ent_color = ent_c * lit_env;
+                        }
+                        ent_hit = true;
+                        break;
                     }
-                    ent_hit = true;
-                    break;
+                    ent_t = ent_t + clamp(dist, 0.008, 1.05);
                 }
-                ent_t = ent_t + clamp(dist, 0.008, 1.2);
-            }
-            if (ent_hit) {
-                hit = true;
-                t = ent_t;
-                hit_color = final_ent_color;
+                if (ent_hit) {
+                    hit = true;
+                    t = ent_t;
+                    hit_color = final_ent_color;
+                }
             }
         }
         

@@ -1,0 +1,639 @@
+;; =============================================================================
+;; Alchemical Wand System: WandChassis x SpellPayload x WandMod
+;; Zero-malloc 24-slot swept projectile pool with SDF terrain carving/extrusion,
+;; true surface-normal ricochets, piercing tunnel-bores, 3D homing, live CA
+;; reagent wakes/splashes, and full Ditto-Amoeba elemental reactions.
+;; =============================================================================
+
+(deftype WandChassis [
+  cast-delay Float
+  mana-max Float
+  mana-regen Float
+  mana-cost Float
+  multicast Int
+  spread Float
+  extra-bounces Int
+  lantern-mat Float
+])
+
+(deftype SpellPayload [
+  speed Float
+  gravity Float
+  radius Float
+  lifetime Float
+  base-bounces Int
+  col-r Float
+  col-g Float
+  col-b Float
+  sdf-delta Float
+  solid-mat Float
+  spawn-mat Float
+  spawn-rad Float
+  knockback Float
+  elem-tag Int
+])
+
+(deftype WandMod [
+  mod-kind Int
+  trail-mat Float
+  trail-ptype Float
+  homing-turn Float
+  split-on-hit Bool
+])
+
+(defmodule WandSystem
+  (defn fsin [x] (Double.to-float (sin (Double.from-float x))))
+  (defn fcos [x] (Double.to-float (cos (Double.from-float x))))
+
+  ;; 6 Starter Wands (0..5) + Shrapnel Sub-Bolt (6)
+  ;; [0] Spark Ricochet   : Rapid-fire bouncing cyan bolts + spark split
+  ;; [1] Emerald Bore     : Piercing mining laser (chews 3 rock bites per shot!)
+  ;; [2] Meteor Staff     : Heavy arcing fireball + fire wake + crater shockwave
+  ;; [3] Cryo-Architect   : Flash-freezes solid Ice domes/bridges & petrifies magma slimes
+  ;; [4] Venom Scattergun : 3x multicast shotgun of terrain-melting Acid globs
+  ;; [5] Amethyst Seeker  : 3D Homing arcane bolts + golden Ambrosia pop
+  (defn get-chassis [wid]
+    (if (= wid 0) (WandChassis.init 0.13f 100.0f 38.0f 9.0f  1 0.014f 2 14.0f)
+    (if (= wid 1) (WandChassis.init 0.17f 100.0f 34.0f 14.0f 1 0.006f 2 17.0f)
+    (if (= wid 2) (WandChassis.init 0.46f 100.0f 28.0f 34.0f 1 0.018f 0 258.0f)
+    (if (= wid 3) (WandChassis.init 0.27f 100.0f 32.0f 20.0f 1 0.012f 0 14.0f)
+    (if (= wid 4) (WandChassis.init 0.36f 100.0f 30.0f 25.0f 3 0.135f 0 259.0f)
+                  (WandChassis.init 0.21f 100.0f 35.0f 15.0f 1 0.025f 1 15.0f)))))))
+
+  (defn get-payload [wid]
+    (if (= wid 0) (SpellPayload.init 46.0f 0.0f  0.16f 2.20f 0 0.42f 2.45f 2.85f  0.00f  0.0f 515.0f 1.35f 16.5f 1)
+    (if (= wid 1) (SpellPayload.init 54.0f 0.0f  0.18f 1.55f 0 0.52f 2.75f 0.65f -1.42f  1.0f   0.0f 0.00f 14.0f 0)
+    (if (= wid 2) (SpellPayload.init 30.0f 9.8f  0.29f 3.20f 0 2.95f 1.12f 0.22f -2.20f  1.0f 515.0f 3.20f 27.5f 2)
+    (if (= wid 3) (SpellPayload.init 37.0f 4.2f  0.22f 2.60f 0 0.72f 2.15f 2.85f  1.65f  8.0f   0.0f 0.00f 13.0f 3)
+    (if (= wid 4) (SpellPayload.init 29.0f 11.5f 0.19f 2.80f 0 0.55f 2.65f 0.35f -0.85f  1.0f 259.0f 2.15f 12.0f 4)
+    (if (= wid 5) (SpellPayload.init 34.0f 0.0f  0.20f 2.90f 0 2.25f 0.58f 2.85f  0.00f  0.0f 262.0f 1.65f 20.5f 5)
+                  ;; [6] Mini Spark Shrapnel from split-on-hit
+                  (SpellPayload.init 24.0f 12.0f 0.11f 0.75f 1 0.55f 2.35f 2.75f  0.00f  0.0f   0.0f 0.00f  7.0f 1))))))))
+
+  (defn get-mod [wid]
+    ;; mod-kind: 0=None, 1=3D Homing, 2=Helix Spiral, 3=Piercing Bore
+    (if (= wid 0) (WandMod.init 0 0.0f   PARTICLE-TYPE-SPARKS 0.0f  true)
+    (if (= wid 1) (WandMod.init 3 0.0f   417.0f               0.0f  false)
+    (if (= wid 2) (WandMod.init 0 515.0f 203.0f               0.0f  false)
+    (if (= wid 3) (WandMod.init 0 0.0f   408.0f               0.0f  false)
+    (if (= wid 4) (WandMod.init 0 0.0f   103.0f               0.0f  false)
+    (if (= wid 5) (WandMod.init 1 0.0f   PARTICLE-TYPE-MAGIC  5.8f  false)
+                  (WandMod.init 0 0.0f   PARTICLE-TYPE-SPARKS 0.0f  false))))))))
+
+  (defn destroy-bolt-slot! [state slot]
+    (let [b-alive (EngineState.bolt-alive state)
+          b-idx (EngineState.bolt-idx state)
+          b-gen (EngineState.bolt-gen state)
+          ecs (EngineState.ecs-world state)]
+      (when @(Array.unsafe-nth b-alive slot)
+        (let [idx @(Array.unsafe-nth b-idx slot)
+              gen @(Array.unsafe-nth b-gen slot)
+              ent (ECS.Entity.init (Handle.init idx gen))]
+          (do
+            (GameWorld.destroy-entity! ecs &ent)
+            (Array.aset! b-alive slot false)
+            (Array.aset! (EngineState.bolt-life state) slot 0.0f))))))
+
+  (defn spawn-bolt! [state sx sy sz vx vy vz wid bounces]
+    (let [slot (Int.mod @(EngineState.bolt-slot state) 24)
+          payload (WandSystem.get-payload wid)
+          rad (Double.from-float @(SpellPayload.radius &payload))
+          col (Vector3.init (Double.from-float @(SpellPayload.col-r &payload))
+                            (Double.from-float @(SpellPayload.col-g &payload))
+                            (Double.from-float @(SpellPayload.col-b &payload)))
+          spos (Vector3.init (Double.from-float sx) (Double.from-float sy) (Double.from-float sz))
+          ecs (EngineState.ecs-world state)
+          b3 (* slot 3)]
+      (do
+        (WandSystem.destroy-bolt-slot! state slot)
+        (EngineState.set-bolt-slot! state (+ slot 1))
+        (let [e (GameWorld.create-entity! ecs)
+              vol (Volume.Ball (Sphere.init spos rad))]
+          (do
+            (add-component! ecs &e (CompVolume.init vol))
+            (add-component! ecs &e (CompColor.init col))
+            (Array.aset! (EngineState.bolt-alive state) slot true)
+            (Array.aset! (EngineState.bolt-idx state) slot (ECS.Entity.index &e))
+            (Array.aset! (EngineState.bolt-gen state) slot (ECS.Entity.generation &e))
+            (Array.aset! (EngineState.bolt-pos state) b3 sx)
+            (Array.aset! (EngineState.bolt-pos state) (+ b3 1) sy)
+            (Array.aset! (EngineState.bolt-pos state) (+ b3 2) sz)
+            (Array.aset! (EngineState.bolt-vel state) b3 vx)
+            (Array.aset! (EngineState.bolt-vel state) (+ b3 1) vy)
+            (Array.aset! (EngineState.bolt-vel state) (+ b3 2) vz)
+            (Array.aset! (EngineState.bolt-life state) slot @(SpellPayload.lifetime &payload))
+            (Array.aset! (EngineState.bolt-bounces state) slot bounces)
+            (Array.aset! (EngineState.bolt-wand state) slot wid))))))
+
+  ;; Inject fluid/gas CA sphere using whichever GPU action channel is free this frame
+  (defn inject-gpu-reagent! [state hx hy hz rad mat-id amount]
+    (when (and (> mat-id 0.5f) (> rad 0.05f))
+      (if (< @(EngineState.flask-pr state) 0.05f)
+        (do
+          (EngineState.set-flask-px! state hx)
+          (EngineState.set-flask-py! state hy)
+          (EngineState.set-flask-pz! state hz)
+          (EngineState.set-flask-pr! state rad)
+          (EngineState.set-flask-ax! state mat-id)
+          (EngineState.set-flask-ay! state amount))
+        (when (< @(EngineState.critter-pr state) 0.05f)
+          (do
+            (EngineState.set-critter-px! state hx)
+            (EngineState.set-critter-py! state hy)
+            (EngineState.set-critter-pz! state hz)
+            (EngineState.set-critter-pr! state rad)
+            (EngineState.set-critter-ax! state mat-id)
+            (EngineState.set-critter-ay! state amount))))))
+
+  ;; Apply kinetic shockwave + full elemental Ditto-Amoeba counter-reactions!
+  (defn apply-impact-forces-and-reactions! [state world ps ecs hx hy hz dx dy dz knockback blast-r elem-tag]
+    (let [px (Double.from-float hx)
+          py (Double.from-float hy)
+          pz (Double.from-float hz)
+          kb (Double.from-float knockback)
+          max-r (Double.from-float blast-r)
+          player-id @(EngineState.player-ent-id state)
+          flying? @(Player.flying (EngineState.player state))
+          a-alive (EngineState.amoeba-alive state)
+          a-idx (EngineState.amoeba-idx state)
+          a-gen (EngineState.amoeba-gen state)
+          a-mat (EngineState.amoeba-mat state)
+          a-fill (EngineState.amoeba-fill state)
+          a-state (EngineState.amoeba-state state)]
+      (do
+        ;; 1. Elemental Ditto-Amoeba reactions within blast/touch radius
+        (for [k 0 16]
+          (when @(Array.unsafe-nth a-alive k)
+            (let [aent (ECS.Entity.init (Handle.init @(Array.unsafe-nth a-idx k) @(Array.unsafe-nth a-gen k)))
+                  acb-opt (the (Maybe CompBody) (get-component ecs &aent))]
+              (match acb-opt
+                (Maybe.Nothing) ()
+                (Maybe.Just acb)
+                  (let [arb (CompBody.rb &acb)
+                        apos @(RigidBody.position arb)
+                        adx (- @(Vector3.x &apos) px)
+                        ady (- @(Vector3.y &apos) py)
+                        adz (- @(Vector3.z &apos) pz)
+                        adist (Double.sqrt (+ (+ (* adx adx) (* ady ady)) (* adz adz)))
+                        cmat @(Array.unsafe-nth a-mat k)
+                        cst @(Array.unsafe-nth a-state k)
+                        afill @(Array.unsafe-nth a-fill k)]
+                    (when (< adist (+ max-r 0.75))
+                      (let [afx (Double.to-float @(Vector3.x &apos))
+                            afy (Double.to-float @(Vector3.y &apos))
+                            afz (Double.to-float @(Vector3.z &apos))
+                            fire-like? (or (= elem-tag 1) (= elem-tag 2))]
+                        ;; Spark / Fireball vs Explosive Amoeba -> CHAIN DETONATION!
+                        (if (and fire-like? (CritterSystem.explosive-mat? cmat))
+                          (CritterSystem.detonate-amoeba! state world ps ecs &apos k)
+                          ;; Spark / Fireball vs Ice Amoeba -> Melts into Water splash!
+                          (if (and fire-like? (= (Float.round cmat) 8))
+                            (do
+                              (WandSystem.inject-gpu-reagent! state afx afy afz 2.2f 257.0f 0.75f)
+                              (ParticleSystem.emit! ps afx afy afz 0.0f 3.8f 0.0f 1.5f 20 101.0f 0.45f 0.25f)
+                              (CritterSystem.destroy-amoeba-slot! state k))
+                            ;; Cryo-Architect vs Lava / Burning Amoeba -> *tssst!* Obsidian boulder!
+                            (if (and (= elem-tag 3) (or (= cst 3) (CritterSystem.igniter-mat? cmat)))
+                              (let [obs-col (Vector3.init 0.34 0.27 0.48)]
+                                (do
+                                  (WandSystem.inject-gpu-reagent! state afx afy afz 2.4f 513.0f 0.85f)
+                                  (ignore (CritterSystem.spawn-reagent-boulder! state apos (Vector3.init 0.0 4.5 0.0) 0.56 16.0f obs-col 60000l))
+                                  (ParticleSystem.emit-smoke! ps afx (+ afy 0.2f) afz 14)
+                                  (CritterSystem.destroy-amoeba-slot! state k)))
+                              ;; Non-lethal elemental mutations + airborne launch!
+                              (do
+                                (when (and fire-like? (and (/= cst 3) (CritterSystem.flammable-mat? cmat)))
+                                  (do
+                                    (Array.aset! a-state k 3)
+                                    (Array.aset! (EngineState.amoeba-timer state) k 0.0f)
+                                    (ECS.add-component! ecs &aent (CompColor.init (CritterSystem.amoeba-visual-color cmat 3)))))
+                                (when (and (= elem-tag 3) (/= cst 2))
+                                  (do
+                                    (Array.aset! a-mat k 8.0f)
+                                    (Array.aset! a-fill k (Float.clamp 0.25f 0.95f (+ afill 0.22f)))
+                                    (ECS.add-component! ecs &aent (CompColor.init (CritterSystem.amoeba-visual-color 8.0f 0)))))
+                                (when (and (= elem-tag 4) (/= cst 2))
+                                  (do
+                                    (Array.aset! a-mat k 259.0f)
+                                    (Array.aset! a-fill k (Float.clamp 0.25f 0.95f (+ afill 0.24f)))
+                                    (ECS.add-component! ecs &aent (CompColor.init (CritterSystem.amoeba-visual-color 259.0f 0)))))
+                                (when (and (= elem-tag 5) (/= cst 2))
+                                  (do
+                                    (Array.aset! a-mat k 262.0f)
+                                    (Array.aset! a-fill k (Float.clamp 0.25f 0.95f (+ afill 0.20f)))
+                                    (ECS.add-component! ecs &aent (CompColor.init (CritterSystem.amoeba-visual-color 262.0f 0))))))))))))))))
+
+        ;; 2. Radial / Directional Knockback on all nearby CompBody entities (including surviving Amoebas & Boulders!)
+        (when (> kb 0.5)
+          (query ecs (e (cb CompBody))
+            (let [eid (Long.to-int (Uint64.to-long (ECS.Entity.index &e)))]
+              (when (or (/= eid player-id) (and (not flying?) (> max-r 2.2)))
+                (let [rb (CompBody.rb cb)
+                      epos (RigidBody.position rb)
+                      ex (- @(Vector3.x epos) px)
+                      ey (- @(Vector3.y epos) py)
+                      ez (- @(Vector3.z epos) pz)
+                      dist (Double.sqrt (+ (+ (* ex ex) (* ey ey)) (* ez ez)))]
+                  (when (< dist (+ max-r 0.65))
+                    (let [b (RigidBody.body rb)
+                          old-v @(Body.velocity b)
+                          atten (Physics.clamp 0.25 1.0 (- 1.0 (/ dist (+ max-r 1.1))))
+                          inv-d (if (> dist 0.12) (/ 1.0 dist) 0.0)
+                          push-x (if (> dist 0.25) (* ex inv-d) (Double.from-float dx))
+                          push-z (if (> dist 0.25) (* ez inv-d) (Double.from-float dz))
+                          dv (Vector3.init (* (+ (* push-x 0.65) (* (Double.from-float dx) 0.55)) (* kb atten))
+                                           (+ 5.8 (* 0.38 (* kb atten)))
+                                           (* (+ (* push-z 0.65) (* (Double.from-float dz) 0.55)) (* kb atten)))]
+                      (do
+                        (when (/= eid player-id)
+                          (do
+                            (Body.set-body-type! b (BodyType.Dynamic))
+                            (Body.set-inv-mass! b 1.0)
+                            (Body.set-inv-inertia! b 4.0)))
+                        (Body.set-velocity! b (Vector3.add &old-v &dv))
+                        (RigidBody.set-body! rb @b)
+                        (ECS.add-component! ecs &e (CompBody.init @rb)))))))))))))
+
+  (defn trigger-impact! [state world ps ecs hx hy hz dx dy dz wid]
+    (let [payload (WandSystem.get-payload wid)
+          wmod (WandSystem.get-mod wid)
+          sdf-d @(SpellPayload.sdf-delta &payload)
+          s-mat @(SpellPayload.solid-mat &payload)
+          sp-mat @(SpellPayload.spawn-mat &payload)
+          sp-rad @(SpellPayload.spawn-rad &payload)
+          kb @(SpellPayload.knockback &payload)
+          etag @(SpellPayload.elem-tag &payload)
+          hvec (Vector3.init (Double.from-float hx) (Double.from-float hy) (Double.from-float hz))
+          nrm (Physics.estimate-sdf-normal world &hvec)
+          nx (Double.to-float @(Vector3.x &nrm))
+          ny (Double.to-float @(Vector3.y &nrm))
+          nz (Double.to-float @(Vector3.z &nrm))
+          blast-r (if (> sp-rad 1.5f) sp-rad (if (< sdf-d -1.5f) (- 0.0f sdf-d) 1.45f))]
+      (do
+        ;; 1. Solid SDF Carve (Bore-Lance / Meteor Crater / Acid Pit) or Solid Extrude (Cryo Ice Dome!)
+        (if (< sdf-d -0.05f)
+          (let [crad (- 0.0f sdf-d)
+                near-mat (CritterSystem.sample-solid-mat-near world &hvec)
+                carve-mat (if (and (>= near-mat 1.0f) (< near-mat 250.0f)) near-mat 1.0f)]
+            (do
+              (EngineState.set-flask-px! state hx)
+              (EngineState.set-flask-py! state hy)
+              (EngineState.set-flask-pz! state hz)
+              (EngineState.set-flask-pr! state crad)
+              (EngineState.set-flask-ax! state carve-mat)
+              (EngineState.set-flask-ay! state -1.0f)
+              (ignore (World.edit-sdf! world &hvec (Double.from-float crad) carve-mat true))
+              (ParticleSystem.emit-dust! ps hx hy hz 10)
+              (when (and (> crad 1.3f) (EditingSystem.brittle-solid? carve-mat))
+                (let [bpos (Vector3.add &hvec &(Vector3.mul &nrm 0.55))
+                      bvel (Vector3.mul &nrm 8.5)]
+                  (ignore (EditingSystem.spawn-boulder! state bpos bvel 0.42 carve-mat 30000l))))))
+          (when (> sdf-d 0.05f)
+            (let [build-p (Vector3.add &hvec &(Vector3.mul &nrm 0.35))
+                  bx (Double.to-float @(Vector3.x &build-p))
+                  by (Double.to-float @(Vector3.y &build-p))
+                  bz (Double.to-float @(Vector3.z &build-p))]
+              (do
+                (EngineState.set-flask-px! state bx)
+                (EngineState.set-flask-py! state by)
+                (EngineState.set-flask-pz! state bz)
+                (EngineState.set-flask-pr! state sdf-d)
+                (EngineState.set-flask-ax! state s-mat)
+                (EngineState.set-flask-ay! state 1.0f)
+                (ignore (World.edit-sdf! world &build-p (Double.from-float sdf-d) s-mat false))))))
+
+        ;; 2. CA Reagent Burst (Fire, Acid, Ambrosia...) offset slightly out along surface normal
+        (when (> sp-mat 0.5f)
+          (WandSystem.inject-gpu-reagent! state (+ hx (* nx 0.45f)) (+ hy (* ny 0.45f)) (+ hz (* nz 0.45f)) sp-rad sp-mat 0.78f))
+
+        ;; 3. Signature Spell Impact Particles
+        (if (= etag 2)
+          (do
+            (ParticleSystem.emit-sparks! ps hx hy hz nx ny nz 34)
+            (ParticleSystem.emit-debris! ps hx hy hz nx 1.0f nz 16)
+            (ParticleSystem.emit-smoke! ps hx (+ hy 0.35f) hz 18)
+            (ParticleSystem.emit! ps hx hy hz 0.0f 5.5f 0.0f 2.2f 28 203.0f 0.75f 0.15f))
+          (if (= etag 3)
+            (do
+              (ParticleSystem.emit! ps hx hy hz (* nx 7.5f) (+ (* ny 7.5f) 3.0f) (* nz 7.5f) 1.6f 24 408.0f 0.45f 0.25f)
+              (ParticleSystem.emit-dust! ps hx hy hz 10))
+            (if (= etag 4)
+              (ParticleSystem.emit! ps hx hy hz (* nx 6.5f) (+ (* ny 6.5f) 3.5f) (* nz 6.5f) 1.5f 20 103.0f 0.45f 0.28f)
+              (if (= etag 5)
+                (ParticleSystem.emit! ps hx hy hz (* nx 6.0f) (+ (* ny 6.0f) 2.5f) (* nz 6.0f) 1.8f 24 PARTICLE-TYPE-MAGIC 0.50f 0.35f)
+                (ParticleSystem.emit-sparks! ps hx hy hz nx ny nz 18)))))
+
+        ;; 4. Knockback & Ditto-Amoeba Reactions
+        (WandSystem.apply-impact-forces-and-reactions! state world ps ecs hx hy hz dx dy dz kb blast-r etag)
+
+        ;; 5. Split-on-Hit Modifier: fan out 2 bouncy Spark Shards!
+        (when @(WandMod.split-on-hit &wmod)
+          (let [up-ref (if (< (Float.abs ny) 0.85f) (Vector3.init 0.0 1.0 0.0) (Vector3.init 1.0 0.0 0.0))
+                side-v (Vector3.cross &nrm &up-ref)
+                smag (Vector3.mag &side-v)
+                sx-ax (if (> smag 0.01) (Double.to-float (/ @(Vector3.x &side-v) smag)) 1.0f)
+                sy-ax (if (> smag 0.01) (Double.to-float (/ @(Vector3.y &side-v) smag)) 0.0f)
+                sz-ax (if (> smag 0.01) (Double.to-float (/ @(Vector3.z &side-v) smag)) 0.0f)
+                ox (+ hx (* nx 0.28f))
+                oy (+ hy (* ny 0.28f))
+                oz (+ hz (* nz 0.28f))]
+            (do
+              (WandSystem.spawn-bolt! state ox oy oz
+                (+ (* nx 13.5f) (* sx-ax 9.5f)) (+ (* ny 13.5f) (+ (* sy-ax 9.5f) 4.0f)) (+ (* nz 13.5f) (* sz-ax 9.5f)) 6 1)
+              (WandSystem.spawn-bolt! state ox oy oz
+                (- (* nx 13.5f) (* sx-ax 9.5f)) (+ (* ny 13.5f) (- 4.0f (* sy-ax 9.5f))) (- (* nz 13.5f) (* sz-ax 9.5f)) 6 1)))))))
+
+  ;; Find nearest Ditto-Amoeba (or dynamic boulder) roughly ahead for Homing modifier
+  (defn steer-homing-vel [state ecs px py pz vx vy vz turn-rate fdt]
+    (let [spd (Float.sqrt (+ (+ (* vx vx) (* vy vy)) (* vz vz)))
+          inv-s (if (> spd 0.05f) (/ 1.0f spd) 1.0f)
+          fx (* vx inv-s)
+          fy (* vy inv-s)
+          fz (* vz inv-s)
+          best-score 999.0f
+          tx 0.0f
+          ty 0.0f
+          tz 0.0f
+          found false
+          a-alive (EngineState.amoeba-alive state)
+          a-idx (EngineState.amoeba-idx state)
+          a-gen (EngineState.amoeba-gen state)]
+      (do
+        (for [k 0 16]
+          (when @(Array.unsafe-nth a-alive k)
+            (let [aent (ECS.Entity.init (Handle.init @(Array.unsafe-nth a-idx k) @(Array.unsafe-nth a-gen k)))
+                  acb-opt (the (Maybe CompBody) (get-component ecs &aent))]
+              (match acb-opt
+                (Maybe.Nothing) ()
+                (Maybe.Just acb)
+                  (let [apos (RigidBody.position (CompBody.rb &acb))
+                        dx (- (Double.to-float @(Vector3.x apos)) px)
+                        dy (- (Double.to-float @(Vector3.y apos)) py)
+                        dz (- (Double.to-float @(Vector3.z apos)) pz)
+                        d (Float.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))]
+                    (when (and (> d 0.25f) (< d 24.0f))
+                      (let [align (/ (+ (+ (* dx fx) (* dy fy)) (* dz fz)) d)]
+                        (when (and (> align -0.15f) (< d best-score))
+                          (do
+                            (set! best-score d)
+                            (set! tx (/ dx d))
+                            (set! ty (/ dy d))
+                            (set! tz (/ dz d))
+                            (set! found true))))))))))
+        (if (not found)
+          (Vector3.init (Double.from-float vx) (Double.from-float vy) (Double.from-float vz))
+          (let [blend (Float.clamp 0.0f 0.45f (* turn-rate fdt))
+                nx (+ (* fx (- 1.0f blend)) (* tx blend))
+                ny (+ (* fy (- 1.0f blend)) (* ty blend))
+                nz (+ (* fz (- 1.0f blend)) (* tz blend))
+                nmag (Float.sqrt (+ (+ (* nx nx) (* ny ny)) (* nz nz)))
+                inm (if (> nmag 0.01f) (/ spd nmag) spd)]
+            (Vector3.init (Double.from-float (* nx inm))
+                          (Double.from-float (* ny inm))
+                          (Double.from-float (* nz inm))))))))
+
+  ;; Check direct hit against any live Ditto-Amoeba or non-player dynamic CompBody
+  (defn check-entity-hit [state ecs sx sy sz rad]
+    (let [player-id @(EngineState.player-ent-id state)
+          hit? false
+          a-alive (EngineState.amoeba-alive state)
+          a-idx (EngineState.amoeba-idx state)
+          a-gen (EngineState.amoeba-gen state)
+          a-rad (EngineState.amoeba-rad state)]
+      (do
+        (for [k 0 16]
+          (when (and (not hit?) @(Array.unsafe-nth a-alive k))
+            (let [aent (ECS.Entity.init (Handle.init @(Array.unsafe-nth a-idx k) @(Array.unsafe-nth a-gen k)))
+                  acb-opt (the (Maybe CompBody) (get-component ecs &aent))]
+              (match acb-opt
+                (Maybe.Nothing) ()
+                (Maybe.Just acb)
+                  (let [apos (RigidBody.position (CompBody.rb &acb))
+                        dx (- (Double.to-float @(Vector3.x apos)) sx)
+                        dy (- (Double.to-float @(Vector3.y apos)) sy)
+                        dz (- (Double.to-float @(Vector3.z apos)) sz)
+                        r-sum (+ rad (+ @(Array.unsafe-nth a-rad k) 0.14f))]
+                    (when (< (+ (+ (* dx dx) (* dy dy)) (* dz dz)) (* r-sum r-sum))
+                      (set! hit? true)))))))
+        (when (not hit?)
+          (query ecs (e (cb CompBody) (cv CompVolume))
+            (let [eid (Long.to-int (Uint64.to-long (ECS.Entity.index &e)))]
+              (when (and (not hit?) (/= eid player-id))
+                (let [rb (CompBody.rb cb)]
+                  (when (> @(Body.inv-mass (RigidBody.body rb)) 0.0)
+                    (let [epos (RigidBody.position rb)
+                          dx (- (Double.to-float @(Vector3.x epos)) sx)
+                          dy (- (Double.to-float @(Vector3.y epos)) sy)
+                          dz (- (Double.to-float @(Vector3.z epos)) sz)
+                          r-sum (+ rad 0.54f)]
+                      (when (< (+ (+ (* dx dx) (* dy dy)) (* dz dz)) (* r-sum r-sum))
+                        (set! hit? true)))))))))
+        hit?)))
+
+  (defn update! [state input dt]
+    (let [world (EngineState.world state)
+          player (EngineState.player state)
+          cam (Player.camera player)
+          ps (EngineState.particles state)
+          ecs (EngineState.ecs-world state)
+          fc @(EngineState.frame-count state)
+          fdt (Double.to-float dt)
+          rslot @(EngineState.rig-slot state)
+          w-mana (EngineState.wand-mana state)
+          cur-wid @(EngineState.wand-idx state)
+          cd (Float.clamp 0.0f 10.0f (- @(EngineState.wand-cooldown state) fdt))
+          wflash (Float.clamp -1.0f 1.0f (* @(EngineState.wand-flash state) 0.86f))
+          left-held (InputManager.action-digital? input "click-left")
+          right-held (InputManager.action-digital? input "click-right")
+          brush-mod (or (InputManager.action-digital? input "edit-add")
+                        (or (InputManager.action-digital? input "edit-remove")
+                            (InputManager.action-digital? input "edit-paint")))]
+      (do
+        ;; 1. Regenerate mana across all 6 wands (active wand + stowed wands!)
+        (for [wi 0 6]
+          (let [ch (WandSystem.get-chassis wi)
+                mmax @(WandChassis.mana-max &ch)
+                mreg @(WandChassis.mana-regen &ch)
+                next-m (Float.clamp 0.0f mmax (+ @(Array.unsafe-nth w-mana wi) (* mreg fdt)))]
+            (Array.aset! w-mana wi next-m)))
+        (EngineState.set-wand-cooldown! state cd)
+
+        ;; 2. Slot [5] Wand Controls: RMB cycles starter wands, LMB casts!
+        (when (and (= rslot 4) (not brush-mod))
+          (let [pos (Camera.pos cam)
+                dir (Camera.front cam)
+                right (Camera.right cam)
+                up (Camera.up cam)
+                rx (Double.to-float @(Vector3.x pos))
+                ry (Double.to-float @(Vector3.y pos))
+                rz (Double.to-float @(Vector3.z pos))
+                fx (Double.to-float @(Vector3.x dir))
+                fy (Double.to-float @(Vector3.y dir))
+                fz (Double.to-float @(Vector3.z dir))
+                rtx (Double.to-float @(Vector3.x right))
+                rty (Double.to-float @(Vector3.y right))
+                rtz (Double.to-float @(Vector3.z right))
+                upx (Double.to-float @(Vector3.x up))
+                upy (Double.to-float @(Vector3.y up))
+                upz (Double.to-float @(Vector3.z up))
+                tip-x (- (+ (+ rx (* rtx 0.34f)) (* fx 0.88f)) (* upx 0.14f))
+                tip-y (- (+ (+ ry (* rty 0.34f)) (* fy 0.88f)) (* upy 0.14f))
+                tip-z (- (+ (+ rz (* rtz 0.34f)) (* fz 0.88f)) (* upz 0.14f))]
+            (do
+              ;; RMB click: Cycle through the 6 wands cleanly
+              (when (and right-held (not @(EngineState.wand-rmb-last state)))
+                (let [next-w (Int.mod (+ cur-wid 1) 6)]
+                  (do
+                    (EngineState.set-wand-idx! state next-w)
+                    (set! cur-wid next-w)
+                    (ParticleSystem.emit! ps tip-x tip-y tip-z (* fx 4.0f) (+ (* fy 4.0f) 1.5f) (* fz 4.0f) 0.55f 12 PARTICLE-TYPE-MAGIC 0.25f 0.2f))))
+
+              ;; LMB hold/click: Fire active wand if cooldown ready & mana sufficient
+              (when (and left-held (<= cd 0.001f))
+                (let [ch (WandSystem.get-chassis cur-wid)
+                      pay (WandSystem.get-payload cur-wid)
+                      cur-m @(Array.unsafe-nth w-mana cur-wid)
+                      cost @(WandChassis.mana-cost &ch)]
+                  (if (< cur-m cost)
+                    (set! wflash -1.0f)
+                    (let [mcast @(WandChassis.multicast &ch)
+                          spr @(WandChassis.spread &ch)
+                          tot-bounces (+ @(SpellPayload.base-bounces &pay) @(WandChassis.extra-bounces &ch))
+                          spd @(SpellPayload.speed &pay)]
+                      (do
+                        (Array.aset! w-mana cur-wid (- cur-m cost))
+                        (EngineState.set-wand-cooldown! state @(WandChassis.cast-delay &ch))
+                        (set! wflash 1.0f)
+                        (ParticleSystem.emit-sparks! ps tip-x tip-y tip-z fx fy fz 12)
+                        (for [shot 0 mcast]
+                          (let [ang (+ (* (Float.from-int (+ (* fc 7) (* shot 13))) 2.39996f) (Float.from-int shot))
+                                rad-s (if (= mcast 1) (* spr 0.45f) (* spr (+ 0.55f (* 0.22f (Float.from-int (Int.mod shot 2))))))
+                                jx (* (WandSystem.fcos ang) rad-s)
+                                jy (* (WandSystem.fsin ang) rad-s)
+                                dx (+ fx (+ (* rtx jx) (* upx jy)))
+                                dy (+ fy (+ (* rty jx) (* upy jy)))
+                                dz (+ fz (+ (* rtz jx) (* upz jy)))
+                                dmag (Float.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))
+                                inv-d (if (> dmag 0.01f) (/ spd dmag) spd)]
+                            (WandSystem.spawn-bolt! state tip-x tip-y tip-z (* dx inv-d) (* dy inv-d) (* dz inv-d) cur-wid tot-bounces)))))))))))
+        (EngineState.set-wand-rmb-last! state right-held)
+        (EngineState.set-wand-flash! state wflash)
+
+        ;; 3. Step all active Wand Projectiles (Swept SDF + Entity Collision + Modifiers)
+        (let [b-alive (EngineState.bolt-alive state)
+              b-idx (EngineState.bolt-idx state)
+              b-gen (EngineState.bolt-gen state)
+              b-pos (EngineState.bolt-pos state)
+              b-vel (EngineState.bolt-vel state)
+              b-life (EngineState.bolt-life state)
+              b-bounces (EngineState.bolt-bounces state)
+              b-wand (EngineState.bolt-wand state)]
+          (for [bi 0 24]
+            (when @(Array.unsafe-nth b-alive bi)
+              (let [rem-life (- @(Array.unsafe-nth b-life bi) fdt)]
+                (if (<= rem-life 0.0f)
+                  (WandSystem.destroy-bolt-slot! state bi)
+                  (let [wid @(Array.unsafe-nth b-wand bi)
+                        pay (WandSystem.get-payload wid)
+                        wmod (WandSystem.get-mod wid)
+                        mkind @(WandMod.mod-kind &wmod)
+                        b3 (* bi 3)
+                        px @(Array.unsafe-nth b-pos b3)
+                        py @(Array.unsafe-nth b-pos (+ b3 1))
+                        pz @(Array.unsafe-nth b-pos (+ b3 2))
+                        vx0 @(Array.unsafe-nth b-vel b3)
+                        vy0 (- @(Array.unsafe-nth b-vel (+ b3 1)) (* @(SpellPayload.gravity &pay) fdt))
+                        vz0 @(Array.unsafe-nth b-vel (+ b3 2))
+                        steered (if (= mkind 1)
+                                  (WandSystem.steer-homing-vel state ecs px py pz vx0 vy0 vz0 @(WandMod.homing-turn &wmod) fdt)
+                                  (Vector3.init (Double.from-float vx0) (Double.from-float vy0) (Double.from-float vz0)))
+                        vx (Double.to-float @(Vector3.x &steered))
+                        vy (Double.to-float @(Vector3.y &steered))
+                        vz (Double.to-float @(Vector3.z &steered))
+                        rad @(SpellPayload.radius &pay)
+                        step-dist (Float.sqrt (* (+ (+ (* vx vx) (* vy vy)) (* vz vz)) (* fdt fdt)))
+                        raw-steps (+ 1 (Float.round (/ step-dist 0.38f)))
+                        substeps (if (< raw-steps 1) 1 (if (> raw-steps 4) 4 raw-steps))
+                        sub-dt (/ fdt (Float.from-int substeps))
+                        bounces @(Array.unsafe-nth b-bounces bi)
+                        retired false
+                        s 0]
+                    (do
+                      ;; In-flight particle & live CA reagent trails!
+                      (when (= (Int.mod (+ fc bi) 2) 0)
+                        (ParticleSystem.emit! ps px py pz (* vx -0.08f) (+ (* vy -0.08f) 0.6f) (* vz -0.08f) 0.45f 2 @(WandMod.trail-ptype &wmod) 0.22f 0.08f))
+                      (when (and (> @(WandMod.trail-mat &wmod) 0.5f) (= (Int.mod (+ fc (* bi 3)) 5) 0))
+                        (WandSystem.inject-gpu-reagent! state px py pz 1.35f @(WandMod.trail-mat &wmod) 0.45f))
+
+                      ;; Sub-stepped swept collision loop
+                      (while (and (< s substeps) (not retired))
+                        (let [nx (+ px (* vx sub-dt))
+                              ny (+ py (* vy sub-dt))
+                              nz (+ pz (* vz sub-dt))
+                              ent-hit? (WandSystem.check-entity-hit state ecs nx ny nz rad)
+                              pvec (Vector3.init (Double.from-float nx) (Double.from-float ny) (Double.from-float nz))
+                              d-sdf (Physics.sample-sdf-trilinear world &pvec)
+                              wall-hit? (and (<= d-sdf rad) (> d-sdf -900.0f))]
+                          (do
+                            (if (or ent-hit? wall-hit?)
+                              (let [spd (Float.sqrt (+ (+ (* vx vx) (* vy vy)) (* vz vz)))
+                                    inv-s (if (> spd 0.01f) (/ 1.0f spd) 1.0f)
+                                    dx (* vx inv-s)
+                                    dy (* vy inv-s)
+                                    dz (* vz inv-s)]
+                                ;; Case A: Piercing Bore-Lance chews through rock & keeps flying!
+                                (if (and (= mkind 3) (> bounces 0))
+                                  (do
+                                    (WandSystem.trigger-impact! state world ps ecs nx ny nz dx dy dz wid)
+                                    (set! bounces (- bounces 1))
+                                    (set! px nx)
+                                    (set! py ny)
+                                    (set! pz nz))
+                                  ;; Case B: Surface Ricochet off cave wall!
+                                  (if (and (and wall-hit? (not ent-hit?)) (> bounces 0))
+                                    (let [nrm (Physics.estimate-sdf-normal world &pvec)
+                                          wnx (Double.to-float @(Vector3.x &nrm))
+                                          wny (Double.to-float @(Vector3.y &nrm))
+                                          wnz (Double.to-float @(Vector3.z &nrm))
+                                          vn (+ (+ (* vx wnx) (* vy wny)) (* vz wnz))]
+                                      (do
+                                        (set! vx (* (- vx (* 2.0f (* vn wnx))) 0.88f))
+                                        (set! vy (* (- vy (* 2.0f (* vn wny))) 0.88f))
+                                        (set! vz (* (- vz (* 2.0f (* vn wnz))) 0.88f))
+                                        (set! px (+ nx (* wnx (+ rad 0.09f))))
+                                        (set! py (+ ny (* wny (+ rad 0.09f))))
+                                        (set! pz (+ nz (* wnz (+ rad 0.09f))))
+                                        (set! bounces (- bounces 1))
+                                        (ParticleSystem.emit-sparks! ps px py pz wnx wny wnz 10)))
+                                    ;; Case C: Final Impact Payload!
+                                    (do
+                                      (WandSystem.trigger-impact! state world ps ecs nx ny nz dx dy dz wid)
+                                      (WandSystem.destroy-bolt-slot! state bi)
+                                      (set! retired true)))))
+                              (do
+                                (set! px nx)
+                                (set! py ny)
+                                (set! pz nz)))
+                            (set! s (+ s 1)))))
+
+                      ;; Persist updated state & sync ECS render sphere if still flying
+                      (when (not retired)
+                        (let [ent (ECS.Entity.init (Handle.init @(Array.unsafe-nth b-idx bi) @(Array.unsafe-nth b-gen bi)))
+                              new-p (Vector3.init (Double.from-float px) (Double.from-float py) (Double.from-float pz))]
+                          (do
+                            (Array.aset! b-pos b3 px)
+                            (Array.aset! b-pos (+ b3 1) py)
+                            (Array.aset! b-pos (+ b3 2) pz)
+                            (Array.aset! b-vel b3 vx)
+                            (Array.aset! b-vel (+ b3 1) vy)
+                            (Array.aset! b-vel (+ b3 2) vz)
+                            (Array.aset! b-life bi rem-life)
+                            (Array.aset! b-bounces bi bounces)
+                            (ECS.add-component! ecs &ent (CompVolume.init (Volume.Ball (Sphere.init new-p (Double.from-float rad)))))))))))))))
+
+        ;; 4. Sync [5] Wand HUD card & reticle state
+        (let [ch-now (WandSystem.get-chassis cur-wid)
+              m-frac (Float.clamp 0.0f 1.0f (/ @(Array.unsafe-nth w-mana cur-wid) @(WandChassis.mana-max &ch-now)))
+              cstate (if (> wflash 0.25f) 1 (if (< wflash -0.25f) -1 0))]
+          (js-sync-wand rslot cur-wid m-frac cstate)))))
+)

@@ -48,14 +48,12 @@
 
   (defn match-entity? [state idx gen]
     (let [m-idx (EngineState.match-idx state)
-          m-gen (EngineState.match-gen state)
           m-life (EngineState.match-life state)
           found false]
       (do
         (for [i 0 8]
           (when (and (> @(Array.unsafe-nth m-life i) 0.0f)
-                     (and (Uint64.= idx @(Array.unsafe-nth m-idx i))
-                          (Uint32.= gen @(Array.unsafe-nth m-gen i))))
+                     (Uint64.= idx @(Array.unsafe-nth m-idx i)))
             (set! found true)))
         found)))
 
@@ -202,8 +200,7 @@
             ;; Release RMB (or X): cleanly drop/toss with clamped momentum into hazards!
             (do
               (query ecs (e (cb CompBody) (cv CompVolume) (cc CompColor))
-                (when (and (Uint64.= (ECS.Entity.index &e) g-idx)
-                           (Uint32.= (ECS.Entity.generation &e) g-gen))
+                (when (Uint64.= (ECS.Entity.index &e) g-idx)
                   (let [rb (CompBody.rb cb)
                         b (RigidBody.body rb)
                         v @(Body.velocity b)
@@ -221,8 +218,7 @@
                     (and left-pressed (>= (- fc @(EngineState.last-kick-frame state)) 16)))
               (do
                 (query ecs (e (cb CompBody) (cv CompVolume) (cc CompColor))
-                  (when (and (Uint64.= (ECS.Entity.index &e) g-idx)
-                             (Uint32.= (ECS.Entity.generation &e) g-gen))
+                  (when (Uint64.= (ECS.Entity.index &e) g-idx)
                     (let [rb (CompBody.rb cb)
                           b (RigidBody.body rb)
                           epos (RigidBody.position rb)
@@ -243,8 +239,7 @@
               (let [still-alive false]
                 (do
                   (query ecs (e (cb CompBody) (cv CompVolume) (cc CompColor))
-                    (when (and (Uint64.= (ECS.Entity.index &e) g-idx)
-                               (Uint32.= (ECS.Entity.generation &e) g-gen))
+                    (when (Uint64.= (ECS.Entity.index &e) g-idx)
                       (let [rb (CompBody.rb cb)
                             b (RigidBody.body rb)
                             epos (RigidBody.position rb)
@@ -318,10 +313,14 @@
                           (set! best-along along)))))))
 
               (if (> (Uint64.to-long best-idx) 0l)
-                (let [is-m? (EditingSystem.match-entity? state best-idx best-gen)]
-                  (set! probe-code (if is-m?
-                                     (if (<= best-along 4.3) 912.0f 913.0f)
-                                     (if (<= best-along 4.3) 910.0f 911.0f))))
+                (let [aslot (CritterSystem.amoeba-slot-by-idx state best-idx)
+                      is-m? (EditingSystem.match-entity? state best-idx best-gen)]
+                  (if (>= aslot 0)
+                    (let [amat (Float.from-int (Float.round (CritterSystem.amoeba-mat-at state aslot)))]
+                      (set! probe-code (+ (if (<= best-along 4.3) 2000.0f 3000.0f) amat)))
+                    (set! probe-code (if is-m?
+                                       (if (<= best-along 4.3) 912.0f 913.0f)
+                                       (if (<= best-along 4.3) 910.0f 911.0f)))))
                 (when (and (> hw 0.5f) (and (<= wall-t 8.8) (and (>= hit-mat 0.5f) (< hit-mat 254.5f))))
                   (do
                     (set! probe-code hit-mat)
@@ -330,14 +329,17 @@
               ;; 2a. RMB Press: Hook & Yank Targeted Entity OR Wrench Boulder Out of Wall!
               (if (InputManager.action-pressed? input "click-right")
                 (if (> (Uint64.to-long best-idx) 0l)
-                  (let [is-m? (EditingSystem.match-entity? state best-idx best-gen)]
+                  (let [aslot (CritterSystem.amoeba-slot-by-idx state best-idx)
+                        is-m? (EditingSystem.match-entity? state best-idx best-gen)]
                     (do
                       (EngineState.set-grab-idx! state best-idx)
                       (EngineState.set-grab-gen! state best-gen)
-                      (EngineState.set-grab-mat! state (if is-m? 901.0f 900.0f))
+                      (EngineState.set-grab-mat! state
+                        (if (>= aslot 0)
+                          (+ 1000.0f (Float.from-int (Float.round (CritterSystem.amoeba-mat-at state aslot))))
+                          (if is-m? 901.0f 900.0f)))
                       (query ecs (e (cb CompBody) (cv CompVolume) (cc CompColor))
-                        (when (and (Uint64.= (ECS.Entity.index &e) best-idx)
-                                   (Uint32.= (ECS.Entity.generation &e) best-gen))
+                        (when (Uint64.= (ECS.Entity.index &e) best-idx)
                           (let [rb (CompBody.rb cb)
                                 b (RigidBody.body rb)
                                 epos (RigidBody.position rb)
@@ -496,6 +498,8 @@
           (do (EngineState.set-rig-slot! state 2) (set-js-rig-slot 2)))
         (when (InputManager.action-pressed? input "rig-interact")
           (do (EngineState.set-rig-slot! state 3) (set-js-rig-slot 3)))
+        (when (InputManager.action-pressed? input "rig-wand")
+          (do (EngineState.set-rig-slot! state 4) (set-js-rig-slot 4)))
 
         ;; If player swapped away from [4] Gauntlet & Boot while holding something, drop it cleanly!
         (when (and (/= @(EngineState.rig-slot state) 3)
@@ -619,7 +623,8 @@
                     (set! probe-out @(Vector3.y &kb-res))
                     (set! stress-out @(Vector3.z &kb-res))))
 
-                ;; [1..3] MATTER VESSELS (Solid Sack | Liquid Flask | Gas Bellows)
+                ;; [1..3] MATTER VESSELS (Solid Sack | Liquid Flask | Gas Bellows); slot 4 ([5] Wand) is handled by WandSystem
+                (when (< slot 3)
                 ;; 2a. X Key: Dump / Purge ONLY the currently active vessel so the other two stay safe!
                 (if (and (and x-pressed (not @(EngineState.x-last state))) (and (> cur-mat 0.5f) (> cur-fill 0.002f)))
                   (let [dump-pt (EditingSystem.jet-ptype cur-mat)]
@@ -805,7 +810,7 @@
                                   (EngineState.set-flask-ax! state lock-mat)
                                   (EngineState.set-flask-ay! state -0.55f)
                                   (ParticleSystem.emit! ps succ-x succ-y succ-z svx svy svz travel 14 spt 0.085f 0.0f)))))
-                          (set! ui-mode -1.0f)))))))
+                          (set! ui-mode -1.0f))))))))
 
               (js-sync-rig @(EngineState.rig-slot state)
                            @(EngineState.sack-mat state)

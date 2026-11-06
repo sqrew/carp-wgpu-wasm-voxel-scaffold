@@ -25,6 +25,7 @@
 (register gpu-readback-get-hit-mat (Fn [] Float) "gpu_readback_get_hit_mat")
 (register gpu-readback-get-hit-stress (Fn [] Float) "gpu_readback_get_hit_stress")
 (register gpu-readback-get-hit-splash (Fn [] Float) "gpu_readback_get_hit_splash")
+(register gpu-readback-get-raw (Fn [] (Ptr Float)) "gpu_readback_get_raw")
 (register gpu-readback-create-chunk-map-buffer (Fn [(Ptr WGPUContext)] WGPUBuffer) "gpu_readback_create_chunk_map_buffer")
 (register gpu-readback-is-chunk-mapping (Fn [] Bool) "gpu_readback_is_chunk_mapping")
 (register gpu-readback-is-chunk-ready (Fn [] Bool) "gpu_readback_is_chunk_ready")
@@ -390,7 +391,7 @@
          
          main-ub-raw (Result.Success (WGPURender.uniform-buffer-get-buffer @(M-UniformBuffer.p &ub)))
          
-         hit-buf-ptr (Renderer.create-zeroed-storage-buffer ctx 16)
+         hit-buf-ptr (Renderer.create-zeroed-storage-buffer ctx 144)
          hit-buf (Result.Success (M-VertexBuffer.init hit-buf-ptr))
          hit-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &hit-buf)))
          map-buf (Result.Success (gpu-readback-create-map-buffer ctx))
@@ -539,7 +540,7 @@
           ()
           (do
             (GPUBatcher.batch-dispatch batch-encoder @(Renderer.raycast-pipeline ren) @(Renderer.raycast-bind-group ren) 1)
-            (GPUBatcher.batch-copy-buffer batch-encoder (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p (Renderer.hit-buffer ren))) @(Renderer.map-buffer ren) 64l)))
+            (GPUBatcher.batch-copy-buffer batch-encoder (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p (Renderer.hit-buffer ren))) @(Renderer.map-buffer ren) 576l)))
         (GPUBatcher.end-batch ctx batch-encoder)
         (if (gpu-readback-is-mapping)
           ()
