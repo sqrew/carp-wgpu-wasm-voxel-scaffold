@@ -58,14 +58,17 @@ Core design north star: **tiny rules, massive simulation leverage**. Every playe
 
 ## 4. Sim-Native Enemies
 
-- **Ecomancer / Materialmancer (`Mancer(mat_id)`)**:
-  - **Born of the Substrate ("Evil Captain Planet")**: Spawned out of a chamber's dominant material and parameterized by a single `mat_id`. Obeys strict local conservation (*Avatar* waterbender rule)—it cannot conjure fake projectiles from thin air, and instead physically siphons real `MAT_*` cells from nearby pools, walls, or plumes to orbit, pack, and weave against you. Draining, freezing, or transmuting its supply disarms it mid-fight without bespoke debuff scripts.
-  - **One Brain, Wildly Emergent Personalities**:
-    - **Lavamancer / Cryomancer / Lithomancer**: Siphons magma whips, raises `Ice` walls, or wrenches real ceiling boulders (risking self-inflicted cave-ins!).
-    - **Gunpowder / C4-Mancer**: Zero direct-hit damage—calmly plasters an explosive shell around your ankles, seals the exit arch, and flicks a single `Fire` spark while you scramble for `[3]` Bellows or `[2]` Water.
-    - **Sporemancer**: Chokes sightlines in `MAT_SPORE_CLOUD` and grows living `Mycelium` walls to box you in.
-    - **Ambrosiamancer**: Runs the *exact same* furious aggro AI to aggressively pelt you in the face with healing `MAT_AMBROSIA`—making him a hilarious kidnap-able "angry pocket-medic" until he accidentally full-heals a chasing brute or hyper-splits nearby slimes into a stampede.
-    - **Goldmancer**: Rare jackpot miniboss literally hurling his own net worth at your head.
+- **Ecomancer / Materialmancer (`Mancer(mat_id)`) *(v1 Shipped — Wild Cavern Spawner + `U` Summon)***:
+  - **Born of the Substrate ("Evil Captain Planet")**: Levitating hooded cave-warlocks (`MancerSystem` + `eval_mancer_sdf` in `shaders_render.carp`) spawned out of a chamber's dominant material and parameterized by a single `mat_id` (Solid `1..17`, Liquid `257..264`, or Gas `513..520`). Obeys strict local conservation (*Avatar* bender rule)—ripping massive real `2.35m–4.35m` chunks, waves, and plumes out of nearby walls, pools, and clouds (via 20-ray GPU 3D supply scanning) into a 4-orb physical `CompBody` halo that can be `[4]` Gauntlet-hijacked or detonated mid-orbit. Draining or transmuting its supply starves it into desperate weak shoves.
+  - **One 4-Move Brain, Wildly Emergent Personalities**:
+    - **Lavamancer / Cryomancer / Lithomancer**: Hurls heavy halo orbs (`25.5 m/s`), raises 3-pillar tectonic bulwarks (`edit-bender-sdf!`), and channels `1.6s` corridor torrents that you can `[1/2/3]` `RMB` vacuum-parry into your vessel or `LMB` beam-clash in midair!
+    - **Gunpowder / C4-Mancer**: Plasters 3-lobe explosive ankle-tombs around your boots, then strikes and flicks a real `MatchBook` burning match arc (`flick-igniter-match!`) while you scramble for `[3]` Bellows or `[2]` Water.
+    - **Sporemancer**: Chokes sightlines in `MAT_SPORE_CLOUD` and raises reactive `MAT_SPORE_POD` barriers.
+    - **Ambrosiamancer**: Runs the *exact same* furious aggro AI to aggressively pelt you (and nearby Hoppers!) with healing `MAT_AMBROSIA` geysers.
+    - **Goldmancer**: Rare jackpot miniboss literally wrenching `24k Gold` veins into real `25g` collectable `GoldBank` nuggets in his halo and hurling his net worth at your head.
+  - **Ouroboric Slime Ranching & Living Havens *(Planned)***:
+    - **Undisturbed Cavern Homesteader**: Left alone out of combat, `Mancer(mat_id)` doesn't idle—it actively **terraforms a personal Haven** (lining basins, moats, and pedestals with its home `mat_id`) and **ranches nearby `Dittamoeba` Slimes**.
+    - **Force-Fed Mitosis Loop (`Grey -> Locked Herd + Natural Loot Hoard`)**: The Mancer pitches halo snacks of its signature `mat_id` straight into wandering `mat = 0` **Grey Slimes** to imprint them onto its element, then keeps force-feeding its pets through `0.36m → 0.92m` chonk cycles. Because each mitosis yields **`1 Locked + 1 fresh Grey`** *and* excretes transmuted reagents (`Lava/Gold -> 2× 20g Gold Nuggets`, `Acid -> Rad-Ore`, `Coal -> Crystal`, `Spore/Toxic -> Ambrosia`), an undisturbed Mancer organically breeds a whole **elemental guard-slime herd** *and* accumulates a **real physical treasure hoard** in its den—zero fake biome scripts or loot-chest tables required!
 - **Ambient-Fed Typed Simplemob (`Brute(mat_id)`)**:
   - **Turf-Powered Melee Bruiser**: Reads local GPU neighborhood probes (`critter_probes`) every tick—swelling in radius, speed, armor, and glow while standing on or near its home element, and visibly starving when kited onto hostile turf:
     - **Cinder / Magma Brute**: White-hot juggernaut near `Lava`/`Fire`; kite it into cold wet rock (or douse with `[2]` Water) and its shell cools into sluggish, brittle crust you can `[4]` kick-shatter.
@@ -137,8 +140,8 @@ Zero crafting menus, zero dead inventory spreadsheets—every step from resource
     - **Nitro-Bullion**: Sells for 5× **Gold**—unless a stray spark hits your loot pile on the trek out and detonates your own bank account.
 - **SS13 Pneumatic Cargo Chute / Greed Maw *(Planned)***:
   - **Diegetic Exchange**: Spend wealth by `[4]`-chucking physical **Gold nuggets**, **Refined Ingots**, or **Slime Cores** straight into subterranean pneumatic chutes/altars, which assay the haul and blast down physical supply capsules (matchboxes, empty ampoules, rig upgrades, pitons, or rare totems).
-- **Piezo Stress-Crystal Seams (Load-Driven Cave Generators) *(Planned)***:
-  - **Structural Stress -> Live Voltage**: Special quartz seams embedded in load-bearing pillars that convert high `light_texture.a` compressive stress (`>= 65%` load) into periodic electrical sparks—electrifying adjacent `CONDUCTIVE` **Water** pools and **Gold** veins, igniting **Methane** leaks, or letting you pile `[1]` **Stone** onto an arch to intentionally overload a crystal into a shock trap.
+- **Piezo Stress-Crystal Seams & Galvanic Cave Batteries *(v1 Shipped)***:
+  - **Structural Stress -> Live Voltage**: Overloaded `MAT_CRYSTAL (14)` and `MAT_AMETHYST (15)` pillars (`solid_stress > 0.58`) and Galvanic `MAT_GOLD (5) + MAT_ACID (259)` junctions discharge continuous voltage into `solid_buffer.z` (`-z`), electrifying adjacent `CONDUCTIVE` **Water / Acid / Blood** pools (`liquid_buffer.z` with crackling cyan-violet arcs), conducting down **Gold** veins to fuse **Sand** into **Fulgurite Glass**, and shocking players, Hoppers, and Ecomancers.
 - **Thirsty Mycelium Bridges & Cordyceps Slimes *(Planned)***:
   - **Living Voxel Architecture**: Dormant fungal nodes on chasm rims drink **Water / Blood / Ambrosia** (`[2]`) or `MAT_SPORE_CLOUD` (`[3]`) to extrude bouncy `ORGANIC` bridges across `y = -192` abysses; **Spore-fed Dittamoebas** sprout little mushroom caps that passively trail spore clouds and seed bridges wherever they crawl.
 - **Sympathetic Tuning Megacrystals *(Planned)***:
@@ -152,5 +155,57 @@ The seeded biome stratigraphy (`Surface Meadow -> Mossy Karst -> Crystal Vaults 
 - **Wands (`WandChassis × SpellPayload × WandMod`)**: Scavenge or socket distinct wands, spell payloads, and in-flight modifiers at subterranean altars/chutes so combat, mining, and alchemy share one unified projectile grammar.
 - **Sim-Native Mobs**: Compact roster of creatures whose entire threat and counterplay run through the CA/SDF/GI simulation (**Dittamoebas**, **Megaslimes**, **Proboscis Assassins**, **Ceiling Siphonophores**, **Ecomancers**, **Ambient-Fed Bruisers**, **Alchemical Worms**, **Shadowlings**, **Creeping Blobs**).
 - **Physical Perks & Slime-Core Mutations**: Between strata (or by crunching rare **Slime Cores** / trading **Refined Ingots** at **Cargo Chutes**), stack physics-and-chemistry perks—*Frost-Walker Boots*, *Slime-Bounce Legs*, *Bioluminescent Aura*, *Vampiric Siphon*, *Volatile Ricochet*, *Extra Vessel Capacity*, or *Telekinetic Gauntlet Range*.
+
+---
+
+## 8. Master Ambient Field Architecture, Material Alignment & Implementation Roadmap
+
+> **Core Engineering Rule (The 3-Gate Filter)**:
+> 1. **Zero new full-grid compute passes or SSBOs** — Piggyback on `field_in`/`field_out` (in air voxels!), `.z` voxel state, and `light_buffer` (`rgb` signed light + `.a` structural stress).
+> 2. **Finish & deepen existing systems before adding new ones** — Make current creatures (`Slimes`, `Hoppers`, `Ecomancers`), stains, and materials interlock first.
+> 3. **One step at a time** — Playtest each step in the cavern before moving to the next.
+
+### 8.1. Zero-New-Buffers Master Ambient Field Architecture *(Shipped)*
+1. **`field_in / field_out` (`vec4<f32>`) Phase Sign Tag**:
+   - **Rigid Solid Voxels (`sol.y <= 0.0 && sol.x > 0.0`)**: store `(compressive, tensile, shear, my_w)` with **`my_w > 0.0`** (`1.0 .. 96.0`).
+   - **Air Voxels (`sol.y > 0.0`)**: store 10 continuous ambient fields with **`.w = -(1.0 + pack_quartet(rec)) <= -1.0`** so Air and Solid passes never contaminate each other across SDF edits:
+     - `.x`: `pack_pair(Temperature T, Pressure P)` (`2 × 12-bit` in IEEE-754 mantissa; vertical `updraft_T` convective chimney above Lava, Fire, Lavamancers, and `[Z]` Matches)
+     - `.y`: `pack_pair(Voltage V, Magnetic Potential M)` (`2 × 12-bit`)
+     - `.z`: `pack_pair(Chrono tau, Gravity G)` (`2 × 12-bit`)
+     - `.w`: `-(1.0 + pack_quartet(Prey/Blood, Siren Stank, Fear/Apex, Neuro-Spore))` (`4 × 6-bit` wind-advected biochemical receptors steered by `Cave Hoppers` via `@binding(1)` in `raycast-wgsl`, denatured at `> 350 °C`)
+2. **`solid_buffer.z` (`solid_texture.b`, `rgba16float`)**:
+   - In **Air Voxels**: stores Refractive Index Offset $\Delta n \in [-0.075, +0.075]$ for **3D Eikonal Schlieren Ray-Bending** in `voxel-wgsl` (`t > 1.3m`, capped at `±0.018 rad` total deflection) across Lava/Match heat plumes, blast shockwaves, and the biphasic Predator Cloak around `Glass / Crystal / Amethyst / Obsidian` Ecomancers.
+   - In **Solid Voxels**: stores **Fourier Heat (`+z`)** (driving `24k Gold` thermal bridges to auto-ignite sealed `Gunpowder`/`C4` and autoclave `Coal -> Crystal`) and **Electric Voltage (`-z`)** along `Gold` veins and Piezoelectric `Crystal`/`Amethyst`.
+3. **Negative GI ("Darklight") in `light_buffer.rgb` (`rgba16float`)**:
+   - Propagates both positive GI light and negative Darklight (`Obsidian + Miasma`, `Obsidian` Ecomancers) across the 6-neighbor stencil, clamping `total_light` *after* summing in `voxel-wgsl` so Darklight devours ambient light and the player's `[F]` Flashlight beam.
+
+### 8.2. Material & Reaction System Alignment Blueprint *(In Progress)*
+Auditing [`src/materials.carp`](file:///home/sqrew/Desktop/carp-wgpu-wasm-voxel-scaffold/src/materials.carp) and [`src/shaders_sim.carp`](file:///home/sqrew/Desktop/carp-wgpu-wasm-voxel-scaffold/src/shaders_sim.carp) identified 5 concrete alignments needed to make the `1024×1024` reaction matrix airtight:
+- [ ] **Alignment 1: Fix Self-Reaction Bug (`a != b`) & Complete 3-Phase Hand-Offs (`Solid <-> Liquid <-> Gas`)**:
+  - Guard `Materials.build-reactions` with `(when (/= a b) ...)` so multi-tag materials (`Spore Pod 13` and `Spore Cloud 520`, which have both `ORGANIC` and `TOXIC`) stop reacting with themselves via Rule 9!
+  - Add `Solid -> Liquid` (`256 <= rx.x < 512`) pickup in `liquid-sim-wgsl` before early-returning on `is_sol_block` so melting `Ice (8) -> Water (257)` and `Gold (5) -> Lava (258)` actually spawns the liquid instead of vanishing into thin air.
+  - Add the missing `self_gas` (`next_vol > 0.05`) reaction loop in `gas-sim-wgsl` and include co-located `delta = (0,0,0)` fluid checks in both `liquid-sim-wgsl` and `gas-sim-wgsl`.
+- [ ] **Alignment 2: Toughness & Volume-Scaled Reaction Kinetics**:
+  - Weight per-frame reaction probability by `1.0 / max(1.0, toughness * 2.2)` and reactant fluid volume using a fast per-voxel frame hash—so `Sand` dissolves in `Acid` almost immediately, `Stone` pits gradually over ~12 frames, and `Coal` burns 10× longer than `Wood`/`Sponge` as a true furnace fuel.
+- [ ] **Alignment 3: Two-Tier `build-reactions` (Tag Rules Base Layer + Explicit `set-reaction!` Alchemy Table) & Registry-Driven Colors**:
+  - Fix missing tags (`FREEZABLE` on `Ice`, `FLAMMABLE` on `Spore Pod`), wire up `Materials.set-reaction!` for signature combinations (`Lava + Water -> Obsidian/Stone + Steam`, `Sand + Lava -> Glass + Lava`, `Coal + Fire -> Fire + Fire`, `Blood + Acid -> Volatile Gel + Toxic Gas`), and derive `boulder-color`, `slime-color`, and `gi-emission` from `Materials.registry`.
+- [ ] **Alignment 4: Stains & "Portal-Gel" Surface Coating System (`TAG_STAINABLE`, `SLIPPERY`, `BOUNCY`, `STICKY`, `IGNITER`, `EXTINGUISHER`, `TOXIC`, `HEALING`)**:
+  - Couple voxel surface contact (`solid_buffer.z` stain encoding or `raycast-wgsl` ground/fluid probes) and entity/player coatings so `Oil`/`Ice` grant high-speed cave surfing, `Slime` creates bounce pads, `Water` douses burning entities with a `Steam` burst + temporary wet fire-ward, and `Acid`/`Ambrosia` apply corrosive/healing stains.
+
+### 8.3. Remaining Chronological Phases
+- **Phase 1 (Ecomancer Polish)**:
+  - [x] **1.1.** `6.5s` Vulnerable Elemental Re-Attunement Ritual (`state = 4`)
+  - [ ] **1.2.** Real-Time Robe Color-Shift Telegraph During the `6.5s` Ritual
+  - [ ] **1.3.** Reactive Elemental Self-Preservation (Self-Douse & Fire Absorption)
+  - [ ] **1.4.** Emergency Halo Orb Shield-Parry
+  - [ ] **1.5.** `Dittamoeba` Slime Ranching & Slime-Bowling
+- **Phase 2 (Cave Lightning — `CONDUCTIVE` & `SHOCKING`)**: ✅ Shipped
+- **Phase 3 (Master Ambient Field Architecture, Negative GI & Eikonal Ray-Bending)**: ✅ Shipped
+- **Phase 4 (Coupled `(T, P)` Thermodynamics & 4-Receptor Wind Chemotaxis)**: ✅ Shipped
+- **Phase 5 (Material & Reaction Alignment + Stains System)**: In Progress
+- **Phase 6 (Deep Alchemy & Creature Expansion)**:
+  - [ ] **6.1.** Photochemistry & Darklight Ecology (`MAT_AMBER` flashlight-curing bridges, `Shadowlings`)
+  - [ ] **6.2.** Caustic Wood-Ash Lye (`MAT_LYE`) & Saponification (`Oil + Lye -> Soap`)
+  - [ ] **6.3.** Active Chrono ($\tau$) & Gravity ($G$) Coupling (`TAG_ANTI_GRAVITY`)
 
 

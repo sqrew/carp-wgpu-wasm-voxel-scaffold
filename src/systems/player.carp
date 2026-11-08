@@ -24,6 +24,8 @@
         (Player.set-heal-timer! player 0.85f)
         (Player.set-coyote-timer! player 0.0)
         (Player.set-prev-vy! player 0.0)
+        (Player.set-stain-mat! player 0.0f)
+        (Player.set-stain-timer! player 0.0f)
         (Pointer.set (ref-to-ptr (Camera.pos cam)) eye-pos)
         (match cb-opt
           (Maybe.Just cb)
@@ -88,14 +90,24 @@
           cam (Player.camera player)
           fdt (Double.to-float dt)
           fc @(EngineState.frame-count state)
+          raw-rb (gpu-readback-get-raw)
+          p-liq (Pointer.to-value (Pointer.add raw-rb 144l))
+          p-gas (Pointer.to-value (Pointer.add raw-rb 145l))
+          p-ign (Pointer.to-value (Pointer.add raw-rb 146l))
+          p-heal (Pointer.to-value (Pointer.add raw-rb 147l))
           p-ent-id (EngineState.player-ent-id state)
           p-ent (ECS.Entity.init (Handle.init (Uint64.from-long (the Long (Long.from-int @p-ent-id))) (Uint32.from-long 1l)))
           cb-opt (get-component ecs &p-ent)]
       (do
-        ;; Decay i-frames, hurt vignette flash & Ambrosia heal glow
+        ;; Decay i-frames, hurt vignette flash, Ambrosia heal glow & body stain coating
         (Player.set-hurt-timer! player (Float.clamp 0.0f 5.0f (- @(Player.hurt-timer player) fdt)))
         (Player.set-hurt-flash! player (Float.clamp 0.0f 1.0f (- @(Player.hurt-flash player) (* fdt 2.5f))))
         (Player.set-heal-timer! player (Float.clamp 0.0f 2.0f (- @(Player.heal-timer player) (* fdt 2.0f))))
+        (let [next-st (Float.clamp 0.0f 12.0f (- @(Player.stain-timer player) fdt))]
+          (do
+            (Player.set-stain-timer! player next-st)
+            (when (<= next-st 0.01f)
+              (Player.set-stain-mat! player 0.0f))))
 
         (match cb-opt
           (Maybe.Just cb)
@@ -122,7 +134,7 @@
                       (Player.set-prev-vy! player 0.0)
                       (Player.set-floor-mat! player 0.0f)))
 
-                  ;; First-Person Cave Explorer Mode: gravity, preserved knockback, coyote jump & material footing!
+                  ;; First-Person Cave Explorer Mode: gravity, preserved knockback, coyote jump & Portal-Gel stained footing!
                   (let [pos @(RigidBody.position rb)
                         curr-vel @(Body.velocity body)
                         cg-opt (get-component ecs &p-ent)
@@ -130,6 +142,7 @@
                                       (Maybe.Just cg) @(CompGrounded.grounded &cg)
                                       (Maybe.Nothing) false)
                         fmat (if is-grounded (Physics.sample-floor-mat world &pos) 0.0f)
+                        cur-stain (if (> @(Player.stain-timer player) 0.05f) @(Player.stain-mat player) 0.0f)
                         coyote (if is-grounded 0.12 (Physics.dmax 0.0 (- @(Player.coyote-timer player) dt)))
                         f (Camera.front cam)
                         fx @(Vector3.x f)
@@ -152,9 +165,9 @@
                         wlen (Double.sqrt (+ (* raw-wx raw-wx) (* raw-wz raw-wz)))
                         wx (if (> wlen 0.001) (/ raw-wx wlen) 0.0)
                         wz (if (> wlen 0.001) (/ raw-wz wlen) 0.0)
-                        ice? (and is-grounded (Materials.slippery? fmat))
-                        bouncy-floor? (and is-grounded (Materials.bouncy? fmat))
-                        sticky-floor? (and is-grounded (and (Materials.sticky? fmat) (not bouncy-floor?)))
+                        ice? (and is-grounded (or (Materials.slippery? fmat) (or (Materials.slippery? p-liq) (Materials.slippery? cur-stain))))
+                        bouncy-floor? (and is-grounded (or (Materials.bouncy? fmat) (or (Materials.bouncy? p-liq) (Materials.bouncy? cur-stain))))
+                        sticky-floor? (and is-grounded (and (or (Materials.sticky? fmat) (Materials.sticky? p-liq)) (not bouncy-floor?)))
                         max-spd (if ice? 15.8 (if sticky-floor? 6.4 11.5))
                         accel-rate (if (not is-grounded) 1.85 (if ice? 1.55 (if sticky-floor? 7.0 8.5)))
                         fric (if (not is-grounded) 0.45 (if ice? 0.90 (if sticky-floor? 18.0 10.5)))
@@ -192,7 +205,7 @@
                                 (set! vx (+ vx (* wx gain)))
                                 (set! vz (+ vz (* wz gain))))))))
 
-                      ;; 3. Solid Slime Trampoline Rebound + Coyote-Time Jump
+                      ;; 3. Solid Slime / Volatile Gel Trampoline Rebound + Coyote-Time Jump
                       (when (and bouncy-floor? (< prev-vy -5.2))
                         (let [rebound-raw (* (- 0.0 prev-vy) (if jump-held 0.96 0.78))
                               rebound-vy (Physics.dmin 24.0 (Physics.dmax 13.0 rebound-raw))]
@@ -218,43 +231,85 @@
                 (RigidBody.set-body! rb @body)
                 (ECS.add-component! ecs &p-ent (CompBody.init @rb))
 
-                ;; 4. Live GPU CA Contact Hazards (Lava, Acid, Fire, Toxic) & Golden Ambrosia Healing!
+                ;; 4. Live GPU CA Contact Hazards, Body Stains ([WET], [OILED], [BLESSED], [BURNING]) & Ambrosia Healing!
                 (when (not @(Player.flying player))
-                  (let [raw-rb (gpu-readback-get-raw)
-                        p-liq (Pointer.to-value (Pointer.add raw-rb 144l))
-                        p-gas (Pointer.to-value (Pointer.add raw-rb 145l))
-                        p-ign (Pointer.to-value (Pointer.add raw-rb 146l))
-                        p-heal (Pointer.to-value (Pointer.add raw-rb 147l))
-                        l-id (Float.round p-liq)
+                  (let [l-id (Float.round p-liq)
                         g-id (Float.round p-gas)
                         fl-id (Float.round @(Player.floor-mat player))
-                        cur-hp @(Player.hp player)
-                        max-hp @(Player.max-hp player)]
-                    (if (and (> p-heal 0.5f) (< cur-hp max-hp))
-                      (let [healed (Float.clamp 0.0f max-hp (+ cur-hp (* 24.0f fdt)))]
+                        cp @(Camera.pos cam)
+                        cx (Double.to-float @(Vector3.x &cp))
+                        cy (Double.to-float (- @(Vector3.y &cp) 0.65))
+                        cz (Double.to-float @(Vector3.z &cp))]
+                    (do
+                      ;; Apply new liquid/stained-surface body coatings
+                      (when (= l-id 257)
                         (do
-                          (Player.set-hp! player healed)
-                          (Player.set-heal-timer! player 0.45f)
-                          (when (= (Int.mod fc 10) 0)
-                            (let [cp @(Camera.pos cam)]
-                              (ParticleSystem.emit! ps (Double.to-float @(Vector3.x &cp))
-                                                    (Double.to-float (- @(Vector3.y &cp) 0.7))
-                                                    (Double.to-float @(Vector3.z &cp))
-                                                    0.0f 2.4f 0.0f 0.8f 4 106.0f 0.3f 0.1f)))))
-                      (when (<= @(Player.hurt-timer player) 0.05f)
-                        (let [dps (if (= l-id 258) 28.0f
-                                  (if (= l-id 259) 22.0f
-                                  (if (> p-ign 0.5f) 14.0f
-                                  (if (or (= l-id 264) (or (= g-id 514) (or (= g-id 517) (= g-id 520)))) 9.5f
-                                  (if (= fl-id 17) 5.0f 0.0f)))))]
-                          (when (> dps 0.1f)
-                            (let [next-hp (- cur-hp (* dps fdt))
-                                  cur-fl @(Player.hurt-flash player)]
+                          (when (or (= (Float.round @(Player.stain-mat player)) 515) (> p-ign 0.5f))
+                            (EngineState.push-voxel-action! state cx cy cz 1.35f 513.0f 0.65f 0.0f))
+                          (Player.set-stain-mat! player 257.0f)
+                          (Player.set-stain-timer! player 6.0f)))
+                      (when (= l-id 260)
+                        (do
+                          (Player.set-stain-mat! player 260.0f)
+                          (Player.set-stain-timer! player 6.5f)))
+                      (when (= l-id 262)
+                        (do
+                          (Player.set-stain-mat! player 262.0f)
+                          (Player.set-stain-timer! player 6.0f)))
+                      (when (= l-id 263)
+                        (do
+                          (Player.set-stain-mat! player 263.0f)
+                          (Player.set-stain-timer! player 5.5f)))
+
+                      (let [st-id (if (> @(Player.stain-timer player) 0.05f) (Float.round @(Player.stain-mat player)) 0)
+                            cur-hp @(Player.hp player)
+                            max-hp @(Player.max-hp player)
+                            blessed? (or (> p-heal 0.5f) (= st-id 262))]
+                        (do
+                          ;; [OILED] + Fire/Lava/Spark -> Flash-Ignition!
+                          (when (and (= st-id 260) (> p-ign 0.5f))
+                            (do
+                              (EngineState.push-voxel-action! state cx cy cz 1.45f 515.0f 0.75f 0.0f)
+                              (Player.set-stain-mat! player 515.0f)
+                              (Player.set-stain-timer! player 4.0f)))
+                          ;; [WET] + Fire/Spark -> Evaporates Water coating into Steam shield!
+                          (when (and (= st-id 257) (> p-ign 0.5f))
+                            (do
+                              (Player.set-stain-timer! player (Float.clamp 0.0f 6.0f (- @(Player.stain-timer player) (* fdt 2.2f))))
+                              (when (= (Int.mod fc 12) 0)
+                                (EngineState.push-voxel-action! state cx cy cz 1.15f 513.0f 0.45f 0.0f))))
+                          ;; Dry contact with Fire/Lava ignites lingering [BURNING] stain!
+                          (when (and (> p-ign 0.5f) (and (/= st-id 257) (/= st-id 262)))
+                            (do
+                              (Player.set-stain-mat! player 515.0f)
+                              (Player.set-stain-timer! player (if (> @(Player.stain-timer player) 3.0f) @(Player.stain-timer player) 3.0f))))
+
+                          (if (and blessed? (< cur-hp max-hp))
+                            (let [heal-rate (if (> p-heal 0.5f) 24.0f 12.0f)
+                                  healed (Float.clamp 0.0f max-hp (+ cur-hp (* heal-rate fdt)))]
                               (do
-                                (Player.set-hurt-flash! player (if (> cur-fl 0.48f) cur-fl 0.48f))
-                                (if (<= next-hp 0.0f)
-                                  (PlayerSystem.revive-player! state)
-                                  (Player.set-hp! player next-hp))))))))))))
+                                (Player.set-hp! player healed)
+                                (Player.set-heal-timer! player 0.45f)
+                                (when (= (Int.mod fc 10) 0)
+                                  (ParticleSystem.emit! ps cx (- cy 0.05f) cz 0.0f 2.4f 0.0f 0.8f 4 106.0f 0.3f 0.1f))))
+                            (when (<= @(Player.hurt-timer player) 0.05f)
+                              (let [active-st (if (> @(Player.stain-timer player) 0.05f) (Float.round @(Player.stain-mat player)) 0)
+                                    fire-dps (if (= active-st 257) 0.0f
+                                             (if (> p-ign 0.5f) 14.0f
+                                             (if (= active-st 515) 6.5f 0.0f)))
+                                    dps (if (= l-id 258) (if (= active-st 257) 8.0f 28.0f)
+                                        (if (= l-id 259) 22.0f
+                                        (if (> fire-dps 0.1f) fire-dps
+                                        (if (or (= l-id 264) (or (= g-id 514) (or (= g-id 517) (= g-id 520)))) 9.5f
+                                        (if (= fl-id 17) 5.0f 0.0f)))))]
+                                (when (> dps 0.1f)
+                                  (let [next-hp (- cur-hp (* dps fdt))
+                                        cur-fl @(Player.hurt-flash player)]
+                                    (do
+                                      (Player.set-hurt-flash! player (if (> cur-fl 0.48f) cur-fl 0.48f))
+                                      (if (<= next-hp 0.0f)
+                                        (PlayerSystem.revive-player! state)
+                                        (Player.set-hp! player next-hp)))))))))))))))
           (Maybe.Nothing) ())
 
         (js-sync-health @(Player.hp player) @(Player.max-hp player) @(Player.hurt-flash player) @(Player.heal-timer player)))))

@@ -280,7 +280,7 @@
          depth-tex-ptr (WGPURender.create-depth-texture ctx w h)
          depth-tex (Result.Success (M-DepthTexture.init depth-tex-ptr))
          
-         ub-ptr (WGPURender.create-uniform-buffer ctx 1664)
+         ub-ptr (WGPURender.create-uniform-buffer ctx 1728)
          ub (Result.Success (M-UniformBuffer.init ub-ptr))
          
          pipe-ptr (Renderer.create-voxel-pipeline ctx voxel-wgsl &format)
@@ -391,7 +391,7 @@
          
          main-ub-raw (Result.Success (WGPURender.uniform-buffer-get-buffer @(M-UniformBuffer.p &ub)))
          
-         hit-buf-ptr (Renderer.create-zeroed-storage-buffer ctx 212)
+         hit-buf-ptr (Renderer.create-zeroed-storage-buffer ctx 244)
          hit-buf (Result.Success (M-VertexBuffer.init hit-buf-ptr))
          hit-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &hit-buf)))
          map-buf (Result.Success (gpu-readback-create-map-buffer ctx))
@@ -420,7 +420,7 @@
          raycast-bg (let [b (builder-new)]
                       (do
                         (builder-add-buffer b @&read-raw)
-                        (builder-add-buffer b @&read-raw)
+                        (builder-add-buffer b @&field-read-raw)
                         (builder-add-buffer b @&main-ub-raw)
                         (builder-add-buffer b @&hit-raw)
                         (builder-add-buffer b @&mat-raw)
@@ -540,7 +540,7 @@
           ()
           (do
             (GPUBatcher.batch-dispatch batch-encoder @(Renderer.raycast-pipeline ren) @(Renderer.raycast-bind-group ren) 1)
-            (GPUBatcher.batch-copy-buffer batch-encoder (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p (Renderer.hit-buffer ren))) @(Renderer.map-buffer ren) 848l)))
+            (GPUBatcher.batch-copy-buffer batch-encoder (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p (Renderer.hit-buffer ren))) @(Renderer.map-buffer ren) 976l)))
         (GPUBatcher.end-batch ctx batch-encoder)
         (if (gpu-readback-is-mapping)
           ()

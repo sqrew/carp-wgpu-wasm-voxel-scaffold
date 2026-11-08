@@ -478,7 +478,8 @@
                             sprayed? (and (> spray-mat 0.5f) (< jdist (+ rad-f 1.85f)))
                             eff-liq (if (and sprayed? (and (>= spray-mat 256.5f) (< spray-mat 512.0f))) spray-mat touch-liq)
                             eff-gas (if (and sprayed? (>= spray-mat 512.5f)) spray-mat touch-gas)
-                            touch-ign (or (> touch-ign-raw 0.5f) (and sprayed? (Materials.igniter? spray-mat)))
+                            touch-shock (> touch-ign-raw 1.5f)
+                            touch-ign (or (and (> touch-ign-raw 0.5f) (< touch-ign-raw 1.5f)) (and sprayed? (Materials.igniter? spray-mat)))
                             b (RigidBody.body rb)
                             vel @(Body.velocity b)
                             cur-spd (Double.to-float (Vector3.mag &vel))
@@ -506,7 +507,7 @@
                                 (when (not @(Array.unsafe-nth h-alive k))
                                   (set! died? true)))))
 
-                          ;; 2. Live GPU CA Contact Hazards & Golden Ambrosia Healing!
+                          ;; 2. Live GPU CA Contact Hazards, Electric Shock & Golden Ambrosia Healing!
                           (when (not died?)
                             (let [l-id (Float.round eff-liq)
                                   g-id (Float.round eff-gas)
@@ -516,13 +517,14 @@
                                 (Array.aset! h-hp k (Float.clamp 0.0f max-hp (+ cur-hp (* 20.0f fdt))))
                                 (let [raw-dps (if (= l-id 258) 34.0f
                                               (if (= l-id 259) 28.0f
+                                              (if touch-shock 24.0f
                                               (if touch-ign 18.0f
-                                              (if (or (= l-id 264) (or (= g-id 514) (= g-id 517))) 14.0f 0.0f))))
+                                              (if (or (= l-id 264) (or (= g-id 514) (= g-id 517))) 14.0f 0.0f)))))
                                       htag (if (or (= l-id 258) touch-ign) 2
                                            (if (= l-id 259) 4 6))
                                       mult (EnemySystem.elem-damage-mult hmat htag true)
                                       dps (* raw-dps mult)
-                                      fire-boom? (and touch-ign (Materials.explosive? hmat))]
+                                      fire-boom? (and (or touch-ign touch-shock) (Materials.explosive? hmat))]
                                   (if fire-boom?
                                     (do
                                       (EnemySystem.kill-hopper! state k &pos 0.0f 1.0f 0.0f)
@@ -531,26 +533,34 @@
                                       (let [nhp (- cur-hp (* dps fdt))]
                                         (do
                                           (Array.aset! h-flash k (EnemySystem.fmax @(Array.unsafe-nth h-flash k) 0.65f))
-                                          (when (= (Int.mod (+ fc (* k 5)) 16) 0)
-                                            (EnemySystem.squirt-blood! state ps fx fy fz 0.0f 1.0f 0.0f 0.45f))
+                                          (when (= (Int.mod (+ fc (* k 5)) 14) 0)
+                                            (if touch-shock
+                                              (ParticleSystem.emit! ps fx fy fz 0.0f 3.5f 0.0f 1.2f 8 11.0f 0.22f 0.28f)
+                                              (EnemySystem.squirt-blood! state ps fx fy fz 0.0f 1.0f 0.0f 0.45f)))
                                           (if (<= nhp 0.0f)
                                             (do
                                               (EnemySystem.kill-hopper! state k &pos 0.0f 1.0f 0.0f)
                                               (set! died? true))
                                             (Array.aset! h-hp k nhp))))))))))
 
-                          ;; 3. Surviving Hopper: Facing, Bump-Tackle Attack, and Leap AI!
+                          ;; 3. Surviving Hopper: Facing, Chemotaxis Steering, Bump-Tackle Attack, and Leap AI!
                           (when (not died?)
                             (let [pdx @(Vector3.x &to-p)
                                   pdy @(Vector3.y &to-p)
                                   pdz @(Vector3.z &to-p)
                                   h-dist (Double.sqrt (+ (* pdx pdx) (* pdz pdz)))
                                   inv-h (if (> h-dist 0.05) (/ 1.0 h-dist) 0.0)
-                                  tx (if (> h-dist 0.05) (* pdx inv-h) 1.0)
-                                  tz (if (> h-dist 0.05) (* pdz inv-h) 0.0)
+                                  chemo? (< has-los -0.5f)
+                                  chemo-ang (if chemo? (Double.from-float (- 0.0f (+ has-los 4.0f))) 0.0)
+                                  tx (if chemo?
+                                       (cos chemo-ang)
+                                       (if (> h-dist 0.05) (* pdx inv-h) 1.0))
+                                  tz (if chemo?
+                                       (sin chemo-ang)
+                                       (if (> h-dist 0.05) (* pdz inv-h) 0.0))
                                   aggro? (and (not flying?)
                                               (and (< p-dist 27.0)
-                                                   (or (> has-los 0.5f) (< p-dist 9.5))))
+                                                   (or (> has-los 0.5f) (or chemo? (< p-dist 9.5)))))
                                   foot-p (Vector3.sub &pos &(Vector3.init 0.0 (+ rad-d 0.14) 0.0))
                                   d-floor (Physics.sample-euclidean-sdf world &foot-p)
                                   in-liq? (> touch-liq 256.5f)

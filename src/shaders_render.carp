@@ -45,6 +45,8 @@ struct Uniforms {
     vox_pos: array<vec4<f32>, 12>,
     vox_act: array<vec4<f32>, 12>,
     hopper_pos: array<vec4<f32>, 16>,
+    mancer_pos: array<vec4<f32>, 4>,
+    mancer_mat: array<vec4<f32>, 4>,
 }
 
 struct FragmentOutput {
@@ -405,6 +407,40 @@ fn smin_poly(a: f32, b: f32, k: f32) -> f32 {
     return mix(b, a, h) - k * h * (1.0 - h);
 }
 
+// Levitating Hooded Cave-Warlock SDF (tattered cloak + recessed hood + casting sleeves + floating crown)
+fn eval_mancer_sdf(p_local: vec3<f32>, fwd_raw: vec3<f32>, rad: f32, time: f32) -> f32 {
+    let s = max(rad, 0.48);
+    let flen = length(vec2<f32>(fwd_raw.x, fwd_raw.z));
+    let fwd = select(vec3<f32>(0.0, 0.0, 1.0), vec3<f32>(fwd_raw.x / flen, 0.0, fwd_raw.z / flen), flen > 0.05);
+    let side = vec3<f32>(-fwd.z, 0.0, fwd.x);
+
+    let h_cloak = clamp((p_local.y - (-1.18 * s)) / (1.62 * s), 0.0, 1.0);
+    let r_prof = s * (mix(0.64, 0.42, h_cloak) + 0.14 * sin(h_cloak * 3.14159));
+    let hem_fray = (1.0 - h_cloak) * 0.045 * s * sin(p_local.x * 8.5 - p_local.z * 7.5 + time * 4.2);
+    let q_spine = vec3<f32>(0.0, clamp(p_local.y, -1.18 * s, 0.44 * s), 0.0);
+    let d_cloak = (length(p_local - q_spine) - (r_prof + hem_fray)) * 0.84;
+
+    let c_hood = fwd * (0.08 * s) + vec3<f32>(0.0, 0.74 * s, 0.0);
+    let d_hood = length(p_local - c_hood) - 0.44 * s;
+    var d_body = smin_poly(d_cloak, d_hood, 0.24 * s);
+
+    let c_cav = fwd * (0.37 * s) + vec3<f32>(0.0, 0.70 * s, 0.0);
+    let d_cav = length(p_local - c_cav) - 0.30 * s;
+    d_body = max(d_body, -d_cav);
+
+    let arm_bob = 0.045 * s * sin(time * 3.4);
+    let p_arm_sym = vec3<f32>(abs(dot(p_local, side)), p_local.y, dot(p_local, fwd));
+    let a_seg = clamp((p_arm_sym.z - 0.02 * s) / (0.58 * s), 0.0, 1.0);
+    let a_pt = vec3<f32>(mix(0.45 * s, 0.56 * s, a_seg), mix(0.36 * s, 0.22 * s + arm_bob, a_seg), a_seg * 0.58 * s);
+    let d_arms = length(p_arm_sym - a_pt) - mix(0.20 * s, 0.13 * s, a_seg);
+    d_body = smin_poly(d_body, d_arms, 0.14 * s);
+
+    let pc = p_local - vec3<f32>(0.0, 1.24 * s + 0.05 * s * sin(time * 3.2), 0.0);
+    let q_tor = vec2<f32>(length(pc.xz) - 0.38 * s, pc.y - 0.03 * s * sin(pc.x * 8.0 + pc.z * 8.0 + time * 2.6));
+    let d_crown = (length(q_tor) - 0.075 * s) * 0.86;
+    return min(d_body, d_crown);
+}
+
 fn map_entities_dist(p: vec3<f32>, active_mask: u32) -> f32 {
     var rigid_d = 10000.0;
     var amoeba_d = 10000.0;
@@ -432,6 +468,9 @@ fn map_entities_dist(p: vec3<f32>, active_mask: u32) -> f32 {
         } else if (e.pos_type.w < 1.5) {
             let q = abs(p_local) - e.extents_rad.xyz;
             let d = length(max(q, vec3<f32>(0.0))) + min(max(q.x, max(q.y, q.z)), 0.0);
+            if (d < rigid_d) { rigid_d = d; }
+        } else if (e.pos_type.w > 4.5) {
+            let d = eval_mancer_sdf(p_local, e.extents_rad.xyz, e.extents_rad.w, u.time);
             if (d < rigid_d) { rigid_d = d; }
         } else if (e.pos_type.w > 3.5) {
             let q_hop = vec3<f32>(p_local.x, p_local.y * 1.18, p_local.z);
@@ -533,6 +572,17 @@ fn map_entities_full(
                 rigid_col = e.color.rgb;
                 rigid_kind = 1.0;
                 rigid_fill = 0.0;
+            }
+        } else if (e.pos_type.w > 4.5) {
+            let d = eval_mancer_sdf(p_local, e.extents_rad.xyz, e.extents_rad.w, u.time);
+            if (d < rigid_d) {
+                rigid_d = d;
+                rigid_col = e.color.rgb;
+                rigid_kind = 5.0;
+                rigid_fill = e.color.a;
+                rigid_center = e.pos_type.xyz;
+                rigid_pod = e.extents_rad.xyz;
+                rigid_rad = e.extents_rad.w;
             }
         } else if (e.pos_type.w > 3.5) {
             let q_hop = vec3<f32>(p_local.x, p_local.y * 1.18, p_local.z);
@@ -680,6 +730,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
     if (intersect_box(ro, rd, box_min, box_max, &t_near, &t_far)) {
         let t_start = max(t_near, 0.0);
         t = t_start;
+        var ray_p = ro + rd * t_start;
+        var cur_rd = rd;
         var hit_color = vec3<f32>(0.0);
         var accum_color = vec3<f32>(0.0);
         var accum_alpha: f32 = 0.0;
@@ -688,15 +740,31 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
             if (t > min(t_far, 88.0)) {
                 break;
             }
-            let p = ro + rd * t;
+            let p = ray_p;
             
             // Clamp normalized coordinates slightly inside [0, 1] to avoid border interpolation artifacts
             let wrapped_p = p - floor(p / 160.0) * 160.0;
             let uvw = clamp(wrapped_p / 160.0, vec3<f32>(0.002), vec3<f32>(0.998));
             
-            // Sample SDF value from green channel (G) and scale by 0.5 (Lipschitz constant bound for Simplex noise)
+            // Sample SDF value from green channel (G) and Refractive Index Offset Delta_n from blue channel (B)
             let val = textureSampleLevel(solid_texture, voxel_sampler, uvw, 0.0);
             let dist = val.g * 0.5;
+            let step_len = clamp(dist, 0.008, 0.85);
+
+            // 3D Eikonal Schlieren Ray-Bending in open air (only at t > 1.3m and dist > 0.35m from stained solids, capped at +/-0.018 rad)
+            if (t > 1.3 && dist > 0.35 && abs(val.b) > 0.0018 && abs(val.b) < 0.09) {
+                let dn0 = val.b;
+                let eps_u = 1.0 / 160.0;
+                let bx = textureSampleLevel(solid_texture, voxel_sampler, clamp(uvw + vec3<f32>(eps_u, 0.0, 0.0), vec3<f32>(0.002), vec3<f32>(0.998)), 0.0).b;
+                let by = textureSampleLevel(solid_texture, voxel_sampler, clamp(uvw + vec3<f32>(0.0, eps_u, 0.0), vec3<f32>(0.002), vec3<f32>(0.998)), 0.0).b;
+                let bz = textureSampleLevel(solid_texture, voxel_sampler, clamp(uvw + vec3<f32>(0.0, 0.0, eps_u), vec3<f32>(0.002), vec3<f32>(0.998)), 0.0).b;
+                let dnx = select(bx - dn0, 0.0, abs(bx) >= 0.09);
+                let dny = select(by - dn0, 0.0, abs(by) >= 0.09);
+                let dnz = select(bz - dn0, 0.0, abs(bz) >= 0.09);
+                let bend = vec3<f32>(dnx, dny, dnz) * (step_len * 0.36);
+                let tot_bend = clamp((cur_rd - rd) + bend, vec3<f32>(-0.018), vec3<f32>(0.018));
+                cur_rd = normalize(rd + tot_bend);
+            }
             
             // Accumulate Fluids and Gases
             let ip_cell = vec3<i32>(clamp(wrapped_p, vec3<f32>(0.0), vec3<f32>(159.0)));
@@ -718,7 +786,11 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                         let f_att = 1.0 / (1.0 + 0.05 * t + 0.012 * t * t);
                         l_flash = vec3<f32>(1.0, 0.96, 0.88) * f_att * 2.2;
                     }
-                    liq_color = base_liq * (vec3<f32>(l_amb) + l_gi + l_flash);
+                    liq_color = base_liq * max(vec3<f32>(0.0), vec3<f32>(l_amb) + l_gi + l_flash);
+                }
+                if (liq_val.b > 0.04) {
+                    let arc_w = 0.65 + 0.35 * sin(u.time * 32.0 + dot(p, vec3<f32>(6.3, 9.1, 7.4)));
+                    liq_color += vec3<f32>(0.38, 0.88, 2.75) * (liq_val.b * arc_w);
                 }
                 let absorb = mat.density;
                 let step_size = max(0.008, dist);
@@ -734,13 +806,23 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 var gas_color = vec3<f32>(mat.r, mat.g, mat.b);
                 var absorb = mat.density;
                 
-                // Keep the fire flicker logic using bitflags!
-                // FLAMMABLE is 1, EXPLOSIVE is 16, let's just check if id == 3.0 for now, or just use mat.a?
-                // For now just keep fire flicker if id == 3
-                if (round(raw_gas.r) == 3.0) {
+                let g_id = round(raw_gas.r);
+                if (g_id == 3.0) {
                     let flicker = sin(u.time * 15.0 + dot(uvw, vec3<f32>(100.0))) * 0.15 + 0.85;
                     gas_color = vec3<f32>(mat.r, mat.g * flicker, mat.b);
                     absorb = mat.density * flicker;
+                } else if (g_id == 4.0 || g_id == 1.0) {
+                    let billow_p = p * 2.1 - vec3<f32>(0.0, u.time * 3.2, 0.0);
+                    let billow = 0.55 + 0.45 * (sin(billow_p.x + sin(billow_p.y * 0.8 + billow_p.z)) * cos(billow_p.z - sin(billow_p.y * 0.7 - billow_p.x)));
+                    let g_gi = max(vec3<f32>(0.0), textureSampleLevel(light_texture, voxel_sampler, uvw, 0.0).rgb);
+                    var g_flash = vec3<f32>(0.0);
+                    if (u.cam_pos.w > 0.5) {
+                        let f_att = 1.0 / (1.0 + 0.05 * t + 0.012 * t * t);
+                        g_flash = vec3<f32>(0.9, 0.88, 0.82) * f_att * 1.1;
+                    }
+                    let puff_shade = 0.75 + 0.35 * billow;
+                    gas_color = gas_color * puff_shade * max(vec3<f32>(0.18), g_gi * 1.45 + g_flash);
+                    absorb = mat.density * (0.65 + 0.75 * billow);
                 }
                 let step_size = max(0.008, dist);
                 let alpha = (1.0 - exp(-gas_val.g * step_size * absorb)) * 0.4;
@@ -772,7 +854,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 let mat = materials[mat_id_u];
                 let base_color = vec3<f32>(mat.r, mat.g, mat.b);
 
-                // Unpack light_texture: .rgb = GI block light, .a = smoothed structural stress [0..1]
+                // Unpack light_texture: .rgb = GI block light (signed for Darklight!), .a = smoothed structural stress [0..1]
                 let light_sample = textureSampleLevel(light_texture, voxel_sampler, uvw, 0.0);
                 let inside_p = p - raw_normal * 0.45;
                 let inside_w = inside_p - floor(inside_p / 160.0) * 160.0;
@@ -818,7 +900,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 let surf_ambient = clamp(u.sun_dir.y * 3.0 + 0.3, 0.2, 1.0);
                 let ambient_intensity = mix(0.22, surf_ambient, sky_exposure);
                 
-                // Combine Shading with GI Block Light (.rgb)
+                // Combine Shading with GI Block Light (.rgb, clamped after summing so Negative GI Darklight devours ambient & flashlight!)
                 let ambient = vec3<f32>(0.15, 0.18, 0.25) * ao * ambient_intensity;
                 let direct = vec3<f32>(1.0, 0.95, 0.85) * diffuse * sha * sun_intensity;
                 let block_light = light_sample.rgb;
@@ -827,7 +909,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 var player_glow = vec3<f32>(0.0);
                 if (u.cam_pos.w > 0.5) {
                     let attenuation = 1.0 / (1.0 + 0.04 * t + 0.009 * t * t);
-                    let view_bevel = clamp(0.55 + 0.65 * max(dot(normal, -rd), 0.0), 0.35, 1.2);
+                    let view_bevel = clamp(0.55 + 0.65 * max(dot(normal, -cur_rd), 0.0), 0.35, 1.2);
                     player_glow = vec3<f32>(1.0, 0.96, 0.88) * attenuation * 2.6 * view_bevel;
                 }
 
@@ -840,16 +922,48 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                     // Critical-failure friction glint inside deep fissures right before rock snaps
                     emissive += vec3<f32>(0.55, 0.20, 0.05) * pow(crack_core, 2.0) * smoothstep(0.72, 0.98, strain) * 0.55;
                 }
+                // Piezoelectric & Galvanic voltage glow along stressed Crystals / Gold veins!
+                if (raw_voxel.b < -0.08) {
+                    let v_glow = clamp(-raw_voxel.b, 0.0, 1.0);
+                    emissive += vec3<f32>(0.35, 0.85, 2.45) * (v_glow * (0.35 + 1.45 * crack_core));
+                }
 
-                let rock_albedo = mix(base_color, base_color * 0.07, crack_core * 0.94);
-                let total_light = direct + ambient + moon_light + block_light + player_glow;
-                var gold_spec = vec3<f32>(0.0);
+                var stained_base = base_color;
+                var stain_spec = vec3<f32>(0.0);
+                if (raw_voxel.b >= 2.5) {
+                    let stain_lid = clamp(u32(round(raw_voxel.b)) - 2u, 1u, 8u);
+                    let stain_mat = materials[256u + stain_lid];
+                    let stain_col = vec3<f32>(stain_mat.r, stain_mat.g, stain_mat.b);
+                    let v_dot = max(dot(normal, -cur_rd), 0.0);
+                    if (stain_lid == 1u) {
+                        // [WET] Water stain: darkened wet rock/wood/soil with crisp specular sheen
+                        stained_base = base_color * 0.68;
+                        stain_spec = vec3<f32>(0.20, 0.23, 0.28) * pow(v_dot, 7.0);
+                    } else if (stain_lid == 4u) {
+                        // [OILED] Slick dark oil coating with iridescent sheen
+                        stained_base = mix(base_color * 0.42, stain_col, 0.55);
+                        stain_spec = vec3<f32>(0.26, 0.19, 0.32) * pow(v_dot, 5.0);
+                    } else if (stain_lid == 5u) {
+                        // [BLOOD] Deep crimson blood stain
+                        stained_base = mix(base_color, vec3<f32>(0.50, 0.03, 0.05), 0.65);
+                        stain_spec = vec3<f32>(0.22, 0.03, 0.04) * pow(v_dot, 6.0);
+                    } else {
+                        // Ambrosia (6), Acid (3), Volatile Gel (7), Toxic Sludge (8)
+                        stained_base = mix(base_color, stain_col, 0.55);
+                        emissive += stain_col * select(0.16, 0.30, stain_lid == 6u);
+                        stain_spec = stain_col * 0.24 * pow(v_dot, 6.0);
+                    }
+                }
+
+                let rock_albedo = mix(stained_base, stained_base * 0.07, crack_core * 0.94);
+                let total_light = max(vec3<f32>(0.0), direct + ambient + moon_light + block_light + player_glow);
+                var gold_spec = stain_spec * min(length(total_light), 2.0);
                 if (mat_id_u == 5u) {
-                    let v_dir = -rd;
+                    let v_dir = -cur_rd;
                     let n_dot_v = max(dot(normal, v_dir), 0.0);
                     let facet = fract(sin(dot(floor(p * 4.5), vec3<f32>(12.9898, 78.233, 37.719))) * 43758.5453);
                     let glint = pow(n_dot_v, 6.0) * (0.55 + select(0.0, 0.95, facet > 0.76));
-                    gold_spec = vec3<f32>(1.45, 1.12, 0.28) * (glint * min(length(total_light), 2.4) + 0.09);
+                    gold_spec += vec3<f32>(1.45, 1.12, 0.28) * (glint * min(length(total_light), 2.4) + 0.09);
                 }
                 let solid_col = rock_albedo * total_light + emissive + gold_spec;
                 hit_color = mix(solid_col, accum_color, accum_alpha);
@@ -857,8 +971,9 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 break;
             }
             
-            // Step forward by the SDF value, capped to prevent jumping over volumes
-            t = t + clamp(dist, 0.008, 0.85);
+            // Step forward along the Eikonal-bent ray!
+            ray_p = ray_p + cur_rd * step_len;
+            t = t + step_len;
         }
         
 
@@ -877,7 +992,9 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 let oc = e.pos_type.xyz - ro;
                 let proj = dot(oc, rd);
                 var r_bound: f32 = e.extents_rad.w + 0.12;
-                if (e.pos_type.w >= 1.5 && e.pos_type.w < 3.5) {
+                if (e.pos_type.w > 4.5) {
+                    r_bound = e.extents_rad.w * 2.15 + 0.45;
+                } else if (e.pos_type.w >= 1.5 && e.pos_type.w < 3.5) {
                     r_bound = e.extents_rad.w + length(e.extents_rad.xyz) + 0.56;
                 } else if (e.pos_type.w >= 0.5 && e.pos_type.w < 1.5) {
                     r_bound = length(e.extents_rad.xyz) + 0.10;
@@ -942,7 +1059,52 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                         }
                         let lit_env = direct + ambient + e_gi + e_flash;
 
-                        if (ent_kind > 3.5) {
+                        if (ent_kind > 4.5) {
+                            // Ecomancer Cave-Warlock: dark tattered obsidian cloak, glowing mat_id crown & runes, recessed hood void + twin blazing eyes!
+                            let p_rel = p - ent_center;
+                            let s = max(ent_rad, 0.48);
+                            let flen = length(vec2<f32>(ent_pod.x, ent_pod.z));
+                            let m_fwd = select(normalize(vec3<f32>(ro.x - ent_center.x, 0.0, ro.z - ent_center.z) + vec3<f32>(0.001, 0.0, 0.001)),
+                                               vec3<f32>(ent_pod.x / flen, 0.0, ent_pod.z / flen), flen > 0.05);
+                            let m_side = vec3<f32>(-m_fwd.z, 0.0, m_fwd.x);
+                            let peak_m = max(ent_c.r, max(ent_c.g, ent_c.b));
+                            let elem_tint = ent_c / max(peak_m, 1.0);
+                            let elem_hdr = max(ent_c, elem_tint * 1.35);
+                            let cast_surge = clamp(-ent_fill, 0.0, 1.0);
+                            let hit_f = clamp(ent_fill, 0.0, 1.0);
+
+                            let ndv_m = max(dot(normal, -rd), 0.0);
+                            let fres_m = pow(1.0 - ndv_m, 2.5);
+                            let weave = 0.86 + 0.24 * sin(p_rel.x * 16.0 + p_rel.z * 16.0) * cos(p_rel.y * 9.0);
+                            let hem_glow = smoothstep(-0.72 * s, -1.16 * s, p_rel.y);
+                            let sleeve_glow = smoothstep(0.32 * s, 0.56 * s, dot(p_rel, m_fwd)) * smoothstep(0.55 * s, 0.08 * s, abs(p_rel.y - 0.24 * s));
+
+                            var warlock_rgb = vec3<f32>(0.065, 0.058, 0.095) * weave * (lit_env + vec3<f32>(0.10, 0.09, 0.14))
+                                            + elem_hdr * fres_m * (0.42 + 0.75 * cast_surge)
+                                            + elem_hdr * (hem_glow * 0.52 + sleeve_glow * (0.48 + 0.95 * cast_surge));
+
+                            // Floating Elemental Crown above the hood
+                            if (p_rel.y > 1.02 * s) {
+                                warlock_rgb = elem_hdr * (1.25 + 0.85 * fres_m + 1.10 * cast_surge) + elem_tint * lit_env * 0.45;
+                            } else {
+                                // Deep recessed hood void + twin blazing elemental warlock eyes!
+                                let cav_c = ent_center + m_fwd * (0.30 * s) + vec3<f32>(0.0, 0.70 * s, 0.0);
+                                let in_hood = smoothstep(0.34 * s, 0.16 * s, length(p - cav_c));
+                                warlock_rgb = mix(warlock_rgb, vec3<f32>(0.008, 0.006, 0.014), in_hood * 0.96);
+
+                                let eye_c = ent_center + m_fwd * (0.16 * s) + vec3<f32>(0.0, 0.72 * s, 0.0);
+                                let me1 = eye_c + m_side * (0.115 * s);
+                                let me2 = eye_c - m_side * (0.115 * s);
+                                let t_me1 = max(dot(me1 - p, rd), 0.0);
+                                let t_me2 = max(dot(me2 - p, rd), 0.0);
+                                let d_meye = min(length((me1 - p) - rd * t_me1), length((me2 - p) - rd * t_me2));
+                                let eye_glow = smoothstep(0.068 * s, 0.022 * s, d_meye) * smoothstep(-0.15, 0.25, dot(m_fwd, -rd));
+                                warlock_rgb = warlock_rgb + (elem_hdr * (2.6 + 1.8 * cast_surge) + vec3<f32>(0.45, 0.42, 0.38)) * eye_glow;
+                            }
+
+                            warlock_rgb = mix(warlock_rgb, vec3<f32>(2.85, 0.42, 0.35), hit_f * 0.82);
+                            final_ent_color = warlock_rgb;
+                        } else if (ent_kind > 3.5) {
                             // Affinity-Tinted Cave Hopper: mineral-camouflaged carapace + fierce front eyespots + crimson hit-flash!
                             let p_rel = p - ent_center;
                             let grain = 0.84 + 0.28 * fract(sin(dot(floor(p_rel * 8.5), vec3<f32>(12.9898, 78.233, 37.719))) * 43758.5453);

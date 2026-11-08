@@ -212,40 +212,93 @@
                                         (Array.aset! a-rad k res-rad)
                                         (ECS.add-component! ecs &aent (CompColor.init (Materials.slime-color res-mat cst))))))))))))))))))
 
-        ;; 1b. Cave Hopper Spell Damage & Blood Squirts!
+        ;; 1b. Cave Hopper & Ecomancer Spell Damage + Volatile Halo Detonations!
         (let [eb (EngineState.enemies state)
               h-alive (EnemyBank.alive eb)
               h-idx (EnemyBank.idx eb)
               h-gen (EnemyBank.gen eb)
               h-rad (EnemyBank.rad eb)
+              mbk (EngineState.mancers state)
+              m-alive (MancerBank.alive mbk)
+              m-idx (MancerBank.idx mbk)
+              m-gen (MancerBank.gen mbk)
+              m-rad (MancerBank.rad mbk)
+              o-state (MancerBank.orb-state mbk)
+              o-idx (MancerBank.orb-idx mbk)
+              o-gen (MancerBank.orb-gen mbk)
+              o-mat (MancerBank.orb-mat mbk)
+              o-rad (MancerBank.orb-rad mbk)
+              fire-like? (or (= elem-tag 1) (= elem-tag 2))
               base-dmg (if (= elem-tag 2) 58.0f
                        (if (= elem-tag 5) 32.0f
                        (if (= elem-tag 0) 28.0f
                        (if (= elem-tag 3) 26.0f
                        (if (= elem-tag 4) 22.0f
                                           23.0f)))))]
-          (for [hk 0 16]
-            (when @(Array.unsafe-nth h-alive hk)
-              (let [hent (ECS.Entity.init (Handle.init @(Array.unsafe-nth h-idx hk) @(Array.unsafe-nth h-gen hk)))
-                    hcb-opt (the (Maybe CompBody) (get-component ecs &hent))]
-                (match hcb-opt
-                  (Maybe.Nothing) ()
-                  (Maybe.Just hcb)
-                    (let [hrb (CompBody.rb &hcb)
-                          hpos @(RigidBody.position hrb)
-                          hdx (- @(Vector3.x &hpos) px)
-                          hdy (- @(Vector3.y &hpos) py)
-                          hdz (- @(Vector3.z &hpos) pz)
-                          hdist (Double.sqrt (+ (+ (* hdx hdx) (* hdy hdy)) (* hdz hdz)))
-                          hrad-d (Double.from-float @(Array.unsafe-nth h-rad hk))
-                          reach (+ (+ max-r hrad-d) 0.35)]
-                      (when (< hdist reach)
-                        (let [atten (Double.to-float (Physics.clamp 0.50 1.0 (- 1.0 (/ hdist (+ reach 0.9)))))
-                              inv-hd (if (> hdist 0.12) (/ 1.0 hdist) 0.0)
-                              pdx (if (> hdist 0.18) (Double.to-float (* hdx inv-hd)) dx)
-                              pdy (if (> hdist 0.18) (Double.to-float (* hdy inv-hd)) dy)
-                              pdz (if (> hdist 0.18) (Double.to-float (* hdz inv-hd)) dz)]
-                          (ignore (EnemySystem.damage-hopper! state hk (* base-dmg atten) pdx pdy pdz (* knockback 0.72f) elem-tag))))))))))
+          (do
+            (for [hk 0 16]
+              (when @(Array.unsafe-nth h-alive hk)
+                (let [hent (ECS.Entity.init (Handle.init @(Array.unsafe-nth h-idx hk) @(Array.unsafe-nth h-gen hk)))
+                      hcb-opt (the (Maybe CompBody) (get-component ecs &hent))]
+                  (match hcb-opt
+                    (Maybe.Nothing) ()
+                    (Maybe.Just hcb)
+                      (let [hrb (CompBody.rb &hcb)
+                            hpos @(RigidBody.position hrb)
+                            hdx (- @(Vector3.x &hpos) px)
+                            hdy (- @(Vector3.y &hpos) py)
+                            hdz (- @(Vector3.z &hpos) pz)
+                            hdist (Double.sqrt (+ (+ (* hdx hdx) (* hdy hdy)) (* hdz hdz)))
+                            hrad-d (Double.from-float @(Array.unsafe-nth h-rad hk))
+                            reach (+ (+ max-r hrad-d) 0.35)]
+                        (when (< hdist reach)
+                          (let [atten (Double.to-float (Physics.clamp 0.50 1.0 (- 1.0 (/ hdist (+ reach 0.9)))))
+                                inv-hd (if (> hdist 0.12) (/ 1.0 hdist) 0.0)
+                                pdx (if (> hdist 0.18) (Double.to-float (* hdx inv-hd)) dx)
+                                pdy (if (> hdist 0.18) (Double.to-float (* hdy inv-hd)) dy)
+                                pdz (if (> hdist 0.18) (Double.to-float (* hdz inv-hd)) dz)]
+                            (ignore (EnemySystem.damage-hopper! state hk (* base-dmg atten) pdx pdy pdz (* knockback 0.72f) elem-tag)))))))))
+            (for [mk 0 4]
+              (when @(Array.unsafe-nth m-alive mk)
+                (let [ment (ECS.Entity.init (Handle.init @(Array.unsafe-nth m-idx mk) @(Array.unsafe-nth m-gen mk)))
+                      mcb-opt (the (Maybe CompBody) (get-component ecs &ment))]
+                  (match mcb-opt
+                    (Maybe.Nothing) ()
+                    (Maybe.Just mcb)
+                      (let [mrb (CompBody.rb &mcb)
+                            mpos @(RigidBody.position mrb)
+                            mdx (- @(Vector3.x &mpos) px)
+                            mdy (- (+ @(Vector3.y &mpos) 0.35) py)
+                            mdz (- @(Vector3.z &mpos) pz)
+                            mdist (Double.sqrt (+ (+ (* mdx mdx) (* mdy mdy)) (* mdz mdz)))
+                            mrad-d (Double.from-float @(Array.unsafe-nth m-rad mk))
+                            reach (+ (+ max-r mrad-d) 0.55)]
+                        (when (< mdist reach)
+                          (let [atten (Double.to-float (Physics.clamp 0.50 1.0 (- 1.0 (/ mdist (+ reach 0.9)))))
+                                inv-md (if (> mdist 0.12) (/ 1.0 mdist) 0.0)
+                                pdx (if (> mdist 0.18) (Double.to-float (* mdx inv-md)) dx)
+                                pdy (if (> mdist 0.18) (Double.to-float (* mdy inv-md)) dy)
+                                pdz (if (> mdist 0.18) (Double.to-float (* mdz inv-md)) dz)]
+                            (ignore (MancerSystem.damage-mancer! state mk (* base-dmg atten) pdx pdy pdz (* knockback 0.72f) elem-tag)))))))))
+            ;; Shooting a Gunpowder / C4 / Volatile-Gel Mancer's orbiting halo with Spark or Fireball detonates it next to his head!
+            (when fire-like?
+              (for [ok 0 20]
+                (when (> @(Array.unsafe-nth o-state ok) 0)
+                  (let [omat @(Array.unsafe-nth o-mat ok)]
+                    (when (Materials.explosive? omat)
+                      (let [oent (ECS.Entity.init (Handle.init @(Array.unsafe-nth o-idx ok) @(Array.unsafe-nth o-gen ok)))
+                            ocb-opt (the (Maybe CompBody) (get-component ecs &oent))]
+                        (match ocb-opt
+                          (Maybe.Nothing) ()
+                          (Maybe.Just ocb)
+                            (let [opos @(RigidBody.position (CompBody.rb &ocb))
+                                  odx (- @(Vector3.x &opos) px)
+                                  ody (- @(Vector3.y &opos) py)
+                                  odz (- @(Vector3.z &opos) pz)
+                                  odist (Double.sqrt (+ (+ (* odx odx) (* ody ody)) (* odz odz)))
+                                  orad-d (Double.from-float @(Array.unsafe-nth o-rad ok))]
+                              (when (< odist (+ (+ max-r orad-d) 0.45))
+                                (MancerSystem.detonate-orb-slot! state ok))))))))))))
 
         ;; 2. Radial / Directional Knockback on all nearby CompBody entities (including surviving Amoebas & Boulders!)
         (when (> kb 0.5)
@@ -336,7 +389,7 @@
                 (ParticleSystem.emit! ps hx hy hz (* nx 6.0f) (+ (* ny 6.0f) 2.5f) (* nz 6.0f) 1.8f 24 PARTICLE-TYPE-MAGIC 0.50f 0.35f)
                 (ParticleSystem.emit-sparks! ps hx hy hz nx ny nz 18)))))
 
-        ;; 4. Knockback & Ditto-Amoeba / Cave Hopper Reactions
+        ;; 4. Knockback & Ditto-Amoeba / Cave Hopper / Ecomancer Reactions
         (WandSystem.apply-impact-forces-and-reactions! state world ps ecs hx hy hz dx dy dz kb blast-r etag)
 
         ;; 5. Split-on-Hit Modifier: fan out 2 bouncy Spark Shards!
@@ -346,7 +399,7 @@
                 smag (Vector3.mag &side-v)
                 sx-ax (if (> smag 0.01) (Double.to-float (/ @(Vector3.x &side-v) smag)) 1.0f)
                 sy-ax (if (> smag 0.01) (Double.to-float (/ @(Vector3.y &side-v) smag)) 0.0f)
-                sz-ax (if (> smag 0.01) (Double.to-float (/ @(Vector3.z &side-v) smag)) 0.0f)
+                sz-ax (if (> smag 0.01) (Double.to-float (/ @(Vector3.z &side-v) smag)) 1.0f)
                 ox (+ hx (* nx 0.28f))
                 oy (+ hy (* ny 0.28f))
                 oz (+ hz (* nz 0.28f))]
@@ -356,7 +409,7 @@
               (WandSystem.spawn-bolt! state ox oy oz
                 (- (* nx 13.5f) (* sx-ax 9.5f)) (+ (* ny 13.5f) (- 4.0f (* sy-ax 9.5f))) (- (* nz 13.5f) (* sz-ax 9.5f)) 6 1)))))))
 
-  ;; Find nearest Cave Hopper (prioritized!) or Ditto-Amoeba ahead for Homing modifier
+  ;; Find nearest Ecomancer, Cave Hopper, or Ditto-Amoeba ahead for Homing modifier
   (defn steer-homing-vel [state ecs px py pz vx vy vz turn-rate fdt]
     (let [spd (Float.sqrt (+ (+ (* vx vx) (* vy vy)) (* vz vz)))
           inv-s (if (> spd 0.05f) (/ 1.0f spd) 1.0f)
@@ -368,6 +421,10 @@
           ty 0.0f
           tz 0.0f
           found false
+          mbk (EngineState.mancers state)
+          m-alive (MancerBank.alive mbk)
+          m-idx (MancerBank.idx mbk)
+          m-gen (MancerBank.gen mbk)
           eb (EngineState.enemies state)
           h-alive (EnemyBank.alive eb)
           h-idx (EnemyBank.idx eb)
@@ -377,6 +434,28 @@
           a-idx (CritterBank.idx cbank)
           a-gen (CritterBank.gen cbank)]
       (do
+        (for [mk 0 4]
+          (when @(Array.unsafe-nth m-alive mk)
+            (let [ment (ECS.Entity.init (Handle.init @(Array.unsafe-nth m-idx mk) @(Array.unsafe-nth m-gen mk)))
+                  mcb-opt (the (Maybe CompBody) (get-component ecs &ment))]
+              (match mcb-opt
+                (Maybe.Nothing) ()
+                (Maybe.Just mcb)
+                  (let [mpos (RigidBody.position (CompBody.rb &mcb))
+                        dx (- (Double.to-float @(Vector3.x mpos)) px)
+                        dy (- (+ (Double.to-float @(Vector3.y mpos)) 0.35f) py)
+                        dz (- (Double.to-float @(Vector3.z mpos)) pz)
+                        d (Float.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))]
+                    (when (and (> d 0.25f) (< d 28.0f))
+                      (let [align (/ (+ (+ (* dx fx) (* dy fy)) (* dz fz)) d)
+                            score (* d 0.66f)]
+                        (when (and (> align -0.20f) (< score best-score))
+                          (do
+                            (set! best-score score)
+                            (set! tx (/ dx d))
+                            (set! ty (/ dy d))
+                            (set! tz (/ dz d))
+                            (set! found true))))))))))
         (for [hk 0 16]
           (when @(Array.unsafe-nth h-alive hk)
             (let [hent (ECS.Entity.init (Handle.init @(Array.unsafe-nth h-idx hk) @(Array.unsafe-nth h-gen hk)))
@@ -432,10 +511,15 @@
                           (Double.from-float (* ny inm))
                           (Double.from-float (* nz inm))))))))
 
-  ;; Check direct hit against any live Cave Hopper, Ditto-Amoeba, or non-player dynamic CompBody
+  ;; Check direct hit against any live Ecomancer, Cave Hopper, Ditto-Amoeba, or non-player dynamic CompBody
   (defn check-entity-hit [state ecs sx sy sz rad]
     (let [player-id @(EngineState.player-ent-id state)
           hit? false
+          mbk (EngineState.mancers state)
+          m-alive (MancerBank.alive mbk)
+          m-idx (MancerBank.idx mbk)
+          m-gen (MancerBank.gen mbk)
+          m-rad (MancerBank.rad mbk)
           eb (EngineState.enemies state)
           h-alive (EnemyBank.alive eb)
           h-idx (EnemyBank.idx eb)
@@ -447,6 +531,23 @@
           a-gen (CritterBank.gen cbank)
           a-rad (CritterBank.rad cbank)]
       (do
+        (for [mk 0 4]
+          (when (and (not hit?) @(Array.unsafe-nth m-alive mk))
+            (let [ment (ECS.Entity.init (Handle.init @(Array.unsafe-nth m-idx mk) @(Array.unsafe-nth m-gen mk)))
+                  mcb-opt (the (Maybe CompBody) (get-component ecs &ment))]
+              (match mcb-opt
+                (Maybe.Nothing) ()
+                (Maybe.Just mcb)
+                  (let [mpos (RigidBody.position (CompBody.rb &mcb))
+                        dx (- (Double.to-float @(Vector3.x mpos)) sx)
+                        dy0 (- (Double.to-float @(Vector3.y mpos)) sy)
+                        dy1 (- (+ (Double.to-float @(Vector3.y mpos)) 0.72f) sy)
+                        dz (- (Double.to-float @(Vector3.z mpos)) sz)
+                        r-sum (+ rad (+ @(Array.unsafe-nth m-rad mk) 0.22f))
+                        r2 (* r-sum r-sum)]
+                    (when (or (< (+ (+ (* dx dx) (* dy0 dy0)) (* dz dz)) r2)
+                              (< (+ (+ (* dx dx) (* dy1 dy1)) (* dz dz)) r2))
+                      (set! hit? true)))))))
         (for [hk 0 16]
           (when (and (not hit?) @(Array.unsafe-nth h-alive hk))
             (let [hent (ECS.Entity.init (Handle.init @(Array.unsafe-nth h-idx hk) @(Array.unsafe-nth h-gen hk)))
