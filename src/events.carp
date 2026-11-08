@@ -1,3 +1,5 @@
 (deftype AppEvent
   (NoOp [])
-  (DespawnEntity [(Ptr ()) Uint64 Uint32]))
+  (DespawnEntity [(Ptr ()) Uint64 Uint32])
+  (SettleBoulder [(Ptr ()) Uint64 Uint32 Float Float]))
+

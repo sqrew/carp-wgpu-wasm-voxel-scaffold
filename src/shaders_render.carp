@@ -407,18 +407,67 @@ fn smin_poly(a: f32, b: f32, k: f32) -> f32 {
     return mix(b, a, h) - k * h * (1.0 - h);
 }
 
-// Levitating Hooded Cave-Warlock SDF (tattered cloak + recessed hood + casting sleeves + floating crown)
-fn eval_mancer_sdf(p_local: vec3<f32>, fwd_raw: vec3<f32>, rad: f32, time: f32) -> f32 {
+// Levitating Hooded Phase-Bender Warlock SDF:
+// mkind == 5.0: Solidmancer (Lithomancer) — Chiseled monolith cloak + floating tectonic shoulder pauldrons + 4-spire diamond crown
+// mkind == 6.0: Liquidmancer (Hydromancer) — Undulating amphora/jellyfish bell skirt + high-crested wave collar + twin-ring droplet chalice crown
+// mkind == 7.0: Gasmancer (Aeromancer) — Inverted cyclone/djinn-vortex body tapering to a corkscrewing tornado tail + spinning twin-gyroscope crown
+fn eval_mancer_sdf(p_local: vec3<f32>, fwd_raw: vec3<f32>, rad: f32, mkind: f32, time: f32) -> f32 {
     let s = max(rad, 0.48);
     let flen = length(vec2<f32>(fwd_raw.x, fwd_raw.z));
     let fwd = select(vec3<f32>(0.0, 0.0, 1.0), vec3<f32>(fwd_raw.x / flen, 0.0, fwd_raw.z / flen), flen > 0.05);
     let side = vec3<f32>(-fwd.z, 0.0, fwd.x);
 
     let h_cloak = clamp((p_local.y - (-1.18 * s)) / (1.62 * s), 0.0, 1.0);
-    let r_prof = s * (mix(0.64, 0.42, h_cloak) + 0.14 * sin(h_cloak * 3.14159));
-    let hem_fray = (1.0 - h_cloak) * 0.045 * s * sin(p_local.x * 8.5 - p_local.z * 7.5 + time * 4.2);
     let q_spine = vec3<f32>(0.0, clamp(p_local.y, -1.18 * s, 0.44 * s), 0.0);
-    let d_cloak = (length(p_local - q_spine) - (r_prof + hem_fray)) * 0.84;
+    var d_cloak = 1000.0;
+    var d_crown = 1000.0;
+    let pc = p_local - vec3<f32>(0.0, 1.24 * s + 0.05 * s * sin(time * 3.2), 0.0);
+
+    if (mkind < 5.5) {
+        // SOLIDMANCER (Lithomancer): Broad faceted monolith cloak + twin floating tectonic shoulder pauldrons + jagged 4-point obelisk crown!
+        let flute = (abs(sin(p_local.x * 9.5)) + abs(sin(p_local.z * 9.5)) - 1.0) * 0.032 * s;
+        let r_prof = s * mix(0.68, 0.45, h_cloak) + flute;
+        d_cloak = (length(p_local - q_spine) - r_prof) * 0.84;
+
+        let p_sh = vec3<f32>(abs(dot(p_local, side)) - 0.56 * s,
+                             p_local.y - (0.44 * s + 0.03 * s * sin(time * 2.4)),
+                             dot(p_local, fwd) - 0.03 * s);
+        let q_sh = abs(p_sh) - vec3<f32>(0.15 * s, 0.23 * s, 0.19 * s);
+        let d_pauldron = (length(max(q_sh, vec3<f32>(0.0))) + min(max(q_sh.x, max(q_sh.y, q_sh.z)), 0.0) - 0.025 * s) * 0.86;
+        d_cloak = smin_poly(d_cloak, d_pauldron, 0.09 * s);
+
+        let q_oct = vec2<f32>((abs(pc.x) + abs(pc.z)) * 0.78 - 0.36 * s,
+                              pc.y - 0.055 * s * abs(sin(pc.x * 7.0) - sin(pc.z * 7.0)));
+        d_crown = (length(q_oct) - 0.082 * s) * 0.82;
+    } else if (mkind < 6.5) {
+        // LIQUIDMANCER (Hydromancer): Flowing pelagic amphora bell-skirt + high-crested wave collar + bobbing droplet-chalice crown!
+        let wave_r = s * (mix(0.73, 0.37, h_cloak) - 0.11 * sin(h_cloak * 3.14159) + 0.055 * sin(h_cloak * 9.42 - time * 4.6));
+        let ripple = (1.0 - h_cloak) * 0.05 * s * sin(p_local.x * 10.0 + p_local.z * 10.0 - time * 5.2);
+        d_cloak = (length(p_local - q_spine) - (wave_r + ripple)) * 0.82;
+
+        let p_col = p_local - (-fwd * (0.14 * s) + vec3<f32>(0.0, 0.64 * s, 0.0));
+        let d_collar = max(abs(length(p_col.xz) - 0.47 * s) - 0.065 * s,
+                           max(abs(p_col.y) - 0.22 * s, dot(p_local, fwd) - 0.06 * s)) * 0.84;
+        d_cloak = smin_poly(d_cloak, d_collar, 0.12 * s);
+
+        let q_ring = vec2<f32>(length(pc.xz) - 0.40 * s, pc.y - 0.04 * s * sin(pc.x * 7.5 + time * 3.8));
+        let d_drop = length(pc - vec3<f32>(0.0, 0.11 * s + 0.04 * s * cos(time * 4.2), 0.0)) - 0.115 * s;
+        d_crown = smin_poly((length(q_ring) - 0.068 * s) * 0.85, d_drop, 0.08 * s);
+    } else {
+        // GASMANCER (Aeromancer): Inverted cyclone / djinn-vortex mantle tapering to a corkscrewing tornado tail + spinning twin-gyroscope crown!
+        let swirl = h_cloak * 5.2 - time * 4.8;
+        let tail_sway = (1.0 - h_cloak) * 0.16 * s;
+        let q_vortex = vec3<f32>(cos(swirl) * tail_sway, clamp(p_local.y, -1.20 * s, 0.44 * s), sin(swirl) * tail_sway);
+        let r_vort = s * (mix(0.13, 0.60, pow(h_cloak, 0.62)) + 0.055 * sin(h_cloak * 12.0 - time * 6.5));
+        d_cloak = (length(p_local - q_vortex) - r_vort) * 0.80;
+
+        let c_ang = time * 4.5;
+        let c_tilt1 = pc.y + (pc.x * cos(c_ang) + pc.z * sin(c_ang)) * 0.28;
+        let c_tilt2 = pc.y - (pc.x * sin(c_ang) - pc.z * cos(c_ang)) * 0.28;
+        let d_r1 = length(vec2<f32>(length(pc.xz) - 0.42 * s, c_tilt1)) - 0.062 * s;
+        let d_r2 = length(vec2<f32>(length(pc.xz) - 0.30 * s, c_tilt2)) - 0.052 * s;
+        d_crown = min(d_r1, d_r2) * 0.82;
+    }
 
     let c_hood = fwd * (0.08 * s) + vec3<f32>(0.0, 0.74 * s, 0.0);
     let d_hood = length(p_local - c_hood) - 0.44 * s;
@@ -435,9 +484,6 @@ fn eval_mancer_sdf(p_local: vec3<f32>, fwd_raw: vec3<f32>, rad: f32, time: f32) 
     let d_arms = length(p_arm_sym - a_pt) - mix(0.20 * s, 0.13 * s, a_seg);
     d_body = smin_poly(d_body, d_arms, 0.14 * s);
 
-    let pc = p_local - vec3<f32>(0.0, 1.24 * s + 0.05 * s * sin(time * 3.2), 0.0);
-    let q_tor = vec2<f32>(length(pc.xz) - 0.38 * s, pc.y - 0.03 * s * sin(pc.x * 8.0 + pc.z * 8.0 + time * 2.6));
-    let d_crown = (length(q_tor) - 0.075 * s) * 0.86;
     return min(d_body, d_crown);
 }
 
@@ -470,7 +516,7 @@ fn map_entities_dist(p: vec3<f32>, active_mask: u32) -> f32 {
             let d = length(max(q, vec3<f32>(0.0))) + min(max(q.x, max(q.y, q.z)), 0.0);
             if (d < rigid_d) { rigid_d = d; }
         } else if (e.pos_type.w > 4.5) {
-            let d = eval_mancer_sdf(p_local, e.extents_rad.xyz, e.extents_rad.w, u.time);
+            let d = eval_mancer_sdf(p_local, e.extents_rad.xyz, e.extents_rad.w, e.pos_type.w, u.time);
             if (d < rigid_d) { rigid_d = d; }
         } else if (e.pos_type.w > 3.5) {
             let q_hop = vec3<f32>(p_local.x, p_local.y * 1.18, p_local.z);
@@ -574,11 +620,11 @@ fn map_entities_full(
                 rigid_fill = 0.0;
             }
         } else if (e.pos_type.w > 4.5) {
-            let d = eval_mancer_sdf(p_local, e.extents_rad.xyz, e.extents_rad.w, u.time);
+            let d = eval_mancer_sdf(p_local, e.extents_rad.xyz, e.extents_rad.w, e.pos_type.w, u.time);
             if (d < rigid_d) {
                 rigid_d = d;
                 rigid_col = e.color.rgb;
-                rigid_kind = 5.0;
+                rigid_kind = e.pos_type.w;
                 rigid_fill = e.color.a;
                 rigid_center = e.pos_type.xyz;
                 rigid_pod = e.extents_rad.xyz;
@@ -1060,7 +1106,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                         let lit_env = direct + ambient + e_gi + e_flash;
 
                         if (ent_kind > 4.5) {
-                            // Ecomancer Cave-Warlock: dark tattered obsidian cloak, glowing mat_id crown & runes, recessed hood void + twin blazing eyes!
+                            // Phase-Bender Warlock Shading (5.0 = Solidmancer, 6.0 = Liquidmancer, 7.0 = Gasmancer)
                             let p_rel = p - ent_center;
                             let s = max(ent_rad, 0.48);
                             let flen = length(vec2<f32>(ent_pod.x, ent_pod.z));
@@ -1075,17 +1121,39 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
 
                             let ndv_m = max(dot(normal, -rd), 0.0);
                             let fres_m = pow(1.0 - ndv_m, 2.5);
-                            let weave = 0.86 + 0.24 * sin(p_rel.x * 16.0 + p_rel.z * 16.0) * cos(p_rel.y * 9.0);
                             let hem_glow = smoothstep(-0.72 * s, -1.16 * s, p_rel.y);
                             let sleeve_glow = smoothstep(0.32 * s, 0.56 * s, dot(p_rel, m_fwd)) * smoothstep(0.55 * s, 0.08 * s, abs(p_rel.y - 0.24 * s));
+                            var warlock_rgb = vec3<f32>(0.0);
 
-                            var warlock_rgb = vec3<f32>(0.065, 0.058, 0.095) * weave * (lit_env + vec3<f32>(0.10, 0.09, 0.14))
-                                            + elem_hdr * fres_m * (0.42 + 0.75 * cast_surge)
-                                            + elem_hdr * (hem_glow * 0.52 + sleeve_glow * (0.48 + 0.95 * cast_surge));
+                            if (ent_kind < 5.5) {
+                                // SOLIDMANCER (Lithomancer): Chiseled dark basalt/obsidian armor plates + glowing mineral fault-line seams on shoulder pauldrons!
+                                let rock_facet = 0.80 + 0.30 * abs(sin(p_rel.x * 13.0) * cos(p_rel.z * 13.0)) * cos(p_rel.y * 8.0);
+                                let pauldron_glow = smoothstep(0.42 * s, 0.64 * s, abs(dot(p_rel, m_side))) * smoothstep(0.15 * s, 0.48 * s, p_rel.y);
+                                let vein_seam = smoothstep(0.82, 0.96, abs(sin(p_rel.y * 14.0 + p_rel.x * 9.0)));
+                                warlock_rgb = vec3<f32>(0.075, 0.068, 0.064) * rock_facet * (lit_env + vec3<f32>(0.11, 0.10, 0.09))
+                                            + elem_hdr * fres_m * (0.45 + 0.75 * cast_surge)
+                                            + elem_hdr * (hem_glow * 0.45 + sleeve_glow * (0.50 + 0.95 * cast_surge) + pauldron_glow * (0.55 + 0.45 * vein_seam));
+                            } else if (ent_kind < 6.5) {
+                                // LIQUIDMANCER (Hydromancer): Glossy wet abyssal sea-silk + scrolling bioluminescent caustic wave-bands + wet specular sheen!
+                                let caustic_wave = 0.5 + 0.5 * sin(p_rel.y * 16.0 - u.time * 5.2 + sin(p_rel.x * 10.0 + p_rel.z * 10.0));
+                                let wet_spec = pow(max(dot(normal, normalize(-rd + vec3<f32>(0.0, 0.65, 0.0))), 0.0), 18.0);
+                                let collar_glow = smoothstep(0.42 * s, 0.78 * s, p_rel.y) * smoothstep(0.10 * s, -0.25 * s, dot(p_rel, m_fwd));
+                                warlock_rgb = vec3<f32>(0.038, 0.072, 0.115) * (0.82 + 0.28 * caustic_wave) * (lit_env + vec3<f32>(0.08, 0.12, 0.18))
+                                            + elem_hdr * fres_m * (0.55 + 0.80 * cast_surge)
+                                            + elem_hdr * (hem_glow * 0.62 + sleeve_glow * (0.52 + 0.95 * cast_surge) + collar_glow * 0.48 + caustic_wave * 0.18)
+                                            + (elem_tint * 0.55 + vec3<f32>(0.50, 0.62, 0.72)) * wet_spec * 0.75;
+                            } else {
+                                // GASMANCER (Aeromancer): Swirling tempest-shroud + fast-scrolling helical wind-streaks + blazing cyclone vortex tail!
+                                let wind_streak = 0.5 + 0.5 * sin(p_rel.y * 19.0 + (p_rel.x - p_rel.z) * 11.0 - u.time * 7.5);
+                                let vortex_tail = smoothstep(-0.28 * s, -1.16 * s, p_rel.y);
+                                warlock_rgb = vec3<f32>(0.062, 0.055, 0.110) * (0.78 + 0.34 * wind_streak) * (lit_env + vec3<f32>(0.12, 0.11, 0.18))
+                                            + elem_hdr * fres_m * (0.68 + 0.95 * cast_surge)
+                                            + elem_hdr * (vortex_tail * (0.78 + 0.45 * wind_streak) + sleeve_glow * (0.55 + 0.95 * cast_surge));
+                            }
 
-                            // Floating Elemental Crown above the hood
+                            // Floating Phase-Specific Crown above the hood
                             if (p_rel.y > 1.02 * s) {
-                                warlock_rgb = elem_hdr * (1.25 + 0.85 * fres_m + 1.10 * cast_surge) + elem_tint * lit_env * 0.45;
+                                warlock_rgb = elem_hdr * (1.30 + 0.90 * fres_m + 1.15 * cast_surge) + elem_tint * lit_env * 0.45;
                             } else {
                                 // Deep recessed hood void + twin blazing elemental warlock eyes!
                                 let cav_c = ent_center + m_fwd * (0.30 * s) + vec3<f32>(0.0, 0.70 * s, 0.0);

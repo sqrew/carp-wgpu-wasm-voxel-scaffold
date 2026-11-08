@@ -846,7 +846,12 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
         hit_buffer[out_m0] = vec4<f32>(m_liq, m_gas, m_los, m_ign);
 
-        // Scan 20 rotating golden-spiral rays (2.0m .. 16.5m) for birth mat_id supply!
+        // Scan 20 rotating golden-spiral rays (2.0m .. 16.5m) for ANY voxel in the Ecomancer's 256-wide phase segment!
+        // Phase 0 (Solid): floor(id / 256) == 0 (1..254)
+        // Phase 1 (Liquid): floor(id / 256) == 1 (257..511)
+        // Phase 2 (Gas): floor(id / 256) == 2 (513..767)
+        // `best_amt` stores the exact `+found_mat_id` (>= 1.0) at `best_sup`!
+        let tphase = floor(tmat / 256.0);
         var best_sup = vec3<f32>(0.0);
         var best_amt: f32 = 0.0;
         var best_score: f32 = -1.0;
@@ -858,7 +863,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 let rxy = sqrt(max(0.0, 1.0 - zraw * zraw));
                 let sdir = vec3<f32>(cos(phi) * rxy, zraw, sin(phi) * rxy);
 
-                if (tmat < 256.0) {
+                if (tphase < 0.5) {
                     var st: f32 = 2.0;
                     for (var ss: i32 = 0; ss < 9; ss = ss + 1) {
                         if (st > 16.5) { break; }
@@ -872,21 +877,24 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                         let sd = sv.y * 0.5;
                         if (sd < 0.32) {
                             let iv = get_solid_world(sp + sdir * 0.65);
-                            let smat = round(abs(iv.x));
-                            let smat0 = round(abs(sv.x));
-                            if (abs(smat - tmat) < 0.5 || abs(smat0 - tmat) < 0.5) {
-                                let sc = 20.0 - abs(st - 6.5);
+                            var smat = round(abs(iv.x));
+                            if (smat < 1.0 || smat >= 254.5) {
+                                smat = round(abs(sv.x));
+                            }
+                            if (smat >= 1.0 && smat <= 17.0) {
+                                let exotic = smat >= 3.0 && smat != 6.0 && smat != 16.0;
+                                let sc = 20.0 - abs(st - 6.5) + select(0.0, 6.5, exotic);
                                 if (sc > best_score) {
                                     best_score = sc;
                                     best_sup = sp;
-                                    best_amt = 1.0;
+                                    best_amt = smat;
                                 }
                             }
                             break;
                         }
                         st = st + clamp(sd, 0.75, 2.25);
                     }
-                } else if (tmat < 512.0) {
+                } else if (tphase < 1.5) {
                     var st: f32 = 1.8;
                     for (var ss: i32 = 0; ss < 12; ss = ss + 1) {
                         let sp = meye + sdir * st;
@@ -898,12 +906,12 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                         if (get_solid_world(sp).y * 0.5 < -0.25) { break; }
                         let lv = get_liquid_world(sp);
                         let l_id = round(abs(lv.x));
-                        if (l_id > 0.5 && lv.y > 0.10 && abs((256.0 + l_id) - tmat) < 0.5) {
-                            let sc = lv.y * 12.0 + (17.0 - st) * 0.25;
+                        if (l_id >= 1.0 && l_id <= 8.0 && lv.y > 0.10) {
+                            let sc = lv.y * 12.0 + select(0.0, 5.5, l_id >= 2.0) + (17.0 - st) * 0.25;
                             if (sc > best_score) {
                                 best_score = sc;
                                 best_sup = floor(sp) + vec3<f32>(0.5);
-                                best_amt = lv.y;
+                                best_amt = 256.0 + l_id;
                             }
                             break;
                         }
@@ -921,12 +929,12 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                         if (get_solid_world(sp).y * 0.5 < -0.25) { break; }
                         let gv = get_gas_world(sp);
                         let g_id = round(abs(gv.x));
-                        if (g_id > 0.5 && gv.y > 0.10 && abs((512.0 + g_id) - tmat) < 0.5) {
-                            let sc = gv.y * 12.0 + (17.0 - st) * 0.25;
+                        if (g_id >= 1.0 && g_id <= 8.0 && gv.y > 0.10) {
+                            let sc = gv.y * 12.0 + select(0.0, 5.5, g_id >= 2.0) + (17.0 - st) * 0.25;
                             if (sc > best_score) {
                                 best_score = sc;
                                 best_sup = floor(sp) + vec3<f32>(0.5);
-                                best_amt = gv.y;
+                                best_amt = 512.0 + g_id;
                             }
                             break;
                         }
@@ -936,8 +944,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             }
         }
 
-        // If birth `tmat` is completely depleted within 16.5m, scan for the richest alternative element to Re-Attune to!
-        if (best_amt < 0.01) {
+        // If the Ecomancer's entire 256-segment phase is depleted within 16.5m, scan for the richest phase to Re-Attune to!
+        if (best_amt < 0.5) {
             var alt_sup = mpos + vec3<f32>(0.0, -1.2, 0.0);
             var alt_mat: f32 = 1.0;
             var alt_score: f32 = -1.0;
@@ -958,29 +966,25 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     }
                     let alv = get_liquid_world(asp);
                     let al_id = round(abs(alv.x));
-                    if (al_id >= 1.0 && al_id <= 8.0 && alv.y > 0.12) {
+                    if (al_id >= 1.0 && al_id <= 8.0 && alv.y > 0.12 && abs(1.0 - tphase) > 0.5) {
                         let cmat = 256.0 + al_id;
-                        if (abs(cmat - tmat) > 0.5) {
-                            let sc = 36.0 + alv.y * 10.0 + select(0.0, 8.0, al_id >= 2.0) - ast * 0.4;
-                            if (sc > alt_score) {
-                                alt_score = sc;
-                                alt_sup = floor(asp) + vec3<f32>(0.5);
-                                alt_mat = cmat;
-                            }
+                        let sc = 36.0 + alv.y * 10.0 + select(0.0, 8.0, al_id >= 2.0) - ast * 0.4;
+                        if (sc > alt_score) {
+                            alt_score = sc;
+                            alt_sup = floor(asp) + vec3<f32>(0.5);
+                            alt_mat = cmat;
                         }
                         break;
                     }
                     let agv = get_gas_world(asp);
                     let ag_id = round(abs(agv.x));
-                    if (ag_id >= 1.0 && ag_id <= 8.0 && agv.y > 0.16) {
+                    if (ag_id >= 1.0 && ag_id <= 8.0 && agv.y > 0.16 && abs(2.0 - tphase) > 0.5) {
                         let cmat = 512.0 + ag_id;
-                        if (abs(cmat - tmat) > 0.5) {
-                            let sc = 26.0 + agv.y * 8.0 - ast * 0.4;
-                            if (sc > alt_score) {
-                                alt_score = sc;
-                                alt_sup = floor(asp) + vec3<f32>(0.5);
-                                alt_mat = cmat;
-                            }
+                        let sc = 26.0 + agv.y * 8.0 - ast * 0.4;
+                        if (sc > alt_score) {
+                            alt_score = sc;
+                            alt_sup = floor(asp) + vec3<f32>(0.5);
+                            alt_mat = cmat;
                         }
                     }
                     let asv = get_solid_world(asp);
@@ -991,7 +995,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                         if (smat < 1.0 || smat > 17.0) {
                             smat = round(abs(asv.x));
                         }
-                        if (smat >= 1.0 && smat <= 17.0 && abs(smat - tmat) > 0.5) {
+                        if (smat >= 1.0 && smat <= 17.0 && abs(0.0 - tphase) > 0.5) {
                             let exotic = smat >= 3.0 && smat != 6.0 && smat != 16.0;
                             let sc = select(18.0, 31.0, exotic) - ast * 0.4;
                             if (sc > alt_score) {

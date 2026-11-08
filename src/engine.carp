@@ -636,7 +636,13 @@
               (do
                 (GameWorld.destroy-entity! ecs &ent)
                 (Result.Success ())))
+          (AppEvent.SettleBoulder st-ptr idx gen mat-id rad)
+            (let [st (the (Ref EngineState) (Unsafe.coerce @st-ptr))]
+              (do
+                (EditingSystem.settle-boulder! st @idx @gen @mat-id @rad)
+                (Result.Success ())))
           (AppEvent.NoOp) (Result.Success ())))))
+
 
   (defn update! [state input dt]
     (let [platform-eng (EngineState.eng state)
@@ -882,17 +888,19 @@
                                 (Array.aset! entities-data (+ idx 11) hf)))
                           _ ())
                         (if (>= mslot 0)
-                          ;; Pack levitating hooded Ecomancer warlock (`pos_type.w = 5.0`) + facing + cast/hit flash!
+                          ;; Pack levitating hooded Phase Bender (`pos_type.w = 5.0 Solid / 6.0 Liquid / 7.0 Gas`) + facing + cast/hit flash!
                           (match-ref vol
                             (Volume.Ball s)
                               (let [mr @(Array.unsafe-nth mn-rad mslot)
                                     mf @(Array.unsafe-nth mn-flash mslot)
+                                    mmat @(Array.unsafe-nth mn-mat mslot)
+                                    mtype (+ 5.0f (Float.from-int (Int.clamp 0 2 (/ (Float.round mmat) 256))))
                                     mb3 (* mslot 3)]
                                 (do
                                   (Array.aset! entities-data (+ idx 0) (Double.to-float @(Vector3.x (Sphere.center s))))
                                   (Array.aset! entities-data (+ idx 1) (Double.to-float @(Vector3.y (Sphere.center s))))
                                   (Array.aset! entities-data (+ idx 2) (Double.to-float @(Vector3.z (Sphere.center s))))
-                                  (Array.aset! entities-data (+ idx 3) 5.0f)
+                                  (Array.aset! entities-data (+ idx 3) mtype)
                                   (Array.aset! entities-data (+ idx 4) @(Array.unsafe-nth mn-dir mb3))
                                   (Array.aset! entities-data (+ idx 5) @(Array.unsafe-nth mn-dir (+ mb3 1)))
                                   (Array.aset! entities-data (+ idx 6) @(Array.unsafe-nth mn-dir (+ mb3 2)))
@@ -1025,8 +1033,14 @@
                       b-alive (WandBelt.bolt-alive wb)
                       b-pos (WandBelt.bolt-pos wb)
                       b-wand (WandBelt.bolt-wand wb)
+                      mn-state (MancerBank.state mbank)
+                      o-state (MancerBank.orb-state mbank)
+                      o-idx (MancerBank.orb-idx mbank)
+                      o-gen (MancerBank.orb-gen mbank)
+                      o-mat (MancerBank.orb-mat mbank)
                       bolt-cur 0
                       mancer-cur 0
+                      orb-cur 0
                       glow-mask 0
                       bit-val 1]
                   (do
@@ -1075,30 +1089,75 @@
                                           (Maybe.Just mcb)
                                             (let [mpos (RigidBody.position (CompBody.rb &mcb))
                                                   mmat @(Array.unsafe-nth mn-mat mk)
+                                                  mst @(Array.unsafe-nth mn-state mk)
+                                                  mb3 (* mk 3)
+                                                  beam-fwd (if (= mst 2) 2.2f 0.0f)
+                                                  gain (if (= mst 2) 1.35 0.75)
                                                   scol (Materials.slime-color mmat 0)
-                                                  gi (Materials.gi-emission mmat 0 0.85f)
-                                                  lr (Double.to-float (+ (* @(Vector3.x &scol) 0.65) (* @(Vector3.x &gi) 0.75)))
-                                                  lg (Double.to-float (+ (* @(Vector3.y &scol) 0.65) (* @(Vector3.y &gi) 0.75)))
-                                                  lb (Double.to-float (+ (* @(Vector3.z &scol) 0.65) (* @(Vector3.z &gi) 0.75)))]
+                                                  gi (Materials.gi-emission mmat 0 0.92f)
+                                                  lr (Double.to-float (+ (* @(Vector3.x &scol) gain) (* @(Vector3.x &gi) gain)))
+                                                  lg (Double.to-float (+ (* @(Vector3.y &scol) gain) (* @(Vector3.y &gi) gain)))
+                                                  lb (Double.to-float (+ (* @(Vector3.z &scol) gain) (* @(Vector3.z &gi) gain)))]
                                               (do
                                                 (set! glow-mask (+ glow-mask bit-val))
-                                                (Array.aset! uniforms l-base (Double.to-float @(Vector3.x mpos)))
-                                                (Array.aset! uniforms (+ l-base 1) (Double.to-float (+ @(Vector3.y mpos) 1.05)))
-                                                (Array.aset! uniforms (+ l-base 2) (Double.to-float @(Vector3.z mpos)))
+                                                (Array.aset! uniforms l-base (+ (Double.to-float @(Vector3.x mpos)) (* @(Array.unsafe-nth mn-dir mb3) beam-fwd)))
+                                                (Array.aset! uniforms (+ l-base 1) (+ (Double.to-float (+ @(Vector3.y mpos) 1.05)) (* @(Array.unsafe-nth mn-dir (+ mb3 1)) beam-fwd)))
+                                                (Array.aset! uniforms (+ l-base 2) (+ (Double.to-float @(Vector3.z mpos)) (* @(Array.unsafe-nth mn-dir (+ mb3 2)) beam-fwd)))
                                                 (Array.aset! uniforms (+ l-base 3) -1.0f)
                                                 (Array.aset! uniforms c-base lr)
                                                 (Array.aset! uniforms (+ c-base 1) lg)
                                                 (Array.aset! uniforms (+ c-base 2) lb)
-                                                (Array.aset! uniforms (+ c-base 3) 0.72f))))))
+                                                (Array.aset! uniforms (+ c-base 3) (if (= mst 2) 1.05f 0.76f)))))))
                                     (do
-                                      (Array.aset! uniforms l-base 0.0f)
-                                      (Array.aset! uniforms (+ l-base 1) 0.0f)
-                                      (Array.aset! uniforms (+ l-base 2) 0.0f)
-                                      (Array.aset! uniforms (+ l-base 3) 0.0f)
-                                      (Array.aset! uniforms c-base 0.0f)
-                                      (Array.aset! uniforms (+ c-base 1) 0.0f)
-                                      (Array.aset! uniforms (+ c-base 2) 0.0f)
-                                      (Array.aset! uniforms (+ c-base 3) 0.0f))))))
+                                      (while (and (< orb-cur 20) (<= @(Array.unsafe-nth o-state orb-cur) 0))
+                                        (set! orb-cur (+ orb-cur 1)))
+                                      (if (< orb-cur 20)
+                                        (let [ok orb-cur
+                                              ost @(Array.unsafe-nth o-state ok)
+                                              oent (ECS.Entity.init (Handle.init @(Array.unsafe-nth o-idx ok) @(Array.unsafe-nth o-gen ok)))
+                                              ocb-opt (the (Maybe CompBody) (get-component ecs &oent))]
+                                          (do
+                                            (set! orb-cur (+ orb-cur 1))
+                                            (match ocb-opt
+                                              (Maybe.Nothing)
+                                                (do
+                                                  (Array.aset! uniforms l-base 0.0f)
+                                                  (Array.aset! uniforms (+ l-base 1) 0.0f)
+                                                  (Array.aset! uniforms (+ l-base 2) 0.0f)
+                                                  (Array.aset! uniforms (+ l-base 3) 0.0f)
+                                                  (Array.aset! uniforms c-base 0.0f)
+                                                  (Array.aset! uniforms (+ c-base 1) 0.0f)
+                                                  (Array.aset! uniforms (+ c-base 2) 0.0f)
+                                                  (Array.aset! uniforms (+ c-base 3) 0.0f))
+                                              (Maybe.Just ocb)
+                                                (let [opos (RigidBody.position (CompBody.rb &ocb))
+                                                      omat @(Array.unsafe-nth o-mat ok)
+                                                      scol (Materials.slime-color omat 0)
+                                                      gi (Materials.gi-emission omat 0 0.90f)
+                                                      ogain (if (= ost 3) 1.05 0.68)
+                                                      lr (Double.to-float (+ (* @(Vector3.x &scol) ogain) (* @(Vector3.x &gi) ogain)))
+                                                      lg (Double.to-float (+ (* @(Vector3.y &scol) ogain) (* @(Vector3.y &gi) ogain)))
+                                                      lb (Double.to-float (+ (* @(Vector3.z &scol) ogain) (* @(Vector3.z &gi) ogain)))]
+                                                  (do
+                                                    (set! glow-mask (+ glow-mask bit-val))
+                                                    (Array.aset! uniforms l-base (Double.to-float @(Vector3.x opos)))
+                                                    (Array.aset! uniforms (+ l-base 1) (Double.to-float @(Vector3.y opos)))
+                                                    (Array.aset! uniforms (+ l-base 2) (Double.to-float @(Vector3.z opos)))
+                                                    (Array.aset! uniforms (+ l-base 3) -1.0f)
+                                                    (Array.aset! uniforms c-base lr)
+                                                    (Array.aset! uniforms (+ c-base 1) lg)
+                                                    (Array.aset! uniforms (+ c-base 2) lb)
+                                                    (Array.aset! uniforms (+ c-base 3) (if (= ost 3) 0.88f 0.58f)))))))
+                                        (do
+                                          (Array.aset! uniforms l-base 0.0f)
+                                          (Array.aset! uniforms (+ l-base 1) 0.0f)
+                                          (Array.aset! uniforms (+ l-base 2) 0.0f)
+                                          (Array.aset! uniforms (+ l-base 3) 0.0f)
+                                          (Array.aset! uniforms c-base 0.0f)
+                                          (Array.aset! uniforms (+ c-base 1) 0.0f)
+                                          (Array.aset! uniforms (+ c-base 2) 0.0f)
+                                          (Array.aset! uniforms (+ c-base 3) 0.0f))))))))
+
                             (let [aent (ECS.Entity.init (Handle.init @(Array.unsafe-nth a-idx ak) @(Array.unsafe-nth a-gen ak)))
                                   acb-opt (the (Maybe CompBody) (get-component ecs &aent))]
                               (match acb-opt

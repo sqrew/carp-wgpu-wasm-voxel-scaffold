@@ -58,17 +58,39 @@ Core design north star: **tiny rules, massive simulation leverage**. Every playe
 
 ## 4. Sim-Native Enemies
 
-- **Ecomancer / Materialmancer (`Mancer(mat_id)`) *(v1 Shipped — Wild Cavern Spawner + `U` Summon)***:
-  - **Born of the Substrate ("Evil Captain Planet")**: Levitating hooded cave-warlocks (`MancerSystem` + `eval_mancer_sdf` in `shaders_render.carp`) spawned out of a chamber's dominant material and parameterized by a single `mat_id` (Solid `1..17`, Liquid `257..264`, or Gas `513..520`). Obeys strict local conservation (*Avatar* bender rule)—ripping massive real `2.35m–4.35m` chunks, waves, and plumes out of nearby walls, pools, and clouds (via 20-ray GPU 3D supply scanning) into a 4-orb physical `CompBody` halo that can be `[4]` Gauntlet-hijacked or detonated mid-orbit. Draining or transmuting its supply starves it into desperate weak shoves.
-  - **One 4-Move Brain, Wildly Emergent Personalities**:
-    - **Lavamancer / Cryomancer / Lithomancer**: Hurls heavy halo orbs (`25.5 m/s`), raises 3-pillar tectonic bulwarks (`edit-bender-sdf!`), and channels `1.6s` corridor torrents that you can `[1/2/3]` `RMB` vacuum-parry into your vessel or `LMB` beam-clash in midair!
-    - **Gunpowder / C4-Mancer**: Plasters 3-lobe explosive ankle-tombs around your boots, then strikes and flicks a real `MatchBook` burning match arc (`flick-igniter-match!`) while you scramble for `[3]` Bellows or `[2]` Water.
-    - **Sporemancer**: Chokes sightlines in `MAT_SPORE_CLOUD` and raises reactive `MAT_SPORE_POD` barriers.
-    - **Ambrosiamancer**: Runs the *exact same* furious aggro AI to aggressively pelt you (and nearby Hoppers!) with healing `MAT_AMBROSIA` geysers.
-    - **Goldmancer**: Rare jackpot miniboss literally wrenching `24k Gold` veins into real `25g` collectable `GoldBank` nuggets in his halo and hurling his net worth at your head.
+- **The 3 Matter-Phase Ecomancers (`Solidmancer`, `Liquidmancer`, `Gasmancer`) *(v2 Shipped — 256-Segmented Phase Range + Distinct 3D Silhouettes)***:
+  - **Segmented `1024` Phase-Range Bending (`floor(mat_id / 256)`)**: Because the engine's `1024` material ID space is cleanly segmented by `256` (`Phase 0 Solid: 0..255`, `Phase 1 Liquid: 256..511`, `Phase 2 Gas: 512..767`), Ecomancers do not lock to a single `mat_id` or require lookup tables—they simply check `floor(vmat / 256) == floor(mmat / 256)`. Each warlock rips *any* material within its `256`-wide phase segment into its 4-orb physical `CompBody` halo (prioritizing nearby reactive/exotic veins while happily wrenching common stone, water, or steam), mixing multiple reagents in orbit at once and casting the exact `orb_mat` of whichever Halo Orb it expends!
+  - **Three Unmistakable 3D Raymarched Silhouettes (`eval_mancer_sdf`, `pos_type.w = 5.0 / 6.0 / 7.0`)**:
+    1. **Solidmancer (*Lithomancer*, `0..255`, `pos_type.w = 5.0`, `165–185 HP`)**: Broad, chiseled basalt/obsidian monolith cloak with **twin floating tectonic shoulder pauldrons** and a **jagged 4-point diamond/obelisk crown**. Wrenches `2.35m` bites out of walls (`Stone`, `Sand`, `Crystal`, `Gold`, `Gunpowder`, `C4`, `Spore Pod`), raises 3-pillar tectonic bulwarks, and smothers floor hazards by slamming solid orbs at its feet.
+    2. **Liquidmancer (*Hydromancer*, `256..511`, `pos_type.w = 6.0`, `150 HP`)**: Flowing pelagic amphora / jellyfish-bell skirt with a **high-crested wave collar**, glossy wet specular sheen, scrolling caustic wave-bands, and a **bobbing twin-ring droplet chalice crown**. Siphons `3.55m` waves from any pool (`Water`, `Lava`, `Acid`, `Oil`, `Blood`, `Ambrosia`), **drinks/absorbs any liquid** it touches or is sprayed with to mend HP and condense free Halo Orbs, and drowns corridors in pressurized fluid torrents.
+    3. **Gasmancer (*Aeromancer*, `512..767`, `pos_type.w = 7.0`, `135 HP`)**: **Inverted cyclone / djinn-vortex warlock** whose billowing upper tempest-shroud spirals down into a **corkscrewing tornado tail** at the bottom, crowned by **fast-spinning twin-gyroscope wind rings**. Vacuums `4.35m` gas vortices (`Steam`, `Smoke`, `Fire`, `Methane`, `Chlorine`, `Nitro`, `Spore Cloud`), **inhales any gas or open flame** on contact to heal and condense orbs, and ignites flammable/explosive clouds with `MatchBook` sparks.
+  - **Matter-Conserving & Material-Reactive Rubble / Orb Settling (`AppEvent.SettleBoulder` / `EditingSystem.settle-boulder!`)**: Kicked/shattered wall boulders and expired dropped Halo Orbs never vanish into thin air—when their lifetime ends, they return their matter directly into the local 3D world (`Granular` cascades as falling CA grains, `Brittle` shatters with crystal sparks, `Flammable/Explosive` chars or pops, and `Cohesive Solids` weld a smooth SDF mound back into the cave floor/wall).
   - **Ouroboric Slime Ranching & Living Havens *(Planned)***:
-    - **Undisturbed Cavern Homesteader**: Left alone out of combat, `Mancer(mat_id)` doesn't idle—it actively **terraforms a personal Haven** (lining basins, moats, and pedestals with its home `mat_id`) and **ranches nearby `Dittamoeba` Slimes**.
-    - **Force-Fed Mitosis Loop (`Grey -> Locked Herd + Natural Loot Hoard`)**: The Mancer pitches halo snacks of its signature `mat_id` straight into wandering `mat = 0` **Grey Slimes** to imprint them onto its element, then keeps force-feeding its pets through `0.36m → 0.92m` chonk cycles. Because each mitosis yields **`1 Locked + 1 fresh Grey`** *and* excretes transmuted reagents (`Lava/Gold -> 2× 20g Gold Nuggets`, `Acid -> Rad-Ore`, `Coal -> Crystal`, `Spore/Toxic -> Ambrosia`), an undisturbed Mancer organically breeds a whole **elemental guard-slime herd** *and* accumulates a **real physical treasure hoard** in its den—zero fake biome scripts or loot-chest tables required!
+    - **Undisturbed Cavern Homesteader**: Left alone out of combat, a Phase Bender terraforms a personal Haven and pitches halo snacks into wandering `mat = 0` **Grey Slimes** to breed a locked elemental guard-slime herd (`1 Locked + 1 Grey` mitosis) while accumulating excreted transmuted reagents (`24k Gold Nuggets`, `Crystal`, `Rad-Ore`, `Ambrosia`).
+- **The 4 Force / Field Benders (`Thermomancer`, `Baromancer`, `Gravimancer`, `Chronomancer`) *(Planned — Next Up)***:
+  - Running on the exact same levitating warlock core (`MancerBank`), these 4 specialists bend the continuous physical fields in `field_in/out` instead of voxel matter:
+  - **1. Thermomancer (`T` Temperature Specialist — `field.x` high 12 bits + `solid_buffer.z` Fourier Heat)**:
+    - **Entropy Inversion (Heat-Siphon -> Flash-Boil)**: Drains heat from water pools or the player (`T -> 0.0`, flash-freezing lakes into `Ice` and inflicting frost-slow) to charge a **Superheated Plasma Halo**, then dumps `T -> 1.0` across the chamber—flash-boiling **Water** into blinding **Steam**, auto-igniting dry **Wood / Oil / Methane** without open flames, and cooking off sealed **Gunpowder / C4** seams through solid rock.
+  - **2. Baromancer (`P` Pressure & Overpressure Cave-In Specialist — `field.x` low 12 bits)**:
+    - **Pneumatic Pillar Shear (Weaponized Cave-Ins)**: Because `field-sim-wgsl` converts adjacent air overpressure (`max_adj_P > 0.28`) into `115×` solid shear stress, a Baromancer spiking `P -> 1.0` inside a cavern **structurally overloads and shears load-bearing rock pillars**, dropping the cave roof onto your head!
+    - **Vacuum Implosion & Schlieren Air-Cannon**: Pulls a deep low-pressure sink (`P -> 0.0`) that drags poison gases, fire plumes, and the player inward, then releases an Eikonal-refracted (`solid_buffer.z`) concussive shockwave that ragdolls everything across the room.
+  - **3. Gravimancer (`G` Gravity + Eikonal Lensing Specialist — `field.z` low 12 bits)**:
+    - **Thrown Singularity Wells**: Hurls mini Black-Hole / White-Hole orbs that visibly bend light around their event horizon (`solid_buffer.z` gravitational lensing) and yank players, boulders, Slimes, Hoppers, and Gold nuggets inward for `2.2s` before blasting outward.
+    - **Gravity-Flip Ceiling Slam (`Reverse-G -> 3G Crush`)**: Inverts local gravity (`G -> 0.05`) for `1.5s` so **cave pools, sand, boulders, Slimes, and you all fall UPWARD into the cave ceiling**, then snaps its fingers and slams gravity to **`3×` downward (`+55 m/s²`)**, cratering everything back into the cavern floor.
+  - **4. Chronomancer (`tau` Time-Dilation Specialist — `field.z` high 12 bits)**:
+    - **Bullet-Time Stasis Bubble**: Projects a viscous `tau -> 0.08` temporal field where liquids/gases crawl in slow-motion, player locomotion turns syrupy, and **any `[5]` Wand bolts, `[Z]` Matches, or `[4]` thrown boulders entering the bubble freeze suspended in mid-air** while the Chronomancer strafes around you and lines up its halo orbs—releasing all suspended projectiles at full speed the instant the bubble pops!
+    - **Temporal Rewind ("Recall") & Overclock**: Snaps itself (or you!) backward along a 3-second position ring-buffer, or overclocks local CA reactions and its own cast cadence (`tau -> 1.0`).
+- **The 4 Exotic / Systemic Benders (`Electromancer`, `Biomancer`, `Photomancer`, `Alchemancer`) *(Planned)***:
+  - **5. Electromancer / Magnemancer (`V, M` Voltage & Lorentz Railgun Specialist — `field.y`)**:
+    - Electrifies `CONDUCTIVE` **Water / Acid / Blood** trenches from afar, discharges chain-lightning down **Gold** seams, rips `MAT_GOLD` nuggets and metallic boulders into a spinning Lorentz-coil halo, and **railgun-launches** them at Mach-2 (while magnetically deflecting incoming `[5]` Wand bolts).
+  - **6. Biomancer / Mycomancer (Living Flora, `4-Receptor` Pheromones & Slime Shepherd — `field.w`)**:
+    - Floods the wind with `Siren Stank` / `Apex Fear` (`field.w`) to whip every **Cave Hopper** and **Dittamoeba** in the cavern into a synchronized frenzy focused on you, rapid-grows `MAT_SPORE_POD` / `MAT_PLANT` vine cages around your boots, and force-evolves nearby Slimes into instant mitosis.
+  - **7. Photomancer / Umbramancer (`light_buffer.rgb` + Eikonal Schlieren Mirage Specialist)**:
+    - Bends positive GI and negative **Darklight**: plunges a chamber into pitch-black Darklight that swallows your `[F]` Flashlight beam, projects 3D **Eikonal Schlieren mirror-decoy mirages** (`solid_buffer.z`), and fires focused solar-laser beams that flash-cure photopolymer **Amber** or scorch rock into **Lava**.
+  - **8. Alchemancer / Transmutemancer (`1024 × 1024` Reaction Matrix Catalyst Specialist)**:
+    - The ultimate *Noita / SS13* chaos warlock—transmutes materials in-place (`Water` pool under your feet -> `Acid` or `Oil`; `Stone` cover -> `Gunpowder` or `Glass`, or turns the air in your lungs into `Methane`).
+  - **The Dualmancer (`Mancer(archetype_a, archetype_b)`) *(Planned Boss Archetype)***:
+    - **Split-Robe 2+2 Halo Warlock**: High-tier dual-attuned warlock combining any 2 Matter-Phase or Field domains (`Napalm Dualmancer: Liquid + Gas`, `Galvanic Stormmancer: Liquid + Electro`, `Thermobaric Dualmancer: Gas + Baro/Thermo`, or the apex `Spacetimemancer: Chrono + Gravi`).
 - **Ambient-Fed Typed Simplemob (`Brute(mat_id)`)**:
   - **Turf-Powered Melee Bruiser**: Reads local GPU neighborhood probes (`critter_probes`) every tick—swelling in radius, speed, armor, and glow while standing on or near its home element, and visibly starving when kited onto hostile turf:
     - **Cinder / Magma Brute**: White-hot juggernaut near `Lava`/`Fire`; kite it into cold wet rock (or douse with `[2]` Water) and its shell cools into sluggish, brittle crust you can `[4]` kick-shatter.
@@ -81,7 +103,11 @@ Core design north star: **tiny rules, massive simulation leverage**. Every playe
     - **Frost / Crystal Worm**: Eats `Water`/`Ice` pockets and leaves frictionless `Ice` luge-tubes and crystal spires in its wake.
     - **Acid / Rot Worm**: Dissolves dense rock barriers into tempting shortcuts lined with hazardous `Acid` or `Mycelium`.
 - **SS13 Blob**: Creeping, self-expanding cellular/core organism that colonizes caverns and converts biomass/stone; immune to simple pokes, forcing chemical warfare (**Fire** plumes, **Acid** moats, **C4** breaches, or starving its substrate).
-- **SS13 Shadowling**: Apex darkness predator coupled directly to `light_buffer` GI—fast and lethal in pitch-black vaults, but burned, stunned, or forced to retreat by `LUMINESCENT` crystals, **Fire** jets, flashlight beams, or a glowing **Lava / Ambrosia** flask.
+- **SS13 Shadowling / Nightmare *(Planned)***:
+  - **Apex Darkness Predator (`light_texture.rgb` + `[F]` Flashlight + `[Z]` Matches)**: Coupled directly to local GPU illumination and the 3D light gradient ($\nabla \text{Light}$) in `raycast-wgsl`:
+    - **In Pitch Darkness (`light < 0.18`)**: Cloaked in writhing abyssal tendrils that emit **Negative GI (Darklight)** into `light_buffer.rgb` (visibly swallowing ambient cave light as it stalks), regenerating health, moving at `1.8×` speed, and **Shadow-Jaunting** (blinking between shadow pockets to ambush from behind).
+    - **Light-Snuffer Sabotage**: Actively hunts and snuffs out floor `[Z]` Matches, turns nearby `Fire` into `Smoke`, corrupts glowing `Crystal` seams into dark `Obsidian`, and briefly flickers/dims your `[F]` Flashlight on melee claw hits.
+    - **In Bright Light (`light > 0.38`) — Exposed & Sizzling**: Shining your **`[F]` Flashlight** in its face, tossing a **`[Z]` Match** at its feet, spraying **`[3]` Fire**, or holding a glowing **`Crystal` boulder / `Lava` flask** boils off its shadow-carapace in plumes of `MAT_SMOKE`, **locks out its Shadow-Jaunt**, deals continuous **Light-Burn DoT**, exposes its solid body to **`2.5×` damage**, and forces it to either flee down $-\nabla \text{Light}$ into the nearest dark alcove or lunge in desperation.
 - **`smin` Slurping Ditto-Amoeba / Grey Slime Ecology *(v2 Shipped — Wild Cave Spawner + `T` Toss)***:
   - **Raymarched `smin` Pseudopod & Wet Meniscus**: Translucent cave-jelly organism (`CritterSystem` + `map_entities_full` in `shaders_render.carp`) with internal floating organelle eyespots, refracted cave transmission, swelling stomach vacuole, amoeba-to-amoeba membrane merging, and a live `solid_texture` surface-tension meniscus foot that clings effortlessly to floors, vertical cliffs, and ceilings (`-∇sdf` suction).
   - **Grey Stem-Cell Baseline & Permanent Element Locking**: Every wild and `T`-tossed slime starts as a sleek `0.36m` neutral silver **Grey Slime** (`mat = 0`). The first reactive element it eats (via 24-ray GPU chemoreception, Gold Nugget schlorp, `[1..3]` Rig spray, or `[5]` Wand splash—ignoring dull filler stone/soil/sand) **permanently locks its breed**! Once locked, its smell rays strictly seek its own element family (plus universal golden **Ambrosia** chow) without ever being overwritten by stray floor dirt.
@@ -153,7 +179,7 @@ Zero crafting menus, zero dead inventory spreadsheets—every step from resource
 
 The seeded biome stratigraphy (`Surface Meadow -> Mossy Karst -> Crystal Vaults -> Fungal Abyss -> Magma Core`) naturally forms a full vertical descent game:
 - **Wands (`WandChassis × SpellPayload × WandMod`)**: Scavenge or socket distinct wands, spell payloads, and in-flight modifiers at subterranean altars/chutes so combat, mining, and alchemy share one unified projectile grammar.
-- **Sim-Native Mobs**: Compact roster of creatures whose entire threat and counterplay run through the CA/SDF/GI simulation (**Dittamoebas**, **Megaslimes**, **Proboscis Assassins**, **Ceiling Siphonophores**, **Ecomancers**, **Ambient-Fed Bruisers**, **Alchemical Worms**, **Shadowlings**, **Creeping Blobs**).
+- **Sim-Native Mobs**: Compact roster of creatures whose entire threat and counterplay run through the CA/SDF/GI simulation (**Dittamoebas**, **Megaslimes**, **Proboscis Assassins**, **Ceiling Siphonophores**, **Ecomancers / Chronomancers / Gravimancers / Dualmancers**, **Ambient-Fed Bruisers**, **Alchemical Worms**, **Shadowlings**, **Creeping Blobs**).
 - **Physical Perks & Slime-Core Mutations**: Between strata (or by crunching rare **Slime Cores** / trading **Refined Ingots** at **Cargo Chutes**), stack physics-and-chemistry perks—*Frost-Walker Boots*, *Slime-Bounce Legs*, *Bioluminescent Aura*, *Vampiric Siphon*, *Volatile Ricochet*, *Extra Vessel Capacity*, or *Telekinetic Gauntlet Range*.
 
 ---
@@ -174,38 +200,36 @@ The seeded biome stratigraphy (`Surface Meadow -> Mossy Karst -> Crystal Vaults 
      - `.z`: `pack_pair(Chrono tau, Gravity G)` (`2 × 12-bit`)
      - `.w`: `-(1.0 + pack_quartet(Prey/Blood, Siren Stank, Fear/Apex, Neuro-Spore))` (`4 × 6-bit` wind-advected biochemical receptors steered by `Cave Hoppers` via `@binding(1)` in `raycast-wgsl`, denatured at `> 350 °C`)
 2. **`solid_buffer.z` (`solid_texture.b`, `rgba16float`)**:
-   - In **Air Voxels**: stores Refractive Index Offset $\Delta n \in [-0.075, +0.075]$ for **3D Eikonal Schlieren Ray-Bending** in `voxel-wgsl` (`t > 1.3m`, capped at `±0.018 rad` total deflection) across Lava/Match heat plumes, blast shockwaves, and the biphasic Predator Cloak around `Glass / Crystal / Amethyst / Obsidian` Ecomancers.
-   - In **Solid Voxels**: stores **Fourier Heat (`+z`)** (driving `24k Gold` thermal bridges to auto-ignite sealed `Gunpowder`/`C4` and autoclave `Coal -> Crystal`) and **Electric Voltage (`-z`)** along `Gold` veins and Piezoelectric `Crystal`/`Amethyst`.
+   - In **Air Voxels**: stores Refractive Index Offset $\Delta n \in [-0.075, +0.075]$ for **3D Eikonal Schlieren Ray-Bending** in `voxel-wgsl` (`t > 1.3m`, capped at `±0.018 rad` total deflection, guarded against stained solid boundaries) across Lava/Match heat plumes, blast shockwaves, and the biphasic Predator Cloak around `Glass / Crystal / Amethyst / Obsidian` Ecomancers.
+   - In **Solid Voxels**: stores **Fourier Heat (`0 < z < 2.0`)**, **Electric Voltage (`z < 0`)**, and **Surface Liquid Stains (`z = 2.0 + liq_id >= 2.5`)** on `TAG_STAINABLE` materials.
 3. **Negative GI ("Darklight") in `light_buffer.rgb` (`rgba16float`)**:
-   - Propagates both positive GI light and negative Darklight (`Obsidian + Miasma`, `Obsidian` Ecomancers) across the 6-neighbor stencil, clamping `total_light` *after* summing in `voxel-wgsl` so Darklight devours ambient light and the player's `[F]` Flashlight beam.
+   - Propagates both positive GI light and negative Darklight (`Obsidian + Miasma`, `Obsidian` Ecomancers, `Shadowlings`) across the 6-neighbor stencil, clamping `total_light` *after* summing in `voxel-wgsl` so Darklight devours ambient light and the player's `[F]` Flashlight beam.
 
-### 8.2. Material & Reaction System Alignment Blueprint *(In Progress)*
-Auditing [`src/materials.carp`](file:///home/sqrew/Desktop/carp-wgpu-wasm-voxel-scaffold/src/materials.carp) and [`src/shaders_sim.carp`](file:///home/sqrew/Desktop/carp-wgpu-wasm-voxel-scaffold/src/shaders_sim.carp) identified 5 concrete alignments needed to make the `1024×1024` reaction matrix airtight:
-- [ ] **Alignment 1: Fix Self-Reaction Bug (`a != b`) & Complete 3-Phase Hand-Offs (`Solid <-> Liquid <-> Gas`)**:
-  - Guard `Materials.build-reactions` with `(when (/= a b) ...)` so multi-tag materials (`Spore Pod 13` and `Spore Cloud 520`, which have both `ORGANIC` and `TOXIC`) stop reacting with themselves via Rule 9!
-  - Add `Solid -> Liquid` (`256 <= rx.x < 512`) pickup in `liquid-sim-wgsl` before early-returning on `is_sol_block` so melting `Ice (8) -> Water (257)` and `Gold (5) -> Lava (258)` actually spawns the liquid instead of vanishing into thin air.
-  - Add the missing `self_gas` (`next_vol > 0.05`) reaction loop in `gas-sim-wgsl` and include co-located `delta = (0,0,0)` fluid checks in both `liquid-sim-wgsl` and `gas-sim-wgsl`.
-- [ ] **Alignment 2: Toughness & Volume-Scaled Reaction Kinetics**:
-  - Weight per-frame reaction probability by `1.0 / max(1.0, toughness * 2.2)` and reactant fluid volume using a fast per-voxel frame hash—so `Sand` dissolves in `Acid` almost immediately, `Stone` pits gradually over ~12 frames, and `Coal` burns 10× longer than `Wood`/`Sponge` as a true furnace fuel.
-- [ ] **Alignment 3: Two-Tier `build-reactions` (Tag Rules Base Layer + Explicit `set-reaction!` Alchemy Table) & Registry-Driven Colors**:
-  - Fix missing tags (`FREEZABLE` on `Ice`, `FLAMMABLE` on `Spore Pod`), wire up `Materials.set-reaction!` for signature combinations (`Lava + Water -> Obsidian/Stone + Steam`, `Sand + Lava -> Glass + Lava`, `Coal + Fire -> Fire + Fire`, `Blood + Acid -> Volatile Gel + Toxic Gas`), and derive `boulder-color`, `slime-color`, and `gi-emission` from `Materials.registry`.
-- [ ] **Alignment 4: Stains & "Portal-Gel" Surface Coating System (`TAG_STAINABLE`, `SLIPPERY`, `BOUNCY`, `STICKY`, `IGNITER`, `EXTINGUISHER`, `TOXIC`, `HEALING`)**:
-  - Couple voxel surface contact (`solid_buffer.z` stain encoding or `raycast-wgsl` ground/fluid probes) and entity/player coatings so `Oil`/`Ice` grant high-speed cave surfing, `Slime` creates bounce pads, `Water` douses burning entities with a `Steam` burst + temporary wet fire-ward, and `Acid`/`Ambrosia` apply corrosive/healing stains.
+### 8.2. Material & Reaction System Alignment Blueprint *(Shipped)*
+- [x] **Alignment 1: Fix Self-Reaction Bug (`a != b`) & Complete 3-Phase Hand-Offs (`Solid <-> Liquid <-> Gas`)**
+- [x] **Alignment 2: Toughness & Volume-Scaled Reaction Kinetics**
+- [x] **Alignment 3: Two-Tier `build-reactions` (Tag Rules Base Layer + Explicit `set-reaction!` Alchemy Table) & Registry-Driven Colors**
+- [x] **Alignment 4: Stains & "Portal-Gel" Surface Coating System (`TAG_STAINABLE`, `[WET]`, `[OILED]`, `[BLESSED]`, `[BOUNCY]`, `[BURNING]`) + Buoyant Smoke Plumes & Ceiling-Well Pooling**
 
 ### 8.3. Remaining Chronological Phases
-- **Phase 1 (Ecomancer Polish)**:
-  - [x] **1.1.** `6.5s` Vulnerable Elemental Re-Attunement Ritual (`state = 4`)
-  - [ ] **1.2.** Real-Time Robe Color-Shift Telegraph During the `6.5s` Ritual
-  - [ ] **1.3.** Reactive Elemental Self-Preservation (Self-Douse & Fire Absorption)
-  - [ ] **1.4.** Emergency Halo Orb Shield-Parry
-  - [ ] **1.5.** `Dittamoeba` Slime Ranching & Slime-Bowling
+- **Phase 1 (Core Ecomancer & 3 Matter-Phase Benders)**:
+  - [x] **1.1.** `6.5s` Vulnerable Phase Re-Attunement Ritual (`state = 4`)
+  - [x] **1.2.** Real-Time Robe Color-Shift Telegraph During the `6.5s` Ritual
+  - [x] **1.3.** Reactive Phase-Wide Self-Preservation (Liquidmancers drink any liquid; Gasmancers inhale any gas/flame; Emergency Self-Douse + Hazard Escape Vault)
+  - [x] **1.4.** Autonomous Halo Orb Shield-Parry, Predictive Velocity-Lead Aiming, `360°` Repulsor Nova, & Matter-Conserving Rubble/Orb Settling (`AppEvent.SettleBoulder`)
+  - [x] **1.5.** **3 Matter-Phase Benders (`Solidmancer`, `Liquidmancer`, `Gasmancer`)**: `256`-segmented `mat_id` range matching (`floor(id / 256) == 0 / 1 / 2`) + mixed-reagent 4-orb halos + 3 distinct 3D raymarched SDF silhouettes (`pos_type.w = 5.0 / 6.0 / 7.0`)
+  - [ ] **1.6.** `Dittamoeba` Slime Ranching & Slime-Bowling *(on hold per design sequence)*
 - **Phase 2 (Cave Lightning — `CONDUCTIVE` & `SHOCKING`)**: ✅ Shipped
 - **Phase 3 (Master Ambient Field Architecture, Negative GI & Eikonal Ray-Bending)**: ✅ Shipped
 - **Phase 4 (Coupled `(T, P)` Thermodynamics & 4-Receptor Wind Chemotaxis)**: ✅ Shipped
-- **Phase 5 (Material & Reaction Alignment + Stains System)**: In Progress
+- **Phase 5 (Material & Reaction Alignment + Stains System + Buoyant Smoke)**: ✅ Shipped
 - **Phase 6 (Deep Alchemy & Creature Expansion)**:
-  - [ ] **6.1.** Photochemistry & Darklight Ecology (`MAT_AMBER` flashlight-curing bridges, `Shadowlings`)
+  - [ ] **6.1.** Photochemistry & Darklight Ecology (`MAT_AMBER` flashlight-curing bridges)
   - [ ] **6.2.** Caustic Wood-Ash Lye (`MAT_LYE`) & Saponification (`Oil + Lye -> Soap`)
   - [ ] **6.3.** Active Chrono ($\tau$) & Gravity ($G$) Coupling (`TAG_ANTI_GRAVITY`)
+- **Phase 7 (The Expanded 10-Mancer Roster & Shadowlings)**:
+  - [ ] **7.1.** **The 4 Force / Field Benders (`Thermomancer`, `Baromancer`, `Gravimancer`, `Chronomancer`)**: Entropy-inverting `Thermomancer (T)`, pillar-shearing overpressure `Baromancer (P)`, Eikonal-lensed singularity & reverse-G `Gravimancer (G)`, and Bullet-Time stasis/rewind `Chronomancer (tau)`.
+  - [ ] **7.2.** **The 4 Exotic / Systemic Benders (`Electromancer`, `Biomancer`, `Photomancer`, `Alchemancer`)**: Lorentz railgun `Electromancer (V, M)`, pheromone/flora `Biomancer (field.w)`, Darklight/Schlieren-mirage `Photomancer`, and in-place transmutation `Alchemancer`.
+  - [ ] **7.3.** **Dualmancer (`Mancer(archetype_a, archetype_b)`) & SS13 Shadowling / Nightmare**: Split-robe `2+2` halo combo warlock + Darklight apex stalker (`light < 0.18` Shadow-Jaunt & Light-Snuffer).
 
 

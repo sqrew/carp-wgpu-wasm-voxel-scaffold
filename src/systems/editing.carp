@@ -11,6 +11,70 @@
             (set! found true)))
         found)))
 
+  (defn settle-boulder! [state idx gen mat-id rad]
+    (let [ecs (EngineState.ecs-world state)
+          world (EngineState.world state)
+          ps (EngineState.particles state)
+          rig (EngineState.rig state)
+          ent (ECS.Entity.init (Handle.init idx gen))
+          cb-opt (the (Maybe CompBody) (get-component ecs &ent))]
+      (match cb-opt
+        (Maybe.Nothing) ()
+        (Maybe.Just cb)
+          (let [rb (CompBody.rb &cb)
+                b (RigidBody.body rb)
+                pos @(RigidBody.position rb)
+                vel @(Body.velocity b)
+                spd (Vector3.mag &vel)
+                bx (Double.to-float @(Vector3.x &pos))
+                by (Double.to-float @(Vector3.y &pos))
+                bz (Double.to-float @(Vector3.z &pos))
+                held? (Uint64.= @(RigBelt.grab-idx rig) idx)]
+            (if (and (> by -190.0f) (or held? (> spd 3.2)))
+              ;; Still held in [4] Gauntlet or flying/rolling fast -> defer settling by 4s!
+              (let [state-ptr (Unsafe.coerce state)
+                    _ (Coordinator.schedule! (EngineState.coord state)
+                        (AppEvent.SettleBoulder state-ptr idx gen mat-id rad) 4000l)]
+                ())
+              (do
+                (when (> by -200.0f)
+                  (let [m (Float.round mat-id)
+                        jpt (Materials.jet-ptype mat-id)
+                        dep-r (Float.clamp 1.05f 1.55f (* rad 2.55f))
+                        spos (Vector3.init (Double.from-float bx) (Double.from-float (- by 0.12f)) (Double.from-float bz))]
+                    (if (= m 13)
+                      ;; Spore Pod (13): Ruptures into a live Spore Cloud bloom + fungal floor crust!
+                      (do
+                        (EngineState.push-voxel-action! state bx (+ by 0.35f) bz 3.15f 520.0f 0.90f 1.0f)
+                        (EngineState.push-voxel-action! state bx (- by 0.12f) bz 1.20f 13.0f 1.0f 0.0f)
+                        (MancerSystem.edit-bender-sdf! world &spos 1.20 13.0f false)
+                        (ParticleSystem.emit! ps bx (+ by 0.2f) bz 0.0f 3.8f 0.0f 1.9f 22 208.0f 0.55f 0.05f))
+                      (if (= m 8)
+                        ;; Ice (8): Fractures & melts into a cool Water splash + frost mist!
+                        (do
+                          (EngineState.push-voxel-action! state bx (+ by 0.20f) bz 2.35f 257.0f 0.85f 0.0f)
+                          (ParticleSystem.emit! ps bx (+ by 0.15f) bz 0.0f 3.2f 0.0f 1.4f 16 jpt 0.35f 0.22f)
+                          (ParticleSystem.emit-dust! ps bx by bz 8))
+                        (if (Materials.granular? mat-id)
+                          ;; Granular Solids (Sand 6, Gunpowder 12): Slump into a live falling GPU CA pile!
+                          (do
+                            (EngineState.push-voxel-action! state bx (+ by 0.30f) bz (* rad 2.85f) (- 0.0f mat-id) 1.0f 0.0f)
+                            (ParticleSystem.emit! ps bx (+ by 0.20f) bz 0.0f 2.6f 0.0f 1.25f 16 jpt 0.36f 0.25f)
+                            (ParticleSystem.emit-dust! ps bx by bz 10))
+                          (if (= m 5)
+                            ;; Gold (5): Settles into a collectible 24k Gold Nugget!
+                            (ignore (GoldSystem.spawn-nugget! state pos (Vector3.init 0.0 1.8 0.0) 0.30 15))
+                            ;; Cohesive Solids: Fuse & weld back into the local SDF & voxel grid!
+                            (do
+                              (EngineState.push-voxel-action! state bx (- by 0.12f) bz dep-r mat-id 1.0f 0.0f)
+                              (MancerSystem.edit-bender-sdf! world &spos (Double.from-float dep-r) mat-id false)
+                              (when (= m 16)
+                                ;; Rad-Ore (16): Belches a radioactive Miasma wisp as it welds into the rock!
+                                (EngineState.push-voxel-action! state bx (+ by 0.35f) bz 2.25f 519.0f 0.78f 0.0f))
+                              (ParticleSystem.emit! ps bx (+ by 0.15f) bz 0.0f 2.8f 0.0f 1.15f 12 jpt 0.30f 0.22f)
+                              (ParticleSystem.emit-dust! ps bx by bz 12))))))))
+                (GameWorld.destroy-entity! ecs &ent)))))))
+
   (defn spawn-boulder! [state spawn-pos vel radius mat-id ttl-ms]
     (let [ecs (EngineState.ecs-world state)
           e (GameWorld.create-entity! ecs)
@@ -26,9 +90,11 @@
         (add-component! ecs &e (CompColor.init col))
         (let [idx (ECS.Entity.index &e)
               gen (ECS.Entity.generation &e)
-              ecs-ptr (Unsafe.coerce (EngineState.ecs-world state))
-              _ (Coordinator.schedule! (EngineState.coord state) (AppEvent.DespawnEntity ecs-ptr idx gen) ttl-ms)]
+              state-ptr (Unsafe.coerce state)
+              f-rad (Double.to-float radius)
+              _ (Coordinator.schedule! (EngineState.coord state) (AppEvent.SettleBoulder state-ptr idx gen mat-id f-rad) ttl-ms)]
           e))))
+
 
   (defn punt-cone-entities! [state ro rd ps]
     (let [ecs (EngineState.ecs-world state)
@@ -393,7 +459,7 @@
                           is-gold? (= (Float.round hit-mat) 5)
                           boulder (if is-gold?
                                     (GoldSystem.spawn-nugget! state bpos bvel 0.38 25)
-                                    (EditingSystem.spawn-boulder! state bpos bvel 0.52 hit-mat 45000l))
+                                    (EditingSystem.spawn-boulder! state bpos bvel 0.52 hit-mat 18000l))
                           spt (Materials.succ-ptype hit-mat)]
                       (do
                         (RigBelt.set-last-wrench-frame! rig fc)
@@ -443,9 +509,9 @@
                               (do
                                 (EngineState.push-voxel-action! state hx hy hz 2.20f hit-mat -1.0f 0.0f)
                                 (ignore (World.edit-sdf! world &hvec 2.20 hit-mat true))
-                                (ignore (EditingSystem.spawn-boulder! state p0 v0 0.50 hit-mat 35000l))
-                                (ignore (EditingSystem.spawn-boulder! state p1 v1 0.44 hit-mat 35000l))
-                                (ignore (EditingSystem.spawn-boulder! state p2 v2 0.42 hit-mat 35000l))
+                                (ignore (EditingSystem.spawn-boulder! state p0 v0 0.50 hit-mat 9500l))
+                                (ignore (EditingSystem.spawn-boulder! state p1 v1 0.44 hit-mat 11000l))
+                                (ignore (EditingSystem.spawn-boulder! state p2 v2 0.42 hit-mat 12500l))
                                 (ParticleSystem.emit-sparks! ps hx hy hz fxf fyf fzf 26)
                                 (ParticleSystem.emit-debris! ps hx hy hz fxf 1.0f fzf 16)
                                 (ParticleSystem.emit-dust! ps hx hy hz 24)
@@ -460,7 +526,7 @@
                               (do
                                 (EngineState.push-voxel-action! state hx hy hz 1.25f hit-mat -1.0f 0.0f)
                                 (ignore (World.edit-sdf! world &hvec 1.25 hit-mat true))
-                                (ignore (EditingSystem.spawn-boulder! state p0 v0 0.38 hit-mat 30000l))
+                                (ignore (EditingSystem.spawn-boulder! state p0 v0 0.38 hit-mat 8500l))
                                 (ParticleSystem.emit-sparks! ps hx hy hz (* fxf -1.0f) 0.8f (* fzf -1.0f) 14)
                                 (ParticleSystem.emit-debris! ps hx hy hz 0.0f 1.0f 0.0f 8)
                                 (ParticleSystem.emit-dust! ps hx hy hz 16)
