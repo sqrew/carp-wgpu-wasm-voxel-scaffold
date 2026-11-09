@@ -19,38 +19,42 @@
 
 (defmodule Terrain
   (defn biome-name [b]
-    (if (= b 0) @"Overgrown Spore Karst"
-    (if (= b 1) @"Firedamp Coal Seam"
-    (if (= b 2) @"Glacial Waterfall Shafts"
-    (if (= b 3) @"Caustic Obsidian Vaults"
-    (if (= b 4) @"Sandstone & Oil Tar Pits"
-    (if (= b 5) @"Amethyst & Volatile Chasms"
-    (if (= b 6) @"Vitrified Rad-Geodes"
-                @"Magma & Brimstone Abyss"))))))))
+    (if (= b 0)  @"Overgrown Spore Karst"
+    (if (= b 1)  @"Firedamp Coal Seam"
+    (if (= b 2)  @"Glacial Waterfall Shafts"
+    (if (= b 3)  @"Caustic Obsidian Vaults"
+    (if (= b 4)  @"Sandstone & Oil Tar Pits"
+    (if (= b 5)  @"Amethyst & Volatile Chasms"
+    (if (= b 6)  @"Vitrified Rad-Geodes"
+    (if (= b 7)  @"Magma & Brimstone Abyss"
+    (if (= b 8)  @"Halite & Alkali Salt Domes"
+    (if (= b 9)  @"Saponified Lye & Nitro Cisterns"
+    (if (= b 10) @"Carbide & Acetylene Lampworks"
+                 @"Cryo-Phosphor Abyss"))))))))))))
 
   (defn lcg-step [s]
     (Double.mod (+ (* s 1664525.0) 1013904223.0) 4294967296.0))
 
   (defn make-strata [seed]
     (let [s (Terrain.lcg-step (Double.from-int seed))
-          shallow-pool [0 1 2 4 5]
-          idx0 (Double.to-int (* 5.0 (/ s 4294967296.0)))
-          b0 @(Array.unsafe-nth &shallow-pool (if (> idx0 4) 4 idx0))
+          shallow-pool [0 1 2 4 5 8 10]
+          idx0 (Double.to-int (* 7.0 (/ s 4294967296.0)))
+          b0 @(Array.unsafe-nth &shallow-pool (if (> idx0 6) 6 idx0))
           rem-pool []
           biomes (Array.allocate 5)
           splits (Array.allocate 4)]
       (do
-        (for [cand 0 8]
+        (for [cand 0 12]
           (when (/= cand b0)
             (Array.push-back! &rem-pool cand)))
-        ;; Fisher-Yates shuffle on the 7 remaining biomes
-        (for [i 0 6]
+        ;; Fisher-Yates shuffle on the 11 remaining biomes
+        (for [i 0 10]
           (do
             (set! s (Terrain.lcg-step s))
-            (let [span (- 7 i)
+            (let [span (- 11 i)
                   r (/ s 4294967296.0)
                   j (+ i (Double.to-int (* (Double.from-int span) r)))
-                  jj (if (>= j 7) 6 j)
+                  jj (if (>= j 11) 10 j)
                   tmp @(Array.unsafe-nth &rem-pool i)]
               (do
                 (Array.aset! &rem-pool i @(Array.unsafe-nth &rem-pool jj))
@@ -92,47 +96,63 @@
       (+ c (* t3 (- v4 c)))))
 
   (defn macro-w [b]
-    (if (= b 0) 0.42
-    (if (= b 1) 0.24
-    (if (= b 2) 0.44
-    (if (= b 3) 0.58
-    (if (= b 4) 0.62
-    (if (= b 5) 0.54
-    (if (= b 6) 0.66
-                0.68))))))))
+    (if (= b 0)  0.42
+    (if (= b 1)  0.24
+    (if (= b 2)  0.44
+    (if (= b 3)  0.58
+    (if (= b 4)  0.62
+    (if (= b 5)  0.54
+    (if (= b 6)  0.66
+    (if (= b 7)  0.68
+    (if (= b 8)  0.56
+    (if (= b 9)  0.54
+    (if (= b 10) 0.38
+                 0.52))))))))))))
 
   (defn chasm-w [b]
-    (if (= b 0) 0.28
-    (if (= b 1) 0.18
-    (if (= b 2) 0.52
-    (if (= b 3) 0.28
-    (if (= b 4) 0.18
-    (if (= b 5) 0.46
-    (if (= b 6) 0.24
-                0.34))))))))
+    (if (= b 0)  0.28
+    (if (= b 1)  0.18
+    (if (= b 2)  0.52
+    (if (= b 3)  0.28
+    (if (= b 4)  0.18
+    (if (= b 5)  0.46
+    (if (= b 6)  0.24
+    (if (= b 7)  0.34
+    (if (= b 8)  0.30
+    (if (= b 9)  0.22
+    (if (= b 10) 0.36
+                 0.48))))))))))))
 
   (defn tun-w [b]
-    (if (= b 0) 0.42
-    (if (= b 1) 0.54
-    (if (= b 2) 0.24
-    (if (= b 3) 0.26
-    (if (= b 4) 0.30
-    (if (= b 5) 0.25
-    (if (= b 6) 0.22
-                0.20))))))))
+    (if (= b 0)  0.42
+    (if (= b 1)  0.54
+    (if (= b 2)  0.24
+    (if (= b 3)  0.26
+    (if (= b 4)  0.30
+    (if (= b 5)  0.25
+    (if (= b 6)  0.22
+    (if (= b 7)  0.20
+    (if (= b 8)  0.24
+    (if (= b 9)  0.32
+    (if (= b 10) 0.46
+                 0.22))))))))))))
 
   (defn thresh-w [b]
-    (if (= b 0) 0.14
-    (if (= b 1) 0.16
-    (if (= b 2) 0.12
-    (if (= b 3) 0.11
-    (if (= b 4) 0.10
-    (if (= b 5) 0.11
-    (if (= b 6) 0.11
-                0.09))))))))
+    (if (= b 0)  0.14
+    (if (= b 1)  0.16
+    (if (= b 2)  0.12
+    (if (= b 3)  0.11
+    (if (= b 4)  0.10
+    (if (= b 5)  0.11
+    (if (= b 6)  0.11
+    (if (= b 7)  0.09
+    (if (= b 8)  0.11
+    (if (= b 9)  0.11
+    (if (= b 10) 0.13
+                 0.11))))))))))))
 
   (defn cauldron-biome? [b]
-    (or (= b 3) (= b 7)))
+    (or (= b 3) (or (= b 7) (or (= b 9) (= b 11)))))
 
   (defn cauldron-seal [b band-bot wy]
     (if (and (Terrain.cauldron-biome? b) (> band-bot -190.0))
@@ -146,94 +166,183 @@
     (if (or (< wy (+ band-bot 5.0)) (> wy (- band-top 5.0)))
       0.0f
       (if (= b 0)
-        ;; 0: Overgrown Spore Karst -> perched Water pools
-        (if (and (<= wy (+ band-bot 13.0)) (< n-tun -0.18)) -1.0f 0.0f)
+        ;; 0: Overgrown Spore Karst -> perched Water pools (-1) + high Spore Cloud canopies (+8)
+        (if (and (<= wy (+ band-bot 13.0)) (< n-tun -0.18))
+          -1.0f
+          (if (and (>= wy (- band-top 12.0)) (> n-tun 0.36)) 8.0f 0.0f))
       (if (= b 1)
-        ;; 1: Firedamp Coal Seam -> buoyant explosive Methane pockets (+6.0f) in upper galleries
-        (if (and (>= wy (- band-top 16.0)) (> n-tun 0.20)) 6.0f 0.0f)
+        ;; 1: Firedamp Coal Seam -> buoyant Methane domes (+6) in upper galleries + heavy Butane pockets (+10) in low coal sumps
+        (if (and (>= wy (- band-top 16.0)) (> n-tun 0.20))
+          6.0f
+          (if (and (<= wy (+ band-bot 11.5)) (< n-tun -0.32)) 10.0f 0.0f))
       (if (= b 2)
-        ;; 2: Glacial Waterfall Shafts -> Ambrosia shrines + deep Water shafts
-        (if (and (>= wy (- band-top 12.0)) (> n-tun 0.42))
+        ;; 2: Glacial Waterfall Shafts -> Ambrosia shrines (-6) + rare cryo Liquid Nitrogen pockets (-15) + deep Water shafts (-1)
+        (if (and (>= wy (- band-top 11.0)) (> n-tun 0.48))
           -6.0f
-          (if (and (<= wy (+ band-bot 17.0)) (< n-chasm -0.06)) -1.0f 0.0f))
+          (if (and (<= wy (+ band-bot 9.5)) (< n-tun -0.52))
+            -15.0f
+            (if (and (<= wy (+ band-bot 15.0)) (< n-chasm -0.14)) -1.0f 0.0f)))
       (if (= b 3)
-        ;; 3: Caustic Obsidian Vaults -> high Ambrosia alcoves + glowing green Acid lakes
-        (if (and (>= wy (- band-top 11.0)) (> n-tun 0.45))
+        ;; 3: Caustic Obsidian Vaults -> high Ambrosia alcoves (-6) + Caustic Lye vats (-13) + Acid lakes (-3) + heavy Chlorine trench pockets (+11)
+        (if (and (>= wy (- band-top 11.0)) (> n-tun 0.46))
           -6.0f
-          (if (and (<= wy (+ band-bot 13.0)) (> n-macro -0.12)) -3.0f 0.0f))
+          (if (and (<= wy (+ band-bot 10.5)) (< n-tun -0.44))
+            -13.0f
+            (if (and (<= wy (+ band-bot 12.5)) (> n-macro 0.02))
+              -3.0f
+              (if (and (<= wy (+ band-bot 15.0)) (> n-tun 0.44)) 11.0f 0.0f))))
       (if (= b 4)
-        ;; 4: Sandstone & Oil Tar Pits -> slick flammable Oil tar lakes
-        (if (and (<= wy (+ band-bot 12.0)) (> n-macro -0.10)) -4.0f 0.0f)
+        ;; 4: Sandstone & Oil Tar Pits -> Stratified Hydrocarbon Reservoirs!
+        ;; Bottom-to-top by density: Water boilover lens (-1) -> Diesel (-9) -> Crude Oil (-4) -> Kerosene (-10) -> Naphtha (-11) -> Butane vapor blanket (+10) -> upper Methane dome (+6)
+        (if (and (>= wy (- band-top 14.0)) (> n-tun 0.24))
+          6.0f
+          (if (> n-macro 0.02)
+            (if (<= wy (+ band-bot 6.5))
+              -1.0f
+              (if (<= wy (+ band-bot 8.5))
+                -9.0f
+                (if (<= wy (+ band-bot 10.2))
+                  -4.0f
+                  (if (<= wy (+ band-bot 11.5))
+                    -10.0f
+                    (if (<= wy (+ band-bot 12.6))
+                      -11.0f
+                      (if (<= wy (+ band-bot 14.2)) 10.0f 0.0f))))))
+            0.0f))
       (if (= b 5)
-        ;; 5: Amethyst & Volatile Chasms -> Toxic Sludge & explosive magenta Volatile Gel
-        (if (<= wy (+ band-bot 13.0))
-          (if (> n-tun 0.26)
-            -8.0f
-            (if (< n-tun -0.34) -7.0f 0.0f))
-          0.0f)
+        ;; 5: Amethyst & Volatile Chasms -> rare high Nitroglycerin weeping pockets (-14) + Toxic Sludge (-8) & Volatile Gel (-7)
+        (if (and (>= wy (- band-top 10.5)) (< n-tun -0.52))
+          -14.0f
+          (if (<= wy (+ band-bot 12.0))
+            (if (> n-tun 0.30)
+              -8.0f
+              (if (< n-tun -0.38) -7.0f 0.0f))
+            0.0f))
       (if (= b 6)
-        ;; 6: Vitrified Rad-Geodes -> Toxic Sludge puddles
-        (if (and (<= wy (+ band-bot 11.0)) (> n-tun 0.30)) -8.0f 0.0f)
-        ;; 7: Magma & Brimstone Abyss -> glowing Lava seas
-        (if (and (<= wy (+ band-bot 15.0)) (> n-macro -0.16)) -2.0f 0.0f))))))))))
+        ;; 6: Vitrified Rad-Geodes -> ultra-dense liquid Mercury pools (-12), Toxic Sludge (-8), and glowing heavy Radon gas basins (+12)
+        (if (and (<= wy (+ band-bot 9.0)) (< n-tun -0.38))
+          -12.0f
+          (if (and (<= wy (+ band-bot 10.5)) (> n-tun 0.34))
+            -8.0f
+            (if (and (<= wy (+ band-bot 14.0)) (> n-tun 0.22)) 12.0f 0.0f)))
+      (if (= b 7)
+        ;; 7: Magma & Brimstone Abyss -> glowing Lava seas (-2) + volcanic Acid Vapor fumarole plumes (+5)
+        (if (and (<= wy (+ band-bot 14.0)) (> n-macro -0.10))
+          -2.0f
+          (if (and (>= wy (- band-top 13.0)) (> n-tun 0.40)) 5.0f 0.0f))
+      (if (= b 8)
+        ;; 8: Halite & Alkali Salt Domes -> buoyant Hydrogen domes (+9) + perched Caustic Lye vats (-13) + lower Water brine pools (-1) + Chlorine trenches (+11)
+        (if (and (>= wy (- band-top 13.5)) (> n-tun 0.28))
+          9.0f
+          (if (and (>= wy (- band-top 11.5)) (< n-tun -0.46))
+            -13.0f
+            (if (and (<= wy (+ band-bot 10.5)) (> n-tun 0.28))
+              -1.0f
+              (if (and (<= wy (+ band-bot 14.0)) (< n-macro -0.34)) 11.0f 0.0f))))
+      (if (= b 9)
+        ;; 9: Saponified Lye & Nitro Cisterns -> small high Nitroglycerin (-14) & Ambrosia (-6) cisterns + lower Caustic Lye (-13) & Diesel (-9) vats + Acid Vapor (+5)
+        (if (>= wy (- band-top 10.5))
+          (if (< n-tun -0.52)
+            -14.0f
+            (if (> n-tun 0.46) -6.0f 0.0f))
+          (if (<= wy (+ band-bot 10.5))
+            (if (< n-tun -0.32)
+              -13.0f
+              (if (> n-tun 0.36) -9.0f 0.0f))
+            (if (and (<= wy (+ band-bot 14.5)) (> n-macro 0.42)) 5.0f 0.0f)))
+      (if (= b 10)
+        ;; 10: Carbide & Acetylene Lampworks -> volatile Acetylene (+13) & Hydrogen (+9) ceiling domes + perched Water (-1) & Kerosene/Naphtha (-10/-11) lamp sumps
+        (if (>= wy (- band-top 13.5))
+          (if (> n-tun 0.32)
+            13.0f
+            (if (< n-tun -0.42) 9.0f 0.0f))
+          (if (<= wy (+ band-bot 10.0))
+            (if (< n-tun -0.36)
+              -1.0f
+              (if (> n-tun 0.42) -10.0f (if (> n-tun 0.30) -11.0f 0.0f)))
+            0.0f))
+        ;; 11: Cryo-Phosphor Abyss -> contained sub-zero Liquid Nitrogen basins (-15) + deep Mercury trenches (-12) + heavy Butane/Radon (+10/+12) cold-traps
+        (if (and (<= wy (+ band-bot 8.5)) (< n-tun -0.44))
+          -12.0f
+          (if (and (<= wy (+ band-bot 10.0)) (> n-tun 0.32))
+            -15.0f
+            (if (<= wy (+ band-bot 14.5))
+              (if (> n-tun 0.40) 12.0f (if (< n-tun -0.40) 10.0f 0.0f))
+              0.0f))))))))))))))))
 
   (defn solid-mat-for-biome [b wy band-bot cave-skin? n3 n-tun n-det]
     (if (= b 0)
-      ;; 0: Overgrown Spore Karst (Spore Pod + Slime + Wood roots kept disjoint from Toxic Spore Pods + Coal)
+      ;; 0: Overgrown Spore Karst (Spore Pod + Slime + Sponge moss + Wood roots + Gold + Coal)
       (if (and cave-skin? (> n3 0.48))
         13.0f
         (if (and cave-skin? (< n3 -0.52))
           10.0f
-          (if (and cave-skin? (and (> n3 -0.22) (< n3 -0.08)))
-            3.0f
-            (if (> n-det 0.65)
-              5.0f
-              (if (< n-det -0.54) 4.0f 1.0f)))))
+          (if (and cave-skin? (and (> n3 0.28) (<= n3 0.40)))
+            11.0f
+            (if (and cave-skin? (and (> n3 -0.22) (< n3 -0.08)))
+              3.0f
+              (if (> n-det 0.65)
+                5.0f
+                (if (< n-det -0.54) 4.0f 1.0f))))))
     (if (= b 1)
-      ;; 1: Firedamp Coal Seam (thick Coal veins + Gunpowder pockets + faint Crystal lanterns + Gold)
+      ;; 1: Firedamp Coal Seam (thick Coal veins + Calcium Carbide miner's gravel + Gunpowder pockets + faint Crystal lanterns + Gold)
       (if (and cave-skin? (> n3 0.54))
         7.0f
-        (if (and cave-skin? (< n3 -0.60))
-          14.0f
-          (if (> n-det 0.64)
-            5.0f
-            (if (< n-det -0.22) 4.0f 1.0f))))
+        (if (and cave-skin? (and (> wy (+ band-bot 17.0)) (and (> n3 0.32) (< n3 0.48))))
+          24.0f
+          (if (and cave-skin? (< n3 -0.60))
+            14.0f
+            (if (> n-det 0.64)
+              5.0f
+              (if (< n-det -0.22) 4.0f 1.0f)))))
     (if (= b 2)
-      ;; 2: Glacial Waterfall Shafts (Crystal spires + slippery Ice & Glass ribs + Gold)
-      (if (and cave-skin? (> n3 0.44))
-        14.0f
-        (if (and cave-skin? (< n3 -0.36))
-          (if (> n-tun 0.0) 8.0f 9.0f)
-          (if (> n-det 0.60)
-            5.0f
-            (if (< n-det -0.25) 8.0f 1.0f))))
+      ;; 2: Glacial Waterfall Shafts (Crystal spires + ice-encased White Phosphorus geodes + slippery Ice & Glass ribs + Gold)
+      (if (and (not cave-skin?) (and (<= wy (+ band-bot 14.0)) (< n-det -0.60)))
+        25.0f
+        (if (and cave-skin? (> n3 0.44))
+          14.0f
+          (if (and cave-skin? (< n3 -0.36))
+            (if (> n-tun 0.0) 8.0f 9.0f)
+            (if (> n-det 0.60)
+              5.0f
+              (if (< n-det -0.25) 8.0f 1.0f)))))
     (if (= b 3)
-      ;; 3: Caustic Obsidian Vaults (non-corrodible Obsidian basins + submerged Gold + Crystal + high Glass)
+      ;; 3: Caustic Obsidian Vaults (non-corrodible Obsidian basins + Sulfur crusts + submerged Gold + Crystal + high Glass)
       (if (and cave-skin? (> n3 0.48))
         14.0f
-        (if (and cave-skin? (and (> wy (+ band-bot 18.0)) (< n3 -0.52)))
-          9.0f
-          (if (> n-det 0.56) 5.0f 16.0f)))
+        (if (and cave-skin? (and (> wy (+ band-bot 16.0)) (and (> n3 0.22) (<= n3 0.38))))
+          23.0f
+          (if (and cave-skin? (and (> wy (+ band-bot 18.0)) (< n3 -0.52)))
+            9.0f
+            (if (> n-det 0.56) 5.0f 16.0f))))
     (if (= b 4)
-      ;; 4: Sandstone & Oil Tar Pits (Sandstone ribs + dry ceiling Sponge nests + Crystal + Gold/Coal)
-      (if (and cave-skin? (and (> wy (+ band-bot 18.0)) (< n3 -0.56)))
-        11.0f
-        (if (and cave-skin? (> n3 0.52))
-          14.0f
-          (if (> n-det 0.58)
-            5.0f
-            (if (< n-det -0.52)
-              4.0f
-              (if (> n-det -0.18) 6.0f 1.0f)))))
+      ;; 4: Sandstone & Oil Tar Pits (Bitumen tar basin linings + Salt evaporite domes + dry upper Sodium nodules + Sponge + Crystal + Gold/Coal/Sand)
+      (if (and cave-skin? (and (<= wy (+ band-bot 14.5)) (> n-tun -0.15)))
+        19.0f
+        (if (and cave-skin? (and (> wy (+ band-bot 15.0)) (and (> n3 0.24) (< n3 0.44))))
+          21.0f
+          (if (and cave-skin? (and (> wy (+ band-bot 22.0)) (> n3 0.62)))
+            20.0f
+            (if (and cave-skin? (and (> wy (+ band-bot 18.0)) (< n3 -0.56)))
+              11.0f
+              (if (and cave-skin? (> n3 0.52))
+                14.0f
+                (if (> n-det 0.58)
+                  5.0f
+                  (if (< n-det -0.52)
+                    4.0f
+                    (if (> n-det -0.18) 6.0f 1.0f))))))))
     (if (= b 5)
-      ;; 5: Amethyst & Volatile Chasms (Amethyst walls + Crystal + rich Gold/Coal)
+      ;; 5: Amethyst & Volatile Chasms (Amethyst walls + C4 seams + Crystal + rich Gold/Coal)
       (if (and cave-skin? (> n3 0.40))
         15.0f
-        (if (and cave-skin? (< n3 -0.54))
-          14.0f
-          (if (> n-det 0.55)
-            5.0f
-            (if (< n-det -0.54) 4.0f 1.0f))))
+        (if (and cave-skin? (and (> wy (+ band-bot 18.0)) (and (> n3 0.18) (<= n3 0.32))))
+          12.0f
+          (if (and cave-skin? (< n3 -0.54))
+            14.0f
+            (if (> n-det 0.55)
+              5.0f
+              (if (< n-det -0.54) 4.0f 1.0f)))))
     (if (= b 6)
       ;; 6: Vitrified Rad-Geodes (glowing Rad-Ore + vitrified Glass & Obsidian + Amethyst + Gold)
       (if (and cave-skin? (> n3 0.40))
@@ -245,18 +354,76 @@
             (if (> n-det 0.54)
               5.0f
               (if (< n-det 0.10) 16.0f 9.0f)))))
-      ;; 7: Magma & Brimstone Abyss (Obsidian & Stone + Amethyst/Crystal + high-arch Gold & Brimstone Gunpowder)
+    (if (= b 7)
+      ;; 7: Magma & Brimstone Abyss (Obsidian & Stone + yellow Brimstone Sulfur crusts + Amethyst/Crystal + high-arch Gold & Gunpowder)
       (if (and cave-skin? (> n3 0.40))
         15.0f
         (if (and cave-skin? (< n3 -0.50))
           14.0f
-          (if (and cave-skin? (and (> wy (+ band-bot 21.0)) (and (> n3 0.22) (< n3 0.34))))
-            7.0f
-            (if (and (> wy (+ band-bot 20.0)) (> n-det 0.52))
+          (if (and cave-skin? (and (> wy (+ band-bot 16.5)) (and (> n3 0.05) (< n3 0.22))))
+            23.0f
+            (if (and cave-skin? (and (> wy (+ band-bot 21.0)) (and (>= n3 0.22) (< n3 0.34))))
+              7.0f
+              (if (and (> wy (+ band-bot 20.0)) (> n-det 0.52))
+                5.0f
+                (if (or (<= wy (+ band-bot 18.0)) (< n-det -0.15))
+                  16.0f
+                  1.0f))))))
+    (if (= b 8)
+      ;; 8: Halite & Alkali Salt Domes (glittering white Salt pillars + Crystal chandeliers + Glass crusts + dry upper Sodium shelves + Gold)
+      (if (and cave-skin? (> n3 0.46))
+        14.0f
+        (if (and cave-skin? (and (> wy (+ band-bot 19.0)) (and (> n3 0.16) (<= n3 0.44))))
+          20.0f
+          (if (and cave-skin? (< n3 -0.44))
+            9.0f
+            (if (> n-det 0.56)
               5.0f
-              (if (or (<= wy (+ band-bot 18.0)) (< n-det -0.15))
-                16.0f
-                1.0f)))))))))))))
+              (if (> n-det -0.22) 21.0f 1.0f)))))
+    (if (= b 9)
+      ;; 9: Saponified Lye & Nitro Cisterns (frictionless ivory-pink Soap terraces + bouncy Slime bumpers + Sponge vats + Obsidian cauldron rims + C4/Gold)
+      (if (and cave-skin? (> n3 0.48))
+        11.0f
+        (if (and cave-skin? (and (> wy (+ band-bot 15.0)) (and (> n3 -0.24) (<= n3 0.38))))
+          22.0f
+          (if (and cave-skin? (< n3 -0.40))
+            10.0f
+            (if (and cave-skin? (and (> wy (+ band-bot 20.0)) (and (> n3 0.38) (<= n3 0.48))))
+              12.0f
+              (if (> n-det 0.55)
+                5.0f
+                (if (or (<= wy (+ band-bot 15.0)) (< n-det -0.20))
+                  16.0f
+                  22.0f))))))
+    (if (= b 10)
+      ;; 10: Carbide & Acetylene Lampworks (Calcium Carbide gravel ledges + yellow Sulfur ribs + Gunpowder pockets + Bitumen beams + Crystal lanterns + Coal/Gold)
+      (if (and cave-skin? (and (> wy (+ band-bot 15.0)) (and (> n3 0.08) (< n3 0.46))))
+        24.0f
+        (if (and cave-skin? (>= n3 0.46))
+          23.0f
+          (if (and cave-skin? (< n3 -0.52))
+            7.0f
+            (if (and cave-skin? (and (>= n3 -0.52) (< n3 -0.34)))
+              14.0f
+              (if (> n-det 0.56)
+                5.0f
+                (if (< n-det -0.24)
+                  4.0f
+                  (if (> n-det 0.22) 19.0f 1.0f)))))))
+      ;; 11: Cryo-Phosphor Abyss (ice-encased White Phosphorus geode cores + Ice/Crystal/Amethyst cryo-spires + Obsidian trenches + Gold)
+      (if (and (not cave-skin?) (< n-det -0.56))
+        25.0f
+        (if (and cave-skin? (> n3 0.42))
+          14.0f
+          (if (and cave-skin? (and (> n3 0.14) (<= n3 0.42)))
+            15.0f
+            (if (and cave-skin? (< n3 -0.30))
+              8.0f
+              (if (> n-det 0.52)
+                5.0f
+                (if (or (<= wy (+ band-bot 14.5)) (< n-det -0.18))
+                  16.0f
+                  8.0f))))))))))))))))))
 
   (defn generate! [noise-state strata qx qy qz p-data]
     (let [res 32
@@ -292,23 +459,28 @@
               (for [y 0 res]
                 (let [gy (+ (* qy 32) y)
                       fdy (Double.from-int gy)
+                      seg (if (>= gy -192) 0 (+ 1 (/ (- -193 gy) 192)))
+                      local-gy (+ gy (* seg 192))
+                      local-fdy (Double.from-int local-gy)
                       idx (+ (* z 1024) (+ (* y 32) x))
                       offset (* idx 4)]
-                  (if (<= gy -192)
-                      ;; Segment 1 Breadrock Seal at y = -192
-                      (do
-                        (Pointer.set (Pointer.add p-data (Long.from-int offset)) 255.0f)
-                        (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) -12.0f)
-                        (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
-                        (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 10.0f))
+                  (if (and (<= local-gy -187) (>= local-gy -192))
+                      ;; Segment Boundary Abyssal Seal (MAT_SEAL = 18.0f) at local-gy in [-192 .. -187]
+                      ;; Dissolves ONLY when Gold (5) or Ambrosia (262) is poured onto it!
+                      (let [seal-sdf (Double.to-float (- (Double.abs (- local-fdy -189.5)) 3.2))]
+                        (do
+                          (Pointer.set (Pointer.add p-data (Long.from-int offset)) 18.0f)
+                          (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) seal-sdf)
+                          (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
+                          (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 10.0f)))
                       (let [surf-sdf (- fdy surface-h)]
-                        (if (> fdy sky-cutoff)
+                        (if (and (= seg 0) (> fdy sky-cutoff))
                             (do
                               (Pointer.set (Pointer.add p-data (Long.from-int offset)) 0.0f)
                               (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) (Double.to-float (if (> surf-sdf 12.0) 12.0 surf-sdf)))
                               (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
                               (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 0.0f))
-                            (let [wy (+ fdy fold-y)
+                            (let [wy (+ local-fdy fold-y)
                                   t0 (Terrain.smooth01 -7.0 7.0 (- s0 wy))
                                   t1 (Terrain.smooth01 -7.0 7.0 (- s1 wy))
                                   t2 (Terrain.smooth01 -7.0 7.0 (- s2 wy))
@@ -321,8 +493,10 @@
                                   n-chasm (Noise.noise3d noise-state (- (* fdx 0.028) 63.0) (* fdy 0.011) (+ (* fdz 0.028) 29.0))
                                   n-tun (Noise.noise3d noise-state (+ (* fdx 0.038) 17.0) (* fdy 0.044) (- (* fdz 0.038) 41.0))
                                   n-det (Noise.noise3d noise-state (+ (* fdx 0.095) 37.0) (* fdy 0.095) (- (* fdz 0.095) 19.0))
-                                  roof-guard (if (> surf-sdf -8.0) (* (* (+ surf-sdf 8.0) 0.032) sink-open) 0.0)
-                                  floor-guard (if (< fdy -178.0) (* (- -178.0 fdy) 0.065) 0.0)
+                                  roof-guard (if (and (= seg 0) (> surf-sdf -8.0)) (* (* (+ surf-sdf 8.0) 0.032) sink-open) 0.0)
+                                  ;; Open wide Seal Chambers right above (-178..-186) and Vaults right below (-1..-11) each Abyssal Seal!
+                                  seal-open (if (< local-fdy -178.0) (* (- -178.0 local-fdy) 0.055) 0.0)
+                                  vault-open (if (and (> seg 0) (> local-fdy -11.0)) (* (+ local-fdy 11.0) 0.055) 0.0)
                                   cauld-guard (+ (Terrain.cauldron-seal b0 s0 wy)
                                                  (+ (Terrain.cauldron-seal b1 s1 wy)
                                                     (+ (Terrain.cauldron-seal b2 s2 wy)
@@ -330,8 +504,8 @@
                                   cave-blend (+ (* n-macro w-macro)
                                                 (+ (* n-chasm w-chasm)
                                                    (+ (* n-tun w-tun)
-                                                      (* n-det 0.12))))
-                                  cave-raw (- cave-blend (+ base-th (+ floor-guard (+ roof-guard cauld-guard))))
+                                                      (+ (* n-det 0.12) (+ seal-open vault-open)))))
+                                  cave-raw (- cave-blend (+ base-th (+ roof-guard cauld-guard)))
                                   depth-below (- surface-h fdy)
                                   deep-raw (/ (- depth-below 12.0) 55.0)
                                   deep-scale (if (< deep-raw 0.30) 0.30 (if (> deep-raw 1.0) 1.0 deep-raw))
@@ -339,11 +513,11 @@
                                   cave-sdf-raw (* cave-raw sdf-scale)
                                   cave-sdf (if (> cave-sdf-raw 12.0) 12.0 (if (< cave-sdf-raw -12.0) -12.0 cave-sdf-raw))
                                   surf-clamped (if (> surf-sdf 12.0) 12.0 (if (< surf-sdf -12.0) -12.0 surf-sdf))
-                                  final-sdf (if (> surf-clamped cave-sdf) surf-clamped cave-sdf)
+                                  final-sdf (if (and (= seg 0) (> surf-clamped cave-sdf)) surf-clamped cave-sdf)
                                   slot (if (>= wy s0) 0 (if (>= wy s1) 1 (if (>= wy s2) 2 (if (>= wy s3) 3 4))))
                                   b-curr (if (= slot 0) b0 (if (= slot 1) b1 (if (= slot 2) b2 (if (= slot 3) b3 b4))))
                                   band-top (if (= slot 0) 24.0 (if (= slot 1) s0 (if (= slot 2) s1 (if (= slot 3) s2 s3))))
-                                  band-bot (if (= slot 0) s0 (if (= slot 1) s1 (if (= slot 2) s2 (if (= slot 3) s3 -192.0))))]
+                                  band-bot (if (= slot 0) s0 (if (= slot 1) s1 (if (= slot 2) s2 (if (= slot 3) s3 -187.0))))]
                               (if (> final-sdf 0.0)
                                   (let [seed-fluid (if (< surf-sdf -12.0)
                                                        (Terrain.seed-fluid-for-biome b-curr wy band-bot band-top n-macro n-chasm n-tun)
@@ -361,12 +535,12 @@
                                         wy-dither (+ wy (* n-det 2.4))
                                         slot-m (if (>= wy-dither s0) 0 (if (>= wy-dither s1) 1 (if (>= wy-dither s2) 2 (if (>= wy-dither s3) 3 4))))
                                         b-mat (if (= slot-m 0) b0 (if (= slot-m 1) b1 (if (= slot-m 2) b2 (if (= slot-m 3) b3 b4))))
-                                        bot-m (if (= slot-m 0) s0 (if (= slot-m 1) s1 (if (= slot-m 2) s2 (if (= slot-m 3) s3 -192.0))))
+                                        bot-m (if (= slot-m 0) s0 (if (= slot-m 1) s1 (if (= slot-m 2) s2 (if (= slot-m 3) s3 -187.0))))
                                         under-cauldron? (or (and (Terrain.cauldron-biome? b0) (< (Double.abs (- wy s0)) 5.0))
                                                             (or (and (Terrain.cauldron-biome? b1) (< (Double.abs (- wy s1)) 5.0))
                                                                 (or (and (Terrain.cauldron-biome? b2) (< (Double.abs (- wy s2)) 5.0))
                                                                     (and (Terrain.cauldron-biome? b3) (< (Double.abs (- wy s3)) 5.0)))))
-                                        mat-id (if (> surf-sdf -3.2)
+                                        mat-id (if (and (= seg 0) (> surf-sdf -3.2))
                                                    2.0f
                                                    (if under-cauldron?
                                                        16.0f

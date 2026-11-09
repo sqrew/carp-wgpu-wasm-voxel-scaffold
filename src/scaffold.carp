@@ -20,6 +20,8 @@
    float js_flying = 0.0f;
    float js_flashlight = 1.0f;
    int js_rig_slot = 0;
+   int js_load_vessel_slot = -1;
+   float js_load_vessel_mat = 0.0f;
 
    typedef struct {
        WGPUBindGroupEntry entries[16];
@@ -38,6 +40,7 @@
    EMSCRIPTEN_KEEPALIVE void set_flying(float f) { js_flying = f; }
    EMSCRIPTEN_KEEPALIVE void set_flashlight(float f) { js_flashlight = f; }
    EMSCRIPTEN_KEEPALIVE void set_rig_slot(int s) { if (s >= 0 && s <= 4) js_rig_slot = s; }
+   EMSCRIPTEN_KEEPALIVE void load_rig_vessel(int slot, float mat) { js_load_vessel_slot = slot; js_load_vessel_mat = mat; }
    #endif
    #endif
 
@@ -161,20 +164,49 @@
 (deftemplate set-js-flying (Fn [Float] ()) "void $NAME(float f)" "$DECL { js_flying = f; }")
 (deftemplate set-js-flashlight (Fn [Float] ()) "void $NAME(float f)" "$DECL { js_flashlight = f; }")
 (deftemplate set-js-rig-slot (Fn [Int] ()) "void $NAME(int s)" "$DECL { if (s >= 0 && s <= 4) js_rig_slot = s; }")
+(deftemplate get-js-load-vessel-slot (Fn [] Int) "int $NAME(void)" "$DECL { return js_load_vessel_slot; }")
+(deftemplate get-js-load-vessel-mat (Fn [] Float) "float $NAME(void)" "$DECL { return js_load_vessel_mat; }")
+(deftemplate clear-js-load-vessel! (Fn [] ()) "void $NAME(void)" "$DECL { js_load_vessel_slot = -1; js_load_vessel_mat = 0.0f; }")
+
+(deftemplate js-clear-materials (Fn [] ())
+  "void $NAME(void)"
+  "$DECL {
+#ifdef __EMSCRIPTEN__
+      emscripten_run_script(\"if (window.clear_materials) window.clear_materials();\");
+#endif
+  }")
+
+(deftemplate js-register-material (Fn [Int (Ptr CChar) Float Float Float Int Int] ())
+  "void $NAME(int id, char* name, float r, float g, float b, int glow, int brittle)"
+  "$DECL {
+#ifdef __EMSCRIPTEN__
+      char buf[256];
+      snprintf(buf, sizeof(buf), \"if (window.register_material) window.register_material(%d, '%s', %.3f, %.3f, %.3f, %d, %d);\", id, name, r, g, b, glow, brittle);
+      emscripten_run_script(buf);
+#endif
+  }")
+
+(deftemplate js-finalize-materials (Fn [] ())
+  "void $NAME(void)"
+  "$DECL {
+#ifdef __EMSCRIPTEN__
+      emscripten_run_script(\"if (window.finalize_materials) window.finalize_materials();\");
+#endif
+  }")
 
 (register-type GLFWwindow)
 
-(deftemplate create-voxel-scaffold-bind-group (Fn [(Ptr WGPUContext) (Ptr WGPURenderPipelineWrapper) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) WGPUSampler (Ptr WGPUUniformBufferWrapper) (Ptr WGPUVertexBufferWrapper) (Ptr WGPUVertexBufferWrapper)] WGPUBindGroup)
-  "WGPUBindGroup $NAME(WGPUContext* ctx, WGPURenderPipelineWrapper* pipe, WGPURenderTexture* solid_tex, WGPURenderTexture* liquid_tex, WGPURenderTexture* gas_tex, WGPURenderTexture* light_tex, WGPUSampler sampler, WGPUUniformBufferWrapper* ub, WGPUVertexBufferWrapper* mat_buf, WGPUVertexBufferWrapper* entities_buf)"
+(deftemplate create-voxel-scaffold-bind-group (Fn [(Ptr WGPUContext) (Ptr WGPURenderPipelineWrapper) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) WGPUSampler (Ptr WGPUUniformBufferWrapper) (Ptr WGPUVertexBufferWrapper) (Ptr WGPUVertexBufferWrapper)] WGPUBindGroup)
+  "WGPUBindGroup $NAME(WGPUContext* ctx, WGPURenderPipelineWrapper* pipe, WGPURenderTexture* solid_tex, WGPURenderTexture* liquid_tex, WGPURenderTexture* gas_tex, WGPURenderTexture* light_tex, WGPURenderTexture* vel_tex, WGPUSampler sampler, WGPUUniformBufferWrapper* ub, WGPUVertexBufferWrapper* mat_buf, WGPUVertexBufferWrapper* entities_buf)"
   "$DECL {
-      if (!ctx || !pipe || !solid_tex || !liquid_tex || !gas_tex || !light_tex || !sampler || !ub || !mat_buf || !entities_buf) {
+      if (!ctx || !pipe || !solid_tex || !liquid_tex || !gas_tex || !light_tex || !vel_tex || !sampler || !ub || !mat_buf || !entities_buf) {
           return NULL;
       }
       WGPUBindGroupLayout layout = wgpuRenderPipelineGetBindGroupLayout(pipe->pipeline, 0);
       if (!layout) {
           return NULL;
       }
-      WGPUBindGroupEntry entries[8] = {
+      WGPUBindGroupEntry entries[9] = {
           {
               .binding = 0,
               .buffer  = ub->buffer,
@@ -212,11 +244,15 @@
               .buffer      = entities_buf->buffer,
               .offset      = 0,
               .size        = entities_buf->size,
+          },
+          {
+              .binding     = 8,
+              .textureView = vel_tex->view,
           }
       };
       WGPUBindGroupDescriptor desc = {
           .layout     = layout,
-          .entryCount = 8,
+          .entryCount = 9,
           .entries    = entries,
       };
       WGPUBindGroup bg = wgpuDeviceCreateBindGroup(ctx->device, &desc);
@@ -446,8 +482,8 @@
   (defn create-bind-group [eng pipeline uniform-buffer]
     (WGPURender.create-render-uniform-bind-group @(M-WGPUContext.p (Engine.ctx eng)) pipeline uniform-buffer))
 
-  (defn create-voxel-bind-group [eng pipeline solid-tex liquid-tex gas-tex light-tex sampler uniforms mat-buf entities-buf]
-    (let [bg (create-voxel-scaffold-bind-group @(M-WGPUContext.p (Engine.ctx eng)) pipeline solid-tex liquid-tex gas-tex light-tex sampler uniforms mat-buf entities-buf)]
+  (defn create-voxel-bind-group [eng pipeline solid-tex liquid-tex gas-tex light-tex vel-tex sampler uniforms mat-buf entities-buf]
+    (let [bg (create-voxel-scaffold-bind-group @(M-WGPUContext.p (Engine.ctx eng)) pipeline solid-tex liquid-tex gas-tex light-tex vel-tex sampler uniforms mat-buf entities-buf)]
       (if (WGPURender.bindgroup-null?- bg)
         (Result.Error @"Failed to create voxel scaffold bind group")
         (Result.Success bg))))

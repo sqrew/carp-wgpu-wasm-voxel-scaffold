@@ -172,23 +172,23 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         grav = 2.0;
         drag = 0.86;
         bounciness = 0.0;
-    } else if (ptype >= 101u && ptype <= 108u) {
-        // 101..108: Pressurized Flask Liquid Stream - matches parabolic raycast arc!
+    } else if (ptype >= 101u && ptype <= 132u) {
+        // 101..132: Pressurized Flask Liquid Stream - matches parabolic raycast arc!
         grav = -18.0;
         drag = 0.996;
         bounciness = 0.25;
-    } else if (ptype >= 201u && ptype <= 208u) {
-        // 201..208: Pressurized Gas Bellows Gust / Flamethrower - fast blast that billows upward
+    } else if (ptype >= 201u && ptype <= 232u) {
+        // 201..232: Pressurized Gas Bellows Gust / Flamethrower - fast blast that billows upward
         grav = 1.6;
         drag = 0.945;
         bounciness = 0.12;
-    } else if ((ptype >= 301u && ptype <= 316u) || (ptype >= 501u && ptype <= 517u)) {
-        // 301..316 & 501..517: Big Succ / Bellows / Solid Sack Vacuum Streaks into nozzle
+    } else if ((ptype >= 301u && ptype <= 390u) || (ptype >= 501u && ptype <= 532u)) {
+        // 301..390 & 501..532: Big Succ / Bellows / Solid Sack Vacuum Streaks into nozzle
         grav = 0.0;
         drag = 0.995;
         bounciness = 0.0;
-    } else if (ptype >= 401u && ptype <= 417u) {
-        // 401..417: Solid Sack Heavy Chunk Lob / Granular Pour - matches grav -22 raycast arc!
+    } else if (ptype >= 401u && ptype <= 432u) {
+        // 401..432: Solid Sack Heavy Chunk Lob / Granular Pour - matches grav -22 raycast arc!
         grav = -22.0;
         drag = 0.994;
         bounciness = 0.28;
@@ -272,8 +272,8 @@ struct VertexOutput {
     @location(2) t: f32,
 }
 
-fn reagent_visual(ridx: u32) -> vec4<f32> {
-    switch (ridx) {
+fn liq_visual(lidx: u32) -> vec4<f32> {
+    switch (lidx) {
         case 1u:  { return vec4<f32>(0.18, 0.64, 1.00, 0.0); } // Water
         case 2u:  { return vec4<f32>(1.00, 0.42, 0.08, 1.0); } // Lava (luminescent)
         case 3u:  { return vec4<f32>(0.22, 1.00, 0.32, 1.0); } // Acid (luminescent)
@@ -282,14 +282,31 @@ fn reagent_visual(ridx: u32) -> vec4<f32> {
         case 6u:  { return vec4<f32>(1.00, 0.85, 0.24, 1.0); } // Ambrosia (luminescent)
         case 7u:  { return vec4<f32>(0.98, 0.18, 0.74, 1.0); } // Volatile Gel (luminescent)
         case 8u:  { return vec4<f32>(0.38, 0.85, 0.14, 0.0); } // Toxic Sludge
-        case 9u:  { return vec4<f32>(0.78, 0.82, 0.88, 0.0); } // Steam
-        case 10u: { return vec4<f32>(0.45, 0.92, 0.15, 0.0); } // Toxic Gas
-        case 11u: { return vec4<f32>(1.00, 0.68, 0.18, 1.0); } // Fire (luminescent)
-        case 12u: { return vec4<f32>(0.24, 0.24, 0.27, 0.0); } // Smoke
-        case 13u: { return vec4<f32>(0.25, 0.88, 0.18, 0.0); } // Acid Vapor
-        case 14u: { return vec4<f32>(0.82, 0.72, 0.58, 0.0); } // Methane
-        case 15u: { return vec4<f32>(1.00, 0.35, 0.05, 1.0); } // Napalm Vapor
-        default:  { return vec4<f32>(0.52, 0.86, 0.32, 0.0); } // Spore Cloud
+        case 9u:  { return vec4<f32>(0.44, 0.25, 0.09, 0.0); } // Diesel
+        case 10u: { return vec4<f32>(0.88, 0.62, 0.14, 0.0); } // Kerosene
+        case 11u: { return vec4<f32>(0.96, 0.86, 0.42, 0.0); } // Naphtha
+        case 12u: { return vec4<f32>(0.82, 0.86, 0.92, 0.0); } // Mercury
+        case 13u: { return vec4<f32>(0.76, 0.68, 0.96, 0.0); } // Lye
+        case 14u: { return vec4<f32>(0.98, 0.92, 0.60, 1.0); } // Nitroglycerin (luminescent)
+        default:  { return vec4<f32>(0.45, 0.92, 1.00, 1.0); } // Liquid Nitrogen (luminescent)
+    }
+}
+
+fn gas_visual(gidx: u32) -> vec4<f32> {
+    switch (gidx) {
+        case 1u:  { return vec4<f32>(0.78, 0.82, 0.88, 0.0); } // Steam
+        case 2u:  { return vec4<f32>(0.45, 0.92, 0.15, 0.0); } // Toxic Gas
+        case 3u:  { return vec4<f32>(1.00, 0.68, 0.18, 1.0); } // Fire (luminescent)
+        case 4u:  { return vec4<f32>(0.24, 0.24, 0.27, 0.0); } // Smoke
+        case 5u:  { return vec4<f32>(0.25, 0.88, 0.18, 0.0); } // Acid Vapor
+        case 6u:  { return vec4<f32>(0.82, 0.72, 0.58, 0.0); } // Methane
+        case 7u:  { return vec4<f32>(1.00, 0.35, 0.05, 1.0); } // Napalm Vapor
+        case 8u:  { return vec4<f32>(0.52, 0.86, 0.32, 0.0); } // Spore Cloud
+        case 9u:  { return vec4<f32>(0.74, 0.90, 1.00, 0.0); } // Hydrogen
+        case 10u: { return vec4<f32>(0.92, 0.72, 0.38, 0.0); } // Butane
+        case 11u: { return vec4<f32>(0.68, 0.95, 0.22, 0.0); } // Chlorine
+        case 12u: { return vec4<f32>(0.42, 1.00, 0.55, 1.0); } // Radon (luminescent)
+        default:  { return vec4<f32>(0.98, 0.94, 0.78, 1.0); } // Acetylene (luminescent)
     }
 }
 
@@ -311,7 +328,15 @@ fn solid_visual(sidx: u32) -> vec4<f32> {
         case 14u: { return vec4<f32>(0.15, 0.90, 1.00, 1.0); } // Crystal (luminescent)
         case 15u: { return vec4<f32>(0.76, 0.28, 1.00, 1.0); } // Amethyst (luminescent)
         case 16u: { return vec4<f32>(0.22, 0.16, 0.34, 0.0); } // Obsidian
-        default:  { return vec4<f32>(0.60, 1.00, 0.20, 1.0); } // Rad-Ore (luminescent)
+        case 17u: { return vec4<f32>(0.60, 1.00, 0.20, 1.0); } // Rad-Ore (luminescent)
+        case 18u: { return vec4<f32>(0.14, 0.22, 0.28, 1.0); } // Abyssal Seal
+        case 19u: { return vec4<f32>(0.10, 0.09, 0.12, 0.0); } // Bitumen
+        case 20u: { return vec4<f32>(0.86, 0.89, 0.95, 0.0); } // Sodium
+        case 21u: { return vec4<f32>(0.95, 0.94, 0.98, 0.0); } // Salt
+        case 22u: { return vec4<f32>(0.96, 0.78, 0.86, 0.0); } // Soap
+        case 23u: { return vec4<f32>(0.95, 0.88, 0.12, 0.0); } // Sulfur
+        case 24u: { return vec4<f32>(0.38, 0.42, 0.48, 0.0); } // Carbide
+        default:  { return vec4<f32>(0.96, 0.98, 0.70, 1.0); } // Phosphorus (luminescent)
     }
 }
 
@@ -367,19 +392,19 @@ fn solid_visual(sidx: u32) -> vec4<f32> {
     } else if (ptype == 3u) {
         // Smoke: expands into large clouds
         size = mix(0.30, 0.09, t);
-    } else if (ptype >= 101u && ptype <= 108u) {
+    } else if (ptype >= 101u && ptype <= 132u) {
         // Liquid Squirt droplets: plump pressurized globules that taper slightly
         size = mix(0.065, 0.115, t);
-    } else if (ptype >= 201u && ptype <= 208u) {
+    } else if (ptype >= 201u && ptype <= 232u) {
         // Gas Bellows puffs: start tight at nozzle and billow into fat clouds
         size = mix(0.38, 0.10, t);
-    } else if (ptype >= 301u && ptype <= 316u) {
+    } else if (ptype >= 301u && ptype <= 390u) {
         // Big Succ / Bellows droplets: shrink cleanly as they funnel into the nozzle
         size = mix(0.035, 0.115, t);
-    } else if (ptype >= 401u && ptype <= 417u) {
+    } else if (ptype >= 401u && ptype <= 432u) {
         // Solid Sack clods / grains: chunky solid fragments
         size = mix(0.085, 0.135, t);
-    } else if (ptype >= 501u && ptype <= 517u) {
+    } else if (ptype >= 501u && ptype <= 532u) {
         // Solid Sack dredged chunks: funnel cleanly from mined rock into the Sack!
         size = mix(0.04, 0.13, t);
     } else {
@@ -426,9 +451,9 @@ fn solid_visual(sidx: u32) -> vec4<f32> {
         let alpha = in.t * radial * 0.40;
         let rgb = mix(vec3<f32>(0.22, 0.22, 0.24), vec3<f32>(0.58, 0.58, 0.60), in.t);
         return vec4<f32>(rgb * alpha, alpha);
-    } else if (in.ptype >= 101u && in.ptype <= 108u) {
+    } else if (in.ptype >= 101u && in.ptype <= 132u) {
         // Liquid Squirt Droplet
-        let vis = reagent_visual(in.ptype - 100u);
+        let vis = liq_visual(in.ptype - 100u);
         let spec = pow(clamp(1.0 - length(in.uv - vec2<f32>(0.36, 0.64)) * 3.0, 0.0, 1.0), 3.0) * 0.35;
         if (vis.w > 0.5) {
             let rgb = (vis.rgb + vec3<f32>(spec)) * (core * 2.1);
@@ -437,18 +462,18 @@ fn solid_visual(sidx: u32) -> vec4<f32> {
         let alpha = clamp(smoothstep(0.05, 0.42, radial) * (0.35 + 0.6 * in.t), 0.0, 0.92);
         let rgb = vis.rgb * (0.75 + 0.35 * radial) + vec3<f32>(spec);
         return vec4<f32>(rgb * alpha, alpha);
-    } else if (in.ptype >= 201u && in.ptype <= 208u) {
+    } else if (in.ptype >= 201u && in.ptype <= 232u) {
         // Gas Bellows Puff / Flamethrower Tongue
-        let vis = reagent_visual(in.ptype - 200u + 8u);
+        let vis = gas_visual(in.ptype - 200u);
         if (vis.w > 0.5) {
             let rgb = vis.rgb * (core * 2.1 * in.t);
             return vec4<f32>(rgb, 0.0);
         }
         let alpha = in.t * radial * 0.48;
         return vec4<f32>(vis.rgb * alpha, alpha);
-    } else if (in.ptype >= 301u && in.ptype <= 316u) {
-        // Big Succ / Bellows Siphon Streak
-        let vis = reagent_visual(in.ptype - 300u);
+    } else if (in.ptype >= 301u && in.ptype <= 390u) {
+        // Big Succ / Bellows Siphon Streak (301..349 Liquids, 351..390 Gases)
+        let vis = select(gas_visual(in.ptype - 350u), liq_visual(in.ptype - 300u), in.ptype < 350u);
         let spec = pow(radial, 3.0) * 0.3;
         if (vis.w > 0.5) {
             let rgb = (vis.rgb + vec3<f32>(spec)) * (core * 2.2);
@@ -457,8 +482,8 @@ fn solid_visual(sidx: u32) -> vec4<f32> {
         let alpha = clamp(radial * 0.85, 0.0, 0.9);
         let rgb = vis.rgb + vec3<f32>(spec);
         return vec4<f32>(rgb * alpha, alpha);
-    } else if ((in.ptype >= 401u && in.ptype <= 417u) || (in.ptype >= 501u && in.ptype <= 517u)) {
-        // Solid Sack Chunk (401..417 Pack/Pour, 501..517 Dredge Scoop)
+    } else if ((in.ptype >= 401u && in.ptype <= 432u) || (in.ptype >= 501u && in.ptype <= 532u)) {
+        // Solid Sack Chunk (401..432 Pack/Pour, 501..532 Dredge Scoop)
         let sidx = select(in.ptype - 500u, in.ptype - 400u, in.ptype < 500u);
         let vis = solid_visual(sidx);
         let shade = 0.68 + 0.38 * clamp(1.0 - length(in.uv - vec2<f32>(0.35, 0.65)) * 1.6, 0.0, 1.0);

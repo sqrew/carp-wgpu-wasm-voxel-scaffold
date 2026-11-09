@@ -470,49 +470,92 @@ canvas.emscripten { border: 0px none; background-color: black; }
       window.player_flying = false;
       window.player_flashlight = true;
 
-            const SOLIDS = [
-         {id: 1.0, name: 'Stone'}, {id: 2.0, name: 'Soil'}, {id: 3.0, name: 'Wood'}, 
-         {id: 4.0, name: 'Coal'}, {id: 5.0, name: 'Gold'}, {id: 6.0, name: 'Sand'}, 
-         {id: 7.0, name: 'Gunpowder'}, {id: 8.0, name: 'Ice'}, {id: 9.0, name: 'Glass'},
-         {id: 10.0, name: 'Slime'}, {id: 11.0, name: 'Sponge'}, {id: 12.0, name: 'C4'},
-         {id: 13.0, name: 'Spore Pod'}, {id: 14.0, name: 'Crystal'}, {id: 15.0, name: 'Amethyst'},
-         {id: 16.0, name: 'Obsidian'}, {id: 17.0, name: 'Rad-Ore'},
-         {id: 255.0, name: 'Bedrock'}
-      ];
-
-            const LIQUIDS = [
-         {id: 1.0, name: 'Water'}, {id: 2.0, name: 'Lava'}, {id: 3.0, name: 'Acid'}, 
-         {id: 4.0, name: 'Oil'}, {id: 5.0, name: 'Blood'}, {id: 6.0, name: 'Ambrosia'},
-         {id: 7.0, name: 'Volatile Gel'}, {id: 8.0, name: 'Toxic Sludge'}
-      ];
-
-            const GASES = [
-         {id: 1.0, name: 'Steam'}, {id: 2.0, name: 'Toxic Gas'}, {id: 3.0, name: 'Fire'}, 
-         {id: 4.0, name: 'Smoke'}, {id: 5.0, name: 'Acid Vapor'}, {id: 6.0, name: 'Methane'},
-         {id: 7.0, name: 'Napalm Vapor'}, {id: 8.0, name: 'Spore Cloud'}
-      ];
+      // Auto-populated from src/materials.carp (Materials.init-registry!) at WASM startup:
+      const SOLIDS = [];
+      const LIQUIDS = [];
+      const GASES = [];
+      const RIG_REAGENTS = {};
+      const BRITTLE_SOLIDS = [];
 
       let solid_idx = 0;
       let liq_idx = 0;
       let gas_idx = 0;
 
-      function updateHUD() {
-         document.getElementById('solid-lbl').innerText = SOLIDS[solid_idx].name;
-         window.player_solid_mat = SOLIDS[solid_idx].id;
-         if (typeof Module !== 'undefined' && Module._set_solid_mat) {
-             Module._set_solid_mat(window.player_solid_mat);
+      function rgbToHudHex(r, g, b) {
+         const lift = (v) => {
+            const c = Math.max(0, Math.min(1, v));
+            const boosted = 0.22 + 0.78 * Math.pow(c, 0.78);
+            return Math.max(0, Math.min(255, Math.round(boosted * 255))).toString(16).padStart(2, '0');
+         };
+         return '#' + lift(r) + lift(g) + lift(b);
+      }
+
+      window.clear_materials = function() {
+         SOLIDS.length = 0;
+         LIQUIDS.length = 0;
+         GASES.length = 0;
+         BRITTLE_SOLIDS.length = 0;
+         for (const k of Object.keys(RIG_REAGENTS)) delete RIG_REAGENTS[k];
+      };
+
+      window.register_material = function(id, name, r, g, b, glow, brittle) {
+         RIG_REAGENTS[id] = { name: name, col: rgbToHudHex(r, g, b), glow: !!glow };
+         if (brittle && id > 0 && id < 256) {
+            BRITTLE_SOLIDS.push(id);
+         }
+         if (id > 0 && id < 256 && id !== 18) {
+            SOLIDS.push({ id: id, name: name });
+         } else if (id >= 257 && id < 512) {
+            LIQUIDS.push({ id: id - 256, name: name });
+         } else if (id >= 513 && id < 1024) {
+            GASES.push({ id: id - 512, name: name });
+         }
+      };
+
+      window.finalize_materials = function() {
+         const soilIdx = SOLIDS.findIndex((m) => m.id === 2);
+         solid_idx = (soilIdx >= 0) ? soilIdx : 0;
+         liq_idx = 0;
+         gas_idx = 0;
+         updateHUD();
+      };
+
+      function updateHUD(loadSlot) {
+         if (SOLIDS.length > 0) {
+             solid_idx = ((solid_idx % SOLIDS.length) + SOLIDS.length) % SOLIDS.length;
+             document.getElementById('solid-lbl').innerText = SOLIDS[solid_idx].name;
+             window.player_solid_mat = SOLIDS[solid_idx].id;
+             if (typeof Module !== 'undefined' && Module._set_solid_mat) {
+                 Module._set_solid_mat(window.player_solid_mat);
+             }
          }
 
-         document.getElementById('liq-lbl').innerText = LIQUIDS[liq_idx].name;
-         window.player_liq_mat = LIQUIDS[liq_idx].id;
-         if (typeof Module !== 'undefined' && Module._set_liq_mat) {
-             Module._set_liq_mat(window.player_liq_mat);
+         if (LIQUIDS.length > 0) {
+             liq_idx = ((liq_idx % LIQUIDS.length) + LIQUIDS.length) % LIQUIDS.length;
+             document.getElementById('liq-lbl').innerText = LIQUIDS[liq_idx].name;
+             window.player_liq_mat = LIQUIDS[liq_idx].id;
+             if (typeof Module !== 'undefined' && Module._set_liq_mat) {
+                 Module._set_liq_mat(window.player_liq_mat);
+             }
          }
 
-         document.getElementById('gas-lbl').innerText = GASES[gas_idx].name;
-         window.player_gas_mat = GASES[gas_idx].id;
-         if (typeof Module !== 'undefined' && Module._set_gas_mat) {
-             Module._set_gas_mat(window.player_gas_mat);
+         if (GASES.length > 0) {
+             gas_idx = ((gas_idx % GASES.length) + GASES.length) % GASES.length;
+             document.getElementById('gas-lbl').innerText = GASES[gas_idx].name;
+             window.player_gas_mat = GASES[gas_idx].id;
+             if (typeof Module !== 'undefined' && Module._set_gas_mat) {
+                 Module._set_gas_mat(window.player_gas_mat);
+             }
+         }
+
+         if (typeof Module !== 'undefined' && Module._load_rig_vessel && loadSlot !== undefined) {
+             if (loadSlot === 0 && window.player_solid_mat < 254.5) {
+                 Module._load_rig_vessel(0, window.player_solid_mat);
+             } else if (loadSlot === 1) {
+                 Module._load_rig_vessel(1, 256.0 + window.player_liq_mat);
+             } else if (loadSlot === 2) {
+                 Module._load_rig_vessel(2, 512.0 + window.player_gas_mat);
+             }
          }
       }
 
@@ -525,44 +568,53 @@ canvas.emscripten { border: 0px none; background-color: black; }
                Module._set_rig_slot(window.rig_slot);
             }
          }
-         if (e.key === 'v') {
+         if (e.key === 'v' && SOLIDS.length > 0) {
             solid_idx = (solid_idx + 1) % SOLIDS.length;
-            updateHUD();
+            updateHUD(0);
          }
-         if (e.key === 'V') { // Shift + v
+         if (e.key === 'V' && SOLIDS.length > 0) { // Shift + v
             solid_idx = (solid_idx - 1 + SOLIDS.length) % SOLIDS.length;
-            updateHUD();
+            updateHUD(0);
          }
-         if (e.key === 'n') {
+         if (e.key === 'n' && LIQUIDS.length > 0) {
             liq_idx = (liq_idx + 1) % LIQUIDS.length;
-            updateHUD();
+            updateHUD(1);
          }
-         if (e.key === 'N') { // Shift + n
+         if (e.key === 'N' && LIQUIDS.length > 0) { // Shift + n
             liq_idx = (liq_idx - 1 + LIQUIDS.length) % LIQUIDS.length;
-            updateHUD();
+            updateHUD(1);
          }
-         if (e.key === 'b') {
+         if (e.key === 'b' && GASES.length > 0) {
             gas_idx = (gas_idx + 1) % GASES.length;
-            updateHUD();
+            updateHUD(2);
          }
-         if (e.key === 'B') { // Shift + b
+         if (e.key === 'B' && GASES.length > 0) { // Shift + b
             gas_idx = (gas_idx - 1 + GASES.length) % GASES.length;
-            updateHUD();
+            updateHUD(2);
          }
       });
       
-      // Plain Scroll Wheel swaps active Belt Slot ([1] Sack / [2] Flask / [3] Bellows / [4] Hands & Boot / [5] Wand); Shift + Wheel cycles sandbox solid
+      // Plain Scroll Wheel swaps active Belt Slot ([1] Sack / [2] Flask / [3] Bellows / [4] Hands & Boot / [5] Wand);
+      // Shift + Wheel cycles the reagent for the currently active vessel (and loads it to 100%)!
       window.addEventListener('wheel', (e) => {
+         e.preventDefault();
+         const rawDelta = (Math.abs(e.deltaY) >= Math.abs(e.deltaX)) ? e.deltaY : e.deltaX;
+         if (rawDelta === 0) return;
+         const step = rawDelta > 0 ? 1 : -1;
          if (e.shiftKey) {
-            if (e.deltaY > 0) {
-               solid_idx = (solid_idx + 1) % SOLIDS.length;
-            } else {
-               solid_idx = (solid_idx - 1 + SOLIDS.length) % SOLIDS.length;
+            const slot = window.rig_slot || 0;
+            if (slot === 1 && LIQUIDS.length > 0) {
+               liq_idx = (liq_idx + step + LIQUIDS.length) % LIQUIDS.length;
+               updateHUD(1);
+            } else if (slot === 2 && GASES.length > 0) {
+               gas_idx = (gas_idx + step + GASES.length) % GASES.length;
+               updateHUD(2);
+            } else if (SOLIDS.length > 0) {
+               solid_idx = (solid_idx + step + SOLIDS.length) % SOLIDS.length;
+               updateHUD(0);
             }
-            updateHUD();
          } else {
-            e.preventDefault();
-            window.rig_slot = ((window.rig_slot || 0) + (e.deltaY > 0 ? 1 : 4)) % 5;
+            window.rig_slot = ((window.rig_slot || 0) + (step > 0 ? 1 : 4)) % 5;
             if (typeof Module !== 'undefined' && Module._set_rig_slot) {
                Module._set_rig_slot(window.rig_slot);
             }
@@ -598,52 +650,14 @@ canvas.emscripten { border: 0px none; background-color: black; }
         document.getElementById('light-chk').checked = window.player_flashlight;
       };
 
-      const RIG_REAGENTS = {
-        // Solids (1..17)
-        1:   { name: 'Stone',        col: '#9098a6', glow: false },
-        2:   { name: 'Soil',         col: '#9c6d49', glow: false },
-        3:   { name: 'Wood',         col: '#c28550', glow: false },
-        4:   { name: 'Coal',         col: '#5c626e', glow: false },
-        5:   { name: 'Gold',         col: '#ffd54f', glow: false },
-        6:   { name: 'Sand',         col: '#f2cf7e', glow: false },
-        7:   { name: 'Gunpowder',    col: '#838996', glow: false },
-        8:   { name: 'Ice',          col: '#8be2ff', glow: false },
-        9:   { name: 'Glass',        col: '#b3f0ff', glow: false },
-        10:  { name: 'Slime',        col: '#4be864', glow: false },
-        11:  { name: 'Sponge',       col: '#e3c64f', glow: false },
-        12:  { name: 'C4',           col: '#ef604d', glow: false },
-        13:  { name: 'Spore Pod',    col: '#a2f54e', glow: true  },
-        14:  { name: 'Crystal',      col: '#42f2ff', glow: true  },
-        15:  { name: 'Amethyst',     col: '#d15cff', glow: true  },
-        16:  { name: 'Obsidian',     col: '#745d9e', glow: false },
-        17:  { name: 'Rad-Ore',      col: '#57ff38', glow: true  },
-        // Liquids (257..264)
-        257: { name: 'Water',        col: '#29b6f6', glow: false },
-        258: { name: 'Lava',         col: '#ff6d00', glow: true  },
-        259: { name: 'Acid',         col: '#39ff5a', glow: true  },
-        260: { name: 'Oil',          col: '#87654a', glow: false },
-        261: { name: 'Blood',        col: '#e5242e', glow: false },
-        262: { name: 'Ambrosia',     col: '#ffd54f', glow: true  },
-        263: { name: 'Volatile Gel', col: '#ff2ec4', glow: true  },
-        264: { name: 'Toxic Sludge', col: '#76d926', glow: false },
-        // Gases (513..520)
-        513: { name: 'Steam',        col: '#cfd8dc', glow: false },
-        514: { name: 'Toxic Gas',    col: '#8be82b', glow: false },
-        515: { name: 'Fire',         col: '#ffab2e', glow: true  },
-        516: { name: 'Smoke',        col: '#8a909c', glow: false },
-        517: { name: 'Acid Vapor',   col: '#4ae83a', glow: false },
-        518: { name: 'Methane',      col: '#d7be9b', glow: false },
-        519: { name: 'Napalm Vapor', col: '#ff5722', glow: true  },
-        520: { name: 'Spore Cloud',  col: '#88db54', glow: false }
-      };
-
       const WAND_RACK = [
         { name: 'Spark Ricochet',  col: '#42f2ff', trait: '2x Bounce • Split' },
         { name: 'Emerald Bore',    col: '#57ff38', trait: '3x Piercing Drill' },
         { name: 'Meteor Staff',    col: '#ff6d00', trait: 'Fire Trail • Crater' },
         { name: 'Cryo-Architect',  col: '#8be2ff', trait: 'Freeze Ice Bridge' },
         { name: 'Venom Scatter',   col: '#a2f54e', trait: '3x Acid Shotgun' },
-        { name: 'Amethyst Seeker', col: '#d15cff', trait: '3D Homing • Ambrosia' }
+        { name: 'Amethyst Seeker', col: '#d15cff', trait: '3D Homing • Ambrosia' },
+        { name: 'Mach Railgun',    col: '#ffea00', trait: '155m/s • Mach Wake' }
       ];
 
       const RIG_ACCENTS   = ['#d7b377', '#4fc3f7', '#ffca7a', '#ff8a65', '#42f2ff'];
@@ -651,7 +665,6 @@ canvas.emscripten { border: 0px none; background-color: black; }
       const RIG_OUT_BADGE = ['PACKING!', 'SQUIRT!',  'BLAST!'];
       const RIG_IN_HINT   = ['Scooping ', 'Siphoning ', 'Inhaling '];
       const RIG_IDLE_HINT = ['RMB: Scoop ', 'RMB: Siphon ', 'RMB: Inhale '];
-      const BRITTLE_SOLIDS = [4, 8, 9, 13, 14, 15, 16];
 
       window.sync_rig = function(slot, sm, sf, lm, lf, gm, gf, gmat, mode, probe, pstress) {
         const activeSlot = Math.max(0, Math.min(4, slot | 0));
@@ -743,7 +756,7 @@ canvas.emscripten { border: 0px none; background-color: black; }
           const nameEl   = document.getElementById('rig-name-3');
           const badgeEl  = document.getElementById('rig-badge-3');
           const pctEl    = document.getElementById('rig-pct-3');
-          const heldInfo = (gId >= 1 && gId <= 17) ? RIG_REAGENTS[gId] : null;
+          const heldInfo = (gId >= 1 && gId < 255) ? RIG_REAGENTS[gId] : null;
           const heldAmoeba = (gId >= 1000 && gId < 2000);
           const heldAmoebaInfo = heldAmoeba ? (RIG_REAGENTS[gId - 1000] || null) : null;
           const heldHopper = (gId >= 2000 && gId < 3000);
@@ -877,7 +890,7 @@ canvas.emscripten { border: 0px none; background-color: black; }
             barEl.style.background = '#ffd54f';
             vesselEl.style.boxShadow = '0 0 14px rgba(255,213,79,0.55), inset 0 0 9px rgba(255,213,79,0.35)';
             hiCol = '#ffd54f';
-          } else if (isActive && pId >= 1 && pId <= 17 && pInfo) {
+          } else if (isActive && pId >= 1 && pId < 255 && pInfo) {
             const loadPct = Math.round(stress * 100);
             const isCrit  = (stress >= 0.22 || BRITTLE_SOLIDS.includes(pId));
             nameEl.innerText = pInfo.name;
@@ -958,7 +971,7 @@ canvas.emscripten { border: 0px none; background-color: black; }
             const hHopper = (gId >= 2000 && gId < 3000) ? (RIG_REAGENTS[gId - 2000] || { col: '#ff8a80', name: 'Stone' }) : null;
             const hAmoeba = (gId >= 1000 && gId < 2000) ? (RIG_REAGENTS[gId - 1000] || { col: '#bcc6d4', name: 'Grey' }) : null;
             const hGold   = (gId === 905);
-            const hCol = hGold ? '#ffd54f' : (hMOrb ? hMOrb.col : (hMancer ? hMancer.col : (hHopper ? hHopper.col : (hAmoeba ? hAmoeba.col : ((gId >= 1 && gId <= 17 && RIG_REAGENTS[gId]) ? RIG_REAGENTS[gId].col : '#ffd54f')))));
+            const hCol = hGold ? '#ffd54f' : (hMOrb ? hMOrb.col : (hMancer ? hMancer.col : (hHopper ? hHopper.col : (hAmoeba ? hAmoeba.col : ((gId >= 1 && gId < 255 && RIG_REAGENTS[gId]) ? RIG_REAGENTS[gId].col : '#ffd54f')))));
             ringEl.style.borderColor = hCol;
             ringEl.style.boxShadow   = '0 0 9px ' + hCol;
             hintEl.innerText         = hGold
@@ -1076,7 +1089,7 @@ canvas.emscripten { border: 0px none; background-color: black; }
             hintEl.innerText         = 'RMB: Yank Lit Match!';
             hintEl.style.color       = '#ffab2e';
             hintEl.style.opacity     = '1';
-          } else if (pId >= 1 && pId <= 17 && pInfo) {
+          } else if (pId >= 1 && pId < 255 && pInfo) {
             const shatterable = (stress >= 0.22 || BRITTLE_SOLIDS.includes(pId));
             const hCol = (pId === 5) ? '#ffd54f' : (shatterable ? '#ff8a65' : pInfo.col);
             const loadTag = (stress >= 0.22) ? (' (' + Math.round(stress * 100) + '% Load)') : '';
@@ -1341,6 +1354,6 @@ canvas.emscripten { border: 0px none; background-color: black; }
         canvasElement.focus();
       });
     </script>
-    <script async type="text/javascript" src="index.js?v=1788920002"></script>
+    <script async type="text/javascript" src="index.js?v=1788920010"></script>
   </body>
 </html>

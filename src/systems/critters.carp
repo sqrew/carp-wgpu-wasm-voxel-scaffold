@@ -19,31 +19,49 @@
         (Materials.imprintable? cand-mat)
         (if (or (= c l) (= c 262))
           true
-          (let [hydro? (and (or (= l 8) (or (= l 257) (= l 513)))
-                            (or (= c 8) (or (= c 257) (= c 513))))
-                acid?  (and (or (= l 259) (= l 517))
-                            (or (= c 259) (= c 517)))
+          (let [hydro? (and (or (= l 8) (or (= l 257) (or (= l 271) (= l 513))))
+                            (or (= c 8) (or (= c 257) (or (= c 271) (= c 513)))))
+                acid?  (and (or (= l 23) (or (= l 259) (or (= l 517) (= l 523))))
+                            (or (= c 23) (or (= c 259) (or (= c 517) (= c 523)))))
                 spore? (and (or (= l 13) (= l 520))
                             (or (= c 13) (= c 520)))
                 pyro?  (and (or (= l 258) (or (= l 515) (= l 519)))
                             (or (= c 258) (or (= c 515) (= c 519))))
-                boom?  (and (or (= l 7) (or (= l 12) (or (= l 263) (= l 518))))
-                            (or (= c 7) (or (= c 12) (or (= c 263) (= c 518)))))
-                sponge? (and (= l 11) (and (>= c 257) (<= c 264)))]
-            (or hydro? (or acid? (or spore? (or pyro? (or boom? sponge?))))))))))
+                boom?  (and (or (= l 7) (or (= l 12) (or (= l 263) (or (= l 270) (or (= l 518) (= l 525))))))
+                            (or (= c 7) (or (= c 12) (or (= c 263) (or (= c 270) (or (= c 518) (= c 525)))))))
+                alkali? (and (or (= l 20) (or (= l 21) (or (= l 22) (= l 269))))
+                             (or (= c 20) (or (= c 21) (or (= c 22) (= c 269)))))
+                oil?   (and (or (= l 19) (or (= l 260) (or (= l 265) (or (= l 266) (or (= l 267) (= l 522))))))
+                            (or (= c 19) (or (= c 260) (or (= c 265) (or (= c 266) (or (= c 267) (= c 522)))))))
+                sponge? (and (= l 11) (and (>= c 257) (<= c 271)))]
+            (or hydro? (or acid? (or spore? (or pyro? (or boom? (or alkali? (or oil? sponge?))))))))))))
 
   ;; Alchemical Refinement: what reagent a full Amoeba excretes right as it undergoes mitosis!
   (defn transmute-product [mat-id]
     (let [m (Float.round mat-id)]
       (if (= m 4)    14.0f   ;; Coal -> compressed glowing Crystal!
       (if (= m 260)  263.0f  ;; Oil -> refined Volatile Gel!
+      (if (= m 265)  263.0f  ;; Diesel -> refined Volatile Gel!
+      (if (= m 266)  267.0f  ;; Kerosene -> light Naphtha!
+      (if (= m 267)  270.0f  ;; Naphtha -> Nitroglycerin!
+      (if (= m 19)   265.0f  ;; Bitumen -> refined Diesel!
+      (if (= m 20)   5.0f    ;; Sodium -> transmuted Gold!
+      (if (= m 21)   20.0f   ;; Salt -> electrolytic metallic Sodium!
+      (if (= m 22)   270.0f  ;; Soap -> nitrated Nitroglycerin!
+      (if (= m 23)   7.0f    ;; Sulfur -> refined Gunpowder!
+      (if (= m 24)   14.0f   ;; Calcium Carbide -> glowing Crystal!
+      (if (= m 25)   270.0f  ;; White Phosphorus -> Nitroglycerin!
+      (if (= m 268)  5.0f    ;; Liquid Mercury -> chrysopoeia 24k Gold!
+      (if (= m 269)  22.0f   ;; Caustic Lye -> saponified Soap!
+      (if (= m 270)  262.0f  ;; Nitroglycerin -> Golden Ambrosia!
+      (if (= m 271)  14.0f   ;; Liquid Nitrogen -> cryo Crystal!
       (if (= m 6)    9.0f    ;; Sand -> fused Glass!
       (if (= m 2)    13.0f   ;; Soil -> luminescent Spore Pod!
       (if (= m 3)    13.0f   ;; Wood -> luminescent Spore Pod!
       (if (= m 1)    5.0f    ;; Stone -> Gold nugget!
       (if (= m 5)    5.0f    ;; Gold -> Gold!
       (if (= m 7)    263.0f  ;; Gunpowder -> Volatile Gel!
-      (if (= m 12)   263.0f  ;; C4 -> Volatile Gel!
+      (if (= m 12)   270.0f  ;; C4 -> Nitroglycerin!
       (if (= m 13)   262.0f  ;; Spore Pod -> fermented Golden Ambrosia!
       (if (= m 264)  262.0f  ;; Toxic Sludge -> purified Golden Ambrosia!
       (if (= m 520)  262.0f  ;; Spore Cloud -> Golden Ambrosia!
@@ -56,7 +74,7 @@
       (if (= m 513)  10.0f   ;; Steam -> bouncy Slime!
       (if (= m 258)  5.0f    ;; Lava -> molten Gold!
       (if (> m 0)    mat-id
-                     10.0f)))))))))))))))))))))))
+                     10.0f)))))))))))))))))))))))))))))))))))))
 
   (defn amoeba-slot-by-idx [state idx]
     (let [cbank (EngineState.critters state)
@@ -244,7 +262,7 @@
                               new-sdf (if carve?
                                         (if (> old-sdf neg-s) old-sdf neg-s)
                                         (if (< old-sdf sphere-sdf) old-sdf sphere-sdf))]
-                          (when (not (and carve? (= old-id 255.0f)))
+                          (when (not (and carve? (or (= old-id 255.0f) (= old-id 18.0f))))
                             (do
                               (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) new-sdf)
                               (when (and (not carve?) (< dist-to-hit radius))
@@ -268,7 +286,7 @@
           (Maybe.Nothing) ()
           (Maybe.Just hit-p)
             (let [hmat (CritterSystem.sample-solid-mat-near world &hit-p)]
-              (when (and (< hmat 250.0f) (> @(Vector3.y &hit-p) -185.0))
+              (when (and (< hmat 250.0f) (/= (Float.round hmat) 18))
                 (let [nrm (Physics.estimate-sdf-normal world &hit-p)
                       spawn-p (Vector3.add &hit-p &(Vector3.mul &nrm 0.56))
                       clear-sdf (World.sample-sdf-nearest world &spawn-p)
@@ -442,8 +460,8 @@
                         to-cam (Vector3.sub cam-pos &pos)
                         cam-dist (Vector3.mag &to-cam)
                         held? (Uint64.= @(RigBelt.grab-idx rig) idx)]
-                    ;; Recycle wild amoebas that drift > 78m away or fall below world floor
-                    (if (and (not held?) (or (> cam-dist 78.0) (< py -210.0)))
+                    ;; Recycle wild amoebas that drift > 78m away
+                    (if (and (not held?) (> cam-dist 78.0))
                       (CritterSystem.destroy-amoeba-slot! state k)
                       (let [rb-base (+ 16 (* k 8))
                             smell-x (Pointer.to-value (Pointer.add raw-rb (Long.from-int rb-base)))

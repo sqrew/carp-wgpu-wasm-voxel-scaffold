@@ -171,6 +171,47 @@ struct Uniforms {
     hopper_pos: array<vec4<f32>, 16>,
     mancer_pos: array<vec4<f32>, 4>,
     mancer_mat: array<vec4<f32>, 4>,
+    wake_p0: array<vec4<f32>, 16>,
+    wake_p1: array<vec4<f32>, 16>,
+    wake_vel: array<vec4<f32>, 16>,
+}
+")
+
+(def wgsl-uniforms-struct "
+struct Uniforms {
+    time: f32,
+    width: f32,
+    height: f32,
+    brush_radius: f32,
+    cam_pos: vec4<f32>,
+    cam_dir: vec4<f32>,
+    cam_right: vec4<f32>,
+    cam_up: vec4<f32>,
+    sun_dir: vec4<f32>,
+    hit_pos: vec4<f32>,
+    edit_params: vec4<f32>,
+    solid_params: vec4<f32>,
+    entity_count: f32,
+    pad1: f32,
+    pad2: f32,
+    pad3: f32,
+    view_proj: mat4x4<f32>,
+    flask_pos: vec4<f32>,
+    flask_action: vec4<f32>,
+    matches: array<vec4<f32>, 8>,
+    match_info: vec4<f32>,
+    critter_pos: vec4<f32>,
+    critter_action: vec4<f32>,
+    critter_lights: array<vec4<f32>, 16>,
+    critter_colors: array<vec4<f32>, 16>,
+    vox_pos: array<vec4<f32>, 12>,
+    vox_act: array<vec4<f32>, 12>,
+    hopper_pos: array<vec4<f32>, 16>,
+    mancer_pos: array<vec4<f32>, 4>,
+    mancer_mat: array<vec4<f32>, 4>,
+    wake_p0: array<vec4<f32>, 16>,
+    wake_p1: array<vec4<f32>, 16>,
+    wake_vel: array<vec4<f32>, 16>,
 }
 ")
 
@@ -211,7 +252,7 @@ fn get_liq_props(id: f32) -> LiquidProps {
 @group(0) @binding(5) var solid_texture:       texture_3d<f32>;
 @group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
-@group(0) @binding(8) var<storage, read_write> light_buffer: array<vec4<f32>>; // buffer backed light!
+@group(0) @binding(8) var vel_texture:         texture_3d<f32>;
 
 fn positive_mod(n: i32, m: i32) -> i32 {
     let r = n % m;
@@ -259,6 +300,12 @@ fn get_gas(base_ip: vec3<i32>, delta: vec3<i32>, win_min: vec3<i32>) -> vec4<f32
     if (!step_in_window(base_ip, delta, win_min)) { return vec4<f32>(0.0, 0.0, 0.0, 10.0); }
     let wrapped = (base_ip + delta + vec3<i32>(160)) % 160;
     return textureLoad(gas_texture, wrapped, 0);
+}
+
+fn get_vel(base_ip: vec3<i32>, delta: vec3<i32>, win_min: vec3<i32>) -> vec4<f32> {
+    if (!step_in_window(base_ip, delta, win_min)) { return vec4<f32>(0.0); }
+    let wrapped = (base_ip + delta + vec3<i32>(160)) % 160;
+    return textureLoad(vel_texture, wrapped, 0);
 }
 
 fn is_explosion_center(p: vec3<i32>, win_min: vec3<i32>) -> bool {
@@ -373,7 +420,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (idx >= 4096000u) { return; }
 
     // Dummy reads to prevent compiler from optimizing out unused bindings
-    let dummy_val = input_buffer[0] + solid_buffer[0] + vec4<f32>(bitcast<f32>(registry_data[0]));
+    let dummy_val = input_buffer[0] + solid_buffer[0] + vec4<f32>(bitcast<f32>(registry_data[0])) + textureLoad(vel_texture, vec3<i32>(0), 0);
     if (dummy_val.x > 999999.0) {
         output_buffer[idx] = textureLoad(gas_texture, vec3<i32>(0), 0);
     }
@@ -396,7 +443,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     if (length(vec3<f32>(d)) <= 3.5 && step_in_window(ip, d, win_min)) {
                         let wrapped = (ip + d + vec3<i32>(160)) % 160;
                         let s_idx = u32(wrapped.x) + u32(wrapped.y) * 160u + u32(wrapped.z) * 25600u;
-                        if (solid_buffer[s_idx].x != 255.0) {
+                        if (solid_buffer[s_idx].x != 255.0 && abs(solid_buffer[s_idx].x) != 18.0) {
                             solid_buffer[s_idx] = vec4<f32>(0.0, 1.0, 0.0, 0.0);
                         }
                     }
@@ -454,18 +501,27 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     let self_liq = get_liquid(ip, zero_d, win_min);
     let self_vol = self_liq.y;
+    let self_vel = get_vel(ip, zero_d, win_min);
+    let self_v2 = dot(self_vel.xyz, self_vel.xyz);
     var next_id = self_liq.x;
     var next_vol = self_vol;
     var next_age = self_liq.z;
     var next_sleep = self_liq.w;
     
-    if (next_sleep >= 10.0 && self_liq.z < 0.01) {
+    if (next_sleep >= 10.0 && self_liq.z < 0.01 && self_v2 < 0.0005) {
         let l1 = get_liquid(ip, vec3<i32>(-1,0,0), win_min);
         let l2 = get_liquid(ip, vec3<i32>(1,0,0), win_min);
         let l3 = get_liquid(ip, vec3<i32>(0,-1,0), win_min);
         let l4 = get_liquid(ip, vec3<i32>(0,1,0), win_min);
         let l5 = get_liquid(ip, vec3<i32>(0,0,-1), win_min);
         let l6 = get_liquid(ip, vec3<i32>(0,0,1), win_min);
+        let nv1 = get_vel(ip, vec3<i32>(-1,0,0), win_min).xyz;
+        let nv2 = get_vel(ip, vec3<i32>(1,0,0), win_min).xyz;
+        let nv3 = get_vel(ip, vec3<i32>(0,-1,0), win_min).xyz;
+        let nv4 = get_vel(ip, vec3<i32>(0,1,0), win_min).xyz;
+        let nv5 = get_vel(ip, vec3<i32>(0,0,-1), win_min).xyz;
+        let nv6 = get_vel(ip, vec3<i32>(0,0,1), win_min).xyz;
+        let max_nv2 = max(max(dot(nv1, nv1), dot(nv2, nv2)), max(max(dot(nv3, nv3), dot(nv4, nv4)), max(dot(nv5, nv5), dot(nv6, nv6))));
         let n1 = l1.w; let n2 = l2.w; let n3 = l3.w;
         let n4 = l4.w; let n5 = l5.w; let n6 = l6.w;
         let max_c = max(max(l1.z, l2.z), max(max(l3.z, l4.z), max(l5.z, l6.z)));
@@ -488,7 +544,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 break;
             }
         }
-        if (!match_near && !vox_near && max_c < 0.01 && n1 >= 10.0 && n2 >= 10.0 && n3 >= 10.0 && n4 >= 10.0 && n5 >= 10.0 && n6 >= 10.0 && my_gas >= 10.0 && u.edit_params.y == 0.0) {
+        if (!match_near && !vox_near && max_nv2 < 0.0005 && max_c < 0.01 && n1 >= 10.0 && n2 >= 10.0 && n3 >= 10.0 && n4 >= 10.0 && n5 >= 10.0 && n6 >= 10.0 && my_gas >= 10.0 && u.edit_params.y == 0.0) {
              output_buffer[idx] = self_liq;
              return;
         }
@@ -506,18 +562,18 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         vec3<i32>(0, 0, 1)
     );
 
-    // --- 1. Density Buoyancy Swapping (1-to-1 parity matching) ---
+    // --- 1. Density Buoyancy Swapping (1-to-1 parity matching; paused under high kinetic shear) ---
     var swapped = false;
     let frame_step = i32(u.time) % 2;
     let is_even_pair = (lp.y % 2) == frame_step;
 
-    if (self_vol > 0.05) {
+    if (self_vol > 0.05 && self_v2 < 0.04) {
         if (is_even_pair) {
             // Look down
             if (lp.y > 0 && !is_solid(ip, down_d, win_min)) {
                 let below = get_liquid(ip, down_d, win_min);
                 let below_props = get_liq_props(below.x);
-                if (below.y > 0.05 && self_props.density > below_props.density) {
+                if (below.y > 0.05 && self_props.density > below_props.density && dot(get_vel(ip, down_d, win_min).xyz, get_vel(ip, down_d, win_min).xyz) < 0.04) {
                     next_id = below.x;
                     next_vol = below.y;
                     swapped = true;
@@ -528,7 +584,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             if (lp.y < 159 && !is_solid(ip, up_d, win_min)) {
                 let above = get_liquid(ip, up_d, win_min);
                 let above_props = get_liq_props(above.x);
-                if (above.y > 0.05 && above_props.density > self_props.density) {
+                if (above.y > 0.05 && above_props.density > self_props.density && dot(get_vel(ip, up_d, win_min).xyz, get_vel(ip, up_d, win_min).xyz) < 0.04) {
                     next_id = above.x;
                     next_vol = above.y;
                     swapped = true;
@@ -537,7 +593,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
     }
 
-    // --- 2. Gravity & Lateral Flow (only calculated if not swapped) ---
+    // --- 2. Gravity, Lateral Leveling & 3D Kinetic Splash Advection (pairwise mass-conserving!) ---
     var net_flow = 0.0;
     var max_inflow = 0.0;
 
@@ -545,20 +601,24 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let g_rate = self_props.g_rate;
         let l_rate = self_props.l_rate;
 
-        // Downward gravity flow
+        // Downward gravity flow (Peclet-damped when strong vertical velocity shear acts across face)
         if (!is_solid(ip, down_d, win_min)) {
             let below = get_liquid(ip, down_d, win_min);
             let below_props = get_liq_props(below.x);
+            let vy_dn = abs(0.5 * (self_vel.y + get_vel(ip, down_d, win_min).y));
+            let pec_dn = clamp(1.0 - vy_dn * 1.8, 0.0, 1.0);
             if (below.y <= 0.05 || self_props.density >= below_props.density) {
-                let flow_out = min(self_vol, max(0.0, 1.0 - below.y)) * g_rate;
+                let flow_out = min(self_vol, max(0.0, 1.0 - below.y)) * g_rate * pec_dn;
                 net_flow -= flow_out;
             }
         }
         if (!is_solid(ip, up_d, win_min)) {
             let above = get_liquid(ip, up_d, win_min);
             let above_props = get_liq_props(above.x);
+            let vy_up = abs(0.5 * (self_vel.y + get_vel(ip, up_d, win_min).y));
+            let pec_up = clamp(1.0 - vy_up * 1.8, 0.0, 1.0);
             if (self_vol <= 0.05 || above_props.density >= self_props.density) {
-                let flow_in = min(above.y, max(0.0, 1.0 - self_vol)) * above_props.g_rate;
+                let flow_in = min(above.y, max(0.0, 1.0 - self_vol)) * above_props.g_rate * pec_up;
                 net_flow += flow_in;
                 if (flow_in > max_inflow) {
                     max_inflow = flow_in;
@@ -567,21 +627,55 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             }
         }
 
-        // Lateral flow
+        // Lateral flow (Peclet-damped along sheared faces so carved troughs stay crisp before sloshing back)
         for (var i = 0; i < 4; i = i + 1) {
             let nd = neighbors[i];
             if (!is_solid(ip, nd, win_min)) {
                 let n_liq = get_liquid(ip, nd, win_min);
                 let n_props = get_liq_props(n_liq.x);
+                let vn_lat = abs(0.5 * dot(self_vel.xyz + get_vel(ip, nd, win_min).xyz, vec3<f32>(nd)));
+                let pec_lat = clamp(1.0 - vn_lat * 1.8, 0.0, 1.0);
                 if (self_vol > n_liq.y && (n_liq.y <= 0.05 || self_props.density >= n_props.density)) {
-                    let flow_out = (self_vol - n_liq.y) * l_rate;
+                    let flow_out = (self_vol - n_liq.y) * l_rate * pec_lat;
                     net_flow -= flow_out;
                 }
                 if (n_liq.y > self_vol && (self_vol <= 0.05 || n_props.density >= self_props.density)) {
-                    let flow_in = (n_liq.y - self_vol) * n_props.l_rate;
+                    let flow_in = (n_liq.y - self_vol) * n_props.l_rate * pec_lat;
                     net_flow += flow_in;
                     if (flow_in > max_inflow) {
                         max_inflow = flow_in;
+                        next_id = n_liq.x;
+                    }
+                }
+            }
+        }
+
+        // 6-face symmetric upwind kinetic advection (carves troughs, piles bow-waves up to 1.35, and throws +Y rooster-tails!)
+        let adv_dirs = array<vec3<i32>, 6>(
+            vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
+            vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
+            vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
+        );
+        let dens_resist = 1.0 / max(0.65, sqrt(max(self_props.density, 0.25)));
+        for (var ai = 0; ai < 6; ai = ai + 1) {
+            let ad = adv_dirs[ai];
+            if (!is_solid(ip, ad, win_min)) {
+                let n_liq = get_liquid(ip, ad, win_min);
+                let n_vel = get_vel(ip, ad, win_min);
+                let v_ab = 0.5 * dot(self_vel.xyz + n_vel.xyz, vec3<f32>(ad));
+                let vy_pair = 0.5 * (self_vel.y + n_vel.y);
+                let vy_eff = select(vy_pair, max(0.0, vy_pair - 0.18), vy_pair > 0.0);
+                let v_drive = select(v_ab, vy_eff * f32(ad.y), ad.y != 0);
+                if (v_drive > 0.015 && self_vol > 0.01) {
+                    let w_out = min(self_vol, max(0.0, 1.35 - n_liq.y)) * clamp(v_drive * 0.22 * dens_resist, 0.0, 0.145);
+                    net_flow -= w_out;
+                } else if (v_drive < -0.015 && n_liq.y > 0.01) {
+                    let n_dens = max(0.25, get_liq_props(n_liq.x).density);
+                    let n_resist = 1.0 / max(0.65, sqrt(n_dens));
+                    let w_in = min(n_liq.y, max(0.0, 1.35 - self_vol)) * clamp((-v_drive) * 0.22 * n_resist, 0.0, 0.145);
+                    net_flow += w_in;
+                    if (w_in > max_inflow) {
+                        max_inflow = w_in;
                         next_id = n_liq.x;
                     }
                 }
@@ -630,13 +724,33 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
     }
 
-    // --- 3.5. Steam condensation ---
+    // --- 3.5. Steam condensation & Gas -> Liquid Reaction Condensation (e.g. Acid Vapor + Steam -> Acid) ---
     let my_gas = get_gas(ip, zero_d, win_min);
     if (my_gas.x == 1.0 && my_gas.y > 0.05) {
         if (is_solid(ip, up_d, win_min)) {
             if (next_vol <= 0.05 || next_id == 1.0) {
                 next_id = 1.0; // Water
                 next_vol = min(1.0, next_vol + 0.02);
+            }
+        }
+    } else if (next_vol <= 0.05 && my_gas.y > 0.08 && abs(my_gas.x) > 0.5) {
+        let g_dirs = array<vec3<i32>, 6>(
+            vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
+            vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
+            vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
+        );
+        for (var gi = 0u; gi < 6u; gi++) {
+            let gd = g_dirs[gi];
+            if (!step_in_window(ip, gd, win_min)) { continue; }
+            let ng = get_gas(ip, gd, win_min);
+            if (ng.y > 0.08 && abs(ng.x) > 0.5) {
+                let rxg = get_reaction(abs(my_gas.x), 512u, abs(ng.x), 512u);
+                if (rxg.y >= 256.0 && rxg.y < 512.0) {
+                    next_id = rxg.y - 256.0;
+                    next_vol = 0.45;
+                    next_sleep = 0.0;
+                    break;
+                }
             }
         }
     }
@@ -648,15 +762,19 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         if (my_gas.y > 0.05) {
             let rx0 = get_reaction(abs(next_id), 256u, my_gas.x, 512u);
             if (rx0.x != abs(next_id) + 256.0) {
-                if (rx0.x < 256.0) {
+                if (rx0.x > 0.5 && rx0.x < 256.0) {
                     let self_s_idx = u32(ip.x) + u32(ip.y) * 160u + u32(ip.z) * 25600u;
-                    solid_buffer[self_s_idx] = vec4<f32>(rx0.x, -1.0, 0.0, 0.0);
+                    let is_gran = (registry_data[clamp(u32(round(rx0.x)), 0u, 255u) * 8u + 7u] & TAG_GRANULAR) != 0u;
+                    solid_buffer[self_s_idx] = vec4<f32>(select(rx0.x, -rx0.x, is_gran), select(-1.0, -0.5, is_gran), 0.0, 0.0);
                     next_id = 0.0; next_vol = 0.0;
-                } else if (rx0.x < 512.0) {
+                } else if (rx0.x >= 256.0 && rx0.x < 512.0) {
                     next_id = rx0.x - 256.0;
                 } else if (rx0.x == 515.0) {
-                    // Sustained pool fire: Oil burns down gradually while feeding roaring flames & smoke!
-                    next_vol = max(0.0, next_vol - 0.10);
+                    // Sustained pool fire: burn rate scales inversely with material toughness!
+                    // Nitroglycerin (0.15) & Naphtha (0.35) flash off fast -> Kerosene (0.95) -> Crude Oil (2.0) -> Diesel (3.2) burns slow & heavy!
+                    let l_tough = max(0.15, bitcast<f32>(registry_data[(256u + clamp(u32(round(abs(next_id))), 0u, 255u)) * 8u + 6u]));
+                    let burn_step = clamp(0.18 / l_tough, 0.028, 0.65);
+                    next_vol = max(0.0, next_vol - burn_step);
                     if (next_vol < 0.02) { next_id = 0.0; next_vol = 0.0; }
                 } else {
                     next_id = 0.0; next_vol = 0.0;
@@ -680,16 +798,19 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             if (n_sol.y <= 0.0 && abs(n_sol.x) > 0.5) {
                 let rx = get_reaction(abs(next_id), 256u, abs(n_sol.x), 0u);
                 if (rx.x != abs(next_id) + 256.0) {
-                    if (rx.x < 256.0) { // Spawning Solid
+                    if (rx.x > 0.5 && rx.x < 256.0) { // Spawning Solid (granular precipitate vs cohesive block)
                         let self_s_idx = u32(ip.x) + u32(ip.y) * 160u + u32(ip.z) * 25600u;
-                        solid_buffer[self_s_idx] = vec4<f32>(rx.x, -1.0, 0.0, 0.0);
+                        let is_gran = (registry_data[clamp(u32(round(rx.x)), 0u, 255u) * 8u + 7u] & TAG_GRANULAR) != 0u;
+                        solid_buffer[self_s_idx] = vec4<f32>(select(rx.x, -rx.x, is_gran), select(-1.0, -0.5, is_gran), 0.0, 0.0);
                         next_id = 0.0; next_vol = 0.0;
-                    } else if (rx.x < 512.0) { // Becoming another Liquid
+                    } else if (rx.x >= 256.0 && rx.x < 512.0) { // Becoming another Liquid
                         next_id = rx.x - 256.0;
                     } else if (rx.x == 515.0) {
-                        next_vol = max(0.0, next_vol - 0.10);
+                        let l_tough = max(0.15, bitcast<f32>(registry_data[(256u + clamp(u32(round(abs(next_id))), 0u, 255u)) * 8u + 6u]));
+                        let burn_step = clamp(0.18 / l_tough, 0.028, 0.65);
+                        next_vol = max(0.0, next_vol - burn_step);
                         if (next_vol < 0.02) { next_id = 0.0; next_vol = 0.0; }
-                    } else { // Becoming Gas
+                    } else { // Becoming Gas / Air
                         next_id = 0.0; next_vol = 0.0;
                     }
                     next_sleep = 0.0;
@@ -702,14 +823,17 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             if (n_liq.y > 0.05) {
                 let rx = get_reaction(abs(next_id), 256u, n_liq.x, 256u);
                 if (rx.x != abs(next_id) + 256.0) {
-                    if (rx.x < 256.0) { 
+                    if (rx.x > 0.5 && rx.x < 256.0) { 
                         let self_s_idx = u32(ip.x) + u32(ip.y) * 160u + u32(ip.z) * 25600u;
-                        solid_buffer[self_s_idx] = vec4<f32>(rx.x, -1.0, 0.0, 0.0);
+                        let is_gran = (registry_data[clamp(u32(round(rx.x)), 0u, 255u) * 8u + 7u] & TAG_GRANULAR) != 0u;
+                        solid_buffer[self_s_idx] = vec4<f32>(select(rx.x, -rx.x, is_gran), select(-1.0, -0.5, is_gran), 0.0, 0.0);
                         next_id = 0.0; next_vol = 0.0;
-                    } else if (rx.x < 512.0) { 
+                    } else if (rx.x >= 256.0 && rx.x < 512.0) { 
                         next_id = rx.x - 256.0;
                     } else if (rx.x == 515.0) {
-                        next_vol = max(0.0, next_vol - 0.10);
+                        let l_tough = max(0.15, bitcast<f32>(registry_data[(256u + clamp(u32(round(abs(next_id))), 0u, 255u)) * 8u + 6u]));
+                        let burn_step = clamp(0.18 / l_tough, 0.028, 0.65);
+                        next_vol = max(0.0, next_vol - burn_step);
                         if (next_vol < 0.02) { next_id = 0.0; next_vol = 0.0; }
                     } else { 
                         next_id = 0.0; next_vol = 0.0;
@@ -724,14 +848,17 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             if (n_gas.y > 0.05) {
                 let rx = get_reaction(abs(next_id), 256u, n_gas.x, 512u);
                 if (rx.x != abs(next_id) + 256.0) {
-                    if (rx.x < 256.0) { 
+                    if (rx.x > 0.5 && rx.x < 256.0) { 
                         let self_s_idx = u32(ip.x) + u32(ip.y) * 160u + u32(ip.z) * 25600u;
-                        solid_buffer[self_s_idx] = vec4<f32>(rx.x, -1.0, 0.0, 0.0);
+                        let is_gran = (registry_data[clamp(u32(round(rx.x)), 0u, 255u) * 8u + 7u] & TAG_GRANULAR) != 0u;
+                        solid_buffer[self_s_idx] = vec4<f32>(select(rx.x, -rx.x, is_gran), select(-1.0, -0.5, is_gran), 0.0, 0.0);
                         next_id = 0.0; next_vol = 0.0;
-                    } else if (rx.x < 512.0) { 
+                    } else if (rx.x >= 256.0 && rx.x < 512.0) { 
                         next_id = rx.x - 256.0;
                     } else if (rx.x == 515.0) {
-                        next_vol = max(0.0, next_vol - 0.10);
+                        let l_tough = max(0.15, bitcast<f32>(registry_data[(256u + clamp(u32(round(abs(next_id))), 0u, 255u)) * 8u + 6u]));
+                        let burn_step = clamp(0.18 / l_tough, 0.028, 0.65);
+                        next_vol = max(0.0, next_vol - burn_step);
                         if (next_vol < 0.02) { next_id = 0.0; next_vol = 0.0; }
                     } else { 
                         next_id = 0.0; next_vol = 0.0;
@@ -751,12 +878,12 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_id = 0.0;
     }
     
-    next_vol = clamp(next_vol, 0.0, 1.0);
+    next_vol = clamp(next_vol, 0.0, 1.35);
     if (next_vol == 0.0) {
         next_id = 0.0;
     }
 
-    if (abs(next_vol - self_vol) < 0.001) {
+    if (abs(next_vol - self_vol) < 0.001 && self_v2 < 0.0005) {
         next_sleep = min(next_sleep + 1.0, 10.0);
     } else {
         next_sleep = 0.0;
@@ -813,10 +940,11 @@ struct GasProps {
     g_rate: f32,
     l_rate: f32,
     decay: f32,
+    density: f32,
 }
 
 fn get_gas_props(id: f32) -> GasProps {
-    if (id < 0.5) { return GasProps(0.0, 0.0, 0.0); }
+    if (id < 0.5) { return GasProps(0.0, 0.0, 0.0, 0.0); }
     let mat_id = clamp(u32(round(id)), 0u, 255u);
     let idx = (512u + mat_id) * 8u;
     let density = bitcast<f32>(registry_data[idx + 5u]);
@@ -852,7 +980,7 @@ fn get_gas_props(id: f32) -> GasProps {
         g = g / t_rate;
         l = l / t_rate;
     }
-    return GasProps(g, l, dec);
+    return GasProps(g, l, dec, density);
 }
 
 @group(0) @binding(0) var<storage, read>       input_buffer: array<vec4<f32>>;
@@ -863,7 +991,7 @@ fn get_gas_props(id: f32) -> GasProps {
 @group(0) @binding(5) var solid_texture:       texture_3d<f32>;
 @group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
-@group(0) @binding(8) var<storage, read_write> light_buffer: array<vec4<f32>>; // buffer backed light!
+@group(0) @binding(8) var vel_texture:         texture_3d<f32>;
 
 fn positive_mod(n: i32, m: i32) -> i32 {
     let r = n % m;
@@ -913,6 +1041,12 @@ fn get_liquid(base_ip: vec3<i32>, delta: vec3<i32>, win_min: vec3<i32>) -> vec4<
     return textureLoad(liquid_texture, wrapped, 0);
 }
 
+fn get_vel(base_ip: vec3<i32>, delta: vec3<i32>, win_min: vec3<i32>) -> vec4<f32> {
+    if (!step_in_window(base_ip, delta, win_min)) { return vec4<f32>(0.0); }
+    let wrapped = (base_ip + delta + vec3<i32>(160)) % 160;
+    return textureLoad(vel_texture, wrapped, 0);
+}
+
 fn get_world_pos(ip: vec3<i32>, cam_pos: vec3<f32>) -> vec3<f32> {
     let cx = i32(floor(cam_pos.x / 32.0));
     let cy = i32(floor(cam_pos.y / 32.0));
@@ -947,7 +1081,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (idx >= 4096000u) { return; }
 
     // Dummy reads to prevent compiler from optimizing out unused bindings
-    let dummy_val = input_buffer[0] + solid_buffer[0] + vec4<f32>(bitcast<f32>(registry_data[0]));
+    let dummy_val = input_buffer[0] + solid_buffer[0] + vec4<f32>(bitcast<f32>(registry_data[0])) + textureLoad(vel_texture, vec3<i32>(0), 0);
     if (dummy_val.x > 999999.0) {
         output_buffer[idx] = textureLoad(liquid_texture, vec3<i32>(0), 0);
     }
@@ -966,18 +1100,27 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     let self_gas = get_gas(ip, zero_d, win_min);
     let self_vol = self_gas.y;
+    let self_vel = get_vel(ip, zero_d, win_min);
+    let self_v2 = dot(self_vel.xyz, self_vel.xyz);
     var next_id = self_gas.x;
     var next_vol = self_vol;
     var next_age = self_gas.z;
     var next_sleep = self_gas.w;
     
-    if (next_sleep >= 10.0) {
+    if (next_sleep >= 10.0 && self_v2 < 0.0004) {
         let n1 = get_gas(ip, vec3<i32>(-1,0,0), win_min).w;
         let n2 = get_gas(ip, vec3<i32>(1,0,0), win_min).w;
         let n3 = get_gas(ip, vec3<i32>(0,-1,0), win_min).w;
         let n4 = get_gas(ip, vec3<i32>(0,1,0), win_min).w;
         let n5 = get_gas(ip, vec3<i32>(0,0,-1), win_min).w;
         let n6 = get_gas(ip, vec3<i32>(0,0,1), win_min).w;
+        let gv1 = get_vel(ip, vec3<i32>(-1,0,0), win_min).xyz;
+        let gv2 = get_vel(ip, vec3<i32>(1,0,0), win_min).xyz;
+        let gv3 = get_vel(ip, vec3<i32>(0,-1,0), win_min).xyz;
+        let gv4 = get_vel(ip, vec3<i32>(0,1,0), win_min).xyz;
+        let gv5 = get_vel(ip, vec3<i32>(0,0,-1), win_min).xyz;
+        let gv6 = get_vel(ip, vec3<i32>(0,0,1), win_min).xyz;
+        let max_gv2 = max(max(dot(gv1, gv1), dot(gv2, gv2)), max(max(dot(gv3, gv3), dot(gv4, gv4)), max(dot(gv5, gv5), dot(gv6, gv6))));
         let my_liq = get_liquid(ip, zero_d, win_min).w;
         var match_near = false;
         let wp_g = get_world_pos(ip, u.cam_pos.xyz) + vec3<f32>(0.5);
@@ -997,7 +1140,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 break;
             }
         }
-        if (!match_near && !vox_near && n1 >= 10.0 && n2 >= 10.0 && n3 >= 10.0 && n4 >= 10.0 && n5 >= 10.0 && n6 >= 10.0 && my_liq >= 10.0 && u.edit_params.w == 0.0) {
+        if (!match_near && !vox_near && max_gv2 < 0.0004 && n1 >= 10.0 && n2 >= 10.0 && n3 >= 10.0 && n4 >= 10.0 && n5 >= 10.0 && n6 >= 10.0 && my_liq >= 10.0 && u.edit_params.w == 0.0) {
              output_buffer[idx] = self_gas;
              return;
         }
@@ -1017,77 +1160,137 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let g_rate = self_props.g_rate;
     let l_rate = self_props.l_rate;
 
+    // --- 0. 1-to-1 Gas Density Buoyancy Swapping (paused under active kinetic wakes) ---
+    var gas_swapped = false;
+    if (self_vol > 0.08 && self_v2 < 0.03 && !is_solid(ip, up_d, win_min)) {
+        let above = get_gas(ip, up_d, win_min);
+        let up_v = get_vel(ip, up_d, win_min).xyz;
+        if (above.y > 0.08 && abs(above.x - self_gas.x) > 0.1 && dot(up_v, up_v) < 0.03) {
+            let above_props = get_gas_props(above.x);
+            if (above_props.density > self_props.density + 0.05) {
+                next_id = above.x;
+                next_vol = above.y;
+                next_age = above.z;
+                next_sleep = 0.0;
+                gas_swapped = true;
+            }
+        }
+    }
+    if (!gas_swapped && self_vol > 0.08 && self_v2 < 0.03 && !is_solid(ip, down_d, win_min)) {
+        let below = get_gas(ip, down_d, win_min);
+        let dn_v = get_vel(ip, down_d, win_min).xyz;
+        if (below.y > 0.08 && abs(below.x - self_gas.x) > 0.1 && dot(dn_v, dn_v) < 0.03) {
+            let below_props = get_gas_props(below.x);
+            if (self_props.density > below_props.density + 0.05) {
+                next_id = below.x;
+                next_vol = below.y;
+                next_age = below.z;
+                next_sleep = 0.0;
+                gas_swapped = true;
+            }
+        }
+    }
+
     var net_flow = 0.0;
     var max_inflow = 0.0;
 
-    // --- 1. Vertical flow ---
-    // Flow out to above (if we rise)
-    if (g_rate > 0.0 && !is_solid(ip, up_d, win_min)) {
-        let above = get_gas(ip, up_d, win_min);
-        let flow_out = min(self_vol, max(0.0, 1.0 - above.y)) * g_rate;
-        net_flow -= flow_out;
-    }
-    // Flow out to below (if we fall)
-    if (g_rate < 0.0 && !is_solid(ip, down_d, win_min)) {
-        let below = get_gas(ip, down_d, win_min);
-        let flow_out = min(self_vol, max(0.0, 1.0 - below.y)) * abs(g_rate);
-        net_flow -= flow_out;
-    }
-    // Flow in from below (if they rise)
-    if (!is_solid(ip, down_d, win_min)) {
-        let below = get_gas(ip, down_d, win_min);
-        let below_props = get_gas_props(below.x);
-        if (below_props.g_rate > 0.0) {
-            let flow_in = min(below.y, max(0.0, 1.0 - self_vol)) * below_props.g_rate;
-            net_flow += flow_in;
-            if (flow_in > max_inflow) {
-                max_inflow = flow_in;
-                next_id = below.x;
-            }
-        }
-    }
-    // Flow in from above (if they fall)
-    if (!is_solid(ip, up_d, win_min)) {
-        let above = get_gas(ip, up_d, win_min);
-        let above_props = get_gas_props(above.x);
-        if (above_props.g_rate < 0.0) {
-            let flow_in = min(above.y, max(0.0, 1.0 - self_vol)) * abs(above_props.g_rate);
-            net_flow += flow_in;
-            if (flow_in > max_inflow) {
-                max_inflow = flow_in;
-                next_id = above.x;
-            }
-        }
-    }
+    if (!gas_swapped) {
+        let vy_up_abs = abs(0.5 * (self_vel.y + get_vel(ip, up_d, win_min).y));
+        let vy_dn_abs = abs(0.5 * (self_vel.y + get_vel(ip, down_d, win_min).y));
+        let pec_up = clamp(1.0 - vy_up_abs * 1.6, 0.0, 1.0);
+        let pec_dn = clamp(1.0 - vy_dn_abs * 1.6, 0.0, 1.0);
 
-    // --- 2. Lateral flow (tight rising column in open air; mushrooms across ceiling wells when capped above!) ---
-    let self_capped_up = is_solid(ip, up_d, win_min) || get_gas(ip, up_d, win_min).y > 0.65;
-    let eff_self_l = select(l_rate, min(0.135, l_rate * 2.85), self_capped_up && g_rate > 0.0);
-    for (var i = 0; i < 4; i = i + 1) {
-        let nd = neighbors[i];
-        if (!is_solid(ip, nd, win_min)) {
-            let n_gas = get_gas(ip, nd, win_min);
-            let n_props = get_gas_props(n_gas.x);
-            let n_capped_up = is_solid(ip, nd + up_d, win_min) || get_gas(ip, nd + up_d, win_min).y > 0.65;
-            let eff_n_l = select(n_props.l_rate, min(0.135, n_props.l_rate * 2.85), n_capped_up && n_props.g_rate > 0.0);
-            // Flow out to neighbor if we have more
-            if (self_vol > n_gas.y) {
-                let flow_out = (self_vol - n_gas.y) * eff_self_l;
-                net_flow -= flow_out;
-            }
-            // Flow in from neighbor if it has more
-            if (n_gas.y > self_vol) {
-                let flow_in = (n_gas.y - self_vol) * eff_n_l;
+        // --- 1. Vertical buoyancy flow (Peclet-damped along sheared faces) ---
+        if (g_rate > 0.0 && !is_solid(ip, up_d, win_min)) {
+            let above = get_gas(ip, up_d, win_min);
+            let flow_out = min(self_vol, max(0.0, 1.0 - above.y)) * g_rate * pec_up;
+            net_flow -= flow_out;
+        }
+        if (g_rate < 0.0 && !is_solid(ip, down_d, win_min)) {
+            let below = get_gas(ip, down_d, win_min);
+            let flow_out = min(self_vol, max(0.0, 1.0 - below.y)) * abs(g_rate) * pec_dn;
+            net_flow -= flow_out;
+        }
+        if (!is_solid(ip, down_d, win_min)) {
+            let below = get_gas(ip, down_d, win_min);
+            let below_props = get_gas_props(below.x);
+            if (below_props.g_rate > 0.0) {
+                let flow_in = min(below.y, max(0.0, 1.0 - self_vol)) * below_props.g_rate * pec_dn;
                 net_flow += flow_in;
                 if (flow_in > max_inflow) {
                     max_inflow = flow_in;
-                    next_id = n_gas.x;
+                    next_id = below.x;
                 }
             }
         }
-    }
+        if (!is_solid(ip, up_d, win_min)) {
+            let above = get_gas(ip, up_d, win_min);
+            let above_props = get_gas_props(above.x);
+            if (above_props.g_rate < 0.0) {
+                let flow_in = min(above.y, max(0.0, 1.0 - self_vol)) * abs(above_props.g_rate) * pec_up;
+                net_flow += flow_in;
+                if (flow_in > max_inflow) {
+                    max_inflow = flow_in;
+                    next_id = above.x;
+                }
+            }
+        }
 
-    next_vol = next_vol + net_flow;
+        // --- 2. Lateral diffusion (Peclet-damped so parted Mach fog tunnels hold crisp hollow walls!) ---
+        let self_capped_up = is_solid(ip, up_d, win_min) || get_gas(ip, up_d, win_min).y > 0.65;
+        let eff_self_l = select(l_rate, min(0.135, l_rate * 2.85), self_capped_up && g_rate > 0.0);
+        for (var i = 0; i < 4; i = i + 1) {
+            let nd = neighbors[i];
+            if (!is_solid(ip, nd, win_min)) {
+                let n_gas = get_gas(ip, nd, win_min);
+                let n_props = get_gas_props(n_gas.x);
+                let vn_abs = abs(0.5 * dot(self_vel.xyz + get_vel(ip, nd, win_min).xyz, vec3<f32>(nd)));
+                let pec_lat = clamp(1.0 - vn_abs * 1.6, 0.0, 1.0);
+                let n_capped_up = is_solid(ip, nd + up_d, win_min) || get_gas(ip, nd + up_d, win_min).y > 0.65;
+                let eff_n_l = select(n_props.l_rate, min(0.135, n_props.l_rate * 2.85), n_capped_up && n_props.g_rate > 0.0);
+                if (self_vol > n_gas.y) {
+                    let flow_out = (self_vol - n_gas.y) * eff_self_l * pec_lat;
+                    net_flow -= flow_out;
+                }
+                if (n_gas.y > self_vol) {
+                    let flow_in = (n_gas.y - self_vol) * eff_n_l * pec_lat;
+                    net_flow += flow_in;
+                    if (flow_in > max_inflow) {
+                        max_inflow = flow_in;
+                        next_id = n_gas.x;
+                    }
+                }
+            }
+        }
+
+        // --- 2.5. 6-Face Symmetric Compressible Velocity Advection (Mach tunnels + slipstream plumes, 1.85 shock headroom!) ---
+        let adv_dirs = array<vec3<i32>, 6>(
+            vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
+            vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
+            vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
+        );
+        for (var ai = 0; ai < 6; ai = ai + 1) {
+            let ad = adv_dirs[ai];
+            if (!is_solid(ip, ad, win_min)) {
+                let n_gas = get_gas(ip, ad, win_min);
+                let n_vel = get_vel(ip, ad, win_min);
+                let v_ab = 0.5 * dot(self_vel.xyz + n_vel.xyz, vec3<f32>(ad));
+                if (v_ab > 0.012 && self_vol > 0.005) {
+                    let w_out = min(self_vol, max(0.0, 1.85 - n_gas.y)) * clamp(v_ab * 0.23, 0.0, 0.148);
+                    net_flow -= w_out;
+                } else if (v_ab < -0.012 && n_gas.y > 0.005) {
+                    let w_in = min(n_gas.y, max(0.0, 1.85 - self_vol)) * clamp((-v_ab) * 0.23, 0.0, 0.148);
+                    net_flow += w_in;
+                    if (w_in > max_inflow) {
+                        max_inflow = w_in;
+                        next_id = n_gas.x;
+                    }
+                }
+            }
+        }
+
+        next_vol = next_vol + net_flow;
+    }
 
     // --- 3. Spawn gas if click is active ---
     if (u.hit_pos.w > 0.5) {
@@ -1281,6 +1484,29 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 }
             }
         }
+    } else {
+        // 4.2. Passive Volatile Outgassing & Pyrophoric Air Ignition into open air above surface:
+        // - Naphtha (11.0) slowly evaporates heavy Butane vapor (10.0) right on top of the hydrocarbon pool!
+        // - Liquid Nitrogen (15.0) gently boils off cold vapor plumes (1.0) as it chills the cave!
+        // - Rad-Ore (17.0) slowly exhales heavy radioactive Radon gas (12.0) into low cave basins!
+        // - White Phosphorus (25.0) is pyrophoric: calm while submerged under Water, but spontaneously ignites into Fire (3.0) when exposed to open air!
+        let liq_below = get_liquid(ip, down_d, win_min);
+        if (liq_below.y > 0.35 && round(abs(liq_below.x)) == 11.0 && next_vol < 0.32) {
+            spawn_gas_id = 10.0;
+            spawn_gas_vol = 0.04;
+        } else if (liq_below.y > 0.25 && round(abs(liq_below.x)) == 15.0 && next_vol < 0.28) {
+            spawn_gas_id = 1.0;
+            spawn_gas_vol = 0.035;
+        } else {
+            let sol_below = get_solid(ip, down_d, win_min);
+            if (sol_below.y <= 0.0 && round(abs(sol_below.x)) == 17.0 && next_vol < 0.28) {
+                spawn_gas_id = 12.0;
+                spawn_gas_vol = 0.025;
+            } else if (sol_below.y <= 0.0 && round(abs(sol_below.x)) == 25.0 && my_liq.y < 0.04 && next_vol < 0.35) {
+                spawn_gas_id = 3.0;
+                spawn_gas_vol = 0.85;
+            }
+        }
     }
     
     if (spawn_gas_vol > 0.0) {
@@ -1307,12 +1533,12 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_id = 0.0;
     }
     
-    next_vol = clamp(next_vol, 0.0, 1.0);
+    next_vol = clamp(next_vol, 0.0, 1.85);
     if (next_vol == 0.0) {
         next_id = 0.0;
     }
 
-    if (abs(next_vol - self_vol) < 0.001) {
+    if (abs(next_vol - self_vol) < 0.001 && self_v2 < 0.0004) {
         next_sleep = min(next_sleep + 1.0, 10.0);
     } else {
         next_sleep = 0.0;
@@ -1545,7 +1771,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
 
     // --- 2.5 Reaction Matrix Lookup (Toughness-Scaled Kinetics, Locked in Sync with Liquid/Gas Passes!) ---
-    if (next_vol <= 0.0 && next_id > 0.0 && next_id != 255.0) {
+    if (next_vol <= 0.0 && abs(next_id) > 0.5 && abs(next_id) != 255.0) {
         let s_id_u = clamp(u32(round(abs(next_id))), 0u, 255u);
         let s_tough = bitcast<f32>(registry_data[s_id_u * 8u + 6u]);
         let rx_prob = clamp(1.25 / max(s_tough, 0.8), 0.12, 1.0);
@@ -1567,7 +1793,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 if (rx.x != abs(next_id)) {
                     next_sleep = 0.0;
                     if (rx_hash_s < rx_prob) {
-                        if (rx.x < 256.0) { next_id = rx.x; } else { next_id = 0.0; next_vol = 1.0; }
+                        if (rx.x > 0.5 && rx.x < 256.0) { next_id = rx.x; } else { next_id = 0.0; next_vol = 2.2; }
                     }
                     break;
                 }
@@ -1582,7 +1808,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     if (round(next_age) == 3.0 && rx.x == 515.0) {
                         next_age = 0.0;
                     } else if (rx_hash_s < rx_prob) {
-                        if (rx.x < 256.0) { next_id = rx.x; } else { next_id = 0.0; next_vol = 1.0; }
+                        if (rx.x > 0.5 && rx.x < 256.0) { next_id = rx.x; } else { next_id = 0.0; next_vol = 2.2; }
                     }
                     break;
                 }
@@ -1601,7 +1827,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     if (round(next_age) == 3.0 && rx.x == 515.0) {
                         next_age = 0.0;
                     } else if (rx_hash_s < rx_prob) {
-                        if (rx.x < 256.0) { next_id = rx.x; } else { next_id = 0.0; next_vol = 1.0; }
+                        if (rx.x > 0.5 && rx.x < 256.0) { next_id = rx.x; } else { next_id = 0.0; next_vol = 2.2; }
                     }
                     break;
                 }
@@ -1609,12 +1835,12 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
     }
 
-    // 3. Carve and Build natively on the GPU (Proper SDF Math; True Bedrock 255.0 is indestructible)
+    // 3. Carve and Build natively on the GPU (Proper SDF Math; True Bedrock 255.0 & Abyssal Seal 18.0 are indestructible)
     if (u.hit_pos.w > 0.5) {
         let world_pos = get_world_pos(ip, u.cam_pos.xyz);
         let dist = distance(world_pos, u.hit_pos.xyz);
         
-        if (u.solid_params.x > 998.0 && next_id != 255.0) { // Carving (Intersection)
+        if (u.solid_params.x > 998.0 && next_id != 255.0 && abs(next_id) != 18.0) { // Carving (Intersection)
             if (dist <= u.brush_radius + 8.0) {
                 let carve_val = u.brush_radius - dist;
                 if (carve_val > next_vol) {
@@ -1624,7 +1850,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     }
                 }
             }
-        } else if (u.solid_params.x > 0.0) { // Spawning Rigid (Union)
+        } else if (u.solid_params.x > 0.0 && next_id != 255.0 && abs(next_id) != 18.0) { // Spawning Rigid (Union)
             if (dist <= u.brush_radius + 8.0) {
                 let build_val = dist - u.brush_radius;
                 if (build_val < next_vol) {
@@ -1634,7 +1860,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     }
                 }
             }
-        } else if (u.solid_params.x < 0.0) { // Spawning CA (Discrete)
+        } else if (u.solid_params.x < 0.0 && next_id != 255.0 && abs(next_id) != 18.0) { // Spawning CA (Discrete)
             if (dist <= u.brush_radius) {
                 next_vol = -0.5;
                 next_id = u.solid_params.x;
@@ -1653,8 +1879,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             if (vp.w > 0.05 && abs(va.x) > 0.5 && abs(va.x) < 254.5 && abs(va.y) > 0.001) {
                 let fdist = distance(world_pos, vp.xyz);
                 let sr = vp.w;
+                let is_gold_melt = abs(abs(va.x) - 5.0) < 0.2;
                 if (va.y < 0.0) {
-                    if (next_id != 255.0 && fdist <= sr + 8.0) {
+                    if (next_id != 255.0 && (abs(next_id) != 18.0 || is_gold_melt) && fdist <= sr + 8.0) {
                         let carve_val = sr - fdist;
                         if (carve_val > next_vol) {
                             next_vol = carve_val;
@@ -1663,7 +1890,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                         }
                     }
                 } else if (va.x > 0.0) {
-                    if (next_id != 255.0 && fdist <= sr + 8.0) {
+                    if (next_id != 255.0 && abs(next_id) != 18.0 && fdist <= sr + 8.0) {
                         let build_val = fdist - sr;
                         if (build_val < next_vol) {
                             let was_empty = next_vol > 0.0;
@@ -1673,7 +1900,15 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                         }
                     }
                 } else {
-                    if (next_vol > 0.0 && fdist <= sr) {
+                    if (abs(next_id) == 18.0 && is_gold_melt && fdist <= sr + 8.0) {
+                        // Pouring 24k Gold (-5.0) onto Abyssal Seal (18.0) smoothly melts the Seal's SDF!
+                        let carve_val = sr - fdist;
+                        if (carve_val > next_vol) {
+                            next_vol = carve_val;
+                            if (next_vol > 0.0) { next_id = 0.0; }
+                            next_sleep = 0.0;
+                        }
+                    } else if (next_vol > 0.0 && fdist <= sr) {
                         next_vol = -0.5;
                         next_id = va.x;
                         next_sleep = 0.0;
@@ -1700,6 +1935,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 @group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
 @group(0) @binding(8) var<storage, read_write> light_buffer: array<vec4<f32>>; // buffer backed light!
+@group(0) @binding(9) var vel_texture:         texture_3d<f32>;
 
 fn positive_mod(n: i32, m: i32) -> i32 {
     let r = n % m;
@@ -1823,12 +2059,13 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     let sol = solid_buffer[idx];
     // Dummy use of all bindings to prevent WebGPU from optimizing them out of the pipeline layout!
-    let dummy_val = u.time + textureLoad(solid_texture, vec3<i32>(0), 0).x + textureLoad(liquid_texture, vec3<i32>(0), 0).x + textureLoad(gas_texture, vec3<i32>(0), 0).x + vec4<f32>(bitcast<f32>(registry_data[0])).x;
+    let dummy_val = u.time + textureLoad(solid_texture, vec3<i32>(0), 0).x + textureLoad(liquid_texture, vec3<i32>(0), 0).x + textureLoad(gas_texture, vec3<i32>(0), 0).x + textureLoad(vel_texture, vec3<i32>(0), 0).x + vec4<f32>(bitcast<f32>(registry_data[0])).x;
     if (dummy_val < -99999.0) { return; }
 
     let raw_sol = textureLoad(solid_texture, ip, 0);
     let raw_liq = textureLoad(liquid_texture, ip, 0);
     let raw_gas = textureLoad(gas_texture, ip, 0);
+    let raw_vel = textureLoad(vel_texture, ip, 0);
     let liq_id_u = clamp(u32(round(abs(raw_liq.r))), 0u, 255u);
     let gas_id_u = clamp(u32(round(abs(raw_gas.r))), 0u, 255u);
 
@@ -1948,15 +2185,15 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let avg_T = select(self_tp.x, sum_T / t_cnt, t_cnt > 0.5);
         let avg_P = select(self_tp.y, sum_P / air_cnt, air_cnt > 0.5);
         var next_T = max(updraft_T, mix(mix(self_tp.x, avg_T, 0.45), 0.20, 0.14));
-        var next_P = mix(self_tp.y, avg_P, 0.50) * 0.78;
+        var next_P = max(mix(self_tp.y, avg_P, 0.50) * 0.78, clamp(raw_vel.w * 0.42, 0.0, 0.92));
         var next_V = max_V;
         var next_M = mix(self_vm.y, sum_M / max(air_cnt, 1.0), 0.45) * 0.84;
         var next_tau = mix(mix(self_tg.x, select(0.50, sum_tau / air_cnt, air_cnt > 0.5), 0.35), 0.50, 0.10);
         var next_G = mix(mix(self_tg.y, select(0.50, sum_G / air_cnt, air_cnt > 0.5), 0.35), 0.50, 0.10);
 
-        // Wind velocity u_wind = -grad(P) + thermal buoyancy updraft
+        // Wind velocity u_wind = -grad(P) + thermal buoyancy updraft + 3D kinetic velocity field!
         let grad_P = (p_pos - p_neg) * 0.5;
-        let wind = -grad_P * 1.8 + vec3<f32>(0.0, (next_T - 0.20) * 0.65, 0.0);
+        let wind = -grad_P * 1.8 + vec3<f32>(0.0, (next_T - 0.20) * 0.65, 0.0) + raw_vel.xyz * 0.85;
 
         // Second pass: upwind advection of the 4 Biochemical Receptors (.w)
         for (var i = 0u; i < 6u; i++) {
@@ -1979,6 +2216,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         if (liq_id_u > 0u && raw_liq.g > 0.01) {
             if (liq_id_u == 2u) { next_T = max(next_T, 0.96); } // Lava
             if (liq_id_u == 7u) { next_T = max(next_T, 0.90); } // Liquid Fire
+            if (liq_id_u == 15u) { next_T = min(next_T, 0.02); } // Liquid Nitrogen cryo-chilling
             if (liq_id_u == 5u) { next_rec.x = max(next_rec.x, 0.95); } // Blood -> Prey/Blood Receptor (R)
             if (liq_id_u == 6u) { next_rec.y = max(next_rec.y, 0.98); } // Ambrosia -> Siren/Pussy-Stank Receptor (G)
             if (raw_liq.b > 0.05) {
@@ -1991,16 +2229,17 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 next_T = max(next_T, 0.45);
                 next_P = max(next_P, clamp(raw_gas.g * 0.28, 0.0, 0.55));
             }
-            if (gas_id_u == 3u) { // Fire (extra intense T & P when burning Oil 4u!)
-                next_T = max(next_T, select(0.92, 0.97, liq_id_u == 4u));
-                next_P = max(next_P, select(0.22, 0.42, liq_id_u == 4u));
+            if (gas_id_u == 3u) { // Fire (extra intense T & P when burning Oil 4u, Diesel 9u, Kerosene 10u, Naphtha 11u, or Nitroglycerin 14u!)
+                let is_hc_pool = liq_id_u == 4u || (liq_id_u >= 9u && liq_id_u <= 11u) || liq_id_u == 14u;
+                next_T = max(next_T, select(0.92, 0.98, is_hc_pool));
+                next_P = max(next_P, select(0.22, 0.52, is_hc_pool));
                 next_rec.z = max(next_rec.z, 0.65); // Fire projects Fear (B)
             }
             if (gas_id_u == 4u) { // Smoke from fire carries warm rising updraft!
                 next_T = max(next_T, 0.48);
                 next_P = max(next_P, 0.14);
             }
-            if (gas_id_u == 8u || gas_id_u == 2u) { // Spore Cloud / Toxic Gas -> Neuro-Spore Receptor (A)
+            if (gas_id_u == 8u || gas_id_u == 2u || gas_id_u == 11u || gas_id_u == 12u) { // Spore Cloud / Toxic Gas / Chlorine / Radon -> Neuro-Spore/Hazard Receptor (A)
                 next_rec.w = max(next_rec.w, clamp(raw_gas.g * 1.15, 0.0, 1.0));
             }
             if (gas_id_u == 7u) { // Miasma -> Fear + Darklight resonance
@@ -2069,13 +2308,14 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             -(1.0 + pack_quartet(next_rec))
         );
 
-        // Compute Refractive Index Offset Delta_n in rising heat plumes (T > 0.42) or blast shockwaves!
+        // Compute Refractive Index Offset Delta_n in rising heat plumes (T > 0.42), blast shockwaves, & hypersonic Mach wakes!
         let t_excess = max(0.0, next_T - 0.42);
         let p_excess = max(0.0, next_P - 0.16);
         let plume_wave = 1.0 + 0.72 * sin(u.time * 10.5 - world_p.y * 2.8 + sin(world_p.x * 2.2 + world_p.z * 2.0 + u.time * 4.2) * 1.5);
         let thermal_dn = -0.092 * t_excess * plume_wave;
         let shock_dn = 0.065 * p_excess;
-        var target_dn = clamp(thermal_dn + shock_dn + cloak_dn, -0.075, 0.075);
+        let mach_dn = clamp(raw_vel.w * 0.038, -0.055, 0.065);
+        var target_dn = clamp(thermal_dn + shock_dn + mach_dn + cloak_dn, -0.078, 0.078);
         if (abs(target_dn) < 0.002) { target_dn = 0.0; }
         let prev_dn = select(raw_sol.b, 0.0, raw_sol.b >= 2.0);
         let smooth_dn = mix(prev_dn, target_dn, 0.32);
@@ -2133,7 +2373,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     let nl_id = round(abs(nl.r));
                     if (nl_id == 2.0) {
                         max_adj_T = max(max_adj_T, 0.96);
-                    } else if (nl_id >= 1.0 && nl_id <= 8.0) {
+                    } else if (nl_id >= 1.0 && nl_id <= 15.0) {
                         if (adj_stain_liq < 0.5 || nl_id != 1.0) {
                             adj_stain_liq = nl_id;
                         }
@@ -2147,8 +2387,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 }
             }
         }
-        if (sol.x == 255.0 || lp.y <= 32 || lp.x <= 32 || lp.x >= 127 || lp.z <= 32 || lp.z >= 127) {
-            my_w = 96.0; // Anchor at True Bedrock & outer streaming shell of active 5x5x5 window
+        if (sol.x == 255.0 || abs(sol.x) == 18.0 || lp.y <= 32 || lp.x <= 32 || lp.x >= 127 || lp.z <= 32 || lp.z >= 127) {
+            my_w = 96.0; // Anchor at True Bedrock, Abyssal Seal & outer streaming shell of active 5x5x5 window
         } else {
             my_w = max_neighbor_w;
         }
@@ -2190,7 +2430,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
         // --- Step 3: Break Condition & Solid Field Transmutations ---
         var broken = false;
-        if (my_w <= 0.0 && sol.x != 255.0) {
+        if (my_w <= 0.0 && sol.x != 255.0 && abs(sol.x) != 18.0) {
             broken = true;
         }
 
@@ -2204,7 +2444,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let limit_t = struct_t * 50.0;
         let limit_s = struct_t * 60.0;
         
-        if (sol.x != 255.0) {
+        if (sol.x != 255.0 && abs(sol.x) != 18.0) {
             if (compressive > limit_c || tensile > limit_t || shear > limit_s) {
                 broken = true;
             }
@@ -2465,3 +2705,224 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 }
 
 "))
+
+(def vel-sim-wgsl
+  (String.append wgsl-uniforms-struct "
+@group(0) @binding(0) var<storage, read_write> vel_out:        array<vec4<f32>>;
+@group(0) @binding(1) var<uniform>             u:              Uniforms;
+@group(0) @binding(2) var solid_texture:       texture_3d<f32>;
+@group(0) @binding(3) var liquid_texture:      texture_3d<f32>;
+@group(0) @binding(4) var gas_texture:         texture_3d<f32>;
+@group(0) @binding(5) var vel_texture:         texture_3d<f32>;
+
+fn positive_mod(n: i32, m: i32) -> i32 {
+    let r = n % m;
+    if (r < 0) {
+        return r + m;
+    }
+    return r;
+}
+
+fn get_win_min() -> vec3<i32> {
+    let cx = i32(floor(u.cam_pos.x / 32.0)) - 2;
+    let cy = i32(floor(u.cam_pos.y / 32.0)) - 2;
+    let cz = i32(floor(u.cam_pos.z / 32.0)) - 2;
+    return vec3<i32>(
+        positive_mod(cx, 5) * 32,
+        positive_mod(cy, 5) * 32,
+        positive_mod(cz, 5) * 32
+    );
+}
+
+fn get_world_pos(ip: vec3<i32>, cam_pos: vec3<f32>) -> vec3<f32> {
+    let cx = i32(floor(cam_pos.x / 32.0));
+    let cy = i32(floor(cam_pos.y / 32.0));
+    let cz = i32(floor(cam_pos.z / 32.0));
+    let offset_cx = cx - 2;
+    let offset_cy = cy - 2;
+    let offset_cz = cz - 2;
+    let slot_x = ip.x / 32;
+    let slot_y = ip.y / 32;
+    let slot_z = ip.z / 32;
+    let lx = ip.x % 32;
+    let ly = ip.y % 32;
+    let lz = ip.z % 32;
+    let qx = offset_cx + positive_mod(slot_x - positive_mod(offset_cx, 5), 5);
+    let qy = offset_cy + positive_mod(slot_y - positive_mod(offset_cy, 5), 5);
+    let qz = offset_cz + positive_mod(slot_z - positive_mod(offset_cz, 5), 5);
+    return vec3<f32>(f32(qx * 32 + lx), f32(qy * 32 + ly), f32(qz * 32 + lz));
+}
+
+fn is_solid_ip(c_ip: vec3<i32>) -> bool {
+    return textureLoad(solid_texture, c_ip, 0).g * 0.5 < 0.008;
+}
+
+fn load_vel_air(lp_c: vec3<i32>, win_min: vec3<i32>) -> vec4<f32> {
+    let c_ip = (win_min + lp_c) % 160;
+    if (is_solid_ip(c_ip)) { return vec4<f32>(0.0); }
+    return textureLoad(vel_texture, c_ip, 0);
+}
+
+fn sample_vel_trilinear(back_lp: vec3<f32>, win_min: vec3<i32>) -> vec4<f32> {
+    let b0 = clamp(back_lp - vec3<f32>(0.5), vec3<f32>(1.0), vec3<f32>(157.999));
+    let i0 = vec3<i32>(floor(b0));
+    let f = b0 - vec3<f32>(i0);
+    let c000 = load_vel_air(i0 + vec3<i32>(0, 0, 0), win_min);
+    let c100 = load_vel_air(i0 + vec3<i32>(1, 0, 0), win_min);
+    let c010 = load_vel_air(i0 + vec3<i32>(0, 1, 0), win_min);
+    let c110 = load_vel_air(i0 + vec3<i32>(1, 1, 0), win_min);
+    let c001 = load_vel_air(i0 + vec3<i32>(0, 0, 1), win_min);
+    let c101 = load_vel_air(i0 + vec3<i32>(1, 0, 1), win_min);
+    let c011 = load_vel_air(i0 + vec3<i32>(0, 1, 1), win_min);
+    let c111 = load_vel_air(i0 + vec3<i32>(1, 1, 1), win_min);
+    let cx00 = mix(c000, c100, f.x);
+    let cx10 = mix(c010, c110, f.x);
+    let cx01 = mix(c001, c101, f.x);
+    let cx11 = mix(c011, c111, f.x);
+    let cxy0 = mix(cx00, cx10, f.y);
+    let cxy1 = mix(cx01, cx11, f.y);
+    return mix(cxy0, cxy1, f.z);
+}
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let idx = global_id.x;
+    if (idx >= 4096000u) { return; }
+
+    let dummy = u.time + textureLoad(solid_texture, vec3<i32>(0), 0).x +
+                textureLoad(liquid_texture, vec3<i32>(0), 0).x +
+                textureLoad(gas_texture, vec3<i32>(0), 0).x +
+                textureLoad(vel_texture, vec3<i32>(0), 0).x;
+    if (dummy < -999999.0) {
+        vel_out[idx] = vec4<f32>(0.0);
+        return;
+    }
+
+    let x = idx % 160u;
+    let y = (idx / 160u) % 160u;
+    let z = idx / 25600u;
+    let ip = vec3<i32>(i32(x), i32(y), i32(z));
+    let win_min = get_win_min();
+    let lp = (ip - win_min + vec3<i32>(160)) % 160;
+
+    // Outer 2-voxel window sponge + solid obstacle zeroing (prevents toroidal chunk wrap leaks!)
+    if (lp.x <= 1 || lp.x >= 158 || lp.y <= 1 || lp.y >= 158 || lp.z <= 1 || lp.z >= 158 || is_solid_ip(ip)) {
+        vel_out[idx] = vec4<f32>(0.0);
+        return;
+    }
+
+    let world_p = get_world_pos(ip, u.cam_pos.xyz) + vec3<f32>(0.5);
+    let self_v = textureLoad(vel_texture, ip, 0);
+    let raw_liq = textureLoad(liquid_texture, ip, 0);
+    let raw_gas = textureLoad(gas_texture, ip, 0);
+
+    // 1. Semi-Lagrangian backtrace in local window coordinates [1.5 .. 158.5]
+    let p_local = vec3<f32>(lp) + vec3<f32>(0.5);
+    let back_lp = clamp(p_local - self_v.xyz * 0.65, vec3<f32>(1.5), vec3<f32>(158.5));
+    let adv = sample_vel_trilinear(back_lp, win_min);
+
+    // 2. 6-neighbor divergence & dynamic pressure-gradient projection (with solid Neumann / free-slip walls)
+    let ip_xm = (win_min + lp + vec3<i32>(-1, 0, 0)) % 160;
+    let ip_xp = (win_min + lp + vec3<i32>( 1, 0, 0)) % 160;
+    let ip_ym = (win_min + lp + vec3<i32>( 0,-1, 0)) % 160;
+    let ip_yp = (win_min + lp + vec3<i32>( 0, 1, 0)) % 160;
+    let ip_zm = (win_min + lp + vec3<i32>( 0, 0,-1)) % 160;
+    let ip_zp = (win_min + lp + vec3<i32>( 0, 0, 1)) % 160;
+
+    let s_xm = is_solid_ip(ip_xm);
+    let s_xp = is_solid_ip(ip_xp);
+    let s_ym = is_solid_ip(ip_ym);
+    let s_yp = is_solid_ip(ip_yp);
+    let s_zm = is_solid_ip(ip_zm);
+    let s_zp = is_solid_ip(ip_zp);
+
+    let v_xm = select(textureLoad(vel_texture, ip_xm, 0), vec4<f32>(0.0, 0.0, 0.0, adv.w), s_xm);
+    let v_xp = select(textureLoad(vel_texture, ip_xp, 0), vec4<f32>(0.0, 0.0, 0.0, adv.w), s_xp);
+    let v_ym = select(textureLoad(vel_texture, ip_ym, 0), vec4<f32>(0.0, 0.0, 0.0, adv.w), s_ym);
+    let v_yp = select(textureLoad(vel_texture, ip_yp, 0), vec4<f32>(0.0, 0.0, 0.0, adv.w), s_yp);
+    let v_zm = select(textureLoad(vel_texture, ip_zm, 0), vec4<f32>(0.0, 0.0, 0.0, adv.w), s_zm);
+    let v_zp = select(textureLoad(vel_texture, ip_zp, 0), vec4<f32>(0.0, 0.0, 0.0, adv.w), s_zp);
+
+    let div_v = ((v_xp.x - v_xm.x) + (v_yp.y - v_ym.y) + (v_zp.z - v_zm.z)) * 0.5;
+    let avg_p = (v_xm.w + v_xp.w + v_ym.w + v_yp.w + v_zm.w + v_zp.w) / 6.0;
+    let avg_v = (v_xm.xyz + v_xp.xyz + v_ym.xyz + v_yp.xyz + v_zm.xyz + v_zp.xyz) / 6.0;
+    let grad_p = vec3<f32>(v_xp.w - v_xm.w, v_yp.w - v_ym.w, v_zp.w - v_zm.w) * 0.5;
+
+    let drag = select(0.935, 0.84, raw_liq.g > 0.22);
+    var next_p = mix(adv.w, avg_p, 0.34) * 0.88 - div_v * 0.42;
+    var next_v = (mix(adv.xyz, avg_v, 0.08) - grad_p * 0.52) * drag;
+
+    // 3. Swept Capsule Wake Injection (High-speed projectiles, Mach Railgun slugs, Bellows gusts, boulder wakes, & blast waves!)
+    let wake_cnt = min(u32(round(u.pad1)), 16u);
+    for (var wi: u32 = 0u; wi < wake_cnt; wi = wi + 1u) {
+        let wp0 = u.wake_p0[wi];
+        let wp1 = u.wake_p1[wi];
+        let wv  = u.wake_vel[wi];
+        let rad = wp0.w;
+        if (rad > 0.05) {
+            let seg = wp1.xyz - wp0.xyz;
+            let seg_len2 = dot(seg, seg);
+            let t_seg = select(0.0, clamp(dot(world_p - wp0.xyz, seg) / max(seg_len2, 0.0001), 0.0, 1.0), seg_len2 > 0.0001);
+            let closest = wp0.xyz + seg * t_seg;
+            let rel = world_p - closest;
+            let d = length(rel);
+            if (d < rad) {
+                let u_fall = 1.0 - d / rad;
+                let core_fall = u_fall * u_fall;
+                let axis_dir = select(vec3<f32>(0.0), seg * inverseSqrt(max(seg_len2, 0.0001)), seg_len2 > 0.0001);
+                let perp = rel - axis_dir * dot(rel, axis_dir);
+                let perp_len = length(perp);
+                let sph_dir = select(vec3<f32>(0.0, 1.0, 0.0), rel / max(d, 0.001), d > 0.001);
+                let rad_dir = select(sph_dir, perp / max(perp_len, 0.001), perp_len > 0.001 && seg_len2 > 0.02);
+                // Radial bow-shock parts fog/liquid outward (or pulls inward on negative radial_push!) + axial slipstream drag!
+                let sheath = smoothstep(0.0, 0.38, u_fall);
+                next_v += rad_dir * (wp1.w * sheath) + wv.xyz * core_fall;
+                next_p += wv.w * u_fall;
+            }
+        }
+    }
+
+    // 4. Lawmancer Expanding Shockwave / Implosion Rings & Thermal Fire Updrafts
+    for (var mk: u32 = 0u; mk < 4u; mk = mk + 1u) {
+        let mp = u.mancer_pos[mk];
+        let mm = u.mancer_mat[mk];
+        if (mp.w > 0.05 && abs(mm.z) > 0.15) {
+            let w_r = abs(mm.z);
+            let w_pol = sign(mm.z);
+            let rel_m = world_p - mp.xyz;
+            let dm = length(rel_m);
+            let shell = abs(dm - w_r);
+            if (shell < 1.45 && dm > 0.1) {
+                let s_fall = 1.0 - shell / 1.45;
+                let dir_m = rel_m / dm;
+                next_v += dir_m * (w_pol * 1.45 * s_fall);
+                next_p += w_pol * 1.15 * s_fall;
+            }
+        }
+    }
+
+    if (raw_gas.g > 0.08 && round(abs(raw_gas.r)) == 3.0) {
+        next_v.y += 0.16 * min(raw_gas.g, 1.0);
+    }
+
+    // 5. Free-slip cave wall clamp (wakes splay tangentially along rock walls/floors instead of vanishing!)
+    if (s_xm && next_v.x < 0.0) { next_v.x = 0.0; }
+    if (s_xp && next_v.x > 0.0) { next_v.x = 0.0; }
+    if (s_ym && next_v.y < 0.0) { next_v.y = 0.0; }
+    if (s_yp && next_v.y > 0.0) { next_v.y = 0.0; }
+    if (s_zm && next_v.z < 0.0) { next_v.z = 0.0; }
+    if (s_zp && next_v.z > 0.0) { next_v.z = 0.0; }
+
+    let v_mag = length(next_v);
+    if (v_mag > 6.0) {
+        next_v = next_v * (6.0 / v_mag);
+    } else if (v_mag < 0.004) {
+        next_v = vec3<f32>(0.0);
+    }
+    next_p = clamp(next_p, -4.0, 4.0);
+    if (abs(next_p) < 0.003) { next_p = 0.0; }
+
+    vel_out[idx] = vec4<f32>(next_v, next_p);
+}
+"))
+

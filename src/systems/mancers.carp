@@ -109,38 +109,94 @@
   (defn same-phase? [mat-a mat-b]
     (= (/ (Float.round mat-a) 256) (/ (Float.round mat-b) 256)))
 
-  ;; Normalize any solid (1..17), liquid (257..264), or gas (513..520) into a valid Mancer element!
+  ;; Lawmancer encoding:
+  ;;   769..774 = Single Lawmancer (0=Thermo, 1=Baro, 2=Gravi, 3=Chrono, 4=Photo, 5=Electro)
+  ;;   780..815 = 50/50 Split Dual Lawmancer: pair = m - 780, lawA = pair / 6, lawB = pair % 6
+  (defn lawmancer? [mmat]
+    (>= mmat 768.5f))
+
+  (defn dual-lawmancer? [mmat]
+    (>= mmat 779.5f))
+
+  (defn law-a-of [mmat]
+    (let [m (Float.round mmat)]
+      (if (>= m 780)
+        (Int.clamp 0 5 (/ (- m 780) 6))
+        (Int.clamp 0 5 (- m 769)))))
+
+  (defn law-b-of [mmat]
+    (let [m (Float.round mmat)]
+      (if (>= m 780)
+        (Int.clamp 0 5 (Int.mod (- m 780) 6))
+        (Int.clamp 0 5 (- m 769)))))
+
+  (defn encode-dual-law [la lb]
+    (let [ca (Int.clamp 0 5 la)
+          cb0 (Int.clamp 0 5 lb)
+          cb (if (= ca cb0) (Int.mod (+ ca 1) 6) cb0)]
+      (Float.from-int (+ 780 (+ (* ca 6) cb)))))
+
+  (defn single-law-gi [law-id pol]
+    (let [pos? (>= pol 0.0f)]
+      (if (= law-id 0) (if pos? (Vector3.init 2.15 0.72 0.16) (Vector3.init 0.18 1.05 1.95))
+      (if (= law-id 1) (if pos? (Vector3.init 0.34 1.90 1.38) (Vector3.init 0.26 0.32 1.75))
+      (if (= law-id 2) (if pos? (Vector3.init 2.10 0.16 0.36) (Vector3.init 1.78 0.34 1.90))
+      (if (= law-id 3) (if pos? (Vector3.init 0.28 1.98 0.86) (Vector3.init 1.60 0.60 0.12))
+      (if (= law-id 4) (if pos? (Vector3.init 3.10 2.85 2.05) (Vector3.init -2.65 -2.65 -2.65))
+                       (if pos? (Vector3.init 1.90 2.28 0.20) (Vector3.init 0.20 1.25 2.20)))))))))
+
+  (defn law-gi-emission [mmat pol]
+    (let [la (MancerSystem.law-a-of mmat)
+          lb (MancerSystem.law-b-of mmat)
+          ga (MancerSystem.single-law-gi la pol)
+          gb (MancerSystem.single-law-gi lb pol)]
+      (if (= la lb)
+        ga
+        (Vector3.mul &(Vector3.add &ga &gb) 0.58))))
+
+  ;; Normalize any solid (1..25, except 18), liquid (257..271), gas (513..525), or Lawmancer (769..815)!
   (defn normalize-mancer-mat [raw-mat seed]
     (let [m (Float.round raw-mat)]
-      (if (and (>= m 1) (<= m 17))
+      (if (and (>= m 769) (<= m 774))
         (Float.from-int m)
-        (if (and (>= m 257) (<= m 264))
-          (Float.from-int m)
-          (if (and (>= m 513) (<= m 520))
+        (if (and (>= m 780) (<= m 815))
+          (let [p (- m 780)]
+            (MancerSystem.encode-dual-law (/ p 6) (Int.mod p 6)))
+          (if (and (>= m 1) (and (<= m 25) (/= m 18)))
             (Float.from-int m)
-            (let [pick (Int.mod (Int.abs seed) 12)]
-              (if (= pick 0) 1.0f
-              (if (= pick 1) 8.0f
-              (if (= pick 2) 12.0f
-              (if (= pick 3) 14.0f
-              (if (= pick 4) 258.0f
-              (if (= pick 5) 259.0f
-              (if (= pick 6) 260.0f
-              (if (= pick 7) 262.0f
-              (if (= pick 8) 515.0f
-              (if (= pick 9) 520.0f
-              (if (= pick 10) 7.0f
-                              5.0f)))))))))))))))))
+            (if (and (>= m 257) (<= m 271))
+              (Float.from-int m)
+              (if (and (>= m 513) (<= m 525))
+                (Float.from-int m)
+                (let [pick (Int.mod (Int.abs seed) 16)]
+                  (if (= pick 0) 1.0f
+                  (if (= pick 1) 8.0f
+                  (if (= pick 2) 12.0f
+                  (if (= pick 3) 14.0f
+                  (if (= pick 4) 258.0f
+                  (if (= pick 5) 259.0f
+                  (if (= pick 6) 260.0f
+                  (if (= pick 7) 262.0f
+                  (if (= pick 8) 515.0f
+                  (if (= pick 9) 520.0f
+                  (if (= pick 10) 7.0f
+                  (if (= pick 11) 20.0f
+                  (if (= pick 12) 269.0f
+                  (if (= pick 13) 271.0f
+                  (if (= pick 14) 525.0f
+                                  5.0f)))))))))))))))))))))))
 
-  ;; Phase Bender durability: Solidmancers (0..255) = 165-185 HP, Liquidmancers (256..511) = 150 HP, Gasmancers (512..767) = 135 HP
+  ;; Phase Bender & Lawmancer durability: Dual Lawmancer = 220 HP, Single Lawmancer = 175 HP, Solid = 165-185, Liquid = 150, Gas = 135
   (defn mancer-max-hp [mat-id]
     (let [m (Float.round mat-id)
           ph (/ m 256)]
+      (if (>= m 780) 220.0f
+      (if (>= m 769) 175.0f
       (if (= m 16) 185.0f
       (if (= m 5)  175.0f
       (if (= ph 0) 165.0f
       (if (= ph 1) 150.0f
-        135.0f))))))
+        135.0f))))))))
 
   ;; Fast bounded CPU SDF edit (pad=3.2 scans ~1,400 voxels instead of 43,000!)
   (defn edit-bender-sdf! [world hit-pos radius mat-id carve?]
@@ -189,7 +245,7 @@
                               new-sdf (if carve?
                                         (if (> old-sdf neg-s) old-sdf neg-s)
                                         (if (< old-sdf sphere-sdf) old-sdf sphere-sdf))]
-                          (when (not (and carve? (= old-id 255.0f)))
+                          (when (not (and carve? (or (= old-id 255.0f) (= old-id 18.0f))))
                             (do
                               (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) new-sdf)
                               (when (and (not carve?) (< dist radius))
@@ -320,34 +376,41 @@
           ps (EngineState.particles state)
           mmat @(Array.unsafe-nth (MancerBank.mat mbk) slot)
           m (Float.round mmat)
+          is-law? (>= m 769)
           fx (Double.to-float @(Vector3.x pos))
           fy (Double.to-float @(Vector3.y pos))
           fz (Double.to-float @(Vector3.z pos))
-          jpt (Materials.jet-ptype mmat)
-          val1 (if (= m 5) 35 20)
-          val2 (if (= m 5) 25 15)
+          jpt (if is-law? PARTICLE-TYPE-MAGIC (Materials.jet-ptype mmat))
+          val1 (if (>= m 780) 45 (if is-law? 30 (if (= m 5) 35 20)))
+          val2 (if (>= m 780) 35 (if is-law? 25 (if (= m 5) 25 15)))
           p1 (Vector3.add pos &(Vector3.init 0.18 0.35 0.0))
           p2 (Vector3.add pos &(Vector3.init -0.18 0.35 0.0))
           v1 (Vector3.init (+ (* (Double.from-float dx) 3.8) 2.2) 7.4 (+ (* (Double.from-float dz) 3.8) 1.5))
           v2 (Vector3.init (- (* (Double.from-float dx) 3.8) 2.2) 6.8 (- (* (Double.from-float dz) 3.8) 1.5))]
       (do
-        ;; Massive MAT_BLOOD burst + warlock arcane collapse + twin 24k Gold Nugget payout!
-        (EngineState.push-voxel-action! state fx fy fz 2.75f 261.0f 0.94f 0.0f)
-        (ParticleSystem.emit! ps fx (+ fy 0.25f) fz (* dx 6.0f) 7.0f (* dz 6.0f) 2.5f 42 105.0f 0.48f 1.0f)
-        (ParticleSystem.emit! ps fx (+ fy 0.45f) fz 0.0f 5.5f 0.0f 2.2f 28 jpt 0.42f 0.65f)
-        (ParticleSystem.emit! ps fx (+ fy 0.65f) fz 0.0f 4.2f 0.0f 1.8f 24 PARTICLE-TYPE-MAGIC 0.45f 0.2f)
+        (if is-law?
+          (do
+            (ParticleSystem.emit-sparks! ps fx (+ fy 0.35f) fz 0.0f 1.0f 0.0f 56)
+            (ParticleSystem.emit! ps fx (+ fy 0.45f) fz 0.0f 6.0f 0.0f 2.8f 42 PARTICLE-TYPE-MAGIC 0.48f 0.12f))
+          (do
+            ;; Massive MAT_BLOOD burst + warlock arcane collapse!
+            (EngineState.push-voxel-action! state fx fy fz 2.75f 261.0f 0.94f 0.0f)
+            (ParticleSystem.emit! ps fx (+ fy 0.25f) fz (* dx 6.0f) 7.0f (* dz 6.0f) 2.5f 42 105.0f 0.48f 1.0f)
+            (ParticleSystem.emit! ps fx (+ fy 0.45f) fz 0.0f 5.5f 0.0f 2.2f 28 jpt 0.42f 0.65f)
+            (ParticleSystem.emit! ps fx (+ fy 0.65f) fz 0.0f 4.2f 0.0f 1.8f 24 PARTICLE-TYPE-MAGIC 0.45f 0.2f)))
         (ignore (GoldSystem.spawn-nugget! state p1 v1 0.34 val1))
         (ignore (GoldSystem.spawn-nugget! state p2 v2 0.30 val2))
         (MancerSystem.destroy-mancer-slot! state slot true))))
 
-  ;; Apply combat/hazard damage to an Ecomancer (with elemental weakness, MAT_BLOOD squirts & knockback)
+  ;; Apply combat/hazard damage to an Ecomancer or Lawmancer
   (defn damage-mancer! [state slot raw-dmg dx dy dz kb elem-tag]
     (let [mbk (EngineState.mancers state)
           m-alive (MancerBank.alive mbk)]
       (if (or (< slot 0) (or (>= slot 4) (not @(Array.unsafe-nth m-alive slot))))
         false
         (let [mmat @(Array.unsafe-nth (MancerBank.mat mbk) slot)
-              mult (EnemySystem.elem-damage-mult mmat elem-tag false)
+              is-law? (MancerSystem.lawmancer? mmat)
+              mult (if is-law? 1.0f (EnemySystem.elem-damage-mult mmat elem-tag false))
               dmg (* raw-dmg mult)]
           (if (<= dmg 0.25f)
             false
@@ -378,7 +441,9 @@
                           (do
                             (Array.aset! (MancerBank.state mbk) slot 0)
                             (Array.aset! (MancerBank.cast-cd mbk) slot 1.15f))))
-                      (EnemySystem.squirt-blood! state ps fx (+ fy 0.2f) fz dx dy dz (/ dmg 18.0f))
+                      (if is-law?
+                        (ParticleSystem.emit-sparks! ps fx (+ fy 0.25f) fz dx dy dz 14)
+                        (EnemySystem.squirt-blood! state ps fx (+ fy 0.2f) fz dx dy dz (/ dmg 18.0f)))
                       (if (<= next-hp 0.0f)
                         (MancerSystem.kill-mancer! state slot &pos dx dy dz)
                         (do
@@ -498,7 +563,7 @@
             (MancerSystem.destroy-orb-slot! state oslot false))))))
 
 
-  ;; Spawn an Ecomancer warlock at `spawn-pos`, optionally granting `starter-orbs` for [U] sandbox spawns!
+  ;; Spawn an Ecomancer warlock or Geometric Lawmancer at `spawn-pos`!
   (defn spawn-mancer! [state spawn-pos vel raw-mat init-dx init-dz starter-orbs]
     (let [slot (MancerSystem.find-free-mancer-slot state)]
       (if (< slot 0)
@@ -507,10 +572,11 @@
               ecs (EngineState.ecs-world state)
               fc @(EngineState.frame-count state)
               aff-mat (MancerSystem.normalize-mancer-mat raw-mat (+ (* fc 11) (* slot 19)))
+              is-law? (MancerSystem.lawmancer? aff-mat)
               mhp (MancerSystem.mancer-max-hp aff-mat)
-              rad-f 0.66f
-              rad-d 0.66
-              col (Materials.slime-color aff-mat 0)
+              rad-f (if is-law? 0.72f 0.66f)
+              rad-d (if is-law? 0.72 0.66)
+              col (if is-law? (Vector3.init 0.95 0.85 1.0) (Materials.slime-color aff-mat 0))
               e (GameWorld.create-entity! ecs)
               rb (RigidBody.new @&spawn-pos (Quaternion.identity) 1.55 0.18 0.35 0.16 0.25 0.25)
               vol (Volume.Ball (Sphere.init @&spawn-pos rad-d))
@@ -542,15 +608,222 @@
             (Array.aset! (MancerBank.sup-pos mbk) b3 (Double.to-float @(Vector3.x &spawn-pos)))
             (Array.aset! (MancerBank.sup-pos mbk) (+ b3 1) (Double.to-float @(Vector3.y &spawn-pos)))
             (Array.aset! (MancerBank.sup-pos mbk) (+ b3 2) (Double.to-float @(Vector3.z &spawn-pos)))
-            (Array.aset! (MancerBank.sup-age mbk) slot 0.5f)
-            (Array.aset! (MancerBank.trap-timer mbk) slot 0.0f)
-            (for [si 0 starter-orbs]
-              (let [ang (* (Float.from-int si) 1.5708f)
-                    op (Vector3.add &spawn-pos &(Vector3.init (* (Double.from-float (MancerSystem.fcos ang)) 1.65)
-                                                              0.55
-                                                              (* (Double.from-float (MancerSystem.fsin ang)) 1.65)))]
-                (ignore (MancerSystem.spawn-halo-orb! state slot op (Vector3.init 0.0 1.5 0.0) aff-mat))))
+            (Array.aset! (MancerBank.sup-age mbk) slot (if is-law? 0.0f 0.5f))
+            (Array.aset! (MancerBank.trap-timer mbk) slot (if is-law? -1.0f 0.0f))
+            (when (not is-law?)
+              (for [si 0 starter-orbs]
+                (let [ang (* (Float.from-int si) 1.5708f)
+                      op (Vector3.add &spawn-pos &(Vector3.init (* (Double.from-float (MancerSystem.fcos ang)) 1.65)
+                                                                0.55
+                                                                (* (Double.from-float (MancerSystem.fsin ang)) 1.65)))]
+                  (ignore (MancerSystem.spawn-halo-orb! state slot op (Vector3.init 0.0 1.5 0.0) aff-mat)))))
             slot)))))
+
+  ;; Execute 1 of the 6 Physical Laws (`0=Thermo, 1=Baro, 2=Gravi, 3=Chrono, 4=Photo, 5=Electro`) with signed polarity (`pol < 0` or `pol >= 0`)
+  ;; inside a sphere `(center-pos, radius)` or expanding shell `(band-width > 0)`!
+  (defn apply-single-law! [state world ecs ps mslot law-id pol center-pos radius band-w strength dt fc]
+    (let [mbk (EngineState.mancers state)
+          wb (EngineState.wands state)
+          b-alive (WandBelt.bolt-alive wb)
+          b-pos (WandBelt.bolt-pos wb)
+          b-vel (WandBelt.bolt-vel wb)
+          midx @(Array.unsafe-nth (MancerBank.idx mbk) mslot)
+          player-id @(EngineState.player-ent-id state)
+          pos? (>= pol 0.0f)
+          cx @(Vector3.x center-pos)
+          cy @(Vector3.y center-pos)
+          cz @(Vector3.z center-pos)
+          fx (Double.to-float cx)
+          fy (Double.to-float cy)
+          fz (Double.to-float cz)
+          fdt (Double.to-float dt)
+          shell? (> band-w 0.05)]
+      (do
+        ;; 1. Affect active [5] Wand Bolts entering the Law volume / wavefront shell!
+        (for [bi 0 24]
+          (when @(Array.unsafe-nth b-alive bi)
+            (let [b3 (* bi 3)
+                  bx (Double.from-float @(Array.unsafe-nth b-pos b3))
+                  by (Double.from-float @(Array.unsafe-nth b-pos (+ b3 1)))
+                  bz (Double.from-float @(Array.unsafe-nth b-pos (+ b3 2)))
+                  dx (- bx cx)
+                  dy (- by cy)
+                  dz (- bz cz)
+                  d (Double.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))
+                  in-zone? (if shell? (< (Double.abs (- d radius)) band-w) (< d radius))]
+              (when in-zone?
+                (let [bvx @(Array.unsafe-nth b-vel b3)
+                      bvy @(Array.unsafe-nth b-vel (+ b3 1))
+                      bvz @(Array.unsafe-nth b-vel (+ b3 2))
+                      inv-d (Double.to-float (if (> d 0.15) (/ 1.0 d) 1.0))
+                      ux (* (Double.to-float dx) inv-d)
+                      uy (* (Double.to-float dy) inv-d)
+                      uz (* (Double.to-float dz) inv-d)
+                      fstr (Double.to-float strength)]
+                  (if (= law-id 3)
+                    ;; CHRONO: -Stasis freezes bolts in midair ("Infinity"); +Surge hyper-accelerates them!
+                    (let [mul (if pos? (MancerSystem.fmin 1.35f (+ 1.0f (* 2.4f fdt))) 0.22f)]
+                      (do
+                        (Array.aset! b-vel b3 (* bvx mul))
+                        (Array.aset! b-vel (+ b3 1) (* bvy mul))
+                        (Array.aset! b-vel (+ b3 2) (* bvz mul))))
+                    (if (and (= law-id 4) pos?)
+                      ;; PHOTO +Solar Mirror: Reflects approaching wand bolts straight back!
+                      (when (< (+ (+ (* bvx ux) (* bvy uy)) (* bvz uz)) 0.0f)
+                        (do
+                          (Array.aset! b-vel b3 (* bvx -1.15f))
+                          (Array.aset! b-vel (+ b3 1) (* bvy -1.15f))
+                          (Array.aset! b-vel (+ b3 2) (* bvz -1.15f))
+                          (ParticleSystem.emit-sparks! ps (Double.to-float bx) (Double.to-float by) (Double.to-float bz) ux uy uz 10)))
+                      (if (= law-id 2)
+                        ;; GRAVI: -Zero-G floats bolts skyward; +Crush slams bolts into the floor!
+                        (Array.aset! b-vel (+ b3 1) (+ bvy (* (if pos? -44.0f 32.0f) (* fstr fdt))))
+                        (when (or (= law-id 1) (= law-id 5))
+                          ;; BARO / ELECTRO: -Pulls bolts inward; +Blasts bolts radially outward!
+                          (let [dir-s (if pos? 34.0f -32.0f)
+                                k (* dir-s (* fstr fdt))]
+                            (do
+                              (Array.aset! b-vel b3 (+ bvx (* ux k)))
+                              (Array.aset! b-vel (+ b3 1) (+ bvy (* uy k)))
+                              (Array.aset! b-vel (+ b3 2) (+ bvz (* uz k))))))))))))))
+
+        ;; 2. Voxel & Environmental Law Effects (at focal center when non-shell, or 4 perimeter points on expanding shell)
+        (when (= (Int.mod (+ fc mslot) 6) 0)
+          (if shell?
+            (let [fr (Double.to-float radius)]
+              (for [qi 0 4]
+                (let [ang (+ (* (Float.from-int qi) 1.5708f) (* (Float.from-int fc) 0.19f))
+                      wx (+ fx (* (MancerSystem.fcos ang) fr))
+                      wz (+ fz (* (MancerSystem.fsin ang) fr))]
+                  (if (= law-id 0)
+                    ;; THERMO Wavefront: -Cryo freezes water into Ice (8); +Boil ignites Fire (515) & Steam (513)!
+                    (if pos?
+                      (do
+                        (EngineState.push-voxel-action! state wx (+ fy 0.2f) wz 2.15f 515.0f 0.85f 1.0f)
+                        (ParticleSystem.emit-sparks! ps wx (+ fy 0.3f) wz 0.0f 1.0f 0.0f 5))
+                      (do
+                        (EngineState.push-voxel-action! state wx (- fy 0.4f) wz 1.85f 8.0f 0.85f 0.0f)
+                        (ParticleSystem.emit! ps wx (+ fy 0.2f) wz 0.0f 1.8f 0.0f 0.9f 4 (Materials.jet-ptype 8.0f) 0.22f 0.05f)))
+                    (if (and (= law-id 1) (not pos?))
+                      ;; BARO -Vacuum Wavefront: Snuffs open flames!
+                      (EngineState.push-voxel-action! state wx fy wz 2.85f 515.0f -0.95f 0.0f)
+                      (when (and (= law-id 5) pos?)
+                        (ParticleSystem.emit-sparks! ps wx (+ fy 0.3f) wz 0.0f 1.0f 0.0f 6)))))))
+            (if (= law-id 0)
+              (if pos?
+                (do
+                  (EngineState.push-voxel-action! state fx (+ fy 0.2f) fz (Double.to-float (* radius 0.65)) 515.0f 0.88f 1.0f)
+                  (ParticleSystem.emit-sparks! ps fx (+ fy 0.4f) fz 0.0f 1.0f 0.0f 8))
+                (EngineState.push-voxel-action! state fx (- fy 0.5f) fz 2.10f 8.0f 0.85f 0.0f))
+              (if (and (= law-id 1) (not pos?))
+                (EngineState.push-voxel-action! state fx fy fz (Double.to-float (* radius 0.85)) 515.0f -0.95f 0.0f)
+                (when (and (= law-id 4) pos?)
+                  (EngineState.push-voxel-action! state fx (+ fy 0.2f) fz 2.25f 515.0f 0.82f 1.0f))))))
+
+        ;; 3. RigidBody Physics & Player Law Forces (Gravity flip/crush, Baro vacuum/blast, Chrono stasis/surge, Electro pull/zap!)
+        (query ecs (e (cb CompBody))
+          (let [eidx (ECS.Entity.index &e)
+                eid (Long.to-int (Uint64.to-long eidx))]
+            (when (not (Uint64.= eidx midx))
+              (let [rb (CompBody.rb cb)
+                    b (RigidBody.body rb)]
+                (when (> @(Body.inv-mass b) 0.0)
+                  (let [epos @(RigidBody.position rb)
+                        dx (- @(Vector3.x &epos) cx)
+                        dy (- @(Vector3.y &epos) cy)
+                        dz (- @(Vector3.z &epos) cz)
+                        d (Double.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))
+                        in-zone? (if shell? (< (Double.abs (- d radius)) band-w) (< d radius))]
+                    (when in-zone?
+                      (let [old-v @(Body.velocity b)
+                            vx @(Vector3.x &old-v)
+                            vy @(Vector3.y &old-v)
+                            vz @(Vector3.z &old-v)
+                            inv-d (if (> d 0.18) (/ 1.0 d) 1.0)
+                            ux (* dx inv-d)
+                            uy (* dy inv-d)
+                            uz (* dz inv-d)
+                            atten (if shell? 1.0 (Physics.clamp 0.25 1.0 (- 1.0 (/ d (+ radius 0.8)))))
+                            eff (* strength atten)
+                            is-player? (= eid player-id)]
+                        (if (= law-id 2)
+                          ;; GRAVI: -G lifts upward to the ceiling; +4G slams downward into the floor!
+                          (let [ lift-ay (if pos? (* -44.0 eff) (* 29.0 eff))
+                                 nvy (Physics.clamp -28.0 18.0 (+ vy (* lift-ay dt)))]
+                            (do
+                              (Body.set-body-type! b (BodyType.Dynamic))
+                              (Body.set-is-sleeping! b false)
+                              (Body.set-velocity! b (Vector3.init vx nvy vz))
+                              (RigidBody.set-body! rb @b)
+                              (ECS.add-component! ecs &e (CompBody.init @rb))
+                              (when (and is-player? (and pos? (and (> eff 0.9) (= (Int.mod fc 14) 0))))
+                                (ignore (PlayerSystem.damage-player! state 7.0f true 0.0 -14.0 0.0)))))
+                          (if (= law-id 1)
+                            ;; BARO: -Vacuum violently sucks inward; +Overpressure blasts outward!
+                            (let [pull (if pos? (* 32.0 eff) (* -26.0 eff))
+                                  nvx (+ vx (* (* ux pull) dt))
+                                  nvy (+ vy (* (+ (* uy pull) (if pos? 6.5 2.0)) dt))
+                                  nvz (+ vz (* (* uz pull) dt))]
+                              (do
+                                (Body.set-body-type! b (BodyType.Dynamic))
+                                (Body.set-is-sleeping! b false)
+                                (Body.set-velocity! b (Vector3.init nvx nvy nvz))
+                                (RigidBody.set-body! rb @b)
+                                (ECS.add-component! ecs &e (CompBody.init @rb))
+                                (when (and is-player? (and pos? (and (> eff 0.85) (= (Int.mod fc 14) 0))))
+                                  (ignore (PlayerSystem.damage-player! state 8.0f true (* ux 14.0) 5.5 (* uz 14.0))))))
+                            (if (= law-id 3)
+                              ;; CHRONO: -Stasis locks momentum in amber slow-mo; +Surge accelerates velocity!
+                              (let [damp (if pos? (if is-player? 1.04 1.18) 0.72)
+                                    anti-g (if pos? 0.0 (* 8.8 dt))
+                                    nv (Vector3.init (* vx damp) (+ (* vy damp) anti-g) (* vz damp))]
+                                (do
+                                  (Body.set-body-type! b (BodyType.Dynamic))
+                                  (Body.set-is-sleeping! b false)
+                                  (Body.set-velocity! b nv)
+                                  (RigidBody.set-body! rb @b)
+                                  (ECS.add-component! ecs &e (CompBody.init @rb))))
+                              (if (= law-id 5)
+                                ;; ELECTRO: -Cathode magnetic pull; +Anode railgun launch & shock zap!
+                                (let [mag (if pos? (* 28.0 eff) (* -24.0 eff))
+                                      nv (Vector3.init (+ vx (* (* ux mag) dt))
+                                                       (+ vy (* (+ (* uy mag) 3.5) dt))
+                                                       (+ vz (* (* uz mag) dt)))]
+                                  (do
+                                    (Body.set-body-type! b (BodyType.Dynamic))
+                                    (Body.set-is-sleeping! b false)
+                                    (Body.set-velocity! b nv)
+                                    (RigidBody.set-body! rb @b)
+                                    (ECS.add-component! ecs &e (CompBody.init @rb))
+                                    (when (and is-player? (and pos? (= (Int.mod fc 12) 0)))
+                                      (do
+                                        (ParticleSystem.emit-sparks! ps (Double.to-float @(Vector3.x &epos)) (Double.to-float @(Vector3.y &epos)) (Double.to-float @(Vector3.z &epos)) 0.0f 1.0f 0.0f 10)
+                                        (ignore (PlayerSystem.damage-player! state 7.5f true (* ux 8.0) 3.5 (* uz 8.0)))))))
+                                (if (= law-id 0)
+                                  ;; THERMO: -Cryo chills & drags movement; +Caloric scorches & updrafts!
+                                  (if pos?
+                                    (when (and is-player? (= (Int.mod fc 12) 0))
+                                      (ignore (PlayerSystem.damage-player! state 7.0f true (* ux 4.5) 5.0 (* uz 4.5))))
+                                    (let [nv (Vector3.init (* vx 0.86) vy (* vz 0.86))]
+                                      (do
+                                        (Body.set-body-type! b (BodyType.Dynamic))
+                                        (Body.set-velocity! b nv)
+                                        (RigidBody.set-body! rb @b)
+                                        (ECS.add-component! ecs &e (CompBody.init @rb)))))
+                                  ;; PHOTO: +Solar sears targets in direct flare; -Umbral chills in pitch darkness!
+                                  (when (and is-player? (= (Int.mod fc 14) 0))
+                                    (ignore (PlayerSystem.damage-player! state (if pos? 6.5f 3.5f) pos? (* ux 6.0) 2.5 (* uz 6.0))))))))))))))))))))
+
+  ;; Apply Single or 50/50 Dual Lawmancer laws together!
+  (defn apply-mancer-law! [state world ecs ps mslot mmat pol center-pos radius band-w strength dt fc]
+    (let [la (MancerSystem.law-a-of mmat)
+          lb (MancerSystem.law-b-of mmat)]
+      (if (= la lb)
+        (MancerSystem.apply-single-law! state world ecs ps mslot la pol center-pos radius band-w strength dt fc)
+        (let [dual-s (* strength 0.72)]
+          (do
+            (MancerSystem.apply-single-law! state world ecs ps mslot la pol center-pos radius band-w dual-s dt fc)
+            (MancerSystem.apply-single-law! state world ecs ps mslot lb pol center-pos radius band-w dual-s dt fc))))))
 
   ;; Strike and flick a real burning MatchBook spark arc onto the player's coated boots!
   (defn flick-igniter-match! [state mpos target-pos]
@@ -1261,19 +1534,31 @@
                         vdata (Chunk.voxel-data chunk)
                         s-id @(Array.unsafe-nth vdata off)
                         f-id @(Array.unsafe-nth vdata (+ off 2))]
-                    (if (>= f-id 256.5f)
-                      (set! best-mat f-id)
-                      (when (and (> s-id 2.5f) (< s-id 18.0f))
-                        (set! best-mat s-id)))))))))
+                    (if (< f-id -0.5f)
+                      (set! best-mat (+ 256.0f (Float.abs f-id)))
+                      (if (and (> f-id 0.5f) (< f-id 25.5f))
+                        (set! best-mat (+ 512.0f f-id))
+                        (if (>= f-id 256.5f)
+                          (set! best-mat f-id)
+                          (when (and (> s-id 2.5f) (and (< s-id 26.0f) (/= (Float.round s-id) 18)))
+                            (set! best-mat s-id)))))))))))
         ;; If spawning in plain rock (<= 2.5), roll across the 3 Phase Benders so Solid, Liquid, and Gas Benders all roam the caves!
         (if (<= best-mat 2.5f)
           (let [ph-roll (Int.mod (Int.abs seed) 3)
-                sub-roll (Int.mod (Int.abs (/ seed 3)) 4)]
+                sub-roll (Int.mod (Int.abs (/ seed 3)) 6)]
             (if (= ph-roll 0)
               best-mat
               (if (= ph-roll 1)
-                (if (= sub-roll 0) 259.0f (if (= sub-roll 1) 260.0f (if (= sub-roll 2) 258.0f 257.0f)))
-                (if (= sub-roll 0) 515.0f (if (= sub-roll 1) 518.0f (if (= sub-roll 2) 520.0f 517.0f))))))
+                (if (= sub-roll 0) 259.0f
+                (if (= sub-roll 1) 260.0f
+                (if (= sub-roll 2) 258.0f
+                (if (= sub-roll 3) 269.0f
+                (if (= sub-roll 4) 271.0f 257.0f)))))
+                (if (= sub-roll 0) 515.0f
+                (if (= sub-roll 1) 518.0f
+                (if (= sub-roll 2) 520.0f
+                (if (= sub-roll 3) 523.0f
+                (if (= sub-roll 4) 525.0f 517.0f))))))))
           best-mat))))
 
   ;; Natural cave spawner: max 2 wild Phase Benders in roomy subterranean chambers (spawning with 2 starter Halo Orbs)!
@@ -1293,13 +1578,21 @@
           (Maybe.Nothing) ()
           (Maybe.Just hit-p)
             (let [nrm (Physics.estimate-sdf-normal world &hit-p)]
-              (when (and (> @(Vector3.y &nrm) 0.38) (> @(Vector3.y &hit-p) -182.0))
+              (when (> @(Vector3.y &nrm) 0.38)
                 (let [spawn-p (Vector3.add &hit-p &(Vector3.init 0.0 1.85 0.0))
                       clear-sdf (World.sample-sdf-nearest world &spawn-p)
                       to-cam (Vector3.sub cam-pos &spawn-p)
                       pdist (Vector3.mag &to-cam)]
                   (when (and (> clear-sdf 1.25f) (and (> pdist 20.0) (< pdist 58.0)))
-                    (let [wmat (MancerSystem.sample-wild-mancer-mat world &hit-p fc)
+                    (let [spawn-law? (< (Int.mod (Int.abs (+ (* fc 17) 31)) 5) 2)
+                          la (Int.mod (Int.abs (+ (* fc 13) 7)) 6)
+                          lb (Int.mod (+ la (+ 1 (Int.mod (Int.abs (+ (* fc 37) 5)) 5))) 6)
+                          dual-law? (= (Int.mod (Int.abs (+ (* fc 23) 11)) 4) 0)
+                          wmat (if spawn-law?
+                                 (if dual-law?
+                                   (MancerSystem.encode-dual-law la lb)
+                                   (Float.from-int (+ 769 la)))
+                                 (MancerSystem.sample-wild-mancer-mat world &hit-p fc))
                           inv-p (if (> pdist 0.1) (/ 1.0 pdist) 1.0)
                           fdx (Double.to-float (* @(Vector3.x &to-cam) inv-p))
                           fdz (Double.to-float (* @(Vector3.z &to-cam) inv-p))
@@ -1474,6 +1767,155 @@
                   (ECS.add-component! ecs &ment (CompBody.init @mrb))
                   (Array.aset! (MancerBank.hurt-cd mbk) mslot 0.28f))))))))
 
+  ;; Geometric Lawmancer Combat Loop:
+  ;;   1. Continuous 2.85m Personal +/- Forcefield Shell
+  ;;   2. Expanding 3D Spherical Wavefront (0.85m -> 16.5m) on Polarity Flip
+  ;;   3. Remote 5.0m Law Well (- Setup -> + Inversion Snap!) & Focused Law Lance
+  (defn step-lawmancer-cast! [state world ecs ps mk mmat pos p-body p-dist has-los held? cast-t fc dt]
+    (let [mbk (EngineState.mancers state)
+          fdt (Double.to-float dt)
+          m-state (MancerBank.state mbk)
+          m-timer (MancerBank.timer mbk)
+          m-cast-cd (MancerBank.cast-cd mbk)
+          m-flash (MancerBank.flash mbk)
+          m-sup-pos (MancerBank.sup-pos mbk)
+          m-sup-age (MancerBank.sup-age mbk)
+          m-trap-timer (MancerBank.trap-timer mbk)
+          m-dir (MancerBank.dir mbk)
+          b3 (* mk 3)
+          fx (Double.to-float @(Vector3.x pos))
+          fy (Double.to-float @(Vector3.y pos))
+          fz (Double.to-float @(Vector3.z pos))
+          cur-pol (if (>= @(Array.unsafe-nth m-trap-timer mk) 0.0f) 1.0f -1.0f)
+          cur-st @(Array.unsafe-nth m-state mk)
+          cur-tm (- @(Array.unsafe-nth m-timer mk) fdt)]
+      (do
+        ;; 1. Continuous Personal +/- Forcefield Shell (matches overhead + / - sign!)
+        (when (not held?)
+          (MancerSystem.apply-mancer-law! state world ecs ps mk mmat cur-pol pos 2.85 0.0 0.72 dt fc))
+
+        ;; 2. Radiating 3D Spherical Wavefront Shell (0.85m -> 16.5m at 13.5 m/s)
+        (let [w-raw @(Array.unsafe-nth m-sup-age mk)]
+          (when (> (Float.abs w-raw) 0.05f)
+            (let [w-pol (if (>= w-raw 0.0f) 1.0f -1.0f)
+                  next-wr (+ (Float.abs w-raw) (* fdt 13.5f))]
+              (if (<= next-wr 16.5f)
+                (do
+                  (Array.aset! m-sup-age mk (* w-pol next-wr))
+                  (MancerSystem.apply-mancer-law! state world ecs ps mk mmat w-pol pos (Double.from-float next-wr) 1.95 1.35 dt fc))
+                (Array.aset! m-sup-age mk 0.0f)))))
+
+        ;; 3. Geometric Spell State Machine
+        (if (= cur-st 1)
+          ;; Move A: Polarity-Flip Spherical Wavefront!
+          (if (> cur-tm 0.0f)
+            (let [ang (* (Float.from-int (+ (* fc 6) (* mk 13))) 0.45f)
+                  rx (* (MancerSystem.fcos ang) 1.45f)
+                  rz (* (MancerSystem.fsin ang) 1.45f)]
+              (do
+                (Array.aset! m-flash mk -0.95f)
+                (Array.aset! m-timer mk cur-tm)
+                (ParticleSystem.emit! ps (+ fx rx) (+ fy 0.35f) (+ fz rz)
+                  (* rx -5.5f) 1.6f (* rz -5.5f) 0.25f 4 PARTICLE-TYPE-MAGIC 0.26f 0.04f)))
+            (let [new-pol (if (>= cur-pol 0.0f) -1.0f 1.0f)]
+              (do
+                (Array.aset! m-trap-timer mk new-pol)
+                (Array.aset! m-sup-age mk (* new-pol 0.85f))
+                (Array.aset! m-flash mk -1.0f)
+                (ParticleSystem.emit-sparks! ps fx (+ fy 0.35f) fz 0.0f 1.0f 0.0f 24)
+                (ParticleSystem.emit! ps fx (+ fy 0.35f) fz 0.0f 4.2f 0.0f 2.2f 20 PARTICLE-TYPE-MAGIC 0.38f 0.12f)
+                (Array.aset! m-state mk 0)
+                (Array.aset! m-cast-cd mk 1.55f))))
+
+          (if (= cur-st 2)
+            ;; Move B: Remote 5.0m Law Well (- Setup for 0.90s -> + Inversion Snap for 0.65s!)
+            (let [wx @(Array.unsafe-nth m-sup-pos b3)
+                  wy @(Array.unsafe-nth m-sup-pos (+ b3 1))
+                  wz @(Array.unsafe-nth m-sup-pos (+ b3 2))
+                  wpos (Vector3.init (Double.from-float wx) (Double.from-float wy) (Double.from-float wz))]
+              (if (> cur-tm 0.65f)
+                (do
+                  (Array.aset! m-trap-timer mk -1.0f)
+                  (Array.aset! m-timer mk cur-tm)
+                  (MancerSystem.apply-mancer-law! state world ecs ps mk mmat -1.0f &wpos 5.0 0.0 1.12 dt fc)
+                  (when (= (Int.mod (+ fc mk) 2) 0)
+                    (for [ri 0 4]
+                      (let [ang (+ (* (Float.from-int ri) 1.5708f) (* (Float.from-int fc) 0.28f))
+                            rx (* (MancerSystem.fcos ang) 4.6f)
+                            rz (* (MancerSystem.fsin ang) 4.6f)]
+                        (ParticleSystem.emit! ps (+ wx rx) (+ wy 0.25f) (+ wz rz)
+                          (* rx -3.4f) 1.2f (* rz -3.4f) 0.30f 2 PARTICLE-TYPE-MAGIC 0.28f 0.04f)))))
+                (if (> cur-tm 0.0f)
+                  (do
+                    (when (< cur-pol 0.0f)
+                      (do
+                        (Array.aset! m-trap-timer mk 1.0f)
+                        (Array.aset! m-flash mk -1.0f)
+                        (ParticleSystem.emit-sparks! ps wx (+ wy 0.35f) wz 0.0f 1.0f 0.0f 26)
+                        (ParticleSystem.emit! ps wx (+ wy 0.35f) wz 0.0f 5.2f 0.0f 2.6f 22 PARTICLE-TYPE-MAGIC 0.42f 0.15f)))
+                    (Array.aset! m-timer mk cur-tm)
+                    (MancerSystem.apply-mancer-law! state world ecs ps mk mmat 1.0f &wpos 5.2 0.0 1.48 dt fc)
+                    (when (= (Int.mod (+ fc mk) 2) 0)
+                      (for [ri 0 4]
+                        (let [ang (+ (* (Float.from-int ri) 1.5708f) (* (Float.from-int fc) 0.34f))
+                              rx (MancerSystem.fcos ang)
+                              rz (MancerSystem.fsin ang)]
+                          (ParticleSystem.emit! ps (+ wx (* rx 0.65f)) (+ wy 0.25f) (+ wz (* rz 0.65f))
+                            (* rx 14.5f) 2.4f (* rz 14.5f) 0.45f 2 PARTICLE-TYPE-MAGIC 0.30f 0.08f)))))
+                  (do
+                    (Array.aset! m-state mk 0)
+                    (Array.aset! m-cast-cd mk 1.85f)))))
+
+            (if (= cur-st 3)
+              ;; Move C: Focused Directional Law Lance!
+              (if (> cur-tm 0.0f)
+                (let [dfx @(Array.unsafe-nth m-dir b3)
+                      dfy @(Array.unsafe-nth m-dir (+ b3 1))
+                      dfz @(Array.unsafe-nth m-dir (+ b3 2))
+                      ldir (Vector3.init (Double.from-float dfx) (Double.from-float dfy) (Double.from-float dfz))
+                      reach (Physics.dmin 22.0 (Physics.dmax 2.5 p-dist))
+                      mid-p (Vector3.add pos &(Vector3.mul &ldir (* reach 0.52)))
+                      end-p (Vector3.add pos &(Vector3.mul &ldir reach))]
+                  (do
+                    (Array.aset! m-flash mk -0.75f)
+                    (Array.aset! m-timer mk cur-tm)
+                    (MancerSystem.apply-mancer-law! state world ecs ps mk mmat cur-pol &mid-p 2.35 0.0 0.85 dt fc)
+                    (MancerSystem.apply-mancer-law! state world ecs ps mk mmat cur-pol &end-p 2.75 0.0 1.25 dt fc)
+                    (ParticleSystem.emit! ps (+ fx (* dfx 0.85f)) (+ fy (* dfy 0.85f)) (+ fz (* dfz 0.85f))
+                      (* dfx 24.0f) (* dfy 24.0f) (* dfz 24.0f) 0.65f 5 PARTICLE-TYPE-MAGIC 0.32f 0.02f)
+                    (when (= (Int.mod (+ fc mk) 3) 0)
+                      (ParticleSystem.emit-sparks! ps (+ fx (* dfx 0.95f)) (+ fy (* dfy 0.95f)) (+ fz (* dfz 0.95f))
+                        dfx dfy dfz 6))))
+                (do
+                  (Array.aset! m-state mk 0)
+                  (Array.aset! m-cast-cd mk 1.45f)))
+
+              ;; Idle Hover -> Pick Next Geometric Law Cast!
+              (when (and (> has-los 0.5f) (and (< p-dist 28.0) (and (not held?) (<= cast-t 0.001f))))
+                (if (< p-dist 4.5)
+                  ;; Rushed in melee -> snap Polarity-Flip Wavefront!
+                  (do
+                    (Array.aset! m-state mk 1)
+                    (Array.aset! m-timer mk 0.20f))
+                  (let [roll (Int.mod (+ fc (* mk 7)) 3)]
+                    (if (= roll 0)
+                      (do
+                        (Array.aset! m-state mk 1)
+                        (Array.aset! m-timer mk 0.38f))
+                      (if (= roll 1)
+                        (do
+                          (Array.aset! m-sup-pos b3 (Double.to-float @(Vector3.x p-body)))
+                          (Array.aset! m-sup-pos (+ b3 1) (Double.to-float @(Vector3.y p-body)))
+                          (Array.aset! m-sup-pos (+ b3 2) (Double.to-float @(Vector3.z p-body)))
+                          (Array.aset! m-trap-timer mk -1.0f)
+                          (Array.aset! m-flash mk -0.85f)
+                          (Array.aset! m-state mk 2)
+                          (Array.aset! m-timer mk 1.55f))
+                        (do
+                          (Array.aset! m-flash mk -0.85f)
+                          (Array.aset! m-state mk 3)
+                          (Array.aset! m-timer mk 1.05f)))))))))))))
+
   (defn update! [state input dt]
     (let [world (EngineState.world state)
           player (EngineState.player state)
@@ -1558,7 +2000,36 @@
                   (ParticleSystem.emit! ps sx sy sz 0.0f 3.5f 0.0f 1.6f 24 jpt 0.35f 0.25f)
                   (ParticleSystem.emit! ps sx (+ sy 0.5f) sz 0.0f 3.0f 0.0f 1.4f 18 PARTICLE-TYPE-MAGIC 0.40f 0.1f))))))
 
-        ;; Step all 4 Ecomancer slots
+        ;; [I] Key: Summon a Geometric Lawmancer (cycles all 6 Laws + Dual; hold [G] or [H] for guaranteed 50/50 Split Dual Lawmancer!)
+        (when (and (InputManager.action-pressed? input "spawn-lawmancer")
+                   (> (- fc @(MancerBank.last-spawn-frame mbk)) 10))
+          (let [seq @(MancerBank.law-seq mbk)
+                dual-mod? (or (InputManager.action-digital? input "edit-paint")
+                              (InputManager.action-digital? input "edit-remove"))
+                step (Int.mod seq 7)
+                la (Int.mod seq 6)
+                lb (Int.mod (+ la (+ 1 (Int.mod (/ seq 2) 5))) 6)
+                pick-law (if (or dual-mod? (= step 6))
+                           (MancerSystem.encode-dual-law la lb)
+                           (Float.from-int (+ 769 step)))
+                spawn-p (Vector3.add cam-pos &(Vector3.add &(Vector3.mul cam-dir 5.5) &(Vector3.init 0.0 0.65 0.0)))
+                sx (Double.to-float @(Vector3.x &spawn-p))
+                sy (Double.to-float @(Vector3.y &spawn-p))
+                sz (Double.to-float @(Vector3.z &spawn-p))
+                fdx (- 0.0f (Double.to-float @(Vector3.x cam-dir)))
+                fdz (- 0.0f (Double.to-float @(Vector3.z cam-dir)))]
+            (do
+              (MancerBank.set-law-seq! mbk (+ seq 1))
+              (when (< (MancerSystem.find-free-mancer-slot state) 0)
+                (MancerSystem.destroy-mancer-slot! state 0 false))
+              (let [slot (MancerSystem.spawn-mancer! state spawn-p (Vector3.init 0.0 1.2 0.0) pick-law fdx fdz 0)]
+                (when (>= slot 0)
+                  (do
+                    (MancerBank.set-last-spawn-frame! mbk fc)
+                    (ParticleSystem.emit-sparks! ps sx (+ sy 0.35f) sz 0.0f 1.0f 0.0f 24)
+                    (ParticleSystem.emit! ps sx (+ sy 0.35f) sz 0.0f 3.5f 0.0f 1.6f 22 PARTICLE-TYPE-MAGIC 0.40f 0.12f)))))))
+
+        ;; Step all 4 Mancer slots (Ecomancers & Geometric Lawmancers)
         (for [mk 0 4]
           (when @(Array.unsafe-nth m-alive mk)
             (let [idx @(Array.unsafe-nth m-idx mk)
@@ -1583,7 +2054,7 @@
                         to-p (Vector3.sub &p-body &pos)
                         p-dist (Vector3.mag &to-p)
                         held? (Uint64.= @(RigBelt.grab-idx rig) idx)]
-                    (if (and (not held?) (or (> p-dist 82.0) (< py -210.0)))
+                    (if (and (not held?) (> p-dist 82.0))
                       (MancerSystem.destroy-mancer-slot! state mk false)
                       (let [rb0 (+ 212 (* mk 8))
                             rb1 (+ rb0 4)
@@ -1596,6 +2067,7 @@
                             sup-z (Pointer.to-value (Pointer.add raw-rb (Long.from-int (+ rb1 2))))
                             sup-amt (Pointer.to-value (Pointer.add raw-rb (Long.from-int (+ rb1 3))))
                             mmat @(Array.unsafe-nth m-mat mk)
+                            is-law? (MancerSystem.lawmancer? mmat)
                             mrad @(Array.unsafe-nth m-rad mk)
                             b3 (* mk 3)
                             cur-spd (Double.to-float (Vector3.mag &vel))
@@ -1615,24 +2087,26 @@
                             sprayed? (and (> spray-mat 0.5f) (< jdist (+ mrad 2.15f)))
                             eff-liq (if (and sprayed? (and (>= spray-mat 256.5f) (< spray-mat 512.0f))) spray-mat touch-liq)
                             eff-gas (if (and sprayed? (>= spray-mat 512.5f)) spray-mat touch-gas)
-                            phase-spd (if (< p-dist 5.0) 6.20f 2.35f)
+                            phase-spd (if is-law? (if (< p-dist 6.0) 4.40f 2.65f) (if (< p-dist 5.0) 6.20f 2.35f))
                             killed? false]
                         (do
                           (Array.aset! m-flash mk next-fl)
                           (Array.aset! m-hurt-cd mk hurt-t)
                           (Array.aset! m-cast-cd mk cast-t)
                           (Array.aset! m-siphon-cd mk siph-t)
-                          (Array.aset! m-trap-timer mk trap-t)
+                          (when (not is-law?)
+                            (Array.aset! m-trap-timer mk trap-t))
                           (Array.aset! m-phase mk (+ @(Array.unsafe-nth m-phase mk) (* fdt phase-spd)))
 
-                          ;; Update cached supply position from GPU 20-ray scanner!
-                          (if (> sup-amt 0.02f)
-                            (do
-                              (Array.aset! m-sup-pos b3 sup-x)
-                              (Array.aset! m-sup-pos (+ b3 1) sup-y)
-                              (Array.aset! m-sup-pos (+ b3 2) sup-z)
-                              (Array.aset! m-sup-age mk 0.0f))
-                            (Array.aset! m-sup-age mk (+ @(Array.unsafe-nth m-sup-age mk) fdt)))
+                          ;; Update cached supply position from GPU 20-ray scanner (Ecomancers only; Lawmancers store Well pos & Wavefront radius here)!
+                          (when (not is-law?)
+                            (if (> sup-amt 0.02f)
+                              (do
+                                (Array.aset! m-sup-pos b3 sup-x)
+                                (Array.aset! m-sup-pos (+ b3 1) sup-y)
+                                (Array.aset! m-sup-pos (+ b3 2) sup-z)
+                                (Array.aset! m-sup-age mk 0.0f))
+                              (Array.aset! m-sup-age mk (+ @(Array.unsafe-nth m-sup-age mk) fdt))))
 
                           ;; 1. High-speed Wall-Splat from [4] Gauntlet Power-Punt or Seismic Kick!
                           (when (and (not held?) (and (> prev-s 15.5f) (< cur-spd (* prev-s 0.48f))))
@@ -1642,124 +2116,144 @@
                                 (when (not @(Array.unsafe-nth m-alive mk))
                                   (set! killed? true)))))
 
-                          ;; 2. Phase 1.3: Live 3D CA Environmental Contact, Phase-Wide Fluid/Gas Absorption & Emergency Self-Douse!
+                          ;; 2. Live 3D CA Environmental Contact
                           (when (and (not killed?) (and (<= hurt-t 0.01f) (= (Int.mod (+ fc (* mk 3)) 10) 0)))
-                            (let [m-ph (MancerSystem.mat-phase mmat)
-                                  same-liq? (and (> eff-liq 256.5f) (= m-ph 1))
-                                  same-gas? (and (> eff-gas 512.5f) (= m-ph 2))
-                                  fire-absorb? (and (> touch-ign 0.5f) (or (= m-ph 2) (Materials.igniter? mmat)))
-                                  env-dmg (if (and (> touch-ign 0.5f) (not (or same-liq? (or same-gas? fire-absorb?)))) 9.0f
-                                          (if (and (not same-liq?) (= (Float.round eff-liq) 259)) 8.0f
-                                          (if (and (not same-gas?) (or (= (Float.round eff-gas) 517) (= (Float.round eff-gas) 514))) 6.0f
-                                            0.0f)))
-                                  etag (if (> touch-ign 0.5f) 2 (if (= (Float.round eff-liq) 259) 4 6))]
-                              (if (or same-liq? (or same-gas? fire-absorb?))
-                                ;; PHASE-WIDE VACUUM ABSORPTION: Physically suck surrounding liquid/gas/fire out of the world into HP & Halo Orbs!
-                                (let [abs-raw (if same-liq? eff-liq (if same-gas? eff-gas (if (> touch-ign 0.5f) 515.0f mmat)))
-                                      abs-mat (MancerSystem.normalize-mancer-mat abs-raw (+ fc mk))
-                                      spt (Materials.succ-ptype abs-mat)
-                                      cur-hp @(Array.unsafe-nth (MancerBank.hp mbk) mk)
-                                      max-hp @(Array.unsafe-nth (MancerBank.max-hp mbk) mk)
-                                      need-hp? (< cur-hp max-hp)
-                                      need-orb? (and (< (MancerSystem.count-owned-orbs state mk) 4) (<= siph-t 0.01f))]
-                                  (when (or need-hp? need-orb?)
-                                    (do
-                                      (Array.aset! m-mat mk abs-mat)
-                                      (ECS.add-component! ecs &ent (CompColor.init (Materials.slime-color abs-mat 0)))
-                                      ;; Drain the absorbed fluid/gas/flame directly out of the 3D voxel grid around the Mancer!
-                                      (let [vac-r (if need-orb? (if (< abs-mat 512.0f) 3.85f 4.65f) 2.55f)
-                                            vac-s (if need-orb? -0.95f -0.78f)]
+                            (if is-law?
+                              ;; Lawmancer Acid/Lava hazard vault (Thermomancers ignore thermal fire/lava)
+                              (let [thermo? (or (= (MancerSystem.law-a-of mmat) 0) (= (MancerSystem.law-b-of mmat) 0))
+                                    acid? (= (Float.round eff-liq) 259)
+                                    lava? (and (not thermo?) (= (Float.round eff-liq) 260))
+                                    ldmg (if acid? 8.0f (if lava? 9.0f 0.0f))]
+                                (when (> ldmg 0.5f)
+                                  (do
+                                    (ignore (MancerSystem.damage-mancer! state mk ldmg 0.0f 1.0f 0.0f 2.2f (if acid? 4 2)))
+                                    (if (not @(Array.unsafe-nth m-alive mk))
+                                      (set! killed? true)
+                                      (let [esc-v (Vector3.init @(Vector3.x &vel) 9.0 @(Vector3.z &vel))]
                                         (do
-                                          (when (>= abs-mat 256.5f)
-                                            (EngineState.push-voxel-action! state fx fy fz vac-r abs-mat vac-s 0.0f))
-                                          (when (> touch-ign 0.5f)
-                                            (EngineState.push-voxel-action! state fx (+ fy 0.25f) fz 4.65f 515.0f -0.95f 0.0f))))
-                                      ;; 6-spoke inward-spiraling vacuum vortex ring tearing matter from 2.8m into the Mancer's halo!
-                                      (for [vi 0 6]
-                                        (let [vang (+ (* (Float.from-int vi) 1.0472f) (* (Float.from-int fc) 0.35f))
-                                              vrx (* (MancerSystem.fcos vang) 2.65f)
-                                              vrz (* (MancerSystem.fsin vang) 2.65f)]
-                                          (do
-                                            (ParticleSystem.emit! ps (+ fx vrx) (+ fy 0.15f) (+ fz vrz)
-                                              (* vrx -5.2f) 2.8f (* vrz -5.2f) 0.32f 4 spt 0.18f 0.0f)
-                                            (when (= (Int.mod vi 2) 0)
-                                              (ParticleSystem.emit! ps (+ fx (* vrx 0.75f)) (+ fy 0.35f) (+ fz (* vrz 0.75f))
-                                                (* vrx -4.5f) 2.4f (* vrz -4.5f) 0.28f 2 PARTICLE-TYPE-MAGIC 0.24f 0.04f)))))
-                                      (when need-hp?
-                                        (do
-                                          (Array.aset! (MancerBank.hp mbk) mk (MancerSystem.fmin max-hp (+ cur-hp 6.5f)))
-                                          (Array.aset! m-flash mk -0.78f)
-                                          (ParticleSystem.emit! ps fx (+ fy 0.45f) fz 0.0f 3.5f 0.0f 1.2f 8 PARTICLE-TYPE-MAGIC 0.30f 0.1f)))
-                                      (when need-orb?
-                                        (let [orb-p (Vector3.add &pos &(Vector3.init 0.0 0.65 0.0))]
-                                          (do
-                                            (Array.aset! m-flash mk -0.92f)
-                                            (ignore (MancerSystem.spawn-halo-orb! state mk orb-p (Vector3.init 0.0 2.5 0.0) abs-mat))
-                                            (Array.aset! m-siphon-cd mk 0.95f)))))))
-                                (when (> env-dmg 0.5f)
-                                  (let [douse-slot (MancerSystem.find-ready-halo-orb state mk)
-                                        dmat (if (>= douse-slot 0) @(Array.unsafe-nth (MancerBank.orb-mat mbk) douse-slot) mmat)
-                                        rm (Float.round dmat)
-                                        can-douse? (and (>= douse-slot 0)
-                                                        (or (= rm 257)
-                                                            (or (= rm 8)
-                                                                (or (Materials.healing? dmat)
-                                                                    (or (= rm 10)
-                                                                        (or (<= rm 3) (= rm 6)))))))]
-                                    (if can-douse?
-                                      ;; EMERGENCY SELF-DOUSE / SELF-MEDICATE: Slam 1 Halo Orb at own feet & vault skyward!
-                                      (let [cur-hp @(Array.unsafe-nth (MancerBank.hp mbk) mk)
-                                            max-hp @(Array.unsafe-nth (MancerBank.max-hp mbk) mk)
-                                            esc-v (Vector3.init @(Vector3.x &vel) 9.8 @(Vector3.z &vel))]
-                                        (do
-                                          (MancerSystem.destroy-orb-slot! state douse-slot false)
-                                          (EngineState.push-voxel-action! state fx (- fy 0.25f) fz 2.55f
-                                            (if (and (< rm 256) (Materials.granular? dmat)) (- 0.0f dmat) dmat) 0.92f 0.0f)
-                                          (when (or (= rm 257) (= rm 8))
-                                            (EngineState.push-voxel-action! state fx (+ fy 0.35f) fz 2.65f 513.0f 0.85f 0.0f))
-                                          (when (Materials.healing? dmat)
-                                            (Array.aset! (MancerBank.hp mbk) mk (MancerSystem.fmin max-hp (+ cur-hp 24.0f))))
-                                          (ParticleSystem.emit! ps fx fy fz 0.0f 5.0f 0.0f 1.8f 20 (Materials.jet-ptype dmat) 0.38f 0.2f)
-                                          (Array.aset! m-flash mk -1.0f)
-                                          (Array.aset! m-hurt-cd mk 0.36f)
+                                          (Array.aset! m-hurt-cd mk 0.32f)
                                           (Body.set-body-type! b (BodyType.Dynamic))
                                           (Body.set-is-sleeping! b false)
                                           (Body.set-velocity! b esc-v)
                                           (RigidBody.set-body! rb @b)
-                                          (ECS.add-component! ecs &ent (CompBody.init @rb))))
+                                          (ECS.add-component! ecs &ent (CompBody.init @rb))))))))
+                              (let [m-ph (MancerSystem.mat-phase mmat)
+                                    same-liq? (and (> eff-liq 256.5f) (= m-ph 1))
+                                    same-gas? (and (> eff-gas 512.5f) (= m-ph 2))
+                                    fire-absorb? (and (> touch-ign 0.5f) (or (= m-ph 2) (Materials.igniter? mmat)))
+                                    env-dmg (if (and (> touch-ign 0.5f) (not (or same-liq? (or same-gas? fire-absorb?)))) 9.0f
+                                            (if (and (not same-liq?) (= (Float.round eff-liq) 259)) 8.0f
+                                            (if (and (not same-gas?) (or (= (Float.round eff-gas) 517) (= (Float.round eff-gas) 514))) 6.0f
+                                              0.0f)))
+                                    etag (if (> touch-ign 0.5f) 2 (if (= (Float.round eff-liq) 259) 4 6))]
+                                (if (or same-liq? (or same-gas? fire-absorb?))
+                                  ;; PHASE-WIDE VACUUM ABSORPTION: Physically suck surrounding liquid/gas/fire out of the world into HP & Halo Orbs!
+                                  (let [abs-raw (if same-liq? eff-liq (if same-gas? eff-gas (if (> touch-ign 0.5f) 515.0f mmat)))
+                                        abs-mat (MancerSystem.normalize-mancer-mat abs-raw (+ fc mk))
+                                        spt (Materials.succ-ptype abs-mat)
+                                        cur-hp @(Array.unsafe-nth (MancerBank.hp mbk) mk)
+                                        max-hp @(Array.unsafe-nth (MancerBank.max-hp mbk) mk)
+                                        need-hp? (< cur-hp max-hp)
+                                        need-orb? (and (< (MancerSystem.count-owned-orbs state mk) 4) (<= siph-t 0.01f))]
+                                    (when (or need-hp? need-orb?)
                                       (do
-                                        (ignore (MancerSystem.damage-mancer! state mk env-dmg 0.0f 1.0f 0.0f 2.2f etag))
-                                        (if (not @(Array.unsafe-nth m-alive mk))
-                                          (set! killed? true)
-                                          ;; Hazard Escape Vault: never hover passively inside an Acid/Lava pool!
-                                          (let [esc-v (Vector3.init @(Vector3.x &vel) 9.0 @(Vector3.z &vel))]
+                                        (Array.aset! m-mat mk abs-mat)
+                                        (ECS.add-component! ecs &ent (CompColor.init (Materials.slime-color abs-mat 0)))
+                                        ;; Drain the absorbed fluid/gas/flame directly out of the 3D voxel grid around the Mancer!
+                                        (let [vac-r (if need-orb? (if (< abs-mat 512.0f) 3.85f 4.65f) 2.55f)
+                                              vac-s (if need-orb? -0.95f -0.78f)]
+                                          (do
+                                            (when (>= abs-mat 256.5f)
+                                              (EngineState.push-voxel-action! state fx fy fz vac-r abs-mat vac-s 0.0f))
+                                            (when (> touch-ign 0.5f)
+                                              (EngineState.push-voxel-action! state fx (+ fy 0.25f) fz 4.65f 515.0f -0.95f 0.0f))))
+                                        ;; 6-spoke inward-spiraling vacuum vortex ring tearing matter from 2.8m into the Mancer's halo!
+                                        (for [vi 0 6]
+                                          (let [vang (+ (* (Float.from-int vi) 1.0472f) (* (Float.from-int fc) 0.35f))
+                                                vrx (* (MancerSystem.fcos vang) 2.65f)
+                                                vrz (* (MancerSystem.fsin vang) 2.65f)]
                                             (do
-                                              (Array.aset! m-hurt-cd mk 0.32f)
-                                              (Body.set-body-type! b (BodyType.Dynamic))
-                                              (Body.set-is-sleeping! b false)
-                                              (Body.set-velocity! b esc-v)
-                                              (RigidBody.set-body! rb @b)
-                                              (ECS.add-component! ecs &ent (CompBody.init @rb))))))))))))
+                                              (ParticleSystem.emit! ps (+ fx vrx) (+ fy 0.15f) (+ fz vrz)
+                                                (* vrx -5.2f) 2.8f (* vrz -5.2f) 0.32f 4 spt 0.18f 0.0f)
+                                              (when (= (Int.mod vi 2) 0)
+                                                (ParticleSystem.emit! ps (+ fx (* vrx 0.75f)) (+ fy 0.35f) (+ fz (* vrz 0.75f))
+                                                  (* vrx -4.5f) 2.4f (* vrz -4.5f) 0.28f 2 PARTICLE-TYPE-MAGIC 0.24f 0.04f)))))
+                                        (when need-hp?
+                                          (do
+                                            (Array.aset! (MancerBank.hp mbk) mk (MancerSystem.fmin max-hp (+ cur-hp 6.5f)))
+                                            (Array.aset! m-flash mk -0.78f)
+                                            (ParticleSystem.emit! ps fx (+ fy 0.45f) fz 0.0f 3.5f 0.0f 1.2f 8 PARTICLE-TYPE-MAGIC 0.30f 0.1f)))
+                                        (when need-orb?
+                                          (let [orb-p (Vector3.add &pos &(Vector3.init 0.0 0.65 0.0))]
+                                            (do
+                                              (Array.aset! m-flash mk -0.92f)
+                                              (ignore (MancerSystem.spawn-halo-orb! state mk orb-p (Vector3.init 0.0 2.5 0.0) abs-mat))
+                                              (Array.aset! m-siphon-cd mk 0.95f)))))))
+                                  (when (> env-dmg 0.5f)
+                                    (let [douse-slot (MancerSystem.find-ready-halo-orb state mk)
+                                          dmat (if (>= douse-slot 0) @(Array.unsafe-nth (MancerBank.orb-mat mbk) douse-slot) mmat)
+                                          rm (Float.round dmat)
+                                          can-douse? (and (>= douse-slot 0)
+                                                          (or (= rm 257)
+                                                              (or (= rm 8)
+                                                                  (or (Materials.healing? dmat)
+                                                                      (or (= rm 10)
+                                                                          (or (<= rm 3) (= rm 6)))))))]
+                                      (if can-douse?
+                                        ;; EMERGENCY SELF-DOUSE / SELF-MEDICATE: Slam 1 Halo Orb at own feet & vault skyward!
+                                        (let [cur-hp @(Array.unsafe-nth (MancerBank.hp mbk) mk)
+                                              max-hp @(Array.unsafe-nth (MancerBank.max-hp mbk) mk)
+                                              esc-v (Vector3.init @(Vector3.x &vel) 9.8 @(Vector3.z &vel))]
+                                          (do
+                                            (MancerSystem.destroy-orb-slot! state douse-slot false)
+                                            (EngineState.push-voxel-action! state fx (- fy 0.25f) fz 2.55f
+                                              (if (and (< rm 256) (Materials.granular? dmat)) (- 0.0f dmat) dmat) 0.92f 0.0f)
+                                            (when (or (= rm 257) (= rm 8))
+                                              (EngineState.push-voxel-action! state fx (+ fy 0.35f) fz 2.65f 513.0f 0.85f 0.0f))
+                                            (when (Materials.healing? dmat)
+                                              (Array.aset! (MancerBank.hp mbk) mk (MancerSystem.fmin max-hp (+ cur-hp 24.0f))))
+                                            (ParticleSystem.emit! ps fx fy fz 0.0f 5.0f 0.0f 1.8f 20 (Materials.jet-ptype dmat) 0.38f 0.2f)
+                                            (Array.aset! m-flash mk -1.0f)
+                                            (Array.aset! m-hurt-cd mk 0.36f)
+                                            (Body.set-body-type! b (BodyType.Dynamic))
+                                            (Body.set-is-sleeping! b false)
+                                            (Body.set-velocity! b esc-v)
+                                            (RigidBody.set-body! rb @b)
+                                            (ECS.add-component! ecs &ent (CompBody.init @rb))))
+                                        (do
+                                          (ignore (MancerSystem.damage-mancer! state mk env-dmg 0.0f 1.0f 0.0f 2.2f etag))
+                                          (if (not @(Array.unsafe-nth m-alive mk))
+                                            (set! killed? true)
+                                            ;; Hazard Escape Vault: never hover passively inside an Acid/Lava pool!
+                                            (let [esc-v (Vector3.init @(Vector3.x &vel) 9.0 @(Vector3.z &vel))]
+                                              (do
+                                                (Array.aset! m-hurt-cd mk 0.32f)
+                                                (Body.set-body-type! b (BodyType.Dynamic))
+                                                (Body.set-is-sleeping! b false)
+                                                (Body.set-velocity! b esc-v)
+                                                (RigidBody.set-body! rb @b)
+                                                (ECS.add-component! ecs &ent (CompBody.init @rb)))))))))))))
 
                           (when (not killed?)
                             (let [cur-st0 @(Array.unsafe-nth m-state mk)]
                               (do
-                                ;; Phase 1.4: Autonomous Halo Orb Shield-Parry against incoming Wand Bolts & Boulders!
-                                (when (and (not held?) (and (<= hurt-t 0.05f) (/= cur-st0 4)))
+                                ;; Phase 1.4: Autonomous Halo Orb Shield-Parry against incoming Wand Bolts & Boulders (Ecomancers only)!
+                                (when (and (not is-law?) (and (not held?) (and (<= hurt-t 0.05f) (/= cur-st0 4))))
                                   (ignore (MancerSystem.try-halo-parry! state ecs ps mk &pos)))
 
-                                (let [halo-cnt (MancerSystem.count-owned-orbs state mk)
+                                (let [halo-cnt (if is-law? 0 (MancerSystem.count-owned-orbs state mk))
                                       sup-age @(Array.unsafe-nth m-sup-age mk)
-                                      starved? (and (= halo-cnt 0) (> sup-age 1.85f))
+                                      starved? (and (not is-law?) (and (= halo-cnt 0) (> sup-age 1.85f)))
                                       cur-st @(Array.unsafe-nth m-state mk)
                                       cur-tm (- @(Array.unsafe-nth m-timer mk) fdt)]
                                   (do
                                     (set! active-count (+ active-count 1))
 
                                     ;; 3. Siphon ANY material in the Ecomancer's 256-wide phase segment into its 4-orb halo!
-                                    (when (and (< halo-cnt 4)
-                                               (and (<= siph-t 0.001f)
-                                                    (and (< sup-age 0.85f) (and (/= cur-st 2) (/= cur-st 4)))))
+                                    (when (and (not is-law?)
+                                               (and (< halo-cnt 4)
+                                                    (and (<= siph-t 0.001f)
+                                                         (and (< sup-age 0.85f) (and (/= cur-st 2) (/= cur-st 4))))))
                                       (let [siph-mat (if (and (> sup-amt 0.5f) (MancerSystem.same-phase? sup-amt mmat))
                                                        (MancerSystem.normalize-mancer-mat sup-amt (+ fc mk))
                                                        mmat)]
@@ -1788,10 +2282,12 @@
                                         (Array.aset! m-dir (+ b3 1) (* nfy inm))
                                         (Array.aset! m-dir (+ b3 2) (* nfz inm))))
 
-                                    ;; 5. Bender State Machine (Sling / Tectonic-Trap / Igniter Snap / Channel Beam / 6.5s Re-Attune!)
-                                    (if (= cur-st 1)
-                                      ;; WindupSling -> Converging spiral charge telegraph + launch heavy physical halo orb!
-                                      (if (> cur-tm 0.0f)
+                                    ;; 5. Lawmancer vs Ecomancer Cast State Machine
+                                    (if is-law?
+                                      (MancerSystem.step-lawmancer-cast! state world ecs ps mk mmat &pos &p-body p-dist has-los held? cast-t fc dt)
+                                      (if (= cur-st 1)
+                                        ;; WindupSling -> Converging spiral charge telegraph + launch heavy physical halo orb!
+                                        (if (> cur-tm 0.0f)
                                         (let [wslot (MancerSystem.find-ready-halo-orb state mk)
                                               wmat (if (>= wslot 0) @(Array.unsafe-nth (MancerBank.orb-mat mbk) wslot) mmat)
                                               jpt (Materials.jet-ptype wmat)
@@ -2010,7 +2506,7 @@
                                                             ;; Move 1: Windup & Sling heavy physical halo orb!
                                                             (do
                                                               (Array.aset! m-state mk 1)
-                                                              (Array.aset! m-timer mk 0.30f))))))))))))))
+                                                              (Array.aset! m-timer mk 0.30f)))))))))))))))
 
                                     ;; 6. Levitating Hover & Standoff Strafing Locomotion (~1.65m hover over pools/floors!)
                                     (let [hurt-now @(Array.unsafe-nth m-hurt-cd mk)]

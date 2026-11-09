@@ -47,6 +47,9 @@ struct Uniforms {
     hopper_pos: array<vec4<f32>, 16>,
     mancer_pos: array<vec4<f32>, 4>,
     mancer_mat: array<vec4<f32>, 4>,
+    wake_p0: array<vec4<f32>, 16>,
+    wake_p1: array<vec4<f32>, 16>,
+    wake_vel: array<vec4<f32>, 16>,
 }
 
 @group(0) @binding(0) var<storage, read>       dummy0: array<vec4<f32>>;
@@ -209,12 +212,12 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 let sp = dig_center + offsets[k] * 0.55;
                 if (sp.x <= box_min.x + 2.0 || sp.x >= box_max.x - 2.0 ||
                     sp.y <= box_min.y + 2.0 || sp.y >= box_max.y - 2.0 ||
-                    sp.z <= box_min.z + 2.0 || sp.z >= box_max.z - 2.0 || sp.y <= -191.0) {
+                    sp.z <= box_min.z + 2.0 || sp.z >= box_max.z - 2.0) {
                     continue;
                 }
                 let sol = get_solid_world(sp);
                 let s_raw = round(abs(sol.x));
-                if (sol.y <= 0.25 && s_raw >= 0.5 && s_raw < 254.5) {
+                if (sol.y <= 0.25 && s_raw >= 0.5 && s_raw < 254.5 && s_raw != 18.0) {
                     if (locked_mat < 0.5 || abs(s_raw - locked_mat) < 0.5) {
                         found_sol_id = s_raw;
                         found_sol_pos = p;
@@ -560,10 +563,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                             appetite = 23.0;
                         }
                     } else {
-                        // Dense energetic gases (Steam 513, Acid Vapor 517, Methane 518, Spore Cloud 520)
+                        // Dense energetic gases (Steam 513, Acid Vapor 517, Methane 518, Spore Cloud 520, Hydrogen 521, Butane 522, Chlorine 523, Acetylene 525)
                         let sg = get_gas_world(sp);
                         let sg_raw = round(abs(sg.x));
-                        if (sg.y > 0.16 && (sg_raw == 1.0 || sg_raw == 5.0 || sg_raw == 6.0 || sg_raw == 8.0)) {
+                        if (sg.y > 0.16 && (sg_raw == 1.0 || sg_raw == 5.0 || sg_raw == 6.0 || sg_raw == 8.0 || sg_raw == 9.0 || sg_raw == 10.0 || sg_raw == 11.0 || sg_raw == 13.0)) {
                             cand_mat = 512.0 + sg_raw;
                             appetite = 18.0;
                         }
@@ -579,13 +582,15 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                         // Element-Locked Slime: strictly craves its locked element family (or golden Ambrosia 262!)
                         let exact = abs(cand_mat - my_mat) < 0.5;
                         let ambrosia = abs(cand_mat - 262.0) < 0.5;
-                        let hydro = (my_mat == 8.0 || my_mat == 257.0 || my_mat == 513.0) && (cand_mat == 8.0 || cand_mat == 257.0 || cand_mat == 513.0);
-                        let acid_fam = (my_mat == 259.0 || my_mat == 517.0) && (cand_mat == 259.0 || cand_mat == 517.0);
+                        let hydro = (my_mat == 8.0 || my_mat == 257.0 || my_mat == 271.0 || my_mat == 513.0) && (cand_mat == 8.0 || cand_mat == 257.0 || cand_mat == 271.0 || cand_mat == 513.0);
+                        let acid_fam = (my_mat == 23.0 || my_mat == 259.0 || my_mat == 517.0 || my_mat == 523.0) && (cand_mat == 23.0 || cand_mat == 259.0 || cand_mat == 517.0 || cand_mat == 523.0);
                         let spore_fam = (my_mat == 13.0 || my_mat == 520.0) && (cand_mat == 13.0 || cand_mat == 520.0);
                         let pyro_fam = (my_mat == 258.0 || my_mat == 515.0 || my_mat == 519.0) && (cand_mat == 258.0 || cand_mat == 515.0 || cand_mat == 519.0);
-                        let boom_fam = (my_mat == 7.0 || my_mat == 12.0 || my_mat == 263.0 || my_mat == 518.0) && (cand_mat == 7.0 || cand_mat == 12.0 || cand_mat == 263.0 || cand_mat == 518.0);
-                        let sponge_drink = (my_mat == 11.0) && (cand_mat >= 256.5 && cand_mat <= 264.5);
-                        diet_ok = exact || ambrosia || hydro || acid_fam || spore_fam || pyro_fam || boom_fam || sponge_drink;
+                        let boom_fam = (my_mat == 7.0 || my_mat == 12.0 || my_mat == 263.0 || my_mat == 270.0 || my_mat == 518.0 || my_mat == 525.0) && (cand_mat == 7.0 || cand_mat == 12.0 || cand_mat == 263.0 || cand_mat == 270.0 || cand_mat == 518.0 || cand_mat == 525.0);
+                        let alkali_fam = (my_mat == 20.0 || my_mat == 21.0 || my_mat == 22.0 || my_mat == 269.0) && (cand_mat == 20.0 || cand_mat == 21.0 || cand_mat == 22.0 || cand_mat == 269.0);
+                        let oil_fam = (my_mat == 19.0 || my_mat == 260.0 || my_mat == 265.0 || my_mat == 266.0 || my_mat == 267.0 || my_mat == 522.0) && (cand_mat == 19.0 || cand_mat == 260.0 || cand_mat == 265.0 || cand_mat == 266.0 || cand_mat == 267.0 || cand_mat == 522.0);
+                        let sponge_drink = (my_mat == 11.0) && (cand_mat >= 256.5 && cand_mat <= 271.5);
+                        diet_ok = exact || ambrosia || hydro || acid_fam || spore_fam || pyro_fam || boom_fam || alkali_fam || oil_fam || sponge_drink;
                         if (exact) { appetite = appetite + 16.0; }
                     }
 
@@ -654,7 +659,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let f_sol1 = get_solid_world(ro - vec3<f32>(0.0, 1.25, 0.0));
         let stain_z = select(f_sol1.z, f_sol0.z, f_sol0.z >= 2.5);
         if (stain_z >= 2.5) {
-            let st_lid = clamp(round(stain_z) - 2.0, 1.0, 8.0);
+            let st_lid = clamp(round(stain_z) - 2.0, 1.0, 15.0);
             p_liq = 256.0 + st_lid;
             if (st_lid == 6.0) { p_heal = 1.0; }
         }
@@ -845,6 +850,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             }
         }
         hit_buffer[out_m0] = vec4<f32>(m_liq, m_gas, m_los, m_ign);
+        if (tmat >= 768.5) {
+            hit_buffer[out_m1] = vec4<f32>(0.0);
+            continue;
+        }
 
         // Scan 20 rotating golden-spiral rays (2.0m .. 16.5m) for ANY voxel in the Ecomancer's 256-wide phase segment!
         // Phase 0 (Solid): floor(id / 256) == 0 (1..254)
@@ -881,7 +890,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                             if (smat < 1.0 || smat >= 254.5) {
                                 smat = round(abs(sv.x));
                             }
-                            if (smat >= 1.0 && smat <= 17.0) {
+                            if (smat >= 1.0 && smat <= 25.0 && smat != 18.0) {
                                 let exotic = smat >= 3.0 && smat != 6.0 && smat != 16.0;
                                 let sc = 20.0 - abs(st - 6.5) + select(0.0, 6.5, exotic);
                                 if (sc > best_score) {
@@ -906,7 +915,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                         if (get_solid_world(sp).y * 0.5 < -0.25) { break; }
                         let lv = get_liquid_world(sp);
                         let l_id = round(abs(lv.x));
-                        if (l_id >= 1.0 && l_id <= 8.0 && lv.y > 0.10) {
+                        if (l_id >= 1.0 && l_id <= 15.0 && lv.y > 0.10) {
                             let sc = lv.y * 12.0 + select(0.0, 5.5, l_id >= 2.0) + (17.0 - st) * 0.25;
                             if (sc > best_score) {
                                 best_score = sc;
@@ -929,7 +938,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                         if (get_solid_world(sp).y * 0.5 < -0.25) { break; }
                         let gv = get_gas_world(sp);
                         let g_id = round(abs(gv.x));
-                        if (g_id >= 1.0 && g_id <= 8.0 && gv.y > 0.10) {
+                        if (g_id >= 1.0 && g_id <= 13.0 && gv.y > 0.10) {
                             let sc = gv.y * 12.0 + select(0.0, 5.5, g_id >= 2.0) + (17.0 - st) * 0.25;
                             if (sc > best_score) {
                                 best_score = sc;
@@ -966,7 +975,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     }
                     let alv = get_liquid_world(asp);
                     let al_id = round(abs(alv.x));
-                    if (al_id >= 1.0 && al_id <= 8.0 && alv.y > 0.12 && abs(1.0 - tphase) > 0.5) {
+                    if (al_id >= 1.0 && al_id <= 15.0 && alv.y > 0.12 && abs(1.0 - tphase) > 0.5) {
                         let cmat = 256.0 + al_id;
                         let sc = 36.0 + alv.y * 10.0 + select(0.0, 8.0, al_id >= 2.0) - ast * 0.4;
                         if (sc > alt_score) {
@@ -978,7 +987,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     }
                     let agv = get_gas_world(asp);
                     let ag_id = round(abs(agv.x));
-                    if (ag_id >= 1.0 && ag_id <= 8.0 && agv.y > 0.16 && abs(2.0 - tphase) > 0.5) {
+                    if (ag_id >= 1.0 && ag_id <= 13.0 && agv.y > 0.16 && abs(2.0 - tphase) > 0.5) {
                         let cmat = 512.0 + ag_id;
                         let sc = 26.0 + agv.y * 8.0 - ast * 0.4;
                         if (sc > alt_score) {
@@ -992,10 +1001,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     if (asd < 0.32) {
                         let aiv = get_solid_world(asp + asdir * 0.65);
                         var smat = round(abs(aiv.x));
-                        if (smat < 1.0 || smat > 17.0) {
+                        if (smat < 1.0 || smat > 25.0 || smat == 18.0) {
                             smat = round(abs(asv.x));
                         }
-                        if (smat >= 1.0 && smat <= 17.0 && abs(0.0 - tphase) > 0.5) {
+                        if (smat >= 1.0 && smat <= 25.0 && smat != 18.0 && abs(0.0 - tphase) > 0.5) {
                             let exotic = smat >= 3.0 && smat != 6.0 && smat != 16.0;
                             let sc = select(18.0, 31.0, exotic) - ast * 0.4;
                             if (sc > alt_score) {

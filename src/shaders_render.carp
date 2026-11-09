@@ -47,6 +47,9 @@ struct Uniforms {
     hopper_pos: array<vec4<f32>, 16>,
     mancer_pos: array<vec4<f32>, 4>,
     mancer_mat: array<vec4<f32>, 4>,
+    wake_p0: array<vec4<f32>, 16>,
+    wake_p1: array<vec4<f32>, 16>,
+    wake_vel: array<vec4<f32>, 16>,
 }
 
 struct FragmentOutput {
@@ -62,6 +65,7 @@ struct FragmentOutput {
 @group(0) @binding(5) var light_texture: texture_3d<f32>;
 @group(0) @binding(6) var<storage, read> materials: array<Material>;
 @group(0) @binding(7) var<storage, read> s_entities: array<Entity>;
+@group(0) @binding(8) var vel_texture: texture_3d<f32>;
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
@@ -407,15 +411,73 @@ fn smin_poly(a: f32, b: f32, k: f32) -> f32 {
     return mix(b, a, h) - k * h * (1.0 - h);
 }
 
-// Levitating Hooded Phase-Bender Warlock SDF:
+// 6 Lawmancer Color Sets:
+// 0 = Thermo (Molten Amber sphere | - Cryo Cyan / + Solar Orange torus)
+// 1 = Baro   (Abyssal Teal sphere | - Vacuum Indigo / + Shockwave Mint torus)
+// 2 = Gravi  (Event-Horizon Plum sphere | - Zero-G Magenta / + 4G Crush Crimson torus)
+// 3 = Chrono (Clockwork Brass sphere | - Stasis Amber / + Surge Emerald torus)
+// 4 = Photo  (Prismatic Chrome sphere | - Umbral Void / + Solar White-Gold torus)
+// 5 = Electro(Cobalt-Copper sphere | - Cathode Electric Blue / + Anode Volt-Yellow torus)
+fn get_law_sphere_col(law_id: u32) -> vec3<f32> {
+    switch (law_id) {
+        case 0u: { return vec3<f32>(1.15, 0.36, 0.08); }
+        case 1u: { return vec3<f32>(0.08, 0.52, 0.64); }
+        case 2u: { return vec3<f32>(0.36, 0.08, 0.62); }
+        case 3u: { return vec3<f32>(1.05, 0.78, 0.22); }
+        case 4u: { return vec3<f32>(1.32, 1.35, 1.42); }
+        default: { return vec3<f32>(0.14, 0.56, 1.22); }
+    }
+}
+
+fn get_law_torus_col(law_id: u32, pol: f32) -> vec3<f32> {
+    let pos = pol >= 0.0;
+    switch (law_id) {
+        case 0u: { return select(vec3<f32>(0.16, 0.95, 1.85), vec3<f32>(2.30, 0.68, 0.14), pos); }
+        case 1u: { return select(vec3<f32>(0.24, 0.30, 1.70), vec3<f32>(0.32, 1.95, 1.38), pos); }
+        case 2u: { return select(vec3<f32>(1.85, 0.32, 1.95), vec3<f32>(2.20, 0.14, 0.34), pos); }
+        case 3u: { return select(vec3<f32>(1.65, 0.58, 0.10), vec3<f32>(0.26, 2.05, 0.86), pos); }
+        case 4u: { return select(vec3<f32>(0.02, 0.01, 0.05), vec3<f32>(2.55, 2.38, 1.75), pos); }
+        default: { return select(vec3<f32>(0.18, 1.25, 2.25), vec3<f32>(1.95, 2.35, 0.18), pos); }
+    }
+}
+
+// Levitating Hooded Phase-Bender Warlock & Geometric Lawmancer SDF:
 // mkind == 5.0: Solidmancer (Lithomancer) — Chiseled monolith cloak + floating tectonic shoulder pauldrons + 4-spire diamond crown
 // mkind == 6.0: Liquidmancer (Hydromancer) — Undulating amphora/jellyfish bell skirt + high-crested wave collar + twin-ring droplet chalice crown
 // mkind == 7.0: Gasmancer (Aeromancer) — Inverted cyclone/djinn-vortex body tapering to a corkscrewing tornado tail + spinning twin-gyroscope crown
+// mkind >= 8.0: Lawmancer (Thermo/Baro/Gravi/Chrono/Photo/Electro) — Floating Inner Sphere + Precessing Torus + literal + or - Crown Sign!
 fn eval_mancer_sdf(p_local: vec3<f32>, fwd_raw: vec3<f32>, rad: f32, mkind: f32, time: f32) -> f32 {
     let s = max(rad, 0.48);
     let flen = length(vec2<f32>(fwd_raw.x, fwd_raw.z));
     let fwd = select(vec3<f32>(0.0, 0.0, 1.0), vec3<f32>(fwd_raw.x / flen, 0.0, fwd_raw.z / flen), flen > 0.05);
     let side = vec3<f32>(-fwd.z, 0.0, fwd.x);
+
+    if (mkind >= 7.5) {
+        let bob = 0.06 * s * sin(time * 2.8);
+        let p_core = p_local - vec3<f32>(0.0, 0.16 * s + bob, 0.0);
+        let d_sphere = length(p_core) - 0.45 * s;
+
+        let t_ang = time * 2.4;
+        let n_ring = normalize(vec3<f32>(0.38 * cos(t_ang), 1.0, 0.38 * sin(t_ang)));
+        let r_y = dot(p_core, n_ring);
+        let r_plane = length(p_core - n_ring * r_y);
+        let d_torus = length(vec2<f32>(r_plane - 0.78 * s, r_y)) - 0.088 * s;
+
+        let pol = fwd_raw.y;
+        let p_sign = p_local - vec3<f32>(0.0, 1.18 * s + bob, 0.0);
+        let sx = dot(p_sign, side);
+        let sy = p_sign.y;
+        let sz = dot(p_sign, fwd);
+        let q_h = abs(vec3<f32>(sx, sy, sz)) - vec3<f32>(0.29 * s, 0.068 * s, 0.068 * s);
+        let d_hbar = length(max(q_h, vec3<f32>(0.0))) + min(max(q_h.x, max(q_h.y, q_h.z)), 0.0) - 0.014 * s;
+        var d_sign = d_hbar;
+        if (pol >= 0.0) {
+            let q_v = abs(vec3<f32>(sx, sy, sz)) - vec3<f32>(0.068 * s, 0.29 * s, 0.068 * s);
+            let d_vbar = length(max(q_v, vec3<f32>(0.0))) + min(max(q_v.x, max(q_v.y, q_v.z)), 0.0) - 0.014 * s;
+            d_sign = min(d_hbar, d_vbar);
+        }
+        return min(min(d_sphere, d_torus), d_sign) * 0.85;
+    }
 
     let h_cloak = clamp((p_local.y - (-1.18 * s)) / (1.62 * s), 0.0, 1.0);
     let q_spine = vec3<f32>(0.0, clamp(p_local.y, -1.18 * s, 0.44 * s), 0.0);
@@ -487,6 +549,49 @@ fn eval_mancer_sdf(p_local: vec3<f32>, fwd_raw: vec3<f32>, rad: f32, mkind: f32,
     return min(d_body, d_crown);
 }
 
+// Armored Subterranean Maw-Tick / Cave Hopper SDF: hunched carapace, 3 dorsal mineral spikes, muscular hind-haunches, & recessed maw!
+fn eval_hopper_sdf(p_local: vec3<f32>, fwd_raw: vec3<f32>, rad: f32, fill_val: f32, time: f32) -> f32 {
+    let r = max(rad, 0.36);
+    let d_bound = length(p_local) - r * 1.24;
+    if (d_bound > 0.32) {
+        return d_bound;
+    }
+    let f_len = length(fwd_raw.xz);
+    let fwd = select(vec3<f32>(0.0, 0.0, 1.0), vec3<f32>(fwd_raw.x / f_len, 0.0, fwd_raw.z / f_len), f_len > 0.01);
+    let side = vec3<f32>(-fwd.z, 0.0, fwd.x);
+    let px = dot(p_local, side);
+    let py = p_local.y;
+    let pz = dot(p_local, fwd);
+
+    // Coiled Pounce Windup / Blood-Frenzy squash (fill_val < 0.0 squashes carapace flat against rock like a loaded spring!)
+    let coil_t = clamp(-fill_val, 0.0, 1.0);
+    let py_c = (py + 0.14 * r * coil_t) * mix(1.16, 1.52, coil_t);
+
+    // Forward-leaning armored carapace shell
+    let q_shell = vec3<f32>(px * mix(0.96, 0.84, coil_t), py_c, pz * 0.86 - 0.04 * r);
+    var d_body = length(q_shell) - r * 0.92;
+
+    // Muscular spring-loaded bilateral hind-haunches on flanks
+    let p_leg = vec3<f32>(abs(px) - r * mix(0.56, 0.66, coil_t), py + r * mix(0.16, 0.04, coil_t), pz + r * 0.24);
+    let d_haunch = length(vec3<f32>(p_leg.x * 1.15, p_leg.y * 0.92, p_leg.z * 0.82)) - r * 0.44;
+    d_body = smin_poly(d_body, d_haunch, r * 0.24);
+
+    // 3 jagged dorsal mineral ridges/spikes along the spine (flare taller when coiled/frenzied!)
+    let sp_h = r * mix(0.24, 0.34, coil_t);
+    let sp1 = length(vec3<f32>(px * 1.8, py - r * mix(0.54, 0.42, coil_t), (pz - r * 0.22) * 1.4)) - sp_h;
+    let sp2 = length(vec3<f32>(px * 1.7, py - r * mix(0.60, 0.48, coil_t), (pz + r * 0.08) * 1.4)) - sp_h * 1.08;
+    let sp3 = length(vec3<f32>(px * 1.8, py - r * mix(0.50, 0.38, coil_t), (pz + r * 0.36) * 1.4)) - sp_h * 0.92;
+    let d_spikes = min(sp1, min(sp2, sp3));
+    d_body = smin_poly(d_body, d_spikes, r * 0.14);
+
+    // Jagged recessed predator maw under the front eyespots
+    let p_maw = vec3<f32>(px * 0.78, (py + r * 0.16) * 1.45, pz - r * 0.84);
+    let d_maw = length(p_maw) - r * mix(0.32, 0.38, coil_t);
+    d_body = max(d_body, -d_maw);
+
+    return d_body;
+}
+
 fn map_entities_dist(p: vec3<f32>, active_mask: u32) -> f32 {
     var rigid_d = 10000.0;
     var amoeba_d = 10000.0;
@@ -519,8 +624,7 @@ fn map_entities_dist(p: vec3<f32>, active_mask: u32) -> f32 {
             let d = eval_mancer_sdf(p_local, e.extents_rad.xyz, e.extents_rad.w, e.pos_type.w, u.time);
             if (d < rigid_d) { rigid_d = d; }
         } else if (e.pos_type.w > 3.5) {
-            let q_hop = vec3<f32>(p_local.x, p_local.y * 1.18, p_local.z);
-            let d = length(q_hop) - e.extents_rad.w;
+            let d = eval_hopper_sdf(p_local, e.extents_rad.xyz, e.extents_rad.w, e.color.a, u.time);
             if (d < rigid_d) { rigid_d = d; }
         } else {
             if (!has_jiggle) {
@@ -631,8 +735,7 @@ fn map_entities_full(
                 rigid_rad = e.extents_rad.w;
             }
         } else if (e.pos_type.w > 3.5) {
-            let q_hop = vec3<f32>(p_local.x, p_local.y * 1.18, p_local.z);
-            let d = length(q_hop) - e.extents_rad.w;
+            let d = eval_hopper_sdf(p_local, e.extents_rad.xyz, e.extents_rad.w, e.color.a, u.time);
             if (d < rigid_d) {
                 rigid_d = d;
                 rigid_col = e.color.rgb;
@@ -820,7 +923,10 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 let raw_liq = textureLoad(liquid_texture, ip_cell, 0);
                 let mat = materials[u32(round(raw_liq.r)) + 256u];
                 let base_liq = vec3<f32>(mat.r, mat.g, mat.b);
+                let v_liq = textureSampleLevel(vel_texture, voxel_sampler, uvw, 0.0);
+                let l_spd = length(v_liq.xyz);
                 var liq_color = base_liq;
+                var light_env = vec3<f32>(1.0);
                 if ((mat.tags & 2097152u) != 0u) {
                     liq_color = base_liq * max(1.0, mat.a * 0.65);
                 } else {
@@ -832,13 +938,21 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                         let f_att = 1.0 / (1.0 + 0.05 * t + 0.012 * t * t);
                         l_flash = vec3<f32>(1.0, 0.96, 0.88) * f_att * 2.2;
                     }
-                    liq_color = base_liq * max(vec3<f32>(0.0), vec3<f32>(l_amb) + l_gi + l_flash);
+                    light_env = max(vec3<f32>(0.0), vec3<f32>(l_amb) + l_gi + l_flash);
+                    liq_color = base_liq * light_env;
+                }
+                if (l_spd > 0.32) {
+                    let fp = p * 5.8 - v_liq.xyz * 2.4;
+                    let froth_n = 0.5 + 0.5 * sin(fp.x + sin(fp.y * 1.3 + fp.z)) * cos(fp.z - sin(fp.y * 1.1 - fp.x));
+                    let foam = smoothstep(0.32, 2.4, l_spd) * smoothstep(0.28, 0.82, froth_n);
+                    let froth_tint = mix(base_liq, vec3<f32>(0.92, 0.96, 1.0), 0.72) * max(light_env, vec3<f32>(0.28));
+                    liq_color = mix(liq_color, froth_tint, foam * 0.78);
                 }
                 if (liq_val.b > 0.04) {
                     let arc_w = 0.65 + 0.35 * sin(u.time * 32.0 + dot(p, vec3<f32>(6.3, 9.1, 7.4)));
                     liq_color += vec3<f32>(0.38, 0.88, 2.75) * (liq_val.b * arc_w);
                 }
-                let absorb = mat.density;
+                let absorb = mat.density * (1.0 + smoothstep(0.4, 2.5, l_spd) * 0.35);
                 let step_size = max(0.008, dist);
                 let alpha = 1.0 - exp(-liq_val.g * step_size * absorb);
                 accum_color = mix(accum_color, liq_color, alpha * (1.0 - accum_alpha));
@@ -851,14 +965,18 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 let mat = materials[u32(round(raw_gas.r)) + 512u];
                 var gas_color = vec3<f32>(mat.r, mat.g, mat.b);
                 var absorb = mat.density;
+                let v_gas = textureSampleLevel(vel_texture, voxel_sampler, uvw, 0.0);
+                let g_spd = length(v_gas.xyz);
+                let p_adv = p - v_gas.xyz * 1.65;
                 
                 let g_id = round(raw_gas.r);
                 if (g_id == 3.0) {
-                    let flicker = sin(u.time * 15.0 + dot(uvw, vec3<f32>(100.0))) * 0.15 + 0.85;
-                    gas_color = vec3<f32>(mat.r, mat.g * flicker, mat.b);
-                    absorb = mat.density * flicker;
+                    let flicker = sin(u.time * 15.0 + dot(p_adv, vec3<f32>(3.4, 2.6, 3.4))) * 0.15 + 0.85;
+                    let blowtorch = 1.0 + clamp(g_spd * 0.28, 0.0, 0.75);
+                    gas_color = vec3<f32>(mat.r, mat.g * flicker, mat.b + clamp(g_spd * 0.08, 0.0, 0.32)) * blowtorch;
+                    absorb = mat.density * flicker * (1.0 + clamp(g_spd * 0.18, 0.0, 0.45));
                 } else if (g_id == 4.0 || g_id == 1.0) {
-                    let billow_p = p * 2.1 - vec3<f32>(0.0, u.time * 3.2, 0.0);
+                    let billow_p = p_adv * 2.1 - vec3<f32>(0.0, u.time * 3.2, 0.0);
                     let billow = 0.55 + 0.45 * (sin(billow_p.x + sin(billow_p.y * 0.8 + billow_p.z)) * cos(billow_p.z - sin(billow_p.y * 0.7 - billow_p.x)));
                     let g_gi = max(vec3<f32>(0.0), textureSampleLevel(light_texture, voxel_sampler, uvw, 0.0).rgb);
                     var g_flash = vec3<f32>(0.0);
@@ -866,9 +984,16 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                         let f_att = 1.0 / (1.0 + 0.05 * t + 0.012 * t * t);
                         g_flash = vec3<f32>(0.9, 0.88, 0.82) * f_att * 1.1;
                     }
-                    let puff_shade = 0.75 + 0.35 * billow;
-                    gas_color = gas_color * puff_shade * max(vec3<f32>(0.18), g_gi * 1.45 + g_flash);
-                    absorb = mat.density * (0.65 + 0.75 * billow);
+                    let wilson = smoothstep(1.6, 4.2, g_spd) * 0.22;
+                    let puff_shade = 0.75 + 0.35 * billow + wilson;
+                    gas_color = (gas_color * puff_shade + vec3<f32>(wilson * 0.55)) * max(vec3<f32>(0.18), g_gi * 1.45 + g_flash);
+                    absorb = mat.density * (0.65 + 0.75 * billow) * (1.0 + clamp(abs(v_gas.w) * 0.35, 0.0, 0.55));
+                } else if (g_spd > 0.12) {
+                    let wisp_p = p_adv * 2.6 - vec3<f32>(0.0, u.time * 1.8, 0.0);
+                    let wisp = 0.62 + 0.38 * (sin(wisp_p.x + sin(wisp_p.y + wisp_p.z)) * cos(wisp_p.z - wisp_p.x));
+                    let streak = smoothstep(0.12, 2.2, g_spd);
+                    gas_color *= mix(1.0, 0.82 + 0.36 * wisp, streak);
+                    absorb *= mix(1.0, (0.60 + 0.75 * wisp) * (1.0 + clamp(abs(v_gas.w) * 0.35, 0.0, 0.55)), streak);
                 }
                 let step_size = max(0.008, dist);
                 let alpha = (1.0 - exp(-gas_val.g * step_size * absorb)) * 0.4;
@@ -964,6 +1089,12 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                     emissive = base_color * min(mat.a * 0.6, 1.5);
                     // Luminescent crystals/ores bleed intense inner light through stress fissures!
                     emissive += base_color * crack_core * (1.25 + 1.5 * strain);
+                    if (mat_id_u == 18u) {
+                        // Abyssal Seal (18): ancient pulsing 24k golden runic veins etched across dark violet stone!
+                        let rg = abs(fract(p.x * 0.28 + sin(p.z * 0.36) * 0.35) - 0.5) + abs(fract(p.z * 0.28 - cos(p.x * 0.36) * 0.35) - 0.5);
+                        let rvein = smoothstep(0.16, 0.03, abs(rg - 0.42)) * (0.70 + 0.30 * sin(u.time * 2.4 + p.x * 0.4 + p.z * 0.4));
+                        emissive += vec3<f32>(1.75, 1.22, 0.26) * rvein;
+                    }
                 } else if (strain > 0.72 && crack_core > 0.2) {
                     // Critical-failure friction glint inside deep fissures right before rock snaps
                     emissive += vec3<f32>(0.55, 0.20, 0.05) * pow(crack_core, 2.0) * smoothstep(0.72, 0.98, strain) * 0.55;
@@ -1105,7 +1236,70 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                         }
                         let lit_env = direct + ambient + e_gi + e_flash;
 
-                        if (ent_kind > 4.5) {
+                        if (ent_kind >= 7.5) {
+                            // Geometric Lawmancer Shading (8.0..13.5): Inner Sphere (Law color) + Orbiting Torus & Crown +/- (Polarity color), split 50/50 for Dual Lawmancers!
+                            let p_rel = p - ent_center;
+                            let s = max(ent_rad, 0.48);
+                            let flen = length(vec2<f32>(ent_pod.x, ent_pod.z));
+                            let m_fwd = select(normalize(vec3<f32>(ro.x - ent_center.x, 0.0, ro.z - ent_center.z) + vec3<f32>(0.001, 0.0, 0.001)),
+                                               vec3<f32>(ent_pod.x / flen, 0.0, ent_pod.z / flen), flen > 0.05);
+                            let m_side = vec3<f32>(-m_fwd.z, 0.0, m_fwd.x);
+                            let pol = ent_pod.y;
+                            let cast_surge = clamp(-ent_fill, 0.0, 1.0);
+                            let hit_f = clamp(ent_fill, 0.0, 1.0);
+
+                            let law_enc = max(0.0, ent_kind - 8.0);
+                            let law_a = u32(clamp(floor(law_enc + 0.01), 0.0, 5.0));
+                            let law_b = u32(clamp(round(fract(law_enc + 0.005) * 10.0), 0.0, 5.0));
+                            let side_coord = dot(p_rel, m_side);
+                            let active_law = select(law_a, law_b, side_coord >= 0.0);
+
+                            let sph_col = get_law_sphere_col(active_law);
+                            let tor_col = get_law_torus_col(active_law, pol);
+
+                            let ndv_l = max(dot(normal, -rd), 0.0);
+                            let fres_l = pow(1.0 - ndv_l, 2.4);
+                            let refl_l = reflect(rd, normal);
+                            let spec_l = pow(max(dot(refl_l, normalize(-rd + vec3<f32>(0.2, 0.7, 0.2))), 0.0), 28.0);
+
+                            let bob = 0.06 * s * sin(u.time * 2.8);
+                            let p_core = p_rel - vec3<f32>(0.0, 0.16 * s + bob, 0.0);
+                            var law_rgb = vec3<f32>(0.0);
+
+                            if (p_rel.y > 0.90 * s) {
+                                // Literal + or - Crown Sign above the Lawmancer!
+                                law_rgb = tor_col * (1.55 + 1.10 * fres_l + 1.35 * cast_surge) + vec3<f32>(0.35) * spec_l;
+                                if (active_law == 4u && pol < 0.0) {
+                                    // Photomancer -Umbral Void sign gets a sharp ultraviolet eclipse rim!
+                                    law_rgb = vec3<f32>(0.02, 0.01, 0.05) + vec3<f32>(1.35, 0.35, 2.25) * pow(1.0 - ndv_l, 1.6);
+                                }
+                            } else if (length(p_core) < 0.56 * s) {
+                                // Inner Sphere: Law Color Core with geometric latitude/longitude harmonic bands + Torus Fresnel rim!
+                                let lat_band = 0.85 + 0.22 * sin(p_core.y * 22.0 - u.time * 4.0 * pol);
+                                law_rgb = sph_col * lat_band * (lit_env * 0.75 + vec3<f32>(0.52))
+                                        + tor_col * fres_l * (0.65 + 0.85 * cast_surge)
+                                        + vec3<f32>(0.9, 0.95, 1.0) * spec_l * 0.65;
+                            } else {
+                                // Orbiting Torus Ring: Polarity Color (+ or -) with scrolling phase-wave around the ring!
+                                let ring_ang = atan2(p_core.z, p_core.x);
+                                let ring_wave = 0.78 + 0.32 * sin(ring_ang * 6.0 - u.time * 7.5 * sign(pol + 0.001));
+                                law_rgb = tor_col * ring_wave * (1.15 + 0.95 * cast_surge)
+                                        + sph_col * fres_l * 0.55
+                                        + vec3<f32>(0.8) * spec_l * 0.45;
+                                if (active_law == 4u && pol < 0.0) {
+                                    law_rgb = vec3<f32>(0.015, 0.008, 0.035) + vec3<f32>(1.15, 0.28, 1.95) * fres_l * 1.4;
+                                }
+                            }
+
+                            // Crisp 50/50 bisecting seam down the middle for Dual Lawmancers!
+                            if (law_a != law_b) {
+                                let seam = smoothstep(0.032 * s, 0.006 * s, abs(side_coord));
+                                law_rgb = mix(law_rgb, vec3<f32>(2.4, 2.4, 2.6), seam * 0.75);
+                            }
+
+                            law_rgb = mix(law_rgb, vec3<f32>(2.85, 0.42, 0.35), hit_f * 0.82);
+                            final_ent_color = law_rgb;
+                        } else if (ent_kind > 4.5) {
                             // Phase-Bender Warlock Shading (5.0 = Solidmancer, 6.0 = Liquidmancer, 7.0 = Gasmancer)
                             let p_rel = p - ent_center;
                             let s = max(ent_rad, 0.48);
@@ -1173,33 +1367,45 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                             warlock_rgb = mix(warlock_rgb, vec3<f32>(2.85, 0.42, 0.35), hit_f * 0.82);
                             final_ent_color = warlock_rgb;
                         } else if (ent_kind > 3.5) {
-                            // Affinity-Tinted Cave Hopper: mineral-camouflaged carapace + fierce front eyespots + crimson hit-flash!
+                            // Armored Subterranean Maw-Tick / Cave Hopper: mineral carapace + dorsal spikes + glowing maw + predator eyespots!
                             let p_rel = p - ent_center;
-                            let grain = 0.84 + 0.28 * fract(sin(dot(floor(p_rel * 8.5), vec3<f32>(12.9898, 78.233, 37.719))) * 43758.5453);
+                            let coil_f = clamp(-ent_fill, 0.0, 1.0);
+                            let hit_f = clamp(ent_fill, 0.0, 1.0);
+                            let grain = 0.82 + 0.32 * fract(sin(dot(floor(p_rel * 9.5), vec3<f32>(12.9898, 78.233, 37.719))) * 43758.5453);
                             let ndv_h = max(dot(normal, -rd), 0.0);
-                            let fres_h = pow(1.0 - ndv_h, 2.6);
+                            let fres_h = pow(1.0 - ndv_h, 2.5);
                             let peak_h = max(ent_c.r, max(ent_c.g, ent_c.b));
                             let base_tint = ent_c / max(peak_h, 1.0);
-                            var hop_rgb = base_tint * grain * lit_env + base_tint * fres_h * 0.16;
+                            let spine_crest = smoothstep(ent_rad * 0.34, ent_rad * 0.68, p_rel.y);
+                            var hop_rgb = base_tint * grain * lit_env + base_tint * fres_h * (0.20 + 0.35 * spine_crest);
                             if (peak_h > 1.05) {
-                                hop_rgb = hop_rgb + ent_c * (0.34 + 0.28 * fres_h) * grain;
+                                hop_rgb = hop_rgb + ent_c * (0.36 + 0.32 * fres_h + 0.45 * spine_crest) * grain;
                             }
+                            // Dorsal spine tips flare when coiled for a pounce or in Blood-Frenzy!
+                            hop_rgb = hop_rgb + mix(base_tint, vec3<f32>(2.45, 0.28, 0.12), 0.65) * spine_crest * coil_f * 0.85;
 
                             let has_fwd = length(ent_pod) > 0.08;
                             let h_fwd = select(normalize(ro - ent_center + vec3<f32>(0.001)), normalize(ent_pod), has_fwd);
                             let h_side = normalize(cross(vec3<f32>(0.0, 1.0, 0.0), h_fwd) + vec3<f32>(0.001, 0.0, 0.001));
                             let h_up = normalize(cross(h_fwd, h_side));
-                            let e_surf = ent_center + h_fwd * (ent_rad * 0.86) + h_up * (ent_rad * 0.22);
-                            let he1 = e_surf + h_side * (ent_rad * 0.30);
-                            let he2 = e_surf - h_side * (ent_rad * 0.30);
-                            let de = min(length(p - he1), length(p - he2));
-                            let front_vis = smoothstep(0.10, 0.45, dot(normal, h_fwd));
-                            let socket_m = smoothstep(ent_rad * 0.19, ent_rad * 0.12, de) * front_vis;
-                            let iris_m = smoothstep(ent_rad * 0.125, ent_rad * 0.05, de) * front_vis;
-                            hop_rgb = mix(hop_rgb, vec3<f32>(0.04, 0.02, 0.03), socket_m * 0.88);
-                            hop_rgb = mix(hop_rgb, vec3<f32>(2.55, 0.26, 0.10), iris_m);
 
-                            let hit_f = clamp(ent_fill, 0.0, 1.0);
+                            // Recessed predator maw cavity + glowing elemental/crimson gullet
+                            let maw_c = ent_center + h_fwd * (ent_rad * 0.72) - h_up * (ent_rad * 0.16);
+                            let in_maw = smoothstep(ent_rad * 0.38, ent_rad * 0.16, length(p - maw_c));
+                            let maw_glow = mix(ent_c * 0.65, vec3<f32>(2.20, 0.22, 0.08), 0.45 + 0.55 * coil_f);
+                            hop_rgb = mix(hop_rgb, vec3<f32>(0.02, 0.01, 0.015) + maw_glow * (0.35 + 0.85 * coil_f), in_maw * 0.92);
+
+                            // Fierce twin predator eyespots above the maw
+                            let e_surf = ent_center + h_fwd * (ent_rad * 0.82) + h_up * (ent_rad * mix(0.22, 0.12, coil_f));
+                            let he1 = e_surf + h_side * (ent_rad * 0.32);
+                            let he2 = e_surf - h_side * (ent_rad * 0.32);
+                            let de = min(length(p - he1), length(p - he2));
+                            let front_vis = smoothstep(-0.05, 0.40, dot(normal, h_fwd));
+                            let socket_m = smoothstep(ent_rad * 0.20, ent_rad * 0.12, de) * front_vis;
+                            let iris_m = smoothstep(ent_rad * 0.135, ent_rad * 0.05, de) * front_vis;
+                            hop_rgb = mix(hop_rgb, vec3<f32>(0.03, 0.015, 0.02), socket_m * 0.90);
+                            hop_rgb = mix(hop_rgb, vec3<f32>(2.65, 0.26, 0.10) * (1.0 + 0.85 * coil_f), iris_m);
+
                             hop_rgb = mix(hop_rgb, vec3<f32>(2.75, 0.38, 0.32), hit_f * 0.82);
                             final_ent_color = hop_rgb;
                         } else if (ent_kind >= 1.5) {
@@ -1284,6 +1490,104 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
             let bg_sky_vis = clamp((max(ro.y, far_y) - 6.0) / 18.0, 0.0, 1.0);
             color = mix(color * bg_sky_vis, accum_color, accum_alpha);
         }
+
+        // Lawmancer 3D Personal Forcefield Bubble (r = 2.75m) & Radiating Spherical Wavefront Shell + Wall-Slice Ring!
+        let max_shell_t = select(min(t_far, 88.0), t, hit);
+        let p_surface = ro + rd * max_shell_t;
+        for (var mk: u32 = 0u; mk < 4u; mk = mk + 1u) {
+            let raw_m = u.mancer_mat[mk].x;
+            if (raw_m >= 768.5 && u.mancer_pos[mk].w > 0.1) {
+                let m_c = u.mancer_pos[mk].xyz;
+                let pol_m = u.mancer_mat[mk].w;
+                var la: u32 = 0u;
+                var lb: u32 = 0u;
+                if (raw_m >= 779.5) {
+                    let pair_u = u32(clamp(round(raw_m - 780.0), 0.0, 35.0));
+                    la = min(pair_u / 6u, 5u);
+                    lb = min(pair_u % 6u, 5u);
+                } else {
+                    la = u32(clamp(round(raw_m - 769.0), 0.0, 5.0));
+                    lb = la;
+                }
+                let to_cam_xz = normalize(vec3<f32>(ro.x - m_c.x, 0.0, ro.z - m_c.z) + vec3<f32>(0.001, 0.0, 0.001));
+                let l_side = vec3<f32>(-to_cam_xz.z, 0.0, to_cam_xz.x);
+
+                // 1. Personal +/- Forcefield Shell (r = 2.75m)
+                let r_ff: f32 = 2.75;
+                let oc_f = ro - m_c;
+                let b_f = dot(oc_f, rd);
+                let c_f = dot(oc_f, oc_f) - r_ff * r_ff;
+                let disc_f = b_f * b_f - c_f;
+                if (disc_f > 0.0) {
+                    let sq_f = sqrt(disc_f);
+                    let tf = select(-b_f - sq_f, -b_f + sq_f, -b_f - sq_f < 0.05);
+                    if (tf > 0.05 && tf < max_shell_t) {
+                        let pf = ro + rd * tf;
+                        let nf = (pf - m_c) / r_ff;
+                        let side_f = select(la, lb, dot(pf - m_c, l_side) >= 0.0);
+                        let f_col = get_law_torus_col(side_f, pol_m);
+                        let rim_f = pow(1.0 - abs(dot(nf, rd)), 3.0);
+                        let hex_rip = 0.72 + 0.28 * sin(pf.y * 9.0 - u.time * 6.0 * pol_m);
+                        if (side_f == 4u && pol_m < 0.0) {
+                            color = mix(color, vec3<f32>(0.01, 0.005, 0.025), clamp(0.18 + rim_f * 0.65, 0.0, 0.78));
+                            color += vec3<f32>(0.85, 0.20, 1.55) * rim_f * 0.45;
+                        } else {
+                            color += f_col * rim_f * hex_rip * 0.42;
+                        }
+                    }
+                }
+
+                // 2. Expanding Spherical Law Wavefront (u.mancer_mat[mk].z = signed radius)
+                let wave_signed = u.mancer_mat[mk].z;
+                let wave_r = abs(wave_signed);
+                if (wave_r > 0.25) {
+                    let w_pol = sign(wave_signed);
+                    let fade_w = clamp(1.0 - wave_r / 17.0, 0.0, 1.0);
+                    let c_w = dot(oc_f, oc_f) - wave_r * wave_r;
+                    let disc_w = b_f * b_f - c_w;
+                    if (disc_w > 0.0) {
+                        let sq_w = sqrt(disc_w);
+                        let tw0 = -b_f - sq_w;
+                        let tw1 = -b_f + sq_w;
+                        if (tw0 > 0.05 && tw0 < max_shell_t) {
+                            let pw = ro + rd * tw0;
+                            let nw = (pw - m_c) / max(wave_r, 0.1);
+                            let side_w = select(la, lb, dot(pw - m_c, l_side) >= 0.0);
+                            let w_col = get_law_torus_col(side_w, w_pol);
+                            let rim_w = 0.22 + 0.95 * pow(1.0 - abs(dot(nw, rd)), 2.2);
+                            if (side_w == 4u && w_pol < 0.0) {
+                                color = mix(color, vec3<f32>(0.005, 0.002, 0.015), clamp(rim_w * fade_w * 0.85, 0.0, 0.88));
+                            } else {
+                                color += w_col * rim_w * fade_w * 0.68;
+                            }
+                        } else if (tw1 > 0.05 && tw1 < max_shell_t) {
+                            // Inside the expanding wavefront sphere looking outward!
+                            let pw = ro + rd * tw1;
+                            let nw = (pw - m_c) / max(wave_r, 0.1);
+                            let side_w = select(la, lb, dot(pw - m_c, l_side) >= 0.0);
+                            let w_col = get_law_torus_col(side_w, w_pol);
+                            let rim_w = 0.18 + 0.75 * pow(1.0 - abs(dot(nw, rd)), 2.0);
+                            color += w_col * rim_w * fade_w * 0.48;
+                        }
+                    }
+                    // Crisp glowing ring where the expanding spherical wavefront slices cave walls/floors!
+                    if (hit) {
+                        let d_slice = abs(length(p_surface - m_c) - wave_r);
+                        if (d_slice < 0.55) {
+                            let side_s = select(la, lb, dot(p_surface - m_c, l_side) >= 0.0);
+                            let s_col = get_law_torus_col(side_s, w_pol);
+                            let ring_i = smoothstep(0.55, 0.04, d_slice) * fade_w;
+                            if (side_s == 4u && w_pol < 0.0) {
+                                color = mix(color, vec3<f32>(0.01, 0.0, 0.03), ring_i * 0.92);
+                                color += vec3<f32>(1.1, 0.25, 1.8) * smoothstep(0.18, 0.02, d_slice) * fade_w;
+                            } else {
+                                color += s_col * ring_i * 1.35;
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
     
     var final_depth: f32 = 1.0;
@@ -1296,7 +1600,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
     }
     
     let dummy = textureSampleLevel(liquid_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r +
-                textureSampleLevel(gas_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r;
+                textureSampleLevel(gas_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r +
+                textureSampleLevel(vel_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r;
     var out: FragmentOutput;
     out.color = vec4<f32>(color + dummy * 0.000001, 1.0);
     out.depth = final_depth;

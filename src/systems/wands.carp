@@ -45,30 +45,33 @@
   (defn fsin [x] (Double.to-float (sin (Double.from-float x))))
   (defn fcos [x] (Double.to-float (cos (Double.from-float x))))
 
-  ;; 6 Starter Wands (0..5) + Shrapnel Sub-Bolt (6)
+  ;; 7 Starter Wands (0..6) + Shrapnel Sub-Bolt (7)
   ;; [0] Spark Ricochet   : Rapid-fire bouncing cyan bolts + spark split
   ;; [1] Emerald Bore     : Piercing mining laser (chews 3 rock bites per shot!)
   ;; [2] Meteor Staff     : Heavy arcing fireball + fire wake + crater shockwave
   ;; [3] Cryo-Architect   : Flash-freezes solid Ice domes/bridges & petrifies magma slimes
   ;; [4] Venom Scattergun : 3x multicast shotgun of terrain-melting Acid globs
   ;; [5] Amethyst Seeker  : 3D Homing arcane bolts + golden Ambrosia pop
+  ;; [6] Mach Railgun     : 155m/s hypersonic tungsten-gold piercing slug + massive Mach cone wake!
   (defn get-chassis [wid]
     (if (= wid 0) (WandChassis.init 0.13f 100.0f 38.0f 9.0f  1 0.014f 2 14.0f)
     (if (= wid 1) (WandChassis.init 0.17f 100.0f 34.0f 14.0f 1 0.006f 2 17.0f)
     (if (= wid 2) (WandChassis.init 0.46f 100.0f 28.0f 34.0f 1 0.018f 0 258.0f)
     (if (= wid 3) (WandChassis.init 0.27f 100.0f 32.0f 20.0f 1 0.012f 0 14.0f)
     (if (= wid 4) (WandChassis.init 0.36f 100.0f 30.0f 25.0f 3 0.135f 0 259.0f)
-                  (WandChassis.init 0.21f 100.0f 35.0f 15.0f 1 0.025f 1 15.0f)))))))
+    (if (= wid 5) (WandChassis.init 0.21f 100.0f 35.0f 15.0f 1 0.025f 1 15.0f)
+                  (WandChassis.init 0.68f 100.0f 28.0f 38.0f 1 0.001f 3 5.0f))))))))
 
   (defn get-payload [wid]
-    (if (= wid 0) (SpellPayload.init 46.0f 0.0f  0.16f 2.20f 0 0.42f 2.45f 2.85f  0.00f  0.0f 515.0f 1.35f 16.5f 1)
-    (if (= wid 1) (SpellPayload.init 54.0f 0.0f  0.18f 1.55f 0 0.52f 2.75f 0.65f -1.42f  1.0f   0.0f 0.00f 14.0f 0)
-    (if (= wid 2) (SpellPayload.init 30.0f 9.8f  0.29f 3.20f 0 2.95f 1.12f 0.22f -2.20f  1.0f 515.0f 3.20f 27.5f 2)
-    (if (= wid 3) (SpellPayload.init 37.0f 4.2f  0.22f 2.60f 0 0.72f 2.15f 2.85f  1.65f  8.0f   0.0f 0.00f 13.0f 3)
-    (if (= wid 4) (SpellPayload.init 29.0f 11.5f 0.19f 2.80f 0 0.55f 2.65f 0.35f -0.85f  1.0f 259.0f 2.15f 12.0f 4)
-    (if (= wid 5) (SpellPayload.init 34.0f 0.0f  0.20f 2.90f 0 2.25f 0.58f 2.85f  0.00f  0.0f 262.0f 1.65f 20.5f 5)
-                  ;; [6] Mini Spark Shrapnel from split-on-hit
-                  (SpellPayload.init 24.0f 12.0f 0.11f 0.75f 1 0.55f 2.35f 2.75f  0.00f  0.0f   0.0f 0.00f  7.0f 1))))))))
+    (if (= wid 0) (SpellPayload.init 46.0f  0.0f  0.16f 2.20f 0 0.42f 2.45f 2.85f  0.00f  0.0f 515.0f 1.35f 16.5f 1)
+    (if (= wid 1) (SpellPayload.init 54.0f  0.0f  0.18f 1.55f 0 0.52f 2.75f 0.65f -1.42f  1.0f   0.0f 0.00f 14.0f 0)
+    (if (= wid 2) (SpellPayload.init 30.0f  9.8f  0.29f 3.20f 0 2.95f 1.12f 0.22f -2.20f  1.0f 515.0f 3.20f 27.5f 2)
+    (if (= wid 3) (SpellPayload.init 37.0f  4.2f  0.22f 2.60f 0 0.72f 2.15f 2.85f  1.65f  8.0f   0.0f 0.00f 13.0f 3)
+    (if (= wid 4) (SpellPayload.init 29.0f 11.5f  0.19f 2.80f 0 0.55f 2.65f 0.35f -0.85f  1.0f 259.0f 2.15f 12.0f 4)
+    (if (= wid 5) (SpellPayload.init 34.0f  0.0f  0.20f 2.90f 0 2.25f 0.58f 2.85f  0.00f  0.0f 262.0f 1.65f 20.5f 5)
+    (if (= wid 6) (SpellPayload.init 155.0f 0.0f  0.22f 1.60f 0 3.45f 2.75f 0.55f -1.65f  1.0f   0.0f 2.65f 42.0f 6)
+                  ;; [7] Mini Spark Shrapnel from split-on-hit
+                  (SpellPayload.init 24.0f 12.0f  0.11f 0.75f 1 0.55f 2.35f 2.75f  0.00f  0.0f   0.0f 0.00f  7.0f 1)))))))))
 
   (defn get-mod [wid]
     ;; mod-kind: 0=None, 1=3D Homing, 2=Helix Spiral, 3=Piercing Bore
@@ -78,7 +81,8 @@
     (if (= wid 3) (WandMod.init 0 0.0f   408.0f               0.0f  false)
     (if (= wid 4) (WandMod.init 0 0.0f   103.0f               0.0f  false)
     (if (= wid 5) (WandMod.init 1 0.0f   PARTICLE-TYPE-MAGIC  5.8f  false)
-                  (WandMod.init 0 0.0f   PARTICLE-TYPE-SPARKS 0.0f  false))))))))
+    (if (= wid 6) (WandMod.init 3 0.0f   PARTICLE-TYPE-SPARKS 0.0f  false)
+                  (WandMod.init 0 0.0f   PARTICLE-TYPE-SPARKS 0.0f  false)))))))))
 
   (defn destroy-bolt-slot! [state slot]
     (let [wb (EngineState.wands state)
@@ -171,11 +175,11 @@
                       (let [afx (Double.to-float @(Vector3.x &apos))
                             afy (Double.to-float @(Vector3.y &apos))
                             afz (Double.to-float @(Vector3.z &apos))
-                            fire-like? (or (= elem-tag 1) (= elem-tag 2))]
-                        ;; Spark / Fireball vs Explosive Amoeba -> CHAIN DETONATION!
+                            fire-like? (or (= elem-tag 1) (or (= elem-tag 2) (= elem-tag 6)))]
+                        ;; Spark / Fireball / Mach Railgun vs Explosive Amoeba -> CHAIN DETONATION!
                         (if (and fire-like? (Materials.explosive? cmat))
                           (CritterSystem.detonate-amoeba! state world ps ecs &apos k)
-                          ;; Spark / Fireball vs Ice Amoeba -> Melts into Water splash!
+                          ;; Spark / Fireball / Mach Railgun vs Ice Amoeba -> Melts/shatters into Water splash!
                           (if (and fire-like? (= (Float.round cmat) 8))
                             (do
                               (WandSystem.inject-gpu-reagent! state afx afy afz (+ 2.0f (* 0.8f afill)) 257.0f 0.75f)
@@ -228,13 +232,14 @@
               o-gen (MancerBank.orb-gen mbk)
               o-mat (MancerBank.orb-mat mbk)
               o-rad (MancerBank.orb-rad mbk)
-              fire-like? (or (= elem-tag 1) (= elem-tag 2))
-              base-dmg (if (= elem-tag 2) 58.0f
+              fire-like? (or (= elem-tag 1) (or (= elem-tag 2) (= elem-tag 6)))
+              base-dmg (if (= elem-tag 6) 95.0f
+                       (if (= elem-tag 2) 58.0f
                        (if (= elem-tag 5) 32.0f
                        (if (= elem-tag 0) 28.0f
                        (if (= elem-tag 3) 26.0f
                        (if (= elem-tag 4) 22.0f
-                                          23.0f)))))]
+                                          23.0f))))))]
           (do
             (for [hk 0 16]
               (when @(Array.unsafe-nth h-alive hk)
@@ -372,22 +377,42 @@
         (when (> sp-mat 0.5f)
           (WandSystem.inject-gpu-reagent! state (+ hx (* nx 0.45f)) (+ hy (* ny 0.45f)) (+ hz (* nz 0.45f)) sp-rad sp-mat 0.78f))
 
-        ;; 3. Signature Spell Impact Particles
-        (if (= etag 2)
+        ;; 3. Signature Spell Impact Particles & Shockwave Wake
+        (if (= etag 6)
           (do
-            (ParticleSystem.emit-sparks! ps hx hy hz nx ny nz 34)
-            (ParticleSystem.emit-debris! ps hx hy hz nx 1.0f nz 16)
-            (ParticleSystem.emit-smoke! ps hx (+ hy 0.35f) hz 18)
-            (ParticleSystem.emit! ps hx hy hz 0.0f 5.5f 0.0f 2.2f 28 203.0f 0.75f 0.15f))
-          (if (= etag 3)
+            (ParticleSystem.emit-sparks! ps hx hy hz nx ny nz 42)
+            (ParticleSystem.emit-debris! ps hx hy hz nx 1.1f nz 18)
+            (ParticleSystem.emit-smoke! ps hx (+ hy 0.25f) hz 14)
+            (EngineState.push-wake-capsule! state hx hy hz (+ hx (* dx 0.45f)) (+ hy (* dy 0.45f)) (+ hz (* dz 0.45f))
+              4.25f 3.15f (* dx 3.6f) (* dy 3.6f) (* dz 3.6f) 2.95f))
+          (if (= etag 2)
             (do
-              (ParticleSystem.emit! ps hx hy hz (* nx 7.5f) (+ (* ny 7.5f) 3.0f) (* nz 7.5f) 1.6f 24 408.0f 0.45f 0.25f)
-              (ParticleSystem.emit-dust! ps hx hy hz 10))
-            (if (= etag 4)
-              (ParticleSystem.emit! ps hx hy hz (* nx 6.5f) (+ (* ny 6.5f) 3.5f) (* nz 6.5f) 1.5f 20 103.0f 0.45f 0.28f)
-              (if (= etag 5)
-                (ParticleSystem.emit! ps hx hy hz (* nx 6.0f) (+ (* ny 6.0f) 2.5f) (* nz 6.0f) 1.8f 24 PARTICLE-TYPE-MAGIC 0.50f 0.35f)
-                (ParticleSystem.emit-sparks! ps hx hy hz nx ny nz 18)))))
+              (ParticleSystem.emit-sparks! ps hx hy hz nx ny nz 34)
+              (ParticleSystem.emit-debris! ps hx hy hz nx 1.0f nz 16)
+              (ParticleSystem.emit-smoke! ps hx (+ hy 0.35f) hz 18)
+              (ParticleSystem.emit! ps hx hy hz 0.0f 5.5f 0.0f 2.2f 28 203.0f 0.75f 0.15f)
+              (EngineState.push-wake-capsule! state hx hy hz (+ hx (* nx 0.35f)) (+ hy 0.45f) (+ hz (* nz 0.35f))
+                4.50f 2.85f (* nx 1.8f) 2.2f (* nz 1.8f) 2.65f))
+            (if (= etag 3)
+              (do
+                (ParticleSystem.emit! ps hx hy hz (* nx 7.5f) (+ (* ny 7.5f) 3.0f) (* nz 7.5f) 1.6f 24 408.0f 0.45f 0.25f)
+                (ParticleSystem.emit-dust! ps hx hy hz 10)
+                (EngineState.push-wake-capsule! state hx hy hz (+ hx (* nx 0.25f)) (+ hy (* ny 0.25f)) (+ hz (* nz 0.25f))
+                  2.65f 1.35f (* nx 1.2f) (* ny 1.2f) (* nz 1.2f) 1.15f))
+              (if (= etag 4)
+                (do
+                  (ParticleSystem.emit! ps hx hy hz (* nx 6.5f) (+ (* ny 6.5f) 3.5f) (* nz 6.5f) 1.5f 20 103.0f 0.45f 0.28f)
+                  (EngineState.push-wake-capsule! state hx hy hz (+ hx (* nx 0.25f)) (+ hy (* ny 0.25f)) (+ hz (* nz 0.25f))
+                    2.55f 1.25f (* nx 1.1f) (* ny 1.1f) (* nz 1.1f) 1.05f))
+                (if (= etag 5)
+                  (do
+                    (ParticleSystem.emit! ps hx hy hz (* nx 6.0f) (+ (* ny 6.0f) 2.5f) (* nz 6.0f) 1.8f 24 PARTICLE-TYPE-MAGIC 0.50f 0.35f)
+                    (EngineState.push-wake-capsule! state hx hy hz (+ hx (* nx 0.25f)) (+ hy (* ny 0.25f)) (+ hz (* nz 0.25f))
+                      2.75f 1.45f (* nx 1.2f) (* ny 1.2f) (* nz 1.2f) 1.25f))
+                  (do
+                    (ParticleSystem.emit-sparks! ps hx hy hz nx ny nz 18)
+                    (EngineState.push-wake-capsule! state hx hy hz (+ hx (* nx 0.20f)) (+ hy (* ny 0.20f)) (+ hz (* nz 0.20f))
+                      2.15f 1.05f (* nx 0.9f) (* ny 0.9f) (* nz 0.9f) 0.90f)))))))
 
         ;; 4. Knockback & Ditto-Amoeba / Cave Hopper / Ecomancer Reactions
         (WandSystem.apply-impact-forces-and-reactions! state world ps ecs hx hy hz dx dy dz kb blast-r etag)
@@ -405,9 +430,9 @@
                 oz (+ hz (* nz 0.28f))]
             (do
               (WandSystem.spawn-bolt! state ox oy oz
-                (+ (* nx 13.5f) (* sx-ax 9.5f)) (+ (* ny 13.5f) (+ (* sy-ax 9.5f) 4.0f)) (+ (* nz 13.5f) (* sz-ax 9.5f)) 6 1)
+                (+ (* nx 13.5f) (* sx-ax 9.5f)) (+ (* ny 13.5f) (+ (* sy-ax 9.5f) 4.0f)) (+ (* nz 13.5f) (* sz-ax 9.5f)) 7 1)
               (WandSystem.spawn-bolt! state ox oy oz
-                (- (* nx 13.5f) (* sx-ax 9.5f)) (+ (* ny 13.5f) (- 4.0f (* sy-ax 9.5f))) (- (* nz 13.5f) (* sz-ax 9.5f)) 6 1)))))))
+                (- (* nx 13.5f) (* sx-ax 9.5f)) (+ (* ny 13.5f) (- 4.0f (* sy-ax 9.5f))) (- (* nz 13.5f) (* sz-ax 9.5f)) 7 1)))))))
 
   ;; Find nearest Ecomancer, Cave Hopper, or Ditto-Amoeba ahead for Homing modifier
   (defn steer-homing-vel [state ecs px py pz vx vy vz turn-rate fdt]
@@ -612,8 +637,8 @@
                         (or (InputManager.action-digital? input "edit-remove")
                             (InputManager.action-digital? input "edit-paint")))]
       (do
-        ;; 1. Regenerate mana across all 6 wands (active wand + stowed wands!)
-        (for [wi 0 6]
+        ;; 1. Regenerate mana across all 7 wands (active wand + stowed wands!)
+        (for [wi 0 7]
           (let [ch (WandSystem.get-chassis wi)
                 mmax @(WandChassis.mana-max &ch)
                 mreg @(WandChassis.mana-regen &ch)
@@ -643,9 +668,9 @@
                 tip-y (- (+ (+ ry (* rty 0.34f)) (* fy 0.88f)) (* upy 0.14f))
                 tip-z (- (+ (+ rz (* rtz 0.34f)) (* fz 0.88f)) (* upz 0.14f))]
             (do
-              ;; RMB click: Cycle through the 6 wands cleanly
+              ;; RMB click: Cycle through the 7 wands cleanly
               (when (and right-held (not @(WandBelt.rmb-last wb)))
-                (let [next-w (Int.mod (+ cur-wid 1) 6)]
+                (let [next-w (Int.mod (+ cur-wid 1) 7)]
                   (do
                     (WandBelt.set-idx! wb next-w)
                     (set! cur-wid next-w)
@@ -667,7 +692,12 @@
                         (Array.aset! w-mana cur-wid (- cur-m cost))
                         (WandBelt.set-cooldown! wb @(WandChassis.cast-delay &ch))
                         (set! wflash 1.0f)
-                        (ParticleSystem.emit-sparks! ps tip-x tip-y tip-z fx fy fz 12)
+                        (ParticleSystem.emit-sparks! ps tip-x tip-y tip-z fx fy fz (if (= cur-wid 6) 36 12))
+                        (when (= cur-wid 6)
+                          ;; Mach Railgun Muzzle Overpressure Cone!
+                          (EngineState.push-wake-capsule! state tip-x tip-y tip-z
+                            (+ tip-x (* fx 2.2f)) (+ tip-y (* fy 2.2f)) (+ tip-z (* fz 2.2f))
+                            3.60f 2.85f (* fx 4.5f) (* fy 4.5f) (* fz 4.5f) 2.75f))
                         (for [shot 0 mcast]
                           (let [ang (+ (* (Float.from-int (+ (* fc 7) (* shot 13))) 2.39996f) (Float.from-int shot))
                                 rad-s (if (= mcast 1) (* spr 0.45f) (* spr (+ 0.55f (* 0.22f (Float.from-int (Int.mod shot 2))))))
@@ -682,7 +712,7 @@
         (WandBelt.set-rmb-last! wb right-held)
         (WandBelt.set-flash! wb wflash)
 
-        ;; 3. Step all active Wand Projectiles (Swept SDF + Entity Collision + Modifiers)
+        ;; 3. Step all active Wand Projectiles (Swept SDF + Entity Collision + Modifiers + 3D Mach Wakes)
         (let [b-alive (WandBelt.bolt-alive wb)
               b-idx (WandBelt.bolt-idx wb)
               b-gen (WandBelt.bolt-gen wb)
@@ -701,9 +731,12 @@
                         wmod (WandSystem.get-mod wid)
                         mkind @(WandMod.mod-kind &wmod)
                         b3 (* bi 3)
-                        px @(Array.unsafe-nth b-pos b3)
-                        py @(Array.unsafe-nth b-pos (+ b3 1))
-                        pz @(Array.unsafe-nth b-pos (+ b3 2))
+                        px0 @(Array.unsafe-nth b-pos b3)
+                        py0 @(Array.unsafe-nth b-pos (+ b3 1))
+                        pz0 @(Array.unsafe-nth b-pos (+ b3 2))
+                        px px0
+                        py py0
+                        pz pz0
                         vx0 @(Array.unsafe-nth b-vel b3)
                         vy0 (- @(Array.unsafe-nth b-vel (+ b3 1)) (* @(SpellPayload.gravity &pay) fdt))
                         vz0 @(Array.unsafe-nth b-vel (+ b3 2))
@@ -715,16 +748,17 @@
                         vz (Double.to-float @(Vector3.z &steered))
                         rad @(SpellPayload.radius &pay)
                         step-dist (Float.sqrt (* (+ (+ (* vx vx) (* vy vy)) (* vz vz)) (* fdt fdt)))
-                        raw-steps (+ 1 (Float.round (/ step-dist 0.38f)))
-                        substeps (if (< raw-steps 1) 1 (if (> raw-steps 4) 4 raw-steps))
+                        raw-steps (+ 1 (Float.round (/ step-dist 0.35f)))
+                        substeps (if (< raw-steps 1) 1 (if (> raw-steps 14) 14 raw-steps))
                         sub-dt (/ fdt (Float.from-int substeps))
                         bounces @(Array.unsafe-nth b-bounces bi)
                         retired false
                         s 0]
                     (do
                       ;; In-flight particle & live CA reagent trails!
-                      (when (= (Int.mod (+ fc bi) 2) 0)
-                        (ParticleSystem.emit! ps px py pz (* vx -0.08f) (+ (* vy -0.08f) 0.6f) (* vz -0.08f) 0.45f 2 @(WandMod.trail-ptype &wmod) 0.22f 0.08f))
+                      (when (or (= wid 6) (= (Int.mod (+ fc bi) 2) 0))
+                        (ParticleSystem.emit! ps px py pz (* vx -0.05f) (+ (* vy -0.05f) 0.5f) (* vz -0.05f)
+                          (if (= wid 6) 0.32f 0.45f) (if (= wid 6) 4 2) @(WandMod.trail-ptype &wmod) 0.22f 0.06f))
                       (when (and (> @(WandMod.trail-mat &wmod) 0.5f) (= (Int.mod (+ fc (* bi 3)) 5) 0))
                         (WandSystem.inject-gpu-reagent! state px py pz 1.35f @(WandMod.trail-mat &wmod) 0.45f))
 
@@ -744,14 +778,15 @@
                                     dx (* vx inv-s)
                                     dy (* vy inv-s)
                                     dz (* vz inv-s)]
-                                ;; Case A: Piercing Bore-Lance chews through rock & keeps flying!
+                                ;; Case A: Piercing Bore-Lance / Mach Railgun chews through rock & targets cleanly!
                                 (if (and (= mkind 3) (> bounces 0))
-                                  (do
-                                    (WandSystem.trigger-impact! state world ps ecs nx ny nz dx dy dz wid)
-                                    (set! bounces (- bounces 1))
-                                    (set! px nx)
-                                    (set! py ny)
-                                    (set! pz nz))
+                                  (let [exit-step (if (and ent-hit? (not wall-hit?)) 0.95f 0.0f)]
+                                    (do
+                                      (WandSystem.trigger-impact! state world ps ecs nx ny nz dx dy dz wid)
+                                      (set! bounces (- bounces 1))
+                                      (set! px (+ nx (* dx exit-step)))
+                                      (set! py (+ ny (* dy exit-step)))
+                                      (set! pz (+ nz (* dz exit-step)))))
                                   ;; Case B: Surface Ricochet off cave wall!
                                   (if (and (and wall-hit? (not ent-hit?)) (> bounces 0))
                                     (let [nrm (Physics.estimate-sdf-normal world &pvec)
@@ -770,6 +805,9 @@
                                         (ParticleSystem.emit-sparks! ps px py pz wnx wny wnz 10)))
                                     ;; Case C: Final Impact Payload!
                                     (do
+                                      (set! px nx)
+                                      (set! py ny)
+                                      (set! pz nz)
                                       (WandSystem.trigger-impact! state world ps ecs nx ny nz dx dy dz wid)
                                       (WandSystem.destroy-bolt-slot! state bi)
                                       (set! retired true)))))
@@ -778,6 +816,21 @@
                                 (set! py ny)
                                 (set! pz nz)))
                             (set! s (+ s 1)))))
+
+                      ;; Stamp swept 3D Velocity & Pressure Wake Capsule (`px0 -> px`) so bolts carve Mach fog tunnels & splash pools!
+                      (let [spd (Float.sqrt (+ (+ (* vx vx) (* vy vy)) (* vz vz)))
+                            inv-s (if (> spd 0.05f) (/ 1.0f spd) 1.0f)
+                            dx (* vx inv-s)
+                            dy (* vy inv-s)
+                            dz (* vz inv-s)
+                            is-rail? (= wid 6)
+                            wrad (if is-rail? 3.45f (Float.clamp 1.65f 2.55f (+ 1.35f (* spd 0.022f))))
+                            rpush (if is-rail? 3.25f (Float.clamp 0.72f 1.85f (* spd 0.032f)))
+                            slip (if is-rail? 4.85f (Float.clamp 1.15f 2.85f (* spd 0.052f)))
+                            press (if is-rail? 2.85f (Float.clamp 0.45f 1.45f (* spd 0.026f)))]
+                        (EngineState.push-wake-capsule! state
+                          px0 py0 pz0 px py pz
+                          wrad rpush (* dx slip) (* dy slip) (* dz slip) press))
 
                       ;; Persist updated state & sync ECS render sphere if still flying
                       (when (not retired)

@@ -187,7 +187,8 @@
                                   new-sdf (if carve?
                                               (Float.max old-sdf (- 0.0f sphere-sdf))
                                               (Float.min old-sdf sphere-sdf))]
-                              (when (not (and carve? (= old-id 255.0f)))
+                              (when (and (not (and carve? (= old-id 255.0f)))
+                                         (not (and carve? (and (= old-id 18.0f) (and (/= mat-id 5.0f) (/= mat-id 262.0f))))))
                                 (do
                                   (when (and carve? (and (= old-id 5.0f) (and (<= old-sdf 0.16f) (> new-sdf 0.06f))))
                                     (do
