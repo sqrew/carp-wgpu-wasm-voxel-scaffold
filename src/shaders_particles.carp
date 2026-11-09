@@ -36,6 +36,7 @@ struct SpawnRequest {
 @group(0) @binding(3) var<storage, read> spawn_params: array<f32>;
 @group(0) @binding(4) var<storage, read> time_params: array<f32>;
 @group(0) @binding(5) var solid_texture: texture_3d<f32>;
+@group(0) @binding(6) var vel_texture: texture_3d<f32>;
 
 fn hash(seed: u32) -> f32 {
     var s = seed;
@@ -57,11 +58,39 @@ fn random_in_sphere(seed: u32) -> vec3<f32> {
     return vec / len;
 }
 
+fn wrap_coord_160(p: vec3<f32>) -> vec3<i32> {
+    let w = p - floor(p / 160.0) * 160.0;
+    return vec3<i32>(clamp(w, vec3<f32>(0.0), vec3<f32>(159.0)));
+}
+
 // Sample voxel texture at world position
 fn get_voxel(pos: vec3<f32>) -> vec4<f32> {
-    let wrapped = pos - floor(pos / 160.0) * 160.0;
-    let ip = vec3<i32>(clamp(wrapped, vec3<f32>(0.0), vec3<f32>(159.0)));
-    return textureLoad(solid_texture, ip, 0);
+    return textureLoad(solid_texture, wrap_coord_160(pos), 0);
+}
+
+// Trilinear sample of 160^3 3D velocity + pressure field within active camera window
+fn sample_wind_vel(pos: vec3<f32>, cam_pos: vec3<f32>) -> vec4<f32> {
+    if (any(abs(pos - cam_pos) > vec3<f32>(77.0))) {
+        return vec4<f32>(0.0);
+    }
+    let b = pos - vec3<f32>(0.5);
+    let b0 = floor(b);
+    let f = b - b0;
+    let c000 = textureLoad(vel_texture, wrap_coord_160(b0 + vec3<f32>(0.0, 0.0, 0.0)), 0);
+    let c100 = textureLoad(vel_texture, wrap_coord_160(b0 + vec3<f32>(1.0, 0.0, 0.0)), 0);
+    let c010 = textureLoad(vel_texture, wrap_coord_160(b0 + vec3<f32>(0.0, 1.0, 0.0)), 0);
+    let c110 = textureLoad(vel_texture, wrap_coord_160(b0 + vec3<f32>(1.0, 1.0, 0.0)), 0);
+    let c001 = textureLoad(vel_texture, wrap_coord_160(b0 + vec3<f32>(0.0, 0.0, 1.0)), 0);
+    let c101 = textureLoad(vel_texture, wrap_coord_160(b0 + vec3<f32>(1.0, 0.0, 1.0)), 0);
+    let c011 = textureLoad(vel_texture, wrap_coord_160(b0 + vec3<f32>(0.0, 1.0, 1.0)), 0);
+    let c111 = textureLoad(vel_texture, wrap_coord_160(b0 + vec3<f32>(1.0, 1.0, 1.0)), 0);
+    let cx00 = mix(c000, c100, f.x);
+    let cx10 = mix(c010, c110, f.x);
+    let cx01 = mix(c001, c101, f.x);
+    let cx11 = mix(c011, c111, f.x);
+    let cxy0 = mix(cx00, cx10, f.y);
+    let cxy1 = mix(cx01, cx11, f.y);
+    return mix(cxy0, cxy1, f.z);
 }
 
 // True if position is inside solid voxel or below true bedrock floor
@@ -97,6 +126,11 @@ fn get_normal(pos: vec3<f32>) -> vec3<f32> {
 @compute @workgroup_size(64)
 fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let i = global_id.x;
+
+    // Keep @binding(6) vel_texture live in pipeline layout even when particles are dead
+    if (i == 0u && textureLoad(vel_texture, vec3<i32>(0), 0).x < -999999.0) {
+        atomicAdd(&write_head, 0u);
+    }
 
     // Thread 0 processes any pending spawn requests
     if (i == 0u) {
@@ -142,67 +176,99 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (p.life <= 0.0) { return; }
 
     let dt = time_params[0];
+    let cam_pos = vec3<f32>(time_params[1], time_params[2], time_params[3]);
 
     // Unpack max_life and ptype
     let unpacked = unpack2x16float(bitcast<u32>(p.max_life_type));
     let ptype = u32(unpacked.y + 0.5);
 
-    // Physical properties tailored per particle type
+    // Physical properties + aerodynamic vel_texture coupling tailored per particle type
     var grav = -9.8;
     var drag = 0.98;
     var bounciness = 0.55;
+    var wind_couple = 4.0;
 
     if (ptype == 0u) {
-        // 0: Sparks - energetic, bouncy, ballistic
+        // 0: Sparks - energetic, bouncy, ballistic + turbulent eddy swirl!
         grav = -11.0;
         drag = 0.975;
         bounciness = 0.55;
+        wind_couple = 5.4;
     } else if (ptype == 1u) {
-        // 1: Dust - light, floats, high air drag, settles gently
+        // 1: Dust - light, floats, high air drag, swept & re-suspended by gusts!
         grav = -1.8;
         drag = 0.88;
         bounciness = 0.0;
+        wind_couple = 9.8;
     } else if (ptype == 2u) {
-        // 2: Debris - heavy chunks, low bounciness
+        // 2: Debris - heavy rock chunks, resists gentle breeze, launched by shockwaves!
         grav = -15.0;
         drag = 0.985;
         bounciness = 0.30;
+        wind_couple = 1.75;
     } else if (ptype == 3u) {
-        // 3: Smoke - rises into the air!
+        // 3: Smoke - buoyant plumes sculpted into mushroom clouds & slipstream rings!
         grav = 2.0;
         drag = 0.86;
         bounciness = 0.0;
+        wind_couple = 9.5;
     } else if (ptype >= 101u && ptype <= 132u) {
         // 101..132: Pressurized Flask Liquid Stream - matches parabolic raycast arc!
         grav = -18.0;
         drag = 0.996;
         bounciness = 0.25;
+        wind_couple = 1.25;
     } else if (ptype >= 201u && ptype <= 232u) {
         // 201..232: Pressurized Gas Bellows Gust / Flamethrower - fast blast that billows upward
         grav = 1.6;
         drag = 0.945;
         bounciness = 0.12;
+        wind_couple = 4.2;
     } else if ((ptype >= 301u && ptype <= 390u) || (ptype >= 501u && ptype <= 532u)) {
         // 301..390 & 501..532: Big Succ / Bellows / Solid Sack Vacuum Streaks into nozzle
         grav = 0.0;
         drag = 0.995;
         bounciness = 0.0;
+        wind_couple = 0.0;
     } else if (ptype >= 401u && ptype <= 432u) {
         // 401..432: Solid Sack Heavy Chunk Lob / Granular Pour - matches grav -22 raycast arc!
         grav = -22.0;
         drag = 0.994;
         bounciness = 0.28;
+        wind_couple = 1.15;
     } else {
-        // 4: Magic / Arcane - floaty, low gravity, high ricochet
+        // 4: Magic / Arcane - floaty, low gravity, high ricochet + wake swirl
         grav = -0.5;
         drag = 0.97;
         bounciness = 0.75;
+        wind_couple = 5.8;
     }
 
-    // Apply gravity
-    p.vel.y += grav * dt;
+    // Sample 3D GPU Velocity + Dynamic Pressure Field (vel_texture)
+    let wind = sample_wind_vel(p.pos, cam_pos);
+    let wind_spd2 = dot(wind.xyz, wind.xyz);
+    let air_vel = wind.xyz * 15.5;
 
-    // Apply air resistance
+    if (wind_couple > 0.01 && (wind_spd2 > 0.0004 || abs(wind.w) > 0.08)) {
+        let w_blend = clamp(wind_couple * dt, 0.0, 0.65);
+        p.vel = mix(p.vel, air_vel, w_blend);
+
+        if (ptype == 0u || ptype == 4u) {
+            // Turbulent eddy swirl on sparks & arcane glints!
+            let phase = f32(i % 1024u) * 0.173 + p.life * 11.0;
+            let swirl_axis = vec3<f32>(sin(phase), cos(phase * 1.3), cos(phase * 0.7));
+            p.vel += cross(wind.xyz, swirl_axis) * (10.5 * dt);
+        }
+        if (abs(wind.w) > 0.45) {
+            let p_eff = clamp(wind.w, -3.8, 4.5);
+            let jit_b = random_in_sphere(i * 13u + u32(max(0.0, p.life * 60.0)));
+            let kick_scale = clamp(wind_couple * 0.35, 0.30, 2.25);
+            p.vel += (wind.xyz * 6.5 + jit_b * (abs(p_eff) * 3.8) + vec3<f32>(0.0, max(0.0, p_eff) * 4.5, 0.0)) * (dt * kick_scale);
+        }
+    }
+
+    // Apply gravity & air resistance
+    p.vel.y += grav * dt;
     p.vel *= pow(drag, dt * 60.0);
 
     // Predict next position
@@ -215,19 +281,23 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         if (bounciness > 0.05) {
             let vn = dot(p.vel, n);
             if (vn < 0.0) {
-                // Bounce: reflect along normal with restitution
                 let v_normal = vn * n;
                 let v_tangent = p.vel - v_normal;
-                p.vel = (-v_normal * bounciness) + (v_tangent * 0.75); // surface friction
+                p.vel = (-v_normal * bounciness) + (v_tangent * 0.75);
                 p.pos = p.pos + p.vel * dt + n * 0.05;
-                p.life -= dt * 1.5; // lose energy on collision
+                p.life -= dt * 1.5;
             } else {
                 p.pos = next_pos;
             }
         } else {
-            // Settle on surface (Dust, Smoke)
-            p.vel = vec3<f32>(0.0);
-            p.life -= dt * 1.2;
+            // Dust & Smoke: re-suspend off cave floors into swirling plumes when wind/shockwaves pass over!
+            if (wind_spd2 > 0.20 || abs(wind.w) > 0.65) {
+                p.vel = air_vel * 0.55 + n * (2.2 + sqrt(wind_spd2) * 2.5);
+                p.pos = p.pos + n * 0.14;
+            } else {
+                p.vel = vec3<f32>(0.0);
+                p.life -= dt * 1.2;
+            }
         }
     } else {
         p.pos = next_pos;

@@ -471,96 +471,21 @@
           o-state (MancerBank.orb-state mbk)]
       (when (and (>= oslot 0) (and (< oslot 20) (> @(Array.unsafe-nth o-state oslot) 0)))
         (let [ecs (EngineState.ecs-world state)
-              world (EngineState.world state)
-              ps (EngineState.particles state)
               ent (ECS.Entity.init (Handle.init @(Array.unsafe-nth (MancerBank.orb-idx mbk) oslot)
                                                 @(Array.unsafe-nth (MancerBank.orb-gen mbk) oslot)))
               cb-opt (the (Maybe CompBody) (get-component ecs &ent))]
           (do
             (match cb-opt
-              (Maybe.Nothing) ()
+              (Maybe.Nothing)
+                (MancerSystem.destroy-orb-slot! state oslot false)
               (Maybe.Just cb)
                 (let [pos @(RigidBody.position (CompBody.rb &cb))
-                      px @(Vector3.x &pos)
-                      py @(Vector3.y &pos)
-                      pz @(Vector3.z &pos)
-                      fx (Double.to-float px)
-                      fy (Double.to-float py)
-                      fz (Double.to-float pz)
-                      player-id @(EngineState.player-ent-id state)]
+                      fx (Double.to-float @(Vector3.x &pos))
+                      fy (Double.to-float @(Vector3.y &pos))
+                      fz (Double.to-float @(Vector3.z &pos))]
                   (do
-                    (EngineState.push-voxel-action! state fx fy fz 3.50f 1.0f -1.0f 0.0f)
-                    (EngineState.push-voxel-action! state fx fy fz 4.20f 515.0f 0.95f 1.0f)
-                    (MancerSystem.edit-bender-sdf! world &pos 3.35 1.0f true)
-                    (ParticleSystem.emit-sparks! ps fx fy fz 0.0f 1.0f 0.0f 48)
-                    (ParticleSystem.emit-debris! ps fx fy fz 0.0f 1.0f 0.0f 20)
-                    (ParticleSystem.emit-smoke! ps fx (+ fy 0.4f) fz 24)
-                    ;; Damage nearby Mancers & Hoppers + blast shockwave!
-                    (for [mk 0 4]
-                      (when @(Array.unsafe-nth (MancerBank.alive mbk) mk)
-                        (let [ment (ECS.Entity.init (Handle.init @(Array.unsafe-nth (MancerBank.idx mbk) mk)
-                                                                 @(Array.unsafe-nth (MancerBank.gen mbk) mk)))
-                              mcb-opt (the (Maybe CompBody) (get-component ecs &ment))]
-                          (match mcb-opt
-                            (Maybe.Nothing) ()
-                            (Maybe.Just mcb)
-                              (let [mpos @(RigidBody.position (CompBody.rb &mcb))
-                                    mdx (- @(Vector3.x &mpos) px)
-                                    mdy (- @(Vector3.y &mpos) py)
-                                    mdz (- @(Vector3.z &mpos) pz)
-                                    md (Double.sqrt (+ (+ (* mdx mdx) (* mdy mdy)) (* mdz mdz)))]
-                                (when (< md 7.8)
-                                  (let [inv-m (if (> md 0.12) (/ 1.0 md) 0.0)
-                                        atten (Double.to-float (- 1.0 (/ md 8.2)))]
-                                    (ignore (MancerSystem.damage-mancer! state mk (* 72.0f atten)
-                                              (Double.to-float (* mdx inv-m))
-                                              (Double.to-float (* mdy inv-m))
-                                              (Double.to-float (* mdz inv-m))
-                                              (* 20.0f atten) 2)))))))))
-                    (for [hk 0 16]
-                      (when @(Array.unsafe-nth (EnemyBank.alive (EngineState.enemies state)) hk)
-                        (let [hent (ECS.Entity.init (Handle.init @(Array.unsafe-nth (EnemyBank.idx (EngineState.enemies state)) hk)
-                                                                 @(Array.unsafe-nth (EnemyBank.gen (EngineState.enemies state)) hk)))
-                              hcb-opt (the (Maybe CompBody) (get-component ecs &hent))]
-                          (match hcb-opt
-                            (Maybe.Nothing) ()
-                            (Maybe.Just hcb)
-                              (let [hpos @(RigidBody.position (CompBody.rb &hcb))
-                                    hdx (- @(Vector3.x &hpos) px)
-                                    hdy (- @(Vector3.y &hpos) py)
-                                    hdz (- @(Vector3.z &hpos) pz)
-                                    hd (Double.sqrt (+ (+ (* hdx hdx) (* hdy hdy)) (* hdz hdz)))]
-                                (when (< hd 7.5)
-                                  (let [inv-h (if (> hd 0.12) (/ 1.0 hd) 0.0)
-                                        atten (Double.to-float (- 1.0 (/ hd 7.8)))]
-                                    (ignore (EnemySystem.damage-hopper! state hk (* 65.0f atten)
-                                              (Double.to-float (* hdx inv-h))
-                                              (Double.to-float (* hdy inv-h))
-                                              (Double.to-float (* hdz inv-h))
-                                              (* 22.0f atten) 2)))))))))
-                    (query ecs (e (cb CompBody))
-                      (let [eid (Long.to-int (Uint64.to-long (ECS.Entity.index &e)))
-                            rb (CompBody.rb cb)
-                            epos (RigidBody.position rb)
-                            dx (- @(Vector3.x epos) px)
-                            dy (- @(Vector3.y epos) py)
-                            dz (- @(Vector3.z epos) pz)
-                            dist (Double.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))]
-                        (when (< dist 7.8)
-                          (let [inv-d (if (> dist 0.15) (/ 1.0 dist) 0.0)
-                                push (* 23.0 (- 1.0 (/ dist 8.0)))]
-                            (if (= eid player-id)
-                              (ignore (PlayerSystem.damage-player! state 24.0f true (* (* dx inv-d) push) (+ (* (* dy inv-d) push) 7.0) (* (* dz inv-d) push)))
-                              (let [b (RigidBody.body rb)
-                                    old-v @(Body.velocity b)
-                                    dv (Vector3.init (* (* dx inv-d) push) (+ (* (* dy inv-d) push) 6.5) (* (* dz inv-d) push))]
-                                (do
-                                  (Body.set-body-type! b (BodyType.Dynamic))
-                                  (Body.set-inv-mass! b 1.0)
-                                  (Body.set-velocity! b (Vector3.add &old-v &dv))
-                                  (RigidBody.set-body! rb @b)
-                                  (ECS.add-component! ecs &e (CompBody.init @rb))))))))))))
-            (MancerSystem.destroy-orb-slot! state oslot false))))))
+                    (MancerSystem.destroy-orb-slot! state oslot false)
+                    (EngineState.enqueue-explosion! state fx fy fz 3.65f 0.92f -1)))))))))
 
 
   ;; Spawn an Ecomancer warlock or Geometric Lawmancer at `spawn-pos`!
@@ -687,7 +612,13 @@
                               (Array.aset! b-vel (+ b3 1) (+ bvy (* uy k)))
                               (Array.aset! b-vel (+ b3 2) (+ bvz (* uz k))))))))))))))
 
-        ;; 2. Voxel & Environmental Law Effects (at focal center when non-shell, or 4 perimeter points on expanding shell)
+        ;; 2. Voxel, 3D Wind/Pressure & Environmental Law Effects!
+        (when (= law-id 1)
+          (let [fstr (Double.to-float strength)
+                wrad (Float.clamp 2.80f 7.80f (Double.to-float radius))
+                rpush (* (if pos? 2.85f -2.65f) fstr)
+                press (* (if pos? 2.45f -2.25f) fstr)]
+            (EngineState.push-wake-capsule! state fx fy fz fx (+ fy 0.2f) fz wrad rpush 0.0f (if pos? 1.2f -0.6f) 0.0f press)))
         (when (= (Int.mod (+ fc mslot) 6) 0)
           (if shell?
             (let [fr (Double.to-float radius)]

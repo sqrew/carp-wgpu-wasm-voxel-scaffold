@@ -95,6 +95,12 @@
           p-gas (Pointer.to-value (Pointer.add raw-rb 145l))
           p-ign (Pointer.to-value (Pointer.add raw-rb 146l))
           p-heal (Pointer.to-value (Pointer.add raw-rb 147l))
+          w-vx (Pointer.to-value (Pointer.add raw-rb 244l))
+          w-vy (Pointer.to-value (Pointer.add raw-rb 245l))
+          w-vz (Pointer.to-value (Pointer.add raw-rb 246l))
+          amb-tau (Pointer.to-value (Pointer.add raw-rb 250l))
+          amb-g (Pointer.to-value (Pointer.add raw-rb 251l))
+          field-ready? (> (+ amb-tau amb-g) 0.015f)
           p-ent-id (EngineState.player-ent-id state)
           p-ent (ECS.Entity.init (Handle.init (Uint64.from-long (the Long (Long.from-int @p-ent-id))) (Uint32.from-long 1l)))
           cb-opt (get-component ecs &p-ent)]
@@ -168,7 +174,8 @@
                         ice? (and is-grounded (or (Materials.slippery? fmat) (or (Materials.slippery? p-liq) (Materials.slippery? cur-stain))))
                         bouncy-floor? (and is-grounded (or (Materials.bouncy? fmat) (or (Materials.bouncy? p-liq) (Materials.bouncy? cur-stain))))
                         sticky-floor? (and is-grounded (and (or (Materials.sticky? fmat) (Materials.sticky? p-liq)) (not bouncy-floor?)))
-                        max-spd (if ice? 15.8 (if sticky-floor? 6.4 11.5))
+                        chrono-haste (if (and field-ready? (> amb-tau 0.68f)) 1.32 1.0)
+                        max-spd (* (if ice? 15.8 (if sticky-floor? 6.4 11.5)) chrono-haste)
                         accel-rate (if (not is-grounded) 1.85 (if ice? 1.55 (if sticky-floor? 7.0 8.5)))
                         fric (if (not is-grounded) 0.45 (if ice? 0.90 (if sticky-floor? 18.0 10.5)))
                         vx @(Vector3.x &curr-vel)
@@ -204,6 +211,30 @@
                               (do
                                 (set! vx (+ vx (* wx gain)))
                                 (set! vz (+ vz (* wz gain))))))))
+
+                      ;; 2b. Two-Way GPU Field & 3D Wind Coupling (vel_texture gales/shockwaves + Lawmancer Gravi/Chrono fields!)
+                      (let [dvx (Double.from-float w-vx)
+                            dvy (Double.from-float w-vy)
+                            dvz (Double.from-float w-vz)
+                            wspd (Double.sqrt (+ (+ (* dvx dvx) (* dvy dvy)) (* dvz dvz)))]
+                        (when (> wspd 1.45)
+                          (let [wgain (* (if is-grounded 1.80 3.50) dt)]
+                            (do
+                              (set! vx (+ vx (* dvx wgain)))
+                              (set! vy (+ vy (* (* dvy wgain) 0.85)))
+                              (set! vz (+ vz (* dvz wgain)))))))
+                      (when field-ready?
+                        (do
+                          (when (< amb-g 0.36f)
+                            (set! vy (Physics.clamp -28.0 16.5 (+ vy (* (* (- 0.50 (Double.from-float amb-g)) 76.0) dt)))))
+                          (when (> amb-g 0.64f)
+                            (set! vy (+ vy (* (* (- 0.50 (Double.from-float amb-g)) 52.0) dt))))
+                          (when (< amb-tau 0.34f)
+                            (let [sdamp (Physics.clamp 0.78 1.0 (+ 0.76 (* (Double.from-float amb-tau) 0.65)))]
+                              (do
+                                (set! vx (* vx sdamp))
+                                (set! vy (+ (* vy sdamp) (* 11.5 dt)))
+                                (set! vz (* vz sdamp)))))))
 
                       ;; 3. Solid Slime / Volatile Gel Trampoline Rebound + Coyote-Time Jump
                       (when (and bouncy-floor? (< prev-vy -5.2))

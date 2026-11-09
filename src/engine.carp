@@ -47,6 +47,9 @@
   wake-p0 (Array Float)
   wake-p1 (Array Float)
   wake-vel (Array Float)
+  expl-count Int
+  expl-data (Array Float)
+  expl-cd (Array Float)
 ])
 
 (defmodule VoxelQueue
@@ -60,7 +63,10 @@
       0
       (Array.replicate 64 &0.0f)
       (Array.replicate 64 &0.0f)
-      (Array.replicate 64 &0.0f)))
+      (Array.replicate 64 &0.0f)
+      0
+      (Array.replicate 48 &0.0f)
+      (Array.replicate 16 &0.0f)))
 
   (defn clear-actions! [vq]
     (do
@@ -415,7 +421,8 @@
                           ps-ctx @(M-WGPUContext.p (Engine.ctx &platform-eng))
                           surf-format (WGPURender.surface-format @(M-WGPUSurface.p (Engine.surf &platform-eng)))
                           solid-tex @(M-RenderTexture.p (Renderer.voxel-texture &ren))
-                          ps (ParticleSystem.create ps-ctx &surf-format solid-tex)]
+                          vel-tex @(M-RenderTexture.p (Renderer.vel-texture &ren))
+                          ps (ParticleSystem.create ps-ctx &surf-format solid-tex vel-tex)]
                       (Result.Success (EngineState.init
                         platform-eng ren world player uniforms
                         (Array.replicate 24576 &0.0f)
@@ -678,6 +685,56 @@
                 (Array.aset! wvel (+ b 3) pressure)
                 (VoxelQueue.set-wake-count! vq (+ cnt 1)))))))))
 
+  (defn record-expl-cd! [vq x y z ttl]
+    (let [cd (VoxelQueue.expl-cd vq)
+          best-i 0
+          best-t @(Array.unsafe-nth cd 3)]
+      (do
+        (for [i 1 4]
+          (let [t @(Array.unsafe-nth cd (+ (* i 4) 3))]
+            (when (< t best-t)
+              (do
+                (set! best-i i)
+                (set! best-t t)))))
+        (let [b (* best-i 4)]
+          (do
+            (Array.aset! cd b x)
+            (Array.aset! cd (+ b 1) y)
+            (Array.aset! cd (+ b 2) z)
+            (Array.aset! cd (+ b 3) ttl))))))
+
+  ;; Enqueue a unified GPU+CPU explosion (safe to call from any system without re-entrancy or mutual recursion!)
+  (defn enqueue-explosion! [state x y z blast-r yld skip-eid]
+    (let [vq (EngineState.voxels state)
+          cnt @(VoxelQueue.expl-count vq)
+          ed (VoxelQueue.expl-data vq)
+          merged? false]
+      (do
+        (for [i 0 cnt]
+          (when (not merged?)
+            (let [b (* i 6)
+                  dx (- @(Array.unsafe-nth ed b) x)
+                  dy (- @(Array.unsafe-nth ed (+ b 1)) y)
+                  dz (- @(Array.unsafe-nth ed (+ b 2)) z)
+                  d2 (+ (+ (* dx dx) (* dy dy)) (* dz dz))]
+              (when (< d2 1.44f)
+                (let [er @(Array.unsafe-nth ed (+ b 3))
+                      ey @(Array.unsafe-nth ed (+ b 4))]
+                  (do
+                    (when (> blast-r er) (Array.aset! ed (+ b 3) blast-r))
+                    (when (> yld ey) (Array.aset! ed (+ b 4) yld))
+                    (set! merged? true)))))))
+        (when (and (not merged?) (< cnt 8))
+          (let [b (* cnt 6)]
+            (do
+              (Array.aset! ed b x)
+              (Array.aset! ed (+ b 1) y)
+              (Array.aset! ed (+ b 2) z)
+              (Array.aset! ed (+ b 3) blast-r)
+              (Array.aset! ed (+ b 4) yld)
+              (Array.aset! ed (+ b 5) (Float.from-int skip-eid))
+              (VoxelQueue.set-expl-count! vq (+ cnt 1))))))))
+
   )
 
 (load "systems/player.carp")
@@ -709,6 +766,233 @@
                 (Result.Success ())))
           (AppEvent.NoOp) (Result.Success ())))))
 
+  ;; Execute a unified detonation: synced GPU+CPU smooth SDF crater, 3D vel_texture shockwave + overpressure,
+  ;; multi-layer particle burst, sympathetic chain-detonations, and ECS RigidBody knockback!
+  (defn execute-explosion! [state x y z blast-r yld skip-eid]
+    (let [vq (EngineState.voxels state)
+          world (EngineState.world state)
+          ps (EngineState.particles state)
+          ecs (EngineState.ecs-world state)
+          player (EngineState.player state)
+          flying? @(Player.flying player)
+          player-id @(EngineState.player-ent-id state)
+          clamped-yld (Float.clamp 0.30f 1.25f yld)
+          carve-r (Float.clamp 1.65f 5.20f blast-r)
+          cpu-carve (Double.from-float (- carve-r 0.12f))
+          px (Double.from-float x)
+          py (Double.from-float y)
+          pz (Double.from-float z)
+          pos (Vector3.init px py pz)
+          w-rad (Float.clamp 3.80f 8.60f (* carve-r (+ 1.65f (* 0.50f clamped-yld))))
+          r-push (Float.clamp 2.25f 5.20f (+ 1.95f (* 2.95f clamped-yld)))
+          p-spike (Float.clamp 1.85f 3.75f (+ 1.65f (* 2.00f clamped-yld)))
+          shock-r (Double.from-float (+ (* carve-r 2.05f) (* 2.20f clamped-yld)))
+          chain-r (* shock-r 0.72)
+          mbk (EngineState.mancers state)
+          eb (EngineState.enemies state)
+          cbank (EngineState.critters state)]
+      (do
+        ;; Debounce GPU readback around this crater so async readback never echoes our own blast
+        (EngineState.record-expl-cd! vq x y z 0.24f)
+
+        ;; 1. Smooth Euclidean SDF Crater (GPU + CPU) & Fire/Smoke Bloom
+        (EngineState.push-voxel-action! state x y z carve-r 1.0f -1.0f 0.0f)
+        (EngineState.push-voxel-action! state x y z (+ carve-r (* 1.35f clamped-yld)) 515.0f
+          (Float.clamp 0.85f 1.0f (+ 0.82f (* 0.18f clamped-yld))) 1.0f)
+        (MancerSystem.edit-bender-sdf! world &pos cpu-carve 1.0f true)
+
+        ;; 2. Radial 3D Velocity + Acoustic Overpressure Shockwave into vel_texture
+        (EngineState.push-wake-capsule! state x y z x (+ y 0.25f) z
+          w-rad r-push 0.0f (* 1.80f clamped-yld) 0.0f p-spike)
+
+        ;; 3. Multi-Layer GPU Particle Explosion (sparks, shrapnel, shock-dust, rising smoke)
+        (ParticleSystem.emit-explosion! ps x y z clamped-yld)
+
+        ;; 4a. Mancer Damage & Sympathetic Volatile Halo Orb Chain-Detonations
+        (for [mk 0 4]
+          (when @(Array.unsafe-nth (MancerBank.alive mbk) mk)
+            (let [midx @(Array.unsafe-nth (MancerBank.idx mbk) mk)
+                  meid (Long.to-int (Uint64.to-long midx))]
+              (when (/= meid skip-eid)
+                (let [ment (ECS.Entity.init (Handle.init midx @(Array.unsafe-nth (MancerBank.gen mbk) mk)))
+                      mcb-opt (the (Maybe CompBody) (get-component ecs &ment))]
+                  (match mcb-opt
+                    (Maybe.Nothing) ()
+                    (Maybe.Just mcb)
+                      (let [mpos @(RigidBody.position (CompBody.rb &mcb))
+                            mdx (- @(Vector3.x &mpos) px)
+                            mdy (- @(Vector3.y &mpos) py)
+                            mdz (- @(Vector3.z &mpos) pz)
+                            md (Double.sqrt (+ (+ (* mdx mdx) (* mdy mdy)) (* mdz mdz)))]
+                        (when (< md shock-r)
+                          (let [inv-m (if (> md 0.12) (/ 1.0 md) 0.0)
+                                atten (Double.to-float (- 1.0 (/ md (+ shock-r 0.6))))]
+                            (ignore (MancerSystem.damage-mancer! state mk
+                                      (* (+ 46.0f (* 42.0f clamped-yld)) atten)
+                                      (Double.to-float (* mdx inv-m))
+                                      (Double.to-float (* mdy inv-m))
+                                      (Double.to-float (* mdz inv-m))
+                                      (* (+ 15.0f (* 11.0f clamped-yld)) atten) 2)))))))))))
+
+        (let [o-state (MancerBank.orb-state mbk)
+              o-idx (MancerBank.orb-idx mbk)
+              o-gen (MancerBank.orb-gen mbk)
+              o-mat (MancerBank.orb-mat mbk)]
+          (for [ok 0 20]
+            (when (> @(Array.unsafe-nth o-state ok) 0)
+              (let [oidx @(Array.unsafe-nth o-idx ok)
+                    oeid (Long.to-int (Uint64.to-long oidx))
+                    omat @(Array.unsafe-nth o-mat ok)]
+                (when (and (/= oeid skip-eid) (Materials.explosive? omat))
+                  (let [oent (ECS.Entity.init (Handle.init oidx @(Array.unsafe-nth o-gen ok)))
+                        ocb-opt (the (Maybe CompBody) (get-component ecs &oent))]
+                    (match ocb-opt
+                      (Maybe.Nothing) ()
+                      (Maybe.Just ocb)
+                        (let [opos @(RigidBody.position (CompBody.rb &ocb))
+                              odx (- @(Vector3.x &opos) px)
+                              ody (- @(Vector3.y &opos) py)
+                              odz (- @(Vector3.z &opos) pz)
+                              od (Double.sqrt (+ (+ (* odx odx) (* ody ody)) (* odz odz)))]
+                          (when (< od chain-r)
+                            (MancerSystem.detonate-orb-slot! state ok))))))))))
+
+        ;; 4b. Cave Hopper Damage (explosive Hoppers automatically chain-detonate via elem-tag 2!)
+        (for [hk 0 16]
+          (when @(Array.unsafe-nth (EnemyBank.alive eb) hk)
+            (let [hidx @(Array.unsafe-nth (EnemyBank.idx eb) hk)
+                  heid (Long.to-int (Uint64.to-long hidx))]
+              (when (/= heid skip-eid)
+                (let [hent (ECS.Entity.init (Handle.init hidx @(Array.unsafe-nth (EnemyBank.gen eb) hk)))
+                      hcb-opt (the (Maybe CompBody) (get-component ecs &hent))]
+                  (match hcb-opt
+                    (Maybe.Nothing) ()
+                    (Maybe.Just hcb)
+                      (let [hpos @(RigidBody.position (CompBody.rb &hcb))
+                            hdx (- @(Vector3.x &hpos) px)
+                            hdy (- @(Vector3.y &hpos) py)
+                            hdz (- @(Vector3.z &hpos) pz)
+                            hd (Double.sqrt (+ (+ (* hdx hdx) (* hdy hdy)) (* hdz hdz)))]
+                        (when (< hd shock-r)
+                          (let [inv-h (if (> hd 0.12) (/ 1.0 hd) 0.0)
+                                atten (Double.to-float (- 1.0 (/ hd (+ shock-r 0.6))))]
+                            (ignore (EnemySystem.damage-hopper! state hk
+                                      (* (+ 44.0f (* 44.0f clamped-yld)) atten)
+                                      (Double.to-float (* hdx inv-h))
+                                      (Double.to-float (* hdy inv-h))
+                                      (Double.to-float (* hdz inv-h))
+                                      (* (+ 16.0f (* 12.0f clamped-yld)) atten) 2)))))))))))
+
+        ;; 4c. Ditto-Amoebas: sympathetic chain-detonation for explosive slimes, wall-peel + ignition for others!
+        (let [a-alive (CritterBank.alive cbank)
+              a-idx (CritterBank.idx cbank)
+              a-gen (CritterBank.gen cbank)
+              a-mat (CritterBank.mat cbank)
+              a-state (CritterBank.state cbank)]
+          (for [ak 0 16]
+            (when @(Array.unsafe-nth a-alive ak)
+              (let [aidx @(Array.unsafe-nth a-idx ak)
+                    aeid (Long.to-int (Uint64.to-long aidx))]
+                (when (/= aeid skip-eid)
+                  (let [aent (ECS.Entity.init (Handle.init aidx @(Array.unsafe-nth a-gen ak)))
+                        acb-opt (the (Maybe CompBody) (get-component ecs &aent))]
+                    (match acb-opt
+                      (Maybe.Nothing) ()
+                      (Maybe.Just acb)
+                        (let [arb (CompBody.rb &acb)
+                              apos @(RigidBody.position arb)
+                              adx (- @(Vector3.x &apos) px)
+                              ady (- @(Vector3.y &apos) py)
+                              adz (- @(Vector3.z &apos) pz)
+                              ad (Double.sqrt (+ (+ (* adx adx) (* ady ady)) (* adz adz)))
+                              amat @(Array.unsafe-nth a-mat ak)]
+                          (when (< ad shock-r)
+                            (if (and (< ad chain-r) (Materials.explosive? amat))
+                              (CritterSystem.detonate-amoeba! state world ps ecs &apos ak)
+                              (let [ab (RigidBody.body arb)
+                                    burn? (Materials.flammable? amat)]
+                                (do
+                                  (Array.aset! a-state ak (if burn? 3 4))
+                                  (when burn?
+                                    (do
+                                      (Array.aset! (CritterBank.timer cbank) ak 0.0f)
+                                      (ECS.add-component! ecs &aent (CompColor.init (Materials.slime-color amat 3)))))
+                                  (Body.set-body-type! ab (BodyType.Dynamic))
+                                  (Body.set-inv-mass! ab 1.0)
+                                  (Body.set-inv-inertia! ab 4.0)
+                                  (Body.set-is-sleeping! ab false)
+                                  (RigidBody.set-body! arb @ab)
+                                  (ECS.add-component! ecs &aent (CompBody.init @arb))))))))))))))
+
+        ;; 4d. Player Blast Damage/Rocket-Jump + Dynamic RigidBody Impulse (Boulders, Nuggets, Matches, Peeled Slimes)
+        (query ecs (e (cb CompBody))
+          (let [eidx (ECS.Entity.index &e)
+                eid (Long.to-int (Uint64.to-long eidx))]
+            (when (and (/= eid skip-eid)
+                       (and (< (EnemySystem.hopper-slot-by-idx state eidx) 0)
+                            (< (MancerSystem.mancer-slot-by-idx state eidx) 0)))
+              (let [rb (CompBody.rb cb)
+                    epos (RigidBody.position rb)
+                    dx (- @(Vector3.x epos) px)
+                    dy (- @(Vector3.y epos) py)
+                    dz (- @(Vector3.z epos) pz)
+                    dist (Double.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))]
+                (when (< dist shock-r)
+                  (let [inv-d (if (> dist 0.15) (/ 1.0 dist) 0.0)
+                        falloff (- 1.0 (/ dist (+ shock-r 0.5)))
+                        push (* (+ 17.0 (* 13.0 (Double.from-float clamped-yld))) falloff)
+                        lift (+ 5.8 (* 4.5 (* (Double.from-float clamped-yld) falloff)))
+                        kx (* (* dx inv-d) push)
+                        ky (+ (* (* dy inv-d) push) lift)
+                        kz (* (* dz inv-d) push)]
+                    (if (= eid player-id)
+                      (when (not flying?)
+                        (let [dmg (Float.clamp 6.0f 32.0f (* (+ 16.0f (* 16.0f clamped-yld)) (Double.to-float falloff)))
+                              applied? (PlayerSystem.damage-player! state dmg true kx ky kz)]
+                          ;; Even during i-frames on multi-blast chains, preserve rocket-jump impulse!
+                          (when (not applied?)
+                            (let [b (RigidBody.body rb)
+                                  old-v @(Body.velocity b)
+                                  dv (Vector3.init (* kx 0.55) (* ky 0.55) (* kz 0.55))]
+                              (do
+                                (Body.set-body-type! b (BodyType.Dynamic))
+                                (Body.set-is-sleeping! b false)
+                                (Body.set-velocity! b (Vector3.add &old-v &dv))
+                                (RigidBody.set-body! rb @b)
+                                (ECS.add-component! ecs &e (CompBody.init @rb)))))))
+                      (let [b (RigidBody.body rb)]
+                        (when (> @(Body.inv-mass b) 0.0)
+                          (let [old-v @(Body.velocity b)
+                                dv (Vector3.init kx ky kz)]
+                            (do
+                              (Body.set-body-type! b (BodyType.Dynamic))
+                              (Body.set-is-sleeping! b false)
+                              (Body.set-velocity! b (Vector3.add &old-v &dv))
+                              (RigidBody.set-body! rb @b)
+                              (ECS.add-component! ecs &e (CompBody.init @rb))))))))))))))))
+
+  (defn drain-explosions! [state]
+    (let [vq (EngineState.voxels state)
+          ed (VoxelQueue.expl-data vq)
+          processed 0]
+      (while (and (> @(VoxelQueue.expl-count vq) 0) (< processed 8))
+        (let [x @(Array.unsafe-nth ed 0)
+              y @(Array.unsafe-nth ed 1)
+              z @(Array.unsafe-nth ed 2)
+              br @(Array.unsafe-nth ed 3)
+              yld @(Array.unsafe-nth ed 4)
+              sk (Float.round @(Array.unsafe-nth ed 5))
+              rem (- @(VoxelQueue.expl-count vq) 1)]
+          (do
+            (for [i 0 rem]
+              (let [dst (* i 6)
+                    src (* (+ i 1) 6)]
+                (for [c 0 6]
+                  (Array.aset! ed (+ dst c) @(Array.unsafe-nth ed (+ src c))))))
+            (VoxelQueue.set-expl-count! vq rem)
+            (set! processed (+ processed 1))
+            (EngineState.execute-explosion! state x y z br yld sk))))))
+
 
   (defn update! [state input dt]
     (let [platform-eng (EngineState.eng state)
@@ -716,11 +1000,40 @@
           world (EngineState.world state)
           player (EngineState.player state)
           cam (Player.camera player)
-          diag (EngineState.diag state)]
+          diag (EngineState.diag state)
+          fdt (Double.to-float dt)]
       (do
         (Diagnostics.start-zone! diag "Event Coordinator")
         (let [_ (Coordinator.tick! (EngineState.coord state))] ())
         (Diagnostics.end-zone! diag "Event Coordinator")
+
+        ;; Poll GPU Chemical / Thermobaric / Sympathetic Detonation probe (`hit_buffer[63]` = `raw[252..255]`)
+        (let [vq (EngineState.voxels state)
+              cd (VoxelQueue.expl-cd vq)
+              raw-rb (gpu-readback-get-raw)
+              gx (Pointer.to-value (Pointer.add raw-rb 252l))
+              gy (Pointer.to-value (Pointer.add raw-rb 253l))
+              gz (Pointer.to-value (Pointer.add raw-rb 254l))
+              gyld (Pointer.to-value (Pointer.add raw-rb 255l))]
+          (do
+            (for [i 0 4]
+              (let [t-idx (+ (* i 4) 3)
+                    rem-t (Float.clamp 0.0f 2.0f (- @(Array.unsafe-nth cd t-idx) fdt))]
+                (Array.aset! cd t-idx rem-t)))
+            (when (> gyld 0.05f)
+              (let [debounced? false]
+                (do
+                  (for [i 0 4]
+                    (let [b (* i 4)]
+                      (when (> @(Array.unsafe-nth cd (+ b 3)) 0.005f)
+                        (let [dx (- @(Array.unsafe-nth cd b) gx)
+                              dy (- @(Array.unsafe-nth cd (+ b 1)) gy)
+                              dz (- @(Array.unsafe-nth cd (+ b 2)) gz)
+                              d2 (+ (+ (* dx dx) (* dy dy)) (* dz dz))]
+                          (when (< d2 19.36f)
+                            (set! debounced? true))))))
+                  (when (not debounced?)
+                    (EngineState.enqueue-explosion! state gx gy gz (+ 2.25f (* 2.35f gyld)) gyld -1)))))))
         
         (Diagnostics.with-zone diag "Player Physics & Input"
           (PlayerSystem.update! state input dt))
@@ -736,6 +1049,9 @@
 
         (Diagnostics.with-zone diag "Ecomancers"
           (MancerSystem.update! state input dt))
+
+        ;; Drain GPU + Creature explosions BEFORE Physics Solver so knockback arcs & Camera.pos step with zero lag!
+        (EngineState.drain-explosions! state)
 
         (Diagnostics.with-zone diag "Physics Solver"
           (do
@@ -758,6 +1074,9 @@
 
         (Diagnostics.with-zone diag "Wands & Projectiles"
           (WandSystem.update! state input dt))
+
+        ;; Drain any Explosive Orbs shot during WandSystem.update! on the exact same frame!
+        (EngineState.drain-explosions! state)
 
         (Diagnostics.with-zone diag "Gold & Nuggets"
           (GoldSystem.update! state dt))
@@ -1015,7 +1334,7 @@
                     (set! num-entities (+ num-entities 1))))))
             (Array.aset! uniforms 36 (Float.from-int num-entities))
             (Array.aset! uniforms 37 0.0f)
-            (Array.aset! uniforms 38 0.0f)
+            (Array.aset! uniforms 38 (Float.from-int fc))
             (Array.aset! uniforms 39 0.0f)
             
             (let [vp (Camera.view-projection cam)
@@ -1366,9 +1685,10 @@
                                   wrad (Float.clamp 1.65f 3.60f (* brad 3.2f))
                                   rpush (Float.clamp 0.55f 2.45f (* spd 0.082f))
                                   press (Float.clamp 0.35f 1.65f (* spd 0.052f))]
-                              (EngineState.push-wake-capsule! state
-                                px0 py0 pz0 px1 py1 pz1
-                                wrad rpush (* vx 0.14f) (* vy 0.14f) (* vz 0.14f) press))))))))
+                              (when (> brad 0.24f)
+                                (EngineState.push-wake-capsule! state
+                                  px0 py0 pz0 px1 py1 pz1
+                                  wrad rpush (* vx 0.14f) (* vy 0.14f) (* vz 0.14f) press)))))))))
 
                 ;; Pack 16-slot 3D Velocity & Pressure Wake Capsules (`u.pad1` = count, `uniforms[428..619]`)
                 (let [vq (EngineState.voxels state)
@@ -1403,14 +1723,9 @@
           cam (Player.camera (EngineState.player state))
           diag (EngineState.diag state)
           ps (EngineState.particles state)
-          ctx @(M-WGPUContext.p (Engine.ctx platform-eng))
           dt (Clock.unscaled-dt (EngineState.clock state))]
-      (do
-        ;; Dispatch particle compute (spawn + update) before the main render
-        (Diagnostics.with-zone diag "Particle Compute"
-          (ParticleSystem.flush-and-dispatch! ctx ps dt))
-        ;; Run main voxel render (sim passes + raymarch + particles + line pass + present)
-        (Renderer.draw platform-eng ren cam diag ps))))
+      ;; Run main voxel render (sim passes + pack + wind-advected particle compute + raymarch + particles + line pass + present)
+      (Renderer.draw platform-eng ren cam diag ps dt)))
 
   (defn post-render! [state]
     (let [platform-eng (EngineState.eng state)

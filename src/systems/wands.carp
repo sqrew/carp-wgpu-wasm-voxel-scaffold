@@ -358,7 +358,7 @@
                 carve-mat (if (and (>= near-mat 1.0f) (< near-mat 250.0f)) near-mat 1.0f)]
             (do
               (EngineState.push-voxel-action! state hx hy hz crad carve-mat -1.0f 0.0f)
-              (ignore (World.edit-sdf! world &hvec (Double.from-float crad) carve-mat true))
+              (MancerSystem.edit-bender-sdf! world &hvec (Double.from-float crad) carve-mat true)
               (ParticleSystem.emit-dust! ps hx hy hz 10)
               (when (and (> crad 1.3f) (Materials.brittle? carve-mat))
                 (let [bpos (Vector3.add &hvec &(Vector3.mul &nrm 0.55))
@@ -371,7 +371,7 @@
                   bz (Double.to-float @(Vector3.z &build-p))]
               (do
                 (EngineState.push-voxel-action! state bx by bz sdf-d s-mat 1.0f 0.0f)
-                (ignore (World.edit-sdf! world &build-p (Double.from-float sdf-d) s-mat false))))))
+                (MancerSystem.edit-bender-sdf! world &build-p (Double.from-float sdf-d) s-mat false)))))
 
         ;; 2. CA Reagent Burst (Fire, Acid, Ambrosia...) offset slightly out along surface normal
         (when (> sp-mat 0.5f)
@@ -712,7 +712,7 @@
         (WandBelt.set-rmb-last! wb right-held)
         (WandBelt.set-flash! wb wflash)
 
-        ;; 3. Step all active Wand Projectiles (Swept SDF + Entity Collision + Modifiers + 3D Mach Wakes)
+        ;; 3. Step all active Wand Projectiles (Swept SDF + Entity Collision + Modifiers + 3D Wind Deflection + Mach Wakes)
         (let [b-alive (WandBelt.bolt-alive wb)
               b-idx (WandBelt.bolt-idx wb)
               b-gen (WandBelt.bolt-gen wb)
@@ -720,132 +720,149 @@
               b-vel (WandBelt.bolt-vel wb)
               b-life (WandBelt.bolt-life wb)
               b-bounces (WandBelt.bolt-bounces wb)
-              b-wand (WandBelt.bolt-wand wb)]
+              b-wand (WandBelt.bolt-wand wb)
+              a-alive (CritterBank.alive (EngineState.critters state))
+              raw-rb (gpu-readback-get-raw)
+              ak-cur 0
+              w-slot -1]
           (for [bi 0 24]
             (when @(Array.unsafe-nth b-alive bi)
               (let [rem-life (- @(Array.unsafe-nth b-life bi) fdt)]
-                (if (<= rem-life 0.0f)
-                  (WandSystem.destroy-bolt-slot! state bi)
-                  (let [wid @(Array.unsafe-nth b-wand bi)
-                        pay (WandSystem.get-payload wid)
-                        wmod (WandSystem.get-mod wid)
-                        mkind @(WandMod.mod-kind &wmod)
-                        b3 (* bi 3)
-                        px0 @(Array.unsafe-nth b-pos b3)
-                        py0 @(Array.unsafe-nth b-pos (+ b3 1))
-                        pz0 @(Array.unsafe-nth b-pos (+ b3 2))
-                        px px0
-                        py py0
-                        pz pz0
-                        vx0 @(Array.unsafe-nth b-vel b3)
-                        vy0 (- @(Array.unsafe-nth b-vel (+ b3 1)) (* @(SpellPayload.gravity &pay) fdt))
-                        vz0 @(Array.unsafe-nth b-vel (+ b3 2))
-                        steered (if (= mkind 1)
-                                  (WandSystem.steer-homing-vel state ecs px py pz vx0 vy0 vz0 @(WandMod.homing-turn &wmod) fdt)
-                                  (Vector3.init (Double.from-float vx0) (Double.from-float vy0) (Double.from-float vz0)))
-                        vx (Double.to-float @(Vector3.x &steered))
-                        vy (Double.to-float @(Vector3.y &steered))
-                        vz (Double.to-float @(Vector3.z &steered))
-                        rad @(SpellPayload.radius &pay)
-                        step-dist (Float.sqrt (* (+ (+ (* vx vx) (* vy vy)) (* vz vz)) (* fdt fdt)))
-                        raw-steps (+ 1 (Float.round (/ step-dist 0.35f)))
-                        substeps (if (< raw-steps 1) 1 (if (> raw-steps 14) 14 raw-steps))
-                        sub-dt (/ fdt (Float.from-int substeps))
-                        bounces @(Array.unsafe-nth b-bounces bi)
-                        retired false
-                        s 0]
+                (do
+                  (while (and (< ak-cur 16) @(Array.unsafe-nth a-alive ak-cur))
+                    (set! ak-cur (+ ak-cur 1)))
+                  (if (< ak-cur 16)
                     (do
-                      ;; In-flight particle & live CA reagent trails!
-                      (when (or (= wid 6) (= (Int.mod (+ fc bi) 2) 0))
-                        (ParticleSystem.emit! ps px py pz (* vx -0.05f) (+ (* vy -0.05f) 0.5f) (* vz -0.05f)
-                          (if (= wid 6) 0.32f 0.45f) (if (= wid 6) 4 2) @(WandMod.trail-ptype &wmod) 0.22f 0.06f))
-                      (when (and (> @(WandMod.trail-mat &wmod) 0.5f) (= (Int.mod (+ fc (* bi 3)) 5) 0))
-                        (WandSystem.inject-gpu-reagent! state px py pz 1.35f @(WandMod.trail-mat &wmod) 0.45f))
+                      (set! w-slot ak-cur)
+                      (set! ak-cur (+ ak-cur 1)))
+                    (set! w-slot -1))
+                  (if (<= rem-life 0.0f)
+                    (WandSystem.destroy-bolt-slot! state bi)
+                    (let [wid @(Array.unsafe-nth b-wand bi)
+                          pay (WandSystem.get-payload wid)
+                          wmod (WandSystem.get-mod wid)
+                          mkind @(WandMod.mod-kind &wmod)
+                          b3 (* bi 3)
+                          px0 @(Array.unsafe-nth b-pos b3)
+                          py0 @(Array.unsafe-nth b-pos (+ b3 1))
+                          pz0 @(Array.unsafe-nth b-pos (+ b3 2))
+                          px px0
+                          py py0
+                          pz pz0
+                          w-k (if (and (/= wid 6) (>= w-slot 0)) (* 5.4f fdt) 0.0f)
+                          vbase (if (>= w-slot 0) (+ 256 (* w-slot 4)) 244)
+                          wvx (if (> w-k 0.0f) (Pointer.to-value (Pointer.add raw-rb (Long.from-int vbase))) 0.0f)
+                          wvy (if (> w-k 0.0f) (Pointer.to-value (Pointer.add raw-rb (Long.from-int (+ vbase 1)))) 0.0f)
+                          wvz (if (> w-k 0.0f) (Pointer.to-value (Pointer.add raw-rb (Long.from-int (+ vbase 2)))) 0.0f)
+                          vx0 (+ @(Array.unsafe-nth b-vel b3) (* wvx w-k))
+                          vy0 (+ (- @(Array.unsafe-nth b-vel (+ b3 1)) (* @(SpellPayload.gravity &pay) fdt)) (* wvy w-k))
+                          vz0 (+ @(Array.unsafe-nth b-vel (+ b3 2)) (* wvz w-k))
+                          steered (if (= mkind 1)
+                                    (WandSystem.steer-homing-vel state ecs px py pz vx0 vy0 vz0 @(WandMod.homing-turn &wmod) fdt)
+                                    (Vector3.init (Double.from-float vx0) (Double.from-float vy0) (Double.from-float vz0)))
+                          vx (Double.to-float @(Vector3.x &steered))
+                          vy (Double.to-float @(Vector3.y &steered))
+                          vz (Double.to-float @(Vector3.z &steered))
+                          rad @(SpellPayload.radius &pay)
+                          step-dist (Float.sqrt (* (+ (+ (* vx vx) (* vy vy)) (* vz vz)) (* fdt fdt)))
+                          raw-steps (+ 1 (Float.round (/ step-dist 0.35f)))
+                          substeps (if (< raw-steps 1) 1 (if (> raw-steps 14) 14 raw-steps))
+                          sub-dt (/ fdt (Float.from-int substeps))
+                          bounces @(Array.unsafe-nth b-bounces bi)
+                          retired false
+                          s 0]
+                      (do
+                        ;; In-flight particle & live CA reagent trails!
+                        (when (or (= wid 6) (= (Int.mod (+ fc bi) 2) 0))
+                          (ParticleSystem.emit! ps px py pz (* vx -0.05f) (+ (* vy -0.05f) 0.5f) (* vz -0.05f)
+                            (if (= wid 6) 0.32f 0.45f) (if (= wid 6) 4 2) @(WandMod.trail-ptype &wmod) 0.22f 0.06f))
+                        (when (and (> @(WandMod.trail-mat &wmod) 0.5f) (= (Int.mod (+ fc (* bi 3)) 5) 0))
+                          (WandSystem.inject-gpu-reagent! state px py pz 1.35f @(WandMod.trail-mat &wmod) 0.45f))
 
-                      ;; Sub-stepped swept collision loop
-                      (while (and (< s substeps) (not retired))
-                        (let [nx (+ px (* vx sub-dt))
-                              ny (+ py (* vy sub-dt))
-                              nz (+ pz (* vz sub-dt))
-                              ent-hit? (WandSystem.check-entity-hit state ecs nx ny nz rad)
-                              pvec (Vector3.init (Double.from-float nx) (Double.from-float ny) (Double.from-float nz))
-                              d-sdf (Physics.sample-sdf-trilinear world &pvec)
-                              wall-hit? (and (<= d-sdf rad) (> d-sdf -900.0f))]
-                          (do
-                            (if (or ent-hit? wall-hit?)
-                              (let [spd (Float.sqrt (+ (+ (* vx vx) (* vy vy)) (* vz vz)))
-                                    inv-s (if (> spd 0.01f) (/ 1.0f spd) 1.0f)
-                                    dx (* vx inv-s)
-                                    dy (* vy inv-s)
-                                    dz (* vz inv-s)]
-                                ;; Case A: Piercing Bore-Lance / Mach Railgun chews through rock & targets cleanly!
-                                (if (and (= mkind 3) (> bounces 0))
-                                  (let [exit-step (if (and ent-hit? (not wall-hit?)) 0.95f 0.0f)]
-                                    (do
-                                      (WandSystem.trigger-impact! state world ps ecs nx ny nz dx dy dz wid)
-                                      (set! bounces (- bounces 1))
-                                      (set! px (+ nx (* dx exit-step)))
-                                      (set! py (+ ny (* dy exit-step)))
-                                      (set! pz (+ nz (* dz exit-step)))))
-                                  ;; Case B: Surface Ricochet off cave wall!
-                                  (if (and (and wall-hit? (not ent-hit?)) (> bounces 0))
-                                    (let [nrm (Physics.estimate-sdf-normal world &pvec)
-                                          wnx (Double.to-float @(Vector3.x &nrm))
-                                          wny (Double.to-float @(Vector3.y &nrm))
-                                          wnz (Double.to-float @(Vector3.z &nrm))
-                                          vn (+ (+ (* vx wnx) (* vy wny)) (* vz wnz))]
+                        ;; Sub-stepped swept collision loop
+                        (while (and (< s substeps) (not retired))
+                          (let [nx (+ px (* vx sub-dt))
+                                ny (+ py (* vy sub-dt))
+                                nz (+ pz (* vz sub-dt))
+                                ent-hit? (WandSystem.check-entity-hit state ecs nx ny nz rad)
+                                pvec (Vector3.init (Double.from-float nx) (Double.from-float ny) (Double.from-float nz))
+                                d-sdf (Physics.sample-sdf-trilinear world &pvec)
+                                wall-hit? (and (<= d-sdf rad) (> d-sdf -900.0f))]
+                            (do
+                              (if (or ent-hit? wall-hit?)
+                                (let [spd (Float.sqrt (+ (+ (* vx vx) (* vy vy)) (* vz vz)))
+                                      inv-s (if (> spd 0.01f) (/ 1.0f spd) 1.0f)
+                                      dx (* vx inv-s)
+                                      dy (* vy inv-s)
+                                      dz (* vz inv-s)]
+                                  ;; Case A: Piercing Bore-Lance / Mach Railgun chews through rock & targets cleanly!
+                                  (if (and (= mkind 3) (> bounces 0))
+                                    (let [exit-step (if (and ent-hit? (not wall-hit?)) 0.95f 0.0f)]
                                       (do
-                                        (set! vx (* (- vx (* 2.0f (* vn wnx))) 0.88f))
-                                        (set! vy (* (- vy (* 2.0f (* vn wny))) 0.88f))
-                                        (set! vz (* (- vz (* 2.0f (* vn wnz))) 0.88f))
-                                        (set! px (+ nx (* wnx (+ rad 0.09f))))
-                                        (set! py (+ ny (* wny (+ rad 0.09f))))
-                                        (set! pz (+ nz (* wnz (+ rad 0.09f))))
+                                        (WandSystem.trigger-impact! state world ps ecs nx ny nz dx dy dz wid)
                                         (set! bounces (- bounces 1))
-                                        (ParticleSystem.emit-sparks! ps px py pz wnx wny wnz 10)))
-                                    ;; Case C: Final Impact Payload!
-                                    (do
-                                      (set! px nx)
-                                      (set! py ny)
-                                      (set! pz nz)
-                                      (WandSystem.trigger-impact! state world ps ecs nx ny nz dx dy dz wid)
-                                      (WandSystem.destroy-bolt-slot! state bi)
-                                      (set! retired true)))))
-                              (do
-                                (set! px nx)
-                                (set! py ny)
-                                (set! pz nz)))
-                            (set! s (+ s 1)))))
+                                        (set! px (+ nx (* dx exit-step)))
+                                        (set! py (+ ny (* dy exit-step)))
+                                        (set! pz (+ nz (* dz exit-step)))))
+                                    ;; Case B: Surface Ricochet off cave wall!
+                                    (if (and (and wall-hit? (not ent-hit?)) (> bounces 0))
+                                      (let [nrm (Physics.estimate-sdf-normal world &pvec)
+                                            wnx (Double.to-float @(Vector3.x &nrm))
+                                            wny (Double.to-float @(Vector3.y &nrm))
+                                            wnz (Double.to-float @(Vector3.z &nrm))
+                                            vn (+ (+ (* vx wnx) (* vy wny)) (* vz wnz))]
+                                        (do
+                                          (set! vx (* (- vx (* 2.0f (* vn wnx))) 0.88f))
+                                          (set! vy (* (- vy (* 2.0f (* vn wny))) 0.88f))
+                                          (set! vz (* (- vz (* 2.0f (* vn wnz))) 0.88f))
+                                          (set! px (+ nx (* wnx (+ rad 0.09f))))
+                                          (set! py (+ ny (* wny (+ rad 0.09f))))
+                                          (set! pz (+ nz (* wnz (+ rad 0.09f))))
+                                          (set! bounces (- bounces 1))
+                                          (ParticleSystem.emit-sparks! ps px py pz wnx wny wnz 10)))
+                                      ;; Case C: Final Impact Payload!
+                                      (do
+                                        (set! px nx)
+                                        (set! py ny)
+                                        (set! pz nz)
+                                        (WandSystem.trigger-impact! state world ps ecs nx ny nz dx dy dz wid)
+                                        (WandSystem.destroy-bolt-slot! state bi)
+                                        (set! retired true)))))
+                                (do
+                                  (set! px nx)
+                                  (set! py ny)
+                                  (set! pz nz)))
+                              (set! s (+ s 1)))))
 
-                      ;; Stamp swept 3D Velocity & Pressure Wake Capsule (`px0 -> px`) so bolts carve Mach fog tunnels & splash pools!
-                      (let [spd (Float.sqrt (+ (+ (* vx vx) (* vy vy)) (* vz vz)))
-                            inv-s (if (> spd 0.05f) (/ 1.0f spd) 1.0f)
-                            dx (* vx inv-s)
-                            dy (* vy inv-s)
-                            dz (* vz inv-s)
-                            is-rail? (= wid 6)
-                            wrad (if is-rail? 3.45f (Float.clamp 1.65f 2.55f (+ 1.35f (* spd 0.022f))))
-                            rpush (if is-rail? 3.25f (Float.clamp 0.72f 1.85f (* spd 0.032f)))
-                            slip (if is-rail? 4.85f (Float.clamp 1.15f 2.85f (* spd 0.052f)))
-                            press (if is-rail? 2.85f (Float.clamp 0.45f 1.45f (* spd 0.026f)))]
-                        (EngineState.push-wake-capsule! state
-                          px0 py0 pz0 px py pz
-                          wrad rpush (* dx slip) (* dy slip) (* dz slip) press))
+                        ;; Stamp swept 3D Velocity & Pressure Wake Capsule (`px0 -> px`) so bolts carve Mach fog tunnels & splash pools!
+                        (let [spd (Float.sqrt (+ (+ (* vx vx) (* vy vy)) (* vz vz)))
+                              inv-s (if (> spd 0.05f) (/ 1.0f spd) 1.0f)
+                              dx (* vx inv-s)
+                              dy (* vy inv-s)
+                              dz (* vz inv-s)
+                              is-rail? (= wid 6)
+                              wrad (if is-rail? 3.45f (Float.clamp 1.65f 2.55f (+ 1.35f (* spd 0.022f))))
+                              rpush (if is-rail? 3.25f (Float.clamp 0.72f 1.85f (* spd 0.032f)))
+                              slip (if is-rail? 4.85f (Float.clamp 1.15f 2.85f (* spd 0.052f)))
+                              press (if is-rail? 2.85f (Float.clamp 0.45f 1.45f (* spd 0.026f)))]
+                          (EngineState.push-wake-capsule! state
+                            px0 py0 pz0 px py pz
+                            wrad rpush (* dx slip) (* dy slip) (* dz slip) press))
 
-                      ;; Persist updated state & sync ECS render sphere if still flying
-                      (when (not retired)
-                        (let [ent (ECS.Entity.init (Handle.init @(Array.unsafe-nth b-idx bi) @(Array.unsafe-nth b-gen bi)))
-                              new-p (Vector3.init (Double.from-float px) (Double.from-float py) (Double.from-float pz))]
-                          (do
-                            (Array.aset! b-pos b3 px)
-                            (Array.aset! b-pos (+ b3 1) py)
-                            (Array.aset! b-pos (+ b3 2) pz)
-                            (Array.aset! b-vel b3 vx)
-                            (Array.aset! b-vel (+ b3 1) vy)
-                            (Array.aset! b-vel (+ b3 2) vz)
-                            (Array.aset! b-life bi rem-life)
-                            (Array.aset! b-bounces bi bounces)
-                            (ECS.add-component! ecs &ent (CompVolume.init (Volume.Ball (Sphere.init new-p (Double.from-float rad)))))))))))))))
+                        ;; Persist updated state & sync ECS render sphere if still flying
+                        (when (not retired)
+                          (let [ent (ECS.Entity.init (Handle.init @(Array.unsafe-nth b-idx bi) @(Array.unsafe-nth b-gen bi)))
+                                new-p (Vector3.init (Double.from-float px) (Double.from-float py) (Double.from-float pz))]
+                            (do
+                              (Array.aset! b-pos b3 px)
+                              (Array.aset! b-pos (+ b3 1) py)
+                              (Array.aset! b-pos (+ b3 2) pz)
+                              (Array.aset! b-vel b3 vx)
+                              (Array.aset! b-vel (+ b3 1) vy)
+                              (Array.aset! b-vel (+ b3 2) vz)
+                              (Array.aset! b-life bi rem-life)
+                              (Array.aset! b-bounces bi bounces)
+                              (ECS.add-component! ecs &ent (CompVolume.init (Volume.Ball (Sphere.init new-p (Double.from-float rad))))))))))))))))
 
         ;; 4. Sync [5] Wand HUD card & reticle state
         (let [ch-now (WandSystem.get-chassis cur-wid)

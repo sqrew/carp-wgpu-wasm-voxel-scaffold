@@ -131,11 +131,12 @@
                         (let [_ (Coordinator.schedule! (EngineState.coord state) (AppEvent.DespawnEntity ecs-ptr idx gen) 22000l)] ())
                         ()))))))))
 
-        ;; Update up to 8 active burning matches (positions, ember trails, burnout, and Water snuffing)
+        ;; Update up to 8 active burning matches (positions, GPU wind drift, ember trails, burnout, and Water/Vacuum/Gust snuffing)
         (let [m-idx (MatchBook.idx mb)
               m-gen (MatchBook.gen mb)
               m-life (MatchBook.life mb)
               m-pos (MatchBook.pos mb)
+              raw-rb (gpu-readback-get-raw)
               snuff-bits (Float.round (gpu-readback-get-match-snuff))
               lit-count 0]
           (do
@@ -150,23 +151,42 @@
                       (Maybe.Nothing)
                         (Array.aset! m-life i 0.0f)
                       (Maybe.Just cb)
-                        (let [pos (RigidBody.position (CompBody.rb &cb))
+                        (let [rb (CompBody.rb &cb)
+                              pos (RigidBody.position rb)
                               mx (Double.to-float @(Vector3.x pos))
                               my (Double.to-float @(Vector3.y pos))
                               mz (Double.to-float @(Vector3.z pos))
                               base (* i 3)
+                              vbase (+ 384 (* i 4))
+                              mvx (Pointer.to-value (Pointer.add raw-rb (Long.from-int vbase)))
+                              mvy (Pointer.to-value (Pointer.add raw-rb (Long.from-int (+ vbase 1))))
+                              mvz (Pointer.to-value (Pointer.add raw-rb (Long.from-int (+ vbase 2))))
+                              mspd2 (+ (+ (* mvx mvx) (* mvy mvy)) (* mvz mvz))
                               snuffed? (/= 0 (Int.bit-and snuff-bits (Int.bit-shift-left 1 i)))]
                           (do
                             (Array.aset! m-pos base mx)
                             (Array.aset! m-pos (+ base 1) my)
                             (Array.aset! m-pos (+ base 2) mz)
+                            ;; Lightweight matchsticks roll and curve along 3D cave winds & Bellows drafts!
+                            (when (> mspd2 0.12f)
+                              (let [b (RigidBody.body rb)
+                                    ov @(Body.velocity b)
+                                    wg (* 8.2 dt)
+                                    nv (Vector3.init (+ @(Vector3.x &ov) (* (Double.from-float mvx) wg))
+                                                     (+ @(Vector3.y &ov) (* (Double.from-float mvy) (* wg 0.75)))
+                                                     (+ @(Vector3.z &ov) (* (Double.from-float mvz) wg)))]
+                                (do
+                                  (Body.set-is-sleeping! b false)
+                                  (Body.set-velocity! b nv)
+                                  (RigidBody.set-body! rb @b)
+                                  (ECS.add-component! ecs &ent (CompBody.init @rb)))))
                             (if snuffed?
-                              ;; Water snuffed the match (*tssst!* -> Steam burst + charred stick)
+                              ;; Water, Baromancer Vacuum, or Hurricane Gust snuffed the match (*tssst!* / *fwoosh!* -> charred stick)
                               (do
                                 (Array.aset! m-life i 0.0f)
                                 (MatchBook.set-flash! mb -1.0f)
                                 (ECS.add-component! ecs &ent (CompColor.init (Vector3.init 0.14 0.11 0.09)))
-                                (ParticleSystem.emit! ps mx my mz 0.0f 3.2f 0.0f 1.4f 22 201.0f 0.55f 0.0f)
+                                (ParticleSystem.emit! ps mx my mz (* mvx 1.6f) 3.2f (* mvz 1.6f) 1.4f 22 201.0f 0.55f 0.0f)
                                 (ParticleSystem.emit-smoke! ps mx my mz 8))
                               (let [new-life (- life fdt)]
                                 (if (<= new-life 0.0f)
@@ -183,7 +203,7 @@
                                       (set! lit-count (inc lit-count))
                                       (ECS.add-component! ecs &ent (CompColor.init (Vector3.init cr cg 0.22)))
                                       (when (= (Int.mod (+ fc i) 2) 0)
-                                        (ParticleSystem.emit! ps mx (+ my 0.08f) mz 0.0f 1.4f 0.0f 0.42f 2 PARTICLE-TYPE-SPARKS 0.65f 0.4f))
+                                        (ParticleSystem.emit! ps mx (+ my 0.08f) mz (* mvx 1.8f) (+ 1.4f (* mvy 1.2f)) (* mvz 1.8f) 0.42f 2 PARTICLE-TYPE-SPARKS 0.65f 0.4f))
                                       (when (= (Int.mod (+ fc (* i 3)) 7) 0)
                                         (ParticleSystem.emit-smoke! ps mx (+ my 0.12f) mz 1))))))))))))))
             (MatchBook.set-lit-count! mb lit-count)

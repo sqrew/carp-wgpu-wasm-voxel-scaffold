@@ -192,7 +192,7 @@
   ;; Create the particle system: allocates all GPU buffers, pipelines, bind groups
   ;; solid-tex: 3D voxel texture view for collision detection
   ;; -------------------------------------------------------------------------
-  (defn create [ctx format solid-tex]
+  (defn create [ctx format solid-tex vel-tex]
     ;; 1. Allocate initial particle data (all zeros = all dead)
     (let [particle-floats (* PARTICLE-MAX 8)  ;; 8 floats per particle (32 bytes)
           initial-particles (the (Array Float) (Array.replicate particle-floats &0.0f))
@@ -212,7 +212,7 @@
           spawn-count-data (the (Array Float) [0.0f 0.0f 0.0f 0.0f])
           spawn-count-ptr (Result.unsafe-from-success (WGPURender.create-storage-vertex-buffer ctx &spawn-count-data))
 
-          ;; 6. Delta-time buffer (single f32, 16-byte aligned)
+          ;; 6. Delta-time + camera world origin buffer (4 x f32 = 16 bytes)
           dt-data (the (Array Float) [0.016f 0.0f 0.0f 0.0f])
           dt-ptr (Result.unsafe-from-success (WGPURender.create-storage-vertex-buffer ctx &dt-data))
 
@@ -223,7 +223,7 @@
           compute-pipe (Result.unsafe-from-success (WGPU.create-pipeline ctx particle-compute-wgsl "compute_main"))
 
           ;; 9. Build compute bind group using the Builder pattern
-          ;;    bindings: 0=particles, 1=write_head, 2=spawn_queue, 3=spawn_count, 4=dt, 5=solid_texture
+          ;;    bindings: 0=particles, 1=write_head, 2=spawn_queue, 3=spawn_count, 4=dt+cam, 5=solid_texture, 6=vel_texture
           b (builder-new)
           _ (do
               (builder-add-buffer b (particle-get-v-buffer particle-buf-ptr))
@@ -231,7 +231,8 @@
               (builder-add-buffer b (particle-get-v-buffer spawn-queue-ptr))
               (builder-add-buffer b (particle-get-v-buffer spawn-count-ptr))
               (builder-add-buffer b (particle-get-v-buffer dt-ptr))
-              (builder-add-texture b solid-tex))
+              (builder-add-texture b solid-tex)
+              (builder-add-texture b vel-tex))
           compute-bg (builder-build-compute ctx compute-pipe b)
           _free (builder-free b)
 
@@ -329,11 +330,25 @@
       0.0f 3.0f 0.0f
       2.0f count PARTICLE-TYPE-MAGIC 0.8f 0.75f))
 
+  ;; Unified Multi-Layer Explosion Burst (sparks + shrapnel debris + shockwave dust + mushroom smoke!)
+  (defn emit-explosion! [ps x y z yld]
+    (let [sc (Float.clamp 0.45f 1.35f yld)
+          n-spk (Float.to-int (* 140.0f sc))
+          n-deb (Float.to-int (* 72.0f sc))
+          n-dst (Float.to-int (* 85.0f sc))
+          n-smk (Float.to-int (* 95.0f sc))
+          v-up (* 5.5f sc)]
+      (do
+        (ParticleSystem.emit! ps x (+ y 0.15f) z 0.0f v-up 0.0f 1.25f n-spk PARTICLE-TYPE-SPARKS (* 3.4f sc) 0.62f)
+        (ParticleSystem.emit! ps x (+ y 0.20f) z 0.0f (* 6.5f sc) 0.0f 2.40f n-deb PARTICLE-TYPE-DEBRIS (* 2.2f sc) 0.35f)
+        (ParticleSystem.emit! ps x (+ y 0.10f) z 0.0f (* 2.8f sc) 0.0f 2.60f n-dst PARTICLE-TYPE-DUST (* 2.6f sc) 0.0f)
+        (ParticleSystem.emit! ps x (+ y 0.35f) z 0.0f (* 3.2f sc) 0.0f 3.60f n-smk PARTICLE-TYPE-SMOKE (* 1.6f sc) 0.0f))))
+
   ;; -------------------------------------------------------------------------
   ;; Flush CPU spawn queue to GPU and dispatch compute passes
   ;; If no particles are alive and no spawn requests are queued, skips entirely!
   ;; -------------------------------------------------------------------------
-  (defn flush-and-dispatch! [ctx ps dt]
+  (defn flush-and-dispatch! [ctx ps dt cam-pos]
     (let [sc @(ParticleSystem.spawn-count ps)
           af @(ParticleSystem.active-frames ps)]
       (when (or (> sc 0) (> af 0))
@@ -344,8 +359,11 @@
               (ParticleSystem.set-active-frames! ps (dec af))
               ())
 
-            ;; Upload delta time (16 bytes)
-            (let [dt-arr [(Double.to-float dt) 0.0f 0.0f 0.0f]]
+            ;; Upload delta time + camera world origin (16 bytes)
+            (let [cx (Double.to-float @(Vector3.x cam-pos))
+                  cy (Double.to-float @(Vector3.y cam-pos))
+                  cz (Double.to-float @(Vector3.z cam-pos))
+                  dt-arr [(Double.to-float dt) cx cy cz]]
               (WGPURender.update-vertex-buffer ctx @(ParticleSystem.dt-buf ps) &dt-arr))
 
             ;; Upload spawn count (16 bytes)

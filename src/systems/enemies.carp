@@ -271,41 +271,10 @@
         ()))))))
 
   (defn detonate-hopper-blast! [state world ps ecs pos]
-    (let [px @(Vector3.x pos)
-          py @(Vector3.y pos)
-          pz @(Vector3.z pos)
-          fx (Double.to-float px)
-          fy (Double.to-float py)
-          fz (Double.to-float pz)
-          player-id @(EngineState.player-ent-id state)]
-      (do
-        (EngineState.push-voxel-action! state fx fy fz 3.15f 1.0f -1.0f 0.0f)
-        (EngineState.push-voxel-action! state fx fy fz 3.85f 515.0f 0.92f 1.0f)
-        (ignore (World.edit-sdf! world pos 3.0 1.0f true))
-        (ParticleSystem.emit-sparks! ps fx fy fz 0.0f 1.0f 0.0f 40)
-        (ParticleSystem.emit-smoke! ps fx (+ fy 0.4f) fz 20)
-        (query ecs (e (cb CompBody))
-          (let [eid (Long.to-int (Uint64.to-long (ECS.Entity.index &e)))
-                rb (CompBody.rb cb)
-                epos (RigidBody.position rb)
-                dx (- @(Vector3.x epos) px)
-                dy (- @(Vector3.y epos) py)
-                dz (- @(Vector3.z epos) pz)
-                dist (Double.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))]
-            (when (< dist 7.5)
-              (let [inv-d (if (> dist 0.15) (/ 1.0 dist) 0.0)
-                    push (* 22.0 (- 1.0 (/ dist 7.8)))]
-                (if (= eid player-id)
-                  (ignore (PlayerSystem.damage-player! state 24.0f true (* (* dx inv-d) push) (+ (* (* dy inv-d) push) 7.0) (* (* dz inv-d) push)))
-                  (let [b (RigidBody.body rb)
-                        old-v @(Body.velocity b)
-                        dv (Vector3.init (* (* dx inv-d) push) (+ (* (* dy inv-d) push) 6.5) (* (* dz inv-d) push))]
-                    (do
-                      (Body.set-body-type! b (BodyType.Dynamic))
-                      (Body.set-inv-mass! b 1.0)
-                      (Body.set-velocity! b (Vector3.add &old-v &dv))
-                      (RigidBody.set-body! rb @b)
-                      (ECS.add-component! ecs &e (CompBody.init @rb))))))))))))
+    (let [fx (Double.to-float @(Vector3.x pos))
+          fy (Double.to-float @(Vector3.y pos))
+          fz (Double.to-float @(Vector3.z pos))]
+      (EngineState.enqueue-explosion! state fx fy fz 3.25f 0.80f -1)))
 
   (defn kill-hopper! [state slot pos dx dy dz]
     (let [eb (EngineState.enemies state)
@@ -565,6 +534,12 @@
                             touch-gas (Pointer.to-value (Pointer.add raw-rb (Long.from-int (+ rb-base 1))))
                             has-los (Pointer.to-value (Pointer.add raw-rb (Long.from-int (+ rb-base 2))))
                             touch-ign-raw (Pointer.to-value (Pointer.add raw-rb (Long.from-int (+ rb-base 3))))
+                            v-base (+ 320 (* k 4))
+                            hvx (Pointer.to-value (Pointer.add raw-rb (Long.from-int v-base)))
+                            hvy (Pointer.to-value (Pointer.add raw-rb (Long.from-int (+ v-base 1))))
+                            hvz (Pointer.to-value (Pointer.add raw-rb (Long.from-int (+ v-base 2))))
+                            hvp (Pointer.to-value (Pointer.add raw-rb (Long.from-int (+ v-base 3))))
+                            hw-spd (Float.sqrt (+ (+ (* hvx hvx) (* hvy hvy)) (* hvz hvz)))
                             hmat @(Array.unsafe-nth h-mat k)
                             rad-f @(Array.unsafe-nth h-rad k)
                             rad-d (Double.from-float rad-f)
@@ -604,6 +579,30 @@
                                   nz (Double.to-float @(Vector3.z &nrm))]
                               (do
                                 (ignore (EnemySystem.damage-hopper! state k splat-dmg nx ny nz 0.0f 0))
+                                (when (not @(Array.unsafe-nth h-alive k))
+                                  (set! died? true)))))
+
+                          ;; 1b. Two-Way GPU Wind Gales & Sonic/Overpressure Brittle Hopper Shatter!
+                          (when (and (not died?) (and (not held?) (> hw-spd 1.35f)))
+                            (let [wg (* 4.6 dt)
+                                  lift (if (> hw-spd 3.2f) (* (Double.from-float hw-spd) (* 1.9 dt)) 0.0)
+                                  nv (Vector3.init (+ @(Vector3.x &vel) (* (Double.from-float hvx) wg))
+                                                   (+ @(Vector3.y &vel) (+ (* (Double.from-float hvy) wg) lift))
+                                                   (+ @(Vector3.z &vel) (* (Double.from-float hvz) wg)))]
+                              (do
+                                (Body.set-body-type! b (BodyType.Dynamic))
+                                (Body.set-is-sleeping! b false)
+                                (Body.set-velocity! b @&nv)
+                                (RigidBody.set-body! rb @b)
+                                (ECS.add-component! ecs &ent (CompBody.init @rb))
+                                (set! vel nv)
+                                (set! cur-spd (Double.to-float (Vector3.mag &vel))))))
+                          (when (and (not died?)
+                                     (and (<= next-hurt-cd 0.01f)
+                                          (and (> hvp 1.75f) (Materials.brittle? hmat))))
+                            (let [inv-w (if (> hw-spd 0.1f) (/ 1.0f hw-spd) 0.0f)]
+                              (do
+                                (ignore (EnemySystem.damage-hopper! state k 36.0f (* hvx inv-w) 0.5f (* hvz inv-w) 9.5f 0))
                                 (when (not @(Array.unsafe-nth h-alive k))
                                   (set! died? true)))))
 

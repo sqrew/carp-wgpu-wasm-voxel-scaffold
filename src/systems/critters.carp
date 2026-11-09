@@ -303,77 +303,18 @@
                             (Array.aset! (CritterBank.norm cbank) (+ b3 2) (Double.to-float @(Vector3.z &nrm)))
                             (CritterBank.set-last-spawn-frame! cbank fc)))))))))))))
 
-  ;; Detonate an Explosive Amoeba into a size-scaled crater, GPU MAT_FIRE bloom, and radial shockwave!
+  ;; Detonate an Explosive Amoeba via the unified explosion queue (synced SDF crater, 3D vel_texture shockwave, GI flash & chain-detonation!)
   (defn detonate-amoeba! [state world ps ecs pos slot]
     (let [cbank (EngineState.critters state)
-          px @(Vector3.x pos)
-          py @(Vector3.y pos)
-          pz @(Vector3.z pos)
-          fx (Double.to-float px)
-          fy (Double.to-float py)
-          fz (Double.to-float pz)
+          fx (Double.to-float @(Vector3.x pos))
+          fy (Double.to-float @(Vector3.y pos))
+          fz (Double.to-float @(Vector3.z pos))
           cfill @(Array.unsafe-nth (CritterBank.fill cbank) slot)
           blast-r (+ 3.20f (* 1.35f cfill))
-          carve-r (Double.from-float (- blast-r 0.15f))]
+          yld (+ 0.72f (* 0.28f cfill))]
       (do
-        (EngineState.push-voxel-action! state fx fy fz blast-r 1.0f -1.0f 0.0f)
-        (EngineState.push-voxel-action! state fx fy fz (+ blast-r 1.2f) 515.0f 0.94f 1.0f)
-        (ignore (World.edit-sdf! world pos carve-r 1.0f true))
-        (ParticleSystem.emit-sparks! ps fx fy fz 0.0f 1.0f 0.0f 48)
-        (ParticleSystem.emit-debris! ps fx fy fz 0.0f 1.0f 0.0f 24)
-        (ParticleSystem.emit-smoke! ps fx (+ fy 0.4f) fz 26)
-        (ParticleSystem.emit! ps fx fy fz 0.0f 6.5f 0.0f 2.4f 36 203.0f 0.85f 0.15f)
-        ;; Radial shockwave on nearby rigid bodies, Cave Hoppers & non-flying player
-        (let [a-idx (CritterBank.idx cbank)
-              self-idx @(Array.unsafe-nth a-idx slot)
-              player-id @(EngineState.player-ent-id state)
-              flying? @(Player.flying (EngineState.player state))
-              eb (EngineState.enemies state)
-              h-alive (EnemyBank.alive eb)
-              h-idx (EnemyBank.idx eb)]
-          (query ecs (e (cb CompBody))
-            (let [eidx (ECS.Entity.index &e)
-                  eid (Long.to-int (Uint64.to-long eidx))]
-              (when (and (not (Uint64.= eidx self-idx))
-                         (or (/= eid player-id) (not flying?)))
-                (let [rb (CompBody.rb cb)
-                      epos (RigidBody.position rb)
-                      dx (- @(Vector3.x epos) px)
-                      dy (- @(Vector3.y epos) py)
-                      dz (- @(Vector3.z epos) pz)
-                      dist (Double.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz)))]
-                  (when (< dist 8.5)
-                    (let [inv-d (if (> dist 0.15) (/ 1.0 dist) 0.0)
-                          falloff (- 1.0 (/ dist 8.8))
-                          push (* 24.0 falloff)]
-                      (if (= eid player-id)
-                        (ignore (PlayerSystem.damage-player! state
-                                  (Float.clamp 8.0f 30.0f (* 28.0f (Double.to-float falloff)))
-                                  true
-                                  (* (* dx inv-d) push)
-                                  (+ (* (* dy inv-d) push) 7.5)
-                                  (* (* dz inv-d) push)))
-                        (let [b (RigidBody.body rb)
-                              old-v @(Body.velocity b)
-                              dv (Vector3.init (* (* dx inv-d) push)
-                                               (+ (* (* dy inv-d) push) 7.5)
-                                               (* (* dz inv-d) push))
-                              nv (Vector3.add &old-v &dv)
-                              nv-spd (Double.to-float (Vector3.mag &nv))]
-                          (do
-                            (Body.set-body-type! b (BodyType.Dynamic))
-                            (Body.set-inv-mass! b 1.0)
-                            (Body.set-inv-inertia! b 4.0)
-                            (Body.set-velocity! b nv)
-                            (RigidBody.set-body! rb @b)
-                            (ECS.add-component! ecs &e (CompBody.init @rb))
-                            (for [hk 0 16]
-                              (when (and @(Array.unsafe-nth h-alive hk)
-                                         (Uint64.= eidx @(Array.unsafe-nth h-idx hk)))
-                                (do
-                                  (Array.aset! (EnemyBank.hurt-cd eb) hk 0.0f)
-                                  (Array.aset! (EnemyBank.prev-spd eb) hk (+ nv-spd 29.0f)))))))))))))))
-        (CritterSystem.destroy-amoeba-slot! state slot))))
+        (CritterSystem.destroy-amoeba-slot! state slot)
+        (EngineState.enqueue-explosion! state fx fy fz blast-r yld -1))))
 
   (defn update! [state input dt]
     (let [world (EngineState.world state)
@@ -472,6 +413,12 @@
                             touch-gas (Pointer.to-value (Pointer.add raw-rb (Long.from-int (+ rb-base 5))))
                             touch-ign-raw (Pointer.to-value (Pointer.add raw-rb (Long.from-int (+ rb-base 6))))
                             touch-ext-raw (Pointer.to-value (Pointer.add raw-rb (Long.from-int (+ rb-base 7))))
+                            v-base (+ 256 (* k 4))
+                            avx (Pointer.to-value (Pointer.add raw-rb (Long.from-int v-base)))
+                            avy (Pointer.to-value (Pointer.add raw-rb (Long.from-int (+ v-base 1))))
+                            avz (Pointer.to-value (Pointer.add raw-rb (Long.from-int (+ v-base 2))))
+                            avp (Pointer.to-value (Pointer.add raw-rb (Long.from-int (+ v-base 3))))
+                            w-spd (Float.sqrt (+ (+ (* avx avx) (* avy avy)) (* avz avz)))
                             ;; Check if player's active [1]/[2]/[3] stream is splashing this amoeba right now
                             jdx (- fx jet-x)
                             jdy (- fy jet-y)
@@ -525,7 +472,9 @@
                                               (set! sep-y (+ sep-y (* @(Vector3.y &away) push)))
                                               (set! sep-z (+ sep-z (* @(Vector3.z &away) push))))))))))))
 
-                          (let [ignited? (or touch-ign hot-sibling?)]
+                          (let [ignited? (or touch-ign hot-sibling?)
+                                shock-det? (and (or (= (Float.round cur-mat) 270) (= (Float.round cur-mat) 525))
+                                                (> avp 1.50f))]
                             ;; --- 1. LETHAL / TRANSFORMATIVE COUNTER-REACTIONS ---
                             ;; 1a. Lava / Fire Amoeba doused with Water -> *tssst!* Flash-Petrifies into Solid Obsidian!
                             (if (and (Materials.igniter? cur-mat) touch-ext)
@@ -544,10 +493,11 @@
                                       (RigBelt.set-grab-gen! rig (ECS.Entity.generation &obs-ent))
                                       (RigBelt.set-grab-mat! rig 16.0f)))))
 
-                              ;; 1b. Explosive Amoeba + Igniter OR High-Speed Punt Impact -> KABOOM!
+                              ;; 1b. Explosive Amoeba + Igniter OR Sympathetic Shockwave OR High-Speed Punt Impact -> KABOOM!
                               (if (and (Materials.explosive? cur-mat)
                                        (or ignited?
-                                           (and (= cur-state 4) (and (> speed 15.5) (< d-sdf (+ rad-d 0.72))))))
+                                           (or shock-det?
+                                               (and (= cur-state 4) (and (> speed 15.5) (< d-sdf (+ rad-d 0.72)))))))
                                 (CritterSystem.detonate-amoeba! state world ps ecs &pos k)
 
                                 ;; 1c. Ice Amoeba + Heat -> Melts into a splash of Water!
@@ -738,18 +688,29 @@
                                                   vn-out (Vector3.dot &vel &smooth-n)
                                                   slime-bounce? (and (Materials.bouncy? next-mat) (> speed 5.5))
                                                   launching? (and (> speed 4.5) (> vn-out 1.25))
-                                                  airborne? (or (> d-sdf (+ rad-d 0.58))
-                                                                (or launching?
-                                                                    (and slime-bounce? (> d-sdf (- rad-d 0.15)))))]
+                                                  was-clinging? (<= d-sdf (+ rad-d 0.58))
+                                                  wind-peel? (and (not held?) (or (> w-spd 2.85f) (> avp 1.45f)))
+                                                  airborne? (or (not was-clinging?)
+                                                                (or wind-peel?
+                                                                    (or launching?
+                                                                        (and slime-bounce? (> d-sdf (- rad-d 0.15))))))]
                                               (if airborne?
-                                                ;; Airborne arc (tossed with T, punted, or falling): Dynamic gravity + trailing tail!
-                                                (let [tx (Float.clamp -0.95f 0.95f (* (Double.to-float @(Vector3.x &vel)) -0.045f))
-                                                      ty (Float.clamp -0.95f 0.95f (* (Double.to-float @(Vector3.y &vel)) -0.045f))
-                                                      tz (Float.clamp -0.95f 0.95f (* (Double.to-float @(Vector3.z &vel)) -0.045f))]
+                                                ;; Airborne arc (tossed with T, punted, wind-peeled, or falling): Dynamic gravity + wind drag + trailing tail!
+                                                (let [peel-k (if (and was-clinging? wind-peel?) 3.2 0.0)
+                                                      wdrag (* 4.4 dt)
+                                                      nv (Vector3.init (+ @(Vector3.x &vel) (+ (* (Double.from-float avx) (+ peel-k wdrag)) (* @(Vector3.x &smooth-n) (* peel-k 0.75))))
+                                                                       (+ @(Vector3.y &vel) (+ (* (Double.from-float avy) (+ peel-k wdrag)) (* @(Vector3.y &smooth-n) (* peel-k 0.75))))
+                                                                       (+ @(Vector3.z &vel) (+ (* (Double.from-float avz) (+ peel-k wdrag)) (* @(Vector3.z &smooth-n) (* peel-k 0.75)))))
+                                                      tx (Float.clamp -0.95f 0.95f (* (Double.to-float @(Vector3.x &nv)) -0.045f))
+                                                      ty (Float.clamp -0.95f 0.95f (* (Double.to-float @(Vector3.y &nv)) -0.045f))
+                                                      tz (Float.clamp -0.95f 0.95f (* (Double.to-float @(Vector3.z &nv)) -0.045f))]
                                                   (do
                                                     (Body.set-body-type! b (BodyType.Dynamic))
                                                     (Body.set-inv-mass! b 1.0)
                                                     (Body.set-inv-inertia! b 4.0)
+                                                    (Body.set-is-sleeping! b false)
+                                                    (when (or (> w-spd 0.55f) wind-peel?)
+                                                      (Body.set-velocity! b nv))
                                                     (when (/= next-state 3) (set! next-state 4))
                                                     (Array.aset! a-pod b3 tx)
                                                     (Array.aset! a-pod (+ b3 1) ty)

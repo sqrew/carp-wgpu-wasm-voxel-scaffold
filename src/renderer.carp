@@ -412,7 +412,7 @@
          
          main-ub-raw (Result.Success (WGPURender.uniform-buffer-get-buffer @(M-UniformBuffer.p &ub)))
          
-         hit-buf-ptr (Renderer.create-zeroed-storage-buffer ctx 244)
+         hit-buf-ptr (Renderer.create-zeroed-storage-buffer ctx 416)
          hit-buf (Result.Success (M-VertexBuffer.init hit-buf-ptr))
          hit-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &hit-buf)))
          map-buf (Result.Success (gpu-readback-create-map-buffer ctx))
@@ -425,6 +425,8 @@
                         (builder-add-texture b @(M-RenderTexture.p &liquid-tex))
                         (builder-add-texture b @(M-RenderTexture.p &gas-tex))
                         (builder-add-texture b @(M-RenderTexture.p &vel-tex))
+                        (builder-add-buffer b @&field-read-raw)
+                        (builder-add-buffer b @&mat-raw)
                         (let [vbg (builder-build-compute ctx vel-sim-pipe b)]
                           (do
                             (builder-free b)
@@ -468,7 +470,23 @@
                               (Result.Error @"Failed to create gas-sim bind group")
                               (Result.Success gbg))))))
 
-         solid-sim-bg (WGPURender.create-jit-bind-group-water ctx solid-sim-pipe @&read-raw @&write-raw @&main-ub-raw @&staging-raw @&mat-raw @(M-RenderTexture.p &voxel-tex) @(M-RenderTexture.p &liquid-tex) @(M-RenderTexture.p &gas-tex))
+         solid-sim-bg (let [b (builder-new)]
+                        (do
+                          (builder-add-buffer b @&read-raw)
+                          (builder-add-buffer b @&write-raw)
+                          (builder-add-buffer b @&main-ub-raw)
+                          (builder-add-buffer b @&staging-raw)
+                          (builder-add-buffer b @&mat-raw)
+                          (builder-add-texture b @(M-RenderTexture.p &voxel-tex))
+                          (builder-add-texture b @(M-RenderTexture.p &liquid-tex))
+                          (builder-add-texture b @(M-RenderTexture.p &gas-tex))
+                          (builder-add-texture b @(M-RenderTexture.p &vel-tex))
+                          (let [sbg (builder-build-compute ctx solid-sim-pipe b)]
+                            (do
+                              (builder-free b)
+                              (if (WGPURender.bindgroup-null?- sbg)
+                                (Result.Error @"Failed to create solid-sim bind group")
+                                (Result.Success sbg))))))
          
          field-sim-bg (let [b (builder-new)]
                         (do
@@ -502,6 +520,7 @@
                         (builder-add-texture b @(M-RenderTexture.p &gas-tex))
                         (builder-add-buffer b @&entities-raw)
                         (builder-add-texture b @(M-RenderTexture.p &light-tex))
+                        (builder-add-texture b @(M-RenderTexture.p &vel-tex))
                         (let [rbg (builder-build-compute ctx raycast-pipe b)]
                           (do
                             (builder-free b)
@@ -623,7 +642,7 @@
           ()
           (do
             (GPUBatcher.batch-dispatch batch-encoder @(Renderer.raycast-pipeline ren) @(Renderer.raycast-bind-group ren) 1)
-            (GPUBatcher.batch-copy-buffer batch-encoder (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p (Renderer.hit-buffer ren))) @(Renderer.map-buffer ren) 976l)))
+            (GPUBatcher.batch-copy-buffer batch-encoder (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p (Renderer.hit-buffer ren))) @(Renderer.map-buffer ren) 1664l)))
         (GPUBatcher.end-batch ctx batch-encoder)
         (if (gpu-readback-is-mapping)
           ()
@@ -667,11 +686,13 @@
                                        160 160 160)
         (GPUBatcher.end-batch ctx batch-encoder))))
 
-  (defn draw [eng ren cam diag ps]
+  (defn draw [eng ren cam diag ps dt]
     (do
       (Diagnostics.with-zone diag "Resize Check" (Renderer.handle-resize! eng ren))
       (Diagnostics.with-zone diag "Compute Sim Passes" (Renderer.run-simulation-passes! eng ren))
       (Diagnostics.with-zone diag "Pack Buffers to Textures" (Renderer.pack-buffers-to-textures! eng ren))
+      (Diagnostics.with-zone diag "Particle Compute"
+        (ParticleSystem.flush-and-dispatch! @(M-WGPUContext.p (Engine.ctx eng)) ps dt (Camera.pos cam)))
       (match (Engine.begin-frame eng)
         (Maybe.Nothing) ()
         (Maybe.Just frame)

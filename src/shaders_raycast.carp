@@ -62,6 +62,7 @@ struct Uniforms {
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
 @group(0) @binding(8) var<storage, read> s_entities: array<Entity>;
 @group(0) @binding(9) var light_texture:       texture_3d<f32>;
+@group(0) @binding(10) var vel_texture:        texture_3d<f32>;
 
 fn wrap_world(p: vec3<f32>) -> vec3<i32> {
     let w = p - floor(p / 160.0) * 160.0;
@@ -82,6 +83,90 @@ fn get_gas_world(p: vec3<f32>) -> vec4<f32> {
 
 fn get_light_world(p: vec3<f32>) -> vec4<f32> {
     return textureLoad(light_texture, wrap_world(p), 0);
+}
+
+fn get_vel_world(p: vec3<f32>) -> vec4<f32> {
+    return textureLoad(vel_texture, wrap_world(p), 0);
+}
+
+fn sample_entity_vel(p: vec3<f32>, box_min: vec3<f32>, box_max: vec3<f32>) -> vec4<f32> {
+    if (p.x <= box_min.x + 2.0 || p.x >= box_max.x - 2.0 ||
+        p.y <= box_min.y + 2.0 || p.y >= box_max.y - 2.0 ||
+        p.z <= box_min.z + 2.0 || p.z >= box_max.z - 2.0) {
+        return vec4<f32>(0.0);
+    }
+    let offs = array<vec3<f32>, 7>(
+        vec3<f32>(0.0, 0.0, 0.0),
+        vec3<f32>(0.0, 0.65, 0.0),
+        vec3<f32>(0.0, -0.65, 0.0),
+        vec3<f32>(0.65, 0.0, 0.0),
+        vec3<f32>(-0.65, 0.0, 0.0),
+        vec3<f32>(0.0, 0.0, 0.65),
+        vec3<f32>(0.0, 0.0, -0.65)
+    );
+    var best = vec4<f32>(0.0);
+    var best_e: f32 = 0.0;
+    for (var i = 0u; i < 7u; i = i + 1u) {
+        let rv = get_vel_world(p + offs[i]);
+        let cp = clamp(rv.w, -3.8, 3.8);
+        let e = dot(rv.xyz, rv.xyz) + abs(cp) * 0.35;
+        if (e > best_e) {
+            best_e = e;
+            best = vec4<f32>(rv.xyz, cp);
+        }
+    }
+    return best;
+}
+
+fn probe_detonation_2x2(c: vec3<f32>, box_min: vec3<f32>, box_max: vec3<f32>) -> vec4<f32> {
+    if (c.x <= box_min.x + 3.0 || c.x >= box_max.x - 3.0 ||
+        c.y <= box_min.y + 3.0 || c.y >= box_max.y - 3.0 ||
+        c.z <= box_min.z + 3.0 || c.z >= box_max.z - 3.0) {
+        return vec4<f32>(0.0);
+    }
+    let base = floor(c);
+    var best = vec4<f32>(0.0);
+    for (var dx = -1; dx <= 1; dx = dx + 2) {
+        for (var dy = -1; dy <= 1; dy = dy + 2) {
+            for (var dz = -1; dz <= 1; dz = dz + 2) {
+                let sp = base + vec3<f32>(f32(dx), f32(dy), f32(dz)) * 0.5 + vec3<f32>(0.5);
+                let pv = get_vel_world(sp);
+                if (pv.w >= 4.3) {
+                    let yld = clamp((pv.w - 4.4) / 1.5, 0.45, 1.10);
+                    if (yld > best.w) { best = vec4<f32>(sp, yld); }
+                }
+            }
+        }
+    }
+    let cv = get_vel_world(base + vec3<f32>(0.5));
+    if (cv.w >= 4.3) {
+        let yld = clamp((cv.w - 4.4) / 1.5, 0.45, 1.10);
+        if (yld > best.w) { best = vec4<f32>(base + vec3<f32>(0.5), yld); }
+    }
+    return best;
+}
+
+fn probe_detonation_3x3(c: vec3<f32>, box_min: vec3<f32>, box_max: vec3<f32>) -> vec4<f32> {
+    if (c.x <= box_min.x + 3.0 || c.x >= box_max.x - 3.0 ||
+        c.y <= box_min.y + 3.0 || c.y >= box_max.y - 3.0 ||
+        c.z <= box_min.z + 3.0 || c.z >= box_max.z - 3.0) {
+        return vec4<f32>(0.0);
+    }
+    let base = floor(c) + vec3<f32>(0.5);
+    var best = vec4<f32>(0.0);
+    for (var dx = -1; dx <= 1; dx = dx + 1) {
+        for (var dy = -1; dy <= 1; dy = dy + 1) {
+            for (var dz = -1; dz <= 1; dz = dz + 1) {
+                let sp = base + vec3<f32>(f32(dx), f32(dy), f32(dz));
+                let pv = get_vel_world(sp);
+                if (pv.w >= 4.3) {
+                    let yld = clamp((pv.w - 4.4) / 1.5, 0.45, 1.10);
+                    if (yld > best.w) { best = vec4<f32>(sp, yld); }
+                }
+            }
+        }
+    }
+    return best;
 }
 
 fn get_field_world(p: vec3<f32>) -> vec4<f32> {
@@ -131,7 +216,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let hack7 = textureLoad(gas_texture, vec3<i32>(0), 0);
     let hack8 = s_entities[0].pos_type;
     let hack9 = textureLoad(light_texture, vec3<i32>(0), 0);
-    if (hack0.x == 9999.9) { hit_buffer[0] = hack1 + hack4 + hack6 + hack7 + hack8 + hack9; }
+    let hack10 = textureLoad(vel_texture, vec3<i32>(0), 0);
+    if (hack0.x == 9999.9) { hit_buffer[0] = hack1 + hack4 + hack6 + hack7 + hack8 + hack9 + hack10; }
 
     let ro = u.cam_pos.xyz;
     let rd = normalize(u.cam_dir.xyz);
@@ -408,6 +494,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 }
                 if (r1 > 0u && l1.y > 0.08 && (materials[256u + r1].tags & 8388608u) != 0u) {
                     wet = true;
+                }
+                let mv_snuff = sample_entity_vel(m.xyz, box_min, box_max);
+                if (mv_snuff.w < -0.90 || length(mv_snuff.xyz) > 4.2) {
+                    wet = true; // Vacuum implosion or hurricane blast blows out the match!
                 }
                 if (wet) {
                     snuff_mask = snuff_mask | (1u << mi);
@@ -1021,6 +1111,110 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             hit_buffer[out_m1] = vec4<f32>(alt_sup, -alt_mat);
         } else {
             hit_buffer[out_m1] = vec4<f32>(best_sup, best_amt);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // 10. Two-Way Velocity, Ambient Field & GPU Detonation Readback -> hit_buffer[61..103]
+    //     [61]      = Player local vel_texture vec4(vx, vy, vz, vp)
+    //     [62]      = Player local ambient field vec4(T, P, tau, G)
+    //     [63]      = GPU Chemical / Thermobaric Detonation Event vec4(x, y, z, yield)
+    //     [64..79]  = 16-slot critter_lights[0..15] local vel_texture
+    //     [80..95]  = 16-slot hopper_pos[0..15] local vel_texture
+    //     [96..103] = 8-slot matches[0..7] local vel_texture
+    // -------------------------------------------------------------------------
+    let p_torso = ro - vec3<f32>(0.0, 0.55, 0.0);
+    hit_buffer[61] = sample_entity_vel(p_torso, box_min, box_max);
+
+    var pf = get_field_world(p_torso);
+    if (pf.w > -0.5) {
+        pf = get_field_world(ro);
+    }
+    if (pf.w <= -0.5) {
+        let p_tp = unpack_pair(pf.x);
+        let p_tg = unpack_pair(pf.z);
+        hit_buffer[62] = vec4<f32>(p_tp.x, p_tp.y, p_tg.x, p_tg.y);
+    } else {
+        hit_buffer[62] = vec4<f32>(0.20, 0.0, 0.50, 0.50);
+    }
+
+    // Scan hotspots (Matches, Brush, Jet Impact, Critter/Bolt lights, Mancers) + 128 rotating cave probes for GPU Detonation Pulses (vel.w >= 4.3)!
+    var best_expl = vec4<f32>(0.0);
+    for (var mi: u32 = 0u; mi < 8u; mi = mi + 1u) {
+        let m = u.matches[mi];
+        if (m.w > 0.01) {
+            let ev = probe_detonation_3x3(m.xyz, box_min, box_max);
+            if (ev.w > best_expl.w) { best_expl = ev; }
+        }
+    }
+    if (u.hit_pos.w > 0.5) {
+        let ev = probe_detonation_3x3(u.hit_pos.xyz, box_min, box_max);
+        if (ev.w > best_expl.w) { best_expl = ev; }
+    }
+    if (jet_code > 0.5) {
+        let ev = probe_detonation_3x3(jet_impact, box_min, box_max);
+        if (ev.w > best_expl.w) { best_expl = ev; }
+    }
+    for (var ck: u32 = 0u; ck < 16u; ck = ck + 1u) {
+        let cl = u.critter_lights[ck];
+        if (abs(cl.w) > 0.1) {
+            let ev = probe_detonation_2x2(cl.xyz, box_min, box_max);
+            if (ev.w > best_expl.w) { best_expl = ev; }
+        }
+    }
+    for (var mk: u32 = 0u; mk < 4u; mk = mk + 1u) {
+        let mp = u.mancer_pos[mk];
+        if (mp.w > 0.05) {
+            let ev = probe_detonation_2x2(mp.xyz, box_min, box_max);
+            if (ev.w > best_expl.w) { best_expl = ev; }
+        }
+    }
+    let det_seed = select(floor(u.time * 60.0), u.pad2, u.pad2 > 0.5);
+    for (var pi: u32 = 0u; pi < 128u; pi = pi + 1u) {
+        let pf_i = f32(pi) + det_seed * 19.0;
+        let phi = pf_i * 2.399963;
+        let z_u = fract(pf_i * 0.381966) * 1.90 - 0.95;
+        let r_xy = sqrt(max(0.0, 1.0 - z_u * z_u));
+        let rad = 1.5 + 31.0 * fract(pf_i * 0.618034);
+        let sp = floor(ro + vec3<f32>(cos(phi) * r_xy, z_u, sin(phi) * r_xy) * rad) + vec3<f32>(0.5);
+        if (sp.x > box_min.x + 3.0 && sp.x < box_max.x - 3.0 &&
+            sp.y > box_min.y + 3.0 && sp.y < box_max.y - 3.0 &&
+            sp.z > box_min.z + 3.0 && sp.z < box_max.z - 3.0) {
+            let pv = get_vel_world(sp);
+            if (pv.w >= 4.3) {
+                let yld = clamp((pv.w - 4.4) / 1.5, 0.45, 1.10);
+                if (yld > best_expl.w) {
+                    best_expl = vec4<f32>(sp, yld);
+                }
+            }
+        }
+    }
+    hit_buffer[63] = best_expl;
+
+    for (var ck: u32 = 0u; ck < 16u; ck = ck + 1u) {
+        let cl = u.critter_lights[ck];
+        if (abs(cl.w) > 0.05) {
+            hit_buffer[64u + ck] = sample_entity_vel(cl.xyz, box_min, box_max);
+        } else {
+            hit_buffer[64u + ck] = vec4<f32>(0.0);
+        }
+    }
+
+    for (var hk: u32 = 0u; hk < 16u; hk = hk + 1u) {
+        let hp = u.hopper_pos[hk];
+        if (hp.w > 0.05) {
+            hit_buffer[80u + hk] = sample_entity_vel(hp.xyz, box_min, box_max);
+        } else {
+            hit_buffer[80u + hk] = vec4<f32>(0.0);
+        }
+    }
+
+    for (var mi: u32 = 0u; mi < 8u; mi = mi + 1u) {
+        let m = u.matches[mi];
+        if (m.w > 0.01) {
+            hit_buffer[96u + mi] = sample_entity_vel(m.xyz, box_min, box_max);
+        } else {
+            hit_buffer[96u + mi] = vec4<f32>(0.0);
         }
     }
 }
