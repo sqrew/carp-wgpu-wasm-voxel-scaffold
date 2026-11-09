@@ -524,7 +524,9 @@
                         (let [rbg (builder-build-compute ctx raycast-pipe b)]
                           (do
                             (builder-free b)
-                            (Result.Success rbg)))))
+                            (if (WGPURender.bindgroup-null?- rbg)
+                              (Result.Error @"Failed to create raycast bind group")
+                              (Result.Success rbg))))))
 
          
          sync-chunk-pipe (WGPU.create-pipeline ctx ShadersSyncChunk.sync-chunk-wgsl "main")

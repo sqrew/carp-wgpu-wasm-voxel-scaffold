@@ -651,15 +651,16 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 let vy_pair = 0.5 * (self_vel.y + n_vel.y);
                 let vy_eff = select(vy_pair, max(0.0, vy_pair - 0.18), vy_pair > 0.0);
                 let v_drive = select(v_ab, vy_eff * f32(ad.y), ad.y != 0);
-                if (v_drive > 0.015 && self_vol > 0.01) {
+                let can_mix_l = self_vol <= 0.04 || n_liq.y <= 0.04 || abs(self_liq.x - n_liq.x) < 0.5;
+                if (can_mix_l && v_drive > 0.015 && self_vol > 0.01) {
                     let w_out = min(self_vol, max(0.0, 1.35 - n_liq.y)) * clamp(v_drive * 0.22 * dens_resist, 0.0, 0.145) * tau_ad;
                     net_flow -= w_out;
-                } else if (v_drive < -0.015 && n_liq.y > 0.01) {
+                } else if (can_mix_l && v_drive < -0.015 && n_liq.y > 0.01) {
                     let n_dens = max(0.25, get_liq_props(n_liq.x).density);
                     let n_resist = 1.0 / max(0.65, sqrt(n_dens));
                     let w_in = min(n_liq.y, max(0.0, 1.35 - self_vol)) * clamp((-v_drive) * 0.22 * n_resist, 0.0, 0.145) * tau_ad;
                     net_flow += w_in;
-                    if (w_in > max_inflow) {
+                    if (self_vol <= 0.04 && w_in > max_inflow) {
                         max_inflow = w_in;
                         next_id = n_liq.x;
                     }
@@ -1251,45 +1252,45 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let pec_up = clamp(1.0 - vy_up_abs * 1.6, 0.0, 1.0) * tau_up;
         let pec_dn = clamp(1.0 - vy_dn_abs * 1.6, 0.0, 1.0) * tau_dn;
 
-        // --- 1. Vertical buoyancy flow (face-symmetric under -Gravi inversion & -Chrono stasis!) ---
+        // --- 1. Vertical buoyancy flow (face-symmetric & species-conserving under -Gravi inversion & -Chrono stasis!) ---
         let g_self_up = g_rate * gsign_up;
         let g_self_dn = g_rate * gsign_dn;
-        if (g_self_up > 0.0 && !is_solid(ip, up_d, win_min)) {
-            let above = get_gas(ip, up_d, win_min);
-            let flow_out = min(self_vol, max(0.0, 1.0 - above.y)) * g_self_up * pec_up;
-            net_flow -= flow_out;
-        }
-        if (g_self_dn < 0.0 && !is_solid(ip, down_d, win_min)) {
-            let below = get_gas(ip, down_d, win_min);
-            let flow_out = min(self_vol, max(0.0, 1.0 - below.y)) * abs(g_self_dn) * pec_dn;
-            net_flow -= flow_out;
-        }
-        if (!is_solid(ip, down_d, win_min)) {
-            let below = get_gas(ip, down_d, win_min);
-            let below_g = get_gas_props(below.x).g_rate * gsign_dn;
-            if (below_g > 0.0) {
-                let flow_in = min(below.y, max(0.0, 1.0 - self_vol)) * below_g * pec_dn;
-                net_flow += flow_in;
-                if (flow_in > max_inflow) {
-                    max_inflow = flow_in;
-                    next_id = below.x;
-                }
-            }
-        }
         if (!is_solid(ip, up_d, win_min)) {
             let above = get_gas(ip, up_d, win_min);
+            let can_mix_up = self_vol <= 0.04 || above.y <= 0.04 || abs(self_gas.x - above.x) < 0.5;
+            if (can_mix_up && g_self_up > 0.0) {
+                let flow_out = min(self_vol, max(0.0, 1.0 - above.y)) * g_self_up * pec_up;
+                net_flow -= flow_out;
+            }
             let above_g = get_gas_props(above.x).g_rate * gsign_up;
-            if (above_g < 0.0) {
+            if (can_mix_up && above_g < 0.0) {
                 let flow_in = min(above.y, max(0.0, 1.0 - self_vol)) * abs(above_g) * pec_up;
                 net_flow += flow_in;
-                if (flow_in > max_inflow) {
+                if (self_vol <= 0.04 && flow_in > max_inflow) {
                     max_inflow = flow_in;
                     next_id = above.x;
                 }
             }
         }
+        if (!is_solid(ip, down_d, win_min)) {
+            let below = get_gas(ip, down_d, win_min);
+            let can_mix_dn = self_vol <= 0.04 || below.y <= 0.04 || abs(self_gas.x - below.x) < 0.5;
+            if (can_mix_dn && g_self_dn < 0.0) {
+                let flow_out = min(self_vol, max(0.0, 1.0 - below.y)) * abs(g_self_dn) * pec_dn;
+                net_flow -= flow_out;
+            }
+            let below_g = get_gas_props(below.x).g_rate * gsign_dn;
+            if (can_mix_dn && below_g > 0.0) {
+                let flow_in = min(below.y, max(0.0, 1.0 - self_vol)) * below_g * pec_dn;
+                net_flow += flow_in;
+                if (self_vol <= 0.04 && flow_in > max_inflow) {
+                    max_inflow = flow_in;
+                    next_id = below.x;
+                }
+            }
+        }
 
-        // --- 2. Lateral diffusion (Peclet-damped & Chrono-scaled across shared faces!) ---
+        // --- 2. Lateral diffusion (Peclet-damped, Chrono-scaled & species-conserving across shared faces!) ---
         let self_capped_up = is_solid(ip, up_d, win_min) || get_gas(ip, up_d, win_min).y > 0.65;
         let eff_self_l = select(l_rate, min(0.135, l_rate * 2.85), self_capped_up && g_rate > 0.0);
         for (var i = 0; i < 4; i = i + 1) {
@@ -1298,27 +1299,30 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 let tg_lat = eval_law_tg_gas(wp_self + vec3<f32>(nd) * 0.5, active_tg);
                 let tau_lat = select(clamp(tg_lat.x * 2.0, 0.0, 1.35), 0.0, tg_lat.x < 0.12);
                 let n_gas = get_gas(ip, nd, win_min);
-                let n_props = get_gas_props(n_gas.x);
-                let vn_abs = abs(0.5 * dot(self_vel.xyz + get_vel(ip, nd, win_min).xyz, vec3<f32>(nd)));
-                let pec_lat = clamp(1.0 - vn_abs * 1.6, 0.0, 1.0) * tau_lat;
-                let n_capped_up = is_solid(ip, nd + up_d, win_min) || get_gas(ip, nd + up_d, win_min).y > 0.65;
-                let eff_n_l = select(n_props.l_rate, min(0.135, n_props.l_rate * 2.85), n_capped_up && n_props.g_rate > 0.0);
-                if (self_vol > n_gas.y) {
-                    let flow_out = (self_vol - n_gas.y) * eff_self_l * pec_lat;
-                    net_flow -= flow_out;
-                }
-                if (n_gas.y > self_vol) {
-                    let flow_in = (n_gas.y - self_vol) * eff_n_l * pec_lat;
-                    net_flow += flow_in;
-                    if (flow_in > max_inflow) {
-                        max_inflow = flow_in;
-                        next_id = n_gas.x;
+                let can_mix_lat = self_vol <= 0.04 || n_gas.y <= 0.04 || abs(self_gas.x - n_gas.x) < 0.5;
+                if (can_mix_lat) {
+                    let n_props = get_gas_props(n_gas.x);
+                    let vn_abs = abs(0.5 * dot(self_vel.xyz + get_vel(ip, nd, win_min).xyz, vec3<f32>(nd)));
+                    let pec_lat = clamp(1.0 - vn_abs * 1.6, 0.0, 1.0) * tau_lat;
+                    let n_capped_up = is_solid(ip, nd + up_d, win_min) || get_gas(ip, nd + up_d, win_min).y > 0.65;
+                    let eff_n_l = select(n_props.l_rate, min(0.135, n_props.l_rate * 2.85), n_capped_up && n_props.g_rate > 0.0);
+                    if (self_vol > n_gas.y) {
+                        let flow_out = (self_vol - n_gas.y) * eff_self_l * pec_lat;
+                        net_flow -= flow_out;
+                    }
+                    if (n_gas.y > self_vol) {
+                        let flow_in = (n_gas.y - self_vol) * eff_n_l * pec_lat;
+                        net_flow += flow_in;
+                        if (self_vol <= 0.04 && flow_in > max_inflow) {
+                            max_inflow = flow_in;
+                            next_id = n_gas.x;
+                        }
                     }
                 }
             }
         }
 
-        // --- 2.5. 6-Face Symmetric Compressible Velocity Advection (Mach tunnels + slipstream plumes, Chrono-scaled!) ---
+        // --- 2.5. 6-Face Symmetric Species-Conserving Velocity Advection (Mach tunnels + slipstream plumes!) ---
         let adv_dirs = array<vec3<i32>, 6>(
             vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
             vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
@@ -1330,17 +1334,20 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 let tg_ad = eval_law_tg_gas(wp_self + vec3<f32>(ad) * 0.5, active_tg);
                 let tau_ad = select(clamp(tg_ad.x * 2.0, 0.0, 1.35), 0.0, tg_ad.x < 0.12);
                 let n_gas = get_gas(ip, ad, win_min);
-                let n_vel = get_vel(ip, ad, win_min);
-                let v_ab = 0.5 * dot(self_vel.xyz + n_vel.xyz, vec3<f32>(ad));
-                if (v_ab > 0.012 && self_vol > 0.005) {
-                    let w_out = min(self_vol, max(0.0, 1.85 - n_gas.y)) * clamp(v_ab * 0.23, 0.0, 0.148) * tau_ad;
-                    net_flow -= w_out;
-                } else if (v_ab < -0.012 && n_gas.y > 0.005) {
-                    let w_in = min(n_gas.y, max(0.0, 1.85 - self_vol)) * clamp((-v_ab) * 0.23, 0.0, 0.148) * tau_ad;
-                    net_flow += w_in;
-                    if (w_in > max_inflow) {
-                        max_inflow = w_in;
-                        next_id = n_gas.x;
+                let can_mix_ad = self_vol <= 0.04 || n_gas.y <= 0.04 || abs(self_gas.x - n_gas.x) < 0.5;
+                if (can_mix_ad) {
+                    let n_vel = get_vel(ip, ad, win_min);
+                    let v_ab = 0.5 * dot(self_vel.xyz + n_vel.xyz, vec3<f32>(ad));
+                    if (v_ab > 0.012 && self_vol > 0.005) {
+                        let w_out = min(self_vol, max(0.0, 1.85 - n_gas.y)) * clamp(v_ab * 0.23, 0.0, 0.148) * tau_ad;
+                        net_flow -= w_out;
+                    } else if (v_ab < -0.012 && n_gas.y > 0.005) {
+                        let w_in = min(n_gas.y, max(0.0, 1.85 - self_vol)) * clamp((-v_ab) * 0.23, 0.0, 0.148) * tau_ad;
+                        net_flow += w_in;
+                        if (self_vol <= 0.04 && w_in > max_inflow) {
+                            max_inflow = w_in;
+                            next_id = n_gas.x;
+                        }
                     }
                 }
             }
@@ -1580,16 +1587,16 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let tau_self = select(clamp(tg_self.x * 2.0, 0.0, 1.35), 0.0, tg_self.x < 0.12);
     let next_props = get_gas_props(next_id);
     let under_roof = is_solid(ip, up_d, win_min) || is_solid(ip, vec3<i32>(0, 2, 0), win_min);
-    let eff_decay = select(next_props.decay, next_props.decay * 0.22, under_roof && (abs(next_id) == 4.0 || abs(next_id) == 1.0)) * tau_self;
+    let eff_decay = select(next_props.decay, next_props.decay * 0.42, under_roof && (abs(next_id) == 4.0 || abs(next_id) == 1.0)) * tau_self;
     next_vol = max(0.0, next_vol - eff_decay);
 
     if (self_vel.w >= 4.3 || (abs(self_vel.w) > 2.05 && round(abs(next_id)) == 13.0 && next_vol > 0.10)) {
         next_id = 3.0; // Detonated explosive or shock-ignited Acetylene flashes into Fire!
         next_vol = 0.92;
         next_sleep = 0.0;
-    } else if (abs(next_id) == 3.0 && next_vol > 0.0 && next_vol < 0.24) {
-        next_id = 4.0; // Dying Fire plume turns into rising Smoke!
-        next_vol = 0.52;
+    } else if (abs(next_id) == 3.0 && next_vol > 0.0 && next_vol < 0.22) {
+        next_id = 4.0; // Dying Fire plume turns into rising Smoke without creating excess volume!
+        next_vol = min(0.24, next_vol + 0.04);
     } else if (next_vol < 0.01) {
         next_vol = 0.0;
         next_id = 0.0;
@@ -1776,8 +1783,12 @@ fn grain_desired_step(s_ip: vec3<i32>, win_min: vec3<i32>, tick: f32, active_tg:
         return vec3<i32>(0);
     }
     let is_falling = s.x < -0.5;
+    let is_granular = (get_mat_tags(abs(s.x), 0u) & TAG_GRANULAR) != 0u;
+    let is_loose_grain = abs(s.y + 0.5) < 0.02;
     if (!is_falling) {
-        if ((get_mat_tags(abs(s.x), 0u) & TAG_GRANULAR) == 0u) {
+        // Only discrete poured/settled granular grains (s.y == -0.5) can be lifted by wind or -Gravimancer;
+        // continuous smooth-SDF worldgen hills & packed arches stay cohesive!
+        if (!is_granular || !is_loose_grain) {
             return vec3<i32>(0);
         }
     }
@@ -1790,19 +1801,20 @@ fn grain_desired_step(s_ip: vec3<i32>, win_min: vec3<i32>, tick: f32, active_tg:
     let gv = effective_grain_vel(s_ip, win_min);
     let w_spd = length(gv.xyz);
     let anti_g = tg.y < 0.30;
-    if (!is_falling && !anti_g && w_spd < 0.85 && abs(gv.w) < 1.15) {
+    if (!is_falling && !anti_g && w_spd < 1.35 && abs(gv.w) < 1.65) {
         return vec3<i32>(0);
     }
 
     let h1 = fract(sin(dot(vec3<f32>(s_ip), vec3<f32>(12.9898, 78.233, 37.719)) + tick * 1.37) * 43758.5453);
-    if (w_spd > 0.72 || abs(gv.w) > 1.15) {
-        let lift_y = clamp(abs(gv.w) * 0.44 + max(0.0, w_spd - 0.95) * 0.34, 0.0, 1.40);
+    let wind_lifts = select(w_spd > 3.10 || abs(gv.w) > 2.15, w_spd > 1.35 || abs(gv.w) > 1.65, is_granular);
+    if (wind_lifts) {
+        let lift_y = clamp(max(0.0, abs(gv.w) - 0.85) * 0.42 + max(0.0, w_spd - 1.35) * 0.30, 0.0, 1.15);
         let tv = gv.xyz + vec3<f32>(0.0, lift_y, 0.0);
         let ax = abs(tv.x);
         let ay = abs(tv.y);
         let az = abs(tv.z);
         let asum = ax + ay + az;
-        if (asum > 0.15) {
+        if (asum > 0.20) {
             let pick = h1 * asum;
             var wd = vec3<i32>(0, 0, select(-1, 1, tv.z >= 0.0));
             if (pick < ax) {
@@ -1813,7 +1825,7 @@ fn grain_desired_step(s_ip: vec3<i32>, win_min: vec3<i32>, tick: f32, active_tg:
             if (step_in_window(s_ip, wd, win_min) && get_solid(s_ip, wd, win_min).y > 0.0) {
                 return wd;
             }
-            if (w_spd > 0.95 && step_in_window(s_ip, vec3<i32>(0, 1, 0), win_min) && get_solid(s_ip, vec3<i32>(0, 1, 0), win_min).y > 0.0) {
+            if (w_spd > 1.75 && step_in_window(s_ip, vec3<i32>(0, 1, 0), win_min) && get_solid(s_ip, vec3<i32>(0, 1, 0), win_min).y > 0.0) {
                 return vec3<i32>(0, 1, 0);
             }
         }
@@ -1943,7 +1955,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         if (any(src_off != vec3<i32>(0))) {
             let src_sol = get_solid(ip, src_off, win_min);
             next_id = -abs(src_sol.x);
-            next_vol = min(src_sol.y, -0.5);
+            next_vol = -0.5;
             next_age = src_sol.z;
             next_sleep = 0.0;
             grain_moved = true;
@@ -2607,7 +2619,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     } else {
         var max_neighbor_w = 0.0;
         var max_adj_T: f32 = 0.20;
-        var max_adj_P: f32 = select(0.0, 1.35, raw_vel.w >= 4.2);
+        var max_adj_P: f32 = select(0.0, 1.0, raw_vel.w >= 4.2);
+        var max_shock_p: f32 = select(0.0, 4.5, raw_vel.w >= 4.2);
         var max_adj_V: f32 = 0.0;
         var touches_acid_liq: bool = false;
         var touches_miasma: bool = false;
@@ -2626,8 +2639,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             let n_idx = u32(nip.x) + u32(nip.y) * 160u + u32(nip.z) * 25600u;
             let n_sol = get_solid(nip);
             let n_vel = textureLoad(vel_texture, nip, 0);
+            max_shock_p = max(max_shock_p, n_vel.w);
             if (n_vel.w >= 4.2) {
-                max_adj_P = max(max_adj_P, 1.35);
+                max_adj_P = max(max_adj_P, 1.0);
                 law_flare = max(law_flare, 0.95);
             }
             if (n_sol.y <= 0.0 && n_sol.x > 0.0) { // If neighbor is rigid solid
@@ -2657,7 +2671,6 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     max_adj_P = max(max_adj_P, ntp.y);
                     max_adj_V = max(max_adj_V, nvm.x);
                 }
-                max_adj_P = max(max_adj_P, clamp(abs(n_vel.w) * 0.38, 0.0, 1.25));
                 let nl = textureLoad(liquid_texture, nip, 0);
                 if (nl.g > 0.04) {
                     let nl_id = round(abs(nl.r));
@@ -2729,8 +2742,13 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let toughness = bitcast<f32>(registry_data[my_reg_idx + 6u]);
         let my_tags = registry_data[my_reg_idx + 7u];
         let is_brittle = (my_tags & TAG_BRITTLE) != 0u;
-        // Sonic booms (Mach Railgun wakes) & blast waves shatter TAG_BRITTLE (Ice, Glass, Crystal, Amethyst) and spall overloaded stone!
-        shear += max(0.0, max_adj_P - select(0.34, 0.20, is_brittle)) * select(275.0, 920.0, is_brittle);
+        // Sonic booms (Mach Railgun wakes > 2.05) & blast waves shatter TAG_BRITTLE (Ice, Glass, Crystal, Amethyst),
+        // while ordinary Bellows wind & thermal plumes never fracture solid cave walls or hillsides!
+        if (is_brittle) {
+            shear += max(0.0, max_shock_p - 2.05) * 320.0 + max(0.0, max_adj_P - 0.78) * 650.0;
+        } else if (max_shock_p >= 4.2) {
+            shear += 240.0;
+        }
         let struct_t = max(toughness, 2.5);
         
         let limit_c = struct_t * 120.0; 
@@ -2810,7 +2828,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
 
         if (broken) {
-            solid_buffer[idx] = vec4<f32>(-abs(next_sol_id), sol.y, 0.0, 0.0);
+            solid_buffer[idx] = vec4<f32>(-abs(next_sol_id), -0.5, 0.0, 0.0);
             field_out[idx] = vec4<f32>(0.0);
         } else {
             solid_buffer[idx] = vec4<f32>(next_sol_id, sol.y, next_sol_z, sol.w);
@@ -3324,10 +3342,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let base_drag = select(0.935, 0.84, raw_liq.g > 0.22);
     let drag = mix(0.992, base_drag, clamp(time_scale, 0.0, 1.0));
     let p_damp = mix(0.995, 0.88, clamp(time_scale, 0.0, 1.0));
-    var next_p = mix(adv.w, avg_p, 0.34 * min(time_scale, 1.25)) * p_damp - div_v * (0.42 * time_scale) + max(0.0, self_tp.y - 0.14) * 0.22;
-    var next_v = (mix(adv.xyz, avg_v, 0.08 * min(time_scale, 1.25)) - (grad_p * 0.58 + grad_field_P * 0.92) * time_scale) * drag;
+    var next_p = mix(adv.w, avg_p, 0.34 * min(time_scale, 1.25)) * p_damp - div_v * (0.42 * time_scale) + max(0.0, self_tp.y - 0.36) * 0.05;
+    var next_v = (mix(adv.xyz, avg_v, 0.08 * min(time_scale, 1.25)) - (grad_p * 0.58 + grad_field_P * 0.65) * time_scale) * drag;
 
-    // 3. Swept Capsule Wake Injection (High-speed projectiles, Mach Railgun slugs, Bellows gusts, boulder wakes, & blast waves!)
+    // 3. Swept Capsule Wake Injection (Single-frame blasts/Mach slugs add directly; sustained Bellows/Flask jets blend framerate-independently!)
     let wake_cnt = min(u32(round(u.pad1)), 16u);
     for (var wi: u32 = 0u; wi < wake_cnt; wi = wi + 1u) {
         let wp0 = u.wake_p0[wi];
@@ -3350,17 +3368,27 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 let sph_dir = select(vec3<f32>(0.0, 1.0, 0.0), rel / max(d, 0.001), d > 0.001);
                 let rad_dir = select(sph_dir, perp / max(perp_len, 0.001), perp_len > 0.001 && seg_len2 > 0.02);
                 let sheath = smoothstep(0.0, 0.38, u_fall);
-                next_v += rad_dir * (wp1.w * sheath) + wv.xyz * core_fall;
-                next_p += wv.w * u_fall;
+                let jet_v = rad_dir * (wp1.w * sheath) + wv.xyz * core_fall;
+                let jet_p = wv.w * u_fall;
+                if (abs(wv.w) > 1.65 || abs(wp1.w) > 2.10) {
+                    next_v += jet_v;
+                    next_p += jet_p;
+                } else {
+                    let k_jet = clamp(0.28 * u_fall + 0.08, 0.0, 0.42);
+                    next_v = mix(next_v, jet_v, k_jet);
+                    next_p = mix(next_p, jet_p, 0.26 * u_fall);
+                }
             }
         }
     }
 
-    // 4. Lawmancer Expanding Shockwave / Implosion Rings + Thermal Buoyancy & Gravimancer Drift!
+    // 4. Baromancer (Law 1 ONLY!) Expanding Shockwave / Implosion Rings + Thermal Buoyancy & Gravimancer Drift!
     for (var mk: u32 = 0u; mk < 4u; mk = mk + 1u) {
         let mp = u.mancer_pos[mk];
         let mm = u.mancer_mat[mk];
-        if (mp.w > 0.05 && abs(mm.z) > 0.15) {
+        let m_id = i32(round(mm.x));
+        let is_baro = (m_id == 770) || (m_id >= 780 && m_id <= 815 && (((m_id - 780) / 6) == 1 || ((m_id - 780) % 6) == 1));
+        if (is_baro && mp.w > 0.05 && abs(mm.z) > 0.15) {
             let w_r = abs(mm.z);
             let w_pol = sign(mm.z);
             let rel_m = world_p - mp.xyz;
@@ -3369,21 +3397,21 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             if (shell < 1.45 && dm > 0.1) {
                 let s_fall = 1.0 - shell / 1.45;
                 let dir_m = rel_m / dm;
-                next_v += dir_m * (w_pol * 1.45 * s_fall);
-                next_p += w_pol * 1.15 * s_fall;
+                next_v = mix(next_v, dir_m * (w_pol * 2.65 * s_fall), 0.38 * s_fall);
+                next_p = mix(next_p, w_pol * 1.55 * s_fall, 0.35 * s_fall);
             }
         }
     }
 
     let g_buoy = (self_tg.y - 0.25) / 0.25;
     if (raw_gas.g > 0.08 && round(abs(raw_gas.r)) == 3.0) {
-        next_v.y += 0.16 * min(raw_gas.g, 1.0) * g_buoy * time_scale;
+        next_v.y += 0.085 * min(raw_gas.g, 1.0) * g_buoy * time_scale;
     } else if (abs(self_tp.x - 0.20) > 0.08) {
         // Hot air plumes rise (and Cryo air sinks!), inverted when Gravimancer flips G < 0.25!
-        next_v.y += (self_tp.x - 0.20) * 0.18 * g_buoy * time_scale;
+        next_v.y += (self_tp.x - 0.20) * 0.095 * g_buoy * time_scale;
     }
     if (abs(self_tg.y - 0.50) > 0.16) {
-        next_v.y += (0.50 - self_tg.y) * 0.55 * time_scale;
+        next_v.y += (0.50 - self_tg.y) * 0.32 * time_scale;
     }
 
     // 5. Free-slip cave wall clamp (wakes splay tangentially along rock walls/floors instead of vanishing!)

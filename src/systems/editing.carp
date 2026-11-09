@@ -784,7 +784,7 @@
                                   (if (> jet-w 0.5f) jet-x (+ noz-x (* fx 7.5f)))
                                   (if (> jet-w 0.5f) jet-y (+ noz-y (* fy 7.5f)))
                                   (if (> jet-w 0.5f) jet-z (+ noz-z (* fz 7.5f)))
-                                  2.25f 0.85f (* fx 2.6f) (* fy 2.6f) (* fz 2.6f) 0.95f)
+                                  2.25f 0.65f (* fx 2.0f) (* fy 2.0f) (* fz 2.0f) 0.28f)
                                 (when (> jet-w 0.5f)
                                   (do
                                     (EngineState.push-voxel-action! state jet-x jet-y jet-z 2.15f cur-mat 0.55f 0.0f)
@@ -800,7 +800,7 @@
                                   (do (RigBelt.set-flask-fill! rig 0.0f) (RigBelt.set-flask-mat! rig 0.0f))
                                   (RigBelt.set-flask-fill! rig next-fill))))
 
-                            ;; [3] GAS BELLOWS: Wide billowing gust / roaring flamethrower cone + heavy airblast wake!
+                            ;; [3] GAS BELLOWS: Wide billowing gust / roaring flamethrower cone + crisp sustained airblast wake!
                             (let [next-fill (Float.clamp 0.0f 1.0f (- cur-fill (* 0.22f fdt)))]
                               (do
                                 (ParticleSystem.emit! ps noz-x noz-y noz-z (* fx 19.0f) (+ (* fy 19.0f) 0.6f) (* fz 19.0f) 1.15f 16 jpt 0.20f 0.12f)
@@ -808,7 +808,7 @@
                                   (if (> jet-w 0.5f) jet-x (+ noz-x (* fx 9.5f)))
                                   (if (> jet-w 0.5f) jet-y (+ noz-y (* fy 9.5f)))
                                   (if (> jet-w 0.5f) jet-z (+ noz-z (* fz 9.5f)))
-                                  3.85f 1.35f (* fx 4.2f) (* fy 4.2f) (* fz 4.2f) 1.55f)
+                                  3.65f 1.05f (* fx 3.2f) (* fy 3.2f) (* fz 3.2f) 0.45f)
                                 (when (> jet-w 0.5f)
                                   (do
                                     (EngineState.push-voxel-action! state jet-x jet-y jet-z 3.25f cur-mat 0.68f 0.0f)
@@ -846,7 +846,7 @@
                                 gz (if (> jet-w 0.5f) jet-z (+ noz-z (* fz 9.0f)))]
                             (do
                               (EngineState.push-wake-capsule! state noz-x noz-y noz-z gx gy gz
-                                3.70f 1.25f (* fx 4.0f) (* fy 4.0f) (* fz 4.0f) 1.45f)
+                                3.55f 1.00f (* fx 3.1f) (* fy 3.1f) (* fz 3.1f) 0.42f)
                               (when (= (Int.mod fc 3) 0)
                                 (ParticleSystem.emit-dust! ps (+ noz-x (* fx 1.1f)) (+ noz-y (* fy 1.1f)) (+ noz-z (* fz 1.1f)) 3))
                               (EditingSystem.apply-firehose-knockback! state gx gy gz 1.0f rd dt 1.15f)
@@ -860,7 +860,7 @@
                                     sy1 (if (> succ-w 0.5f) succ-y (+ noz-y (* fy 8.0f)))
                                     sz1 (if (> succ-w 0.5f) succ-z (+ noz-z (* fz 8.0f)))]
                                 (EngineState.push-wake-capsule! state sx1 sy1 sz1 noz-x noz-y noz-z
-                                  3.65f -1.65f (* fx -3.2f) (* fy -3.2f) (* fz -3.2f) -1.25f)))
+                                  3.45f -0.95f (* fx -2.1f) (* fy -2.1f) (* fz -2.1f) -0.32f)))
                             (when (and right-pressed
                                        (and (> succ-w 0.5f)
                                             (or mining-gold?
@@ -903,7 +903,7 @@
                                           (RigBelt.set-flask-fill! rig next-fill)
                                           (EngineState.push-voxel-action! state succ-x succ-y succ-z 2.85f lock-mat -0.45f 0.0f)
                                           (EngineState.push-wake-capsule! state succ-x succ-y succ-z noz-x noz-y noz-z
-                                            2.45f -1.05f (* fx -2.0f) (* fy -2.0f) (* fz -2.0f) -0.85f)
+                                            2.35f -0.65f (* fx -1.5f) (* fy -1.5f) (* fz -1.5f) -0.25f)
                                           (ParticleSystem.emit! ps succ-x succ-y succ-z svx svy svz travel 12 spt 0.055f 0.0f)))
 
                                       ;; [3] GAS BELLOWS: Wide-cone inhale (snags rising Methane & live Match Fire!)

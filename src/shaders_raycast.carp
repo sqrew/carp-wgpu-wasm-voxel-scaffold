@@ -289,25 +289,29 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     );
 
     if (rig_slot == 0) {
-        // [1] SOLID SACK: Probe non-Bedrock solid walls & rubble within 14m
+        // [1] SOLID SACK: Multi-depth probe catches both smooth SDF walls & 1-voxel loose CA grains up to 18m!
         var found_sol_id: f32 = 0.0;
         var found_sol_pos = vec3<f32>(0.0);
-        if (hit && t <= 14.0) {
-            let dig_center = p + rd * 0.42;
-            for (var k = 0u; k < 7u; k = k + 1u) {
-                let sp = dig_center + offsets[k] * 0.55;
-                if (sp.x <= box_min.x + 2.0 || sp.x >= box_max.x - 2.0 ||
-                    sp.y <= box_min.y + 2.0 || sp.y >= box_max.y - 2.0 ||
-                    sp.z <= box_min.z + 2.0 || sp.z >= box_max.z - 2.0) {
-                    continue;
-                }
-                let sol = get_solid_world(sp);
-                let s_raw = round(abs(sol.x));
-                if (sol.y <= 0.25 && s_raw >= 0.5 && s_raw < 254.5 && s_raw != 18.0) {
-                    if (locked_mat < 0.5 || abs(s_raw - locked_mat) < 0.5) {
-                        found_sol_id = s_raw;
-                        found_sol_pos = p;
-                        break;
+        if (hit && t <= 18.0) {
+            let depth_offs = array<f32, 4>(0.0, 0.26, -0.18, 0.55);
+            for (var di = 0u; di < 4u; di = di + 1u) {
+                if (found_sol_id > 0.5) { break; }
+                let dig_center = p + rd * depth_offs[di];
+                for (var k = 0u; k < 7u; k = k + 1u) {
+                    let sp = dig_center + offsets[k] * 0.55;
+                    if (sp.x <= box_min.x + 2.0 || sp.x >= box_max.x - 2.0 ||
+                        sp.y <= box_min.y + 2.0 || sp.y >= box_max.y - 2.0 ||
+                        sp.z <= box_min.z + 2.0 || sp.z >= box_max.z - 2.0) {
+                        continue;
+                    }
+                    let sol = get_solid_world(sp);
+                    let s_raw = round(abs(sol.x));
+                    if (sol.y <= 0.42 && s_raw >= 0.5 && s_raw < 254.5 && s_raw != 18.0) {
+                        if (locked_mat < 0.5 || abs(s_raw - locked_mat) < 0.5) {
+                            found_sol_id = s_raw;
+                            found_sol_pos = p;
+                            break;
+                        }
                     }
                 }
             }
@@ -318,16 +322,16 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             hit_buffer[1] = vec4<f32>(0.0, 0.0, 0.0, 0.0);
         }
     } else if (rig_slot == 1) {
-        // [2] LIQUID FLASK: Probe Liquids ONLY (257..264) through steam/smoke up to 16m
-        let max_succ_t = min(select(16.0, t + 0.75, hit), 16.0);
+        // [2] LIQUID FLASK: Probe Liquids ONLY (257..271) through steam/smoke up to 18m (including thin puddles!)
+        let max_succ_t = min(select(18.0, t + 0.85, hit), 18.0);
         var found_liq_id: f32 = 0.0;
         var found_liq_pos = vec3<f32>(0.0);
         var st: f32 = 0.0;
-        for (var s = 0; s < 40; s = s + 1) {
+        for (var s = 0; s < 44; s = s + 1) {
             if (st > max_succ_t || found_liq_id > 0.5) { break; }
             let base_p = ro + rd * st;
             for (var k = 0u; k < 7u; k = k + 1u) {
-                let sp = base_p + offsets[k];
+                let sp = base_p + offsets[k] * 1.25;
                 if (sp.x <= box_min.x + 1.0 || sp.x >= box_max.x - 1.0 ||
                     sp.y <= box_min.y + 1.0 || sp.y >= box_max.y - 1.0 ||
                     sp.z <= box_min.z + 1.0 || sp.z >= box_max.z - 1.0) {
@@ -335,7 +339,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 }
                 let liq = get_liquid_world(sp);
                 let l_raw = round(abs(liq.x));
-                if (l_raw > 0.5 && liq.y > 0.06) {
+                if (l_raw > 0.5 && liq.y > 0.018) {
                     let g_mat = 256.0 + l_raw;
                     if (locked_mat < 0.5 || abs(g_mat - locked_mat) < 0.5) {
                         found_liq_id = g_mat;
@@ -352,16 +356,16 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             hit_buffer[1] = vec4<f32>(0.0, 0.0, 0.0, 0.0);
         }
     } else if (rig_slot == 2) {
-        // [3] GAS BELLOWS: Wide-cone Gas ONLY intake (513..520) up to 18m (catches match Fire & ceiling Methane!)
-        let max_gas_t = min(select(18.0, t + 0.85, hit), 18.0);
+        // [3] GAS BELLOWS: Wide-cone Gas intake (513..525) up to 20m + direct lit [Z] Match Fire siphon!
+        let max_gas_t = min(select(20.0, t + 0.95, hit), 20.0);
         var found_gas_id: f32 = 0.0;
         var found_gas_pos = vec3<f32>(0.0);
         var st: f32 = 0.0;
-        for (var s = 0; s < 44; s = s + 1) {
+        for (var s = 0; s < 48; s = s + 1) {
             if (st > max_gas_t || found_gas_id > 0.5) { break; }
             let base_p = ro + rd * st;
             for (var k = 0u; k < 7u; k = k + 1u) {
-                let sp = base_p + offsets[k] * 1.65;
+                let sp = base_p + offsets[k] * 1.75;
                 if (sp.x <= box_min.x + 1.0 || sp.x >= box_max.x - 1.0 ||
                     sp.y <= box_min.y + 1.0 || sp.y >= box_max.y - 1.0 ||
                     sp.z <= box_min.z + 1.0 || sp.z >= box_max.z - 1.0) {
@@ -369,7 +373,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 }
                 let gas = get_gas_world(sp);
                 let g_raw = round(abs(gas.x));
-                if (g_raw > 0.5 && gas.y > 0.06) {
+                if (g_raw > 0.5 && gas.y > 0.018) {
                     let g_mat = 512.0 + g_raw;
                     if (locked_mat < 0.5 || abs(g_mat - locked_mat) < 0.5) {
                         found_gas_id = g_mat;
@@ -379,6 +383,24 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 }
             }
             st = st + 0.42;
+        }
+        if (found_gas_id < 0.5 && u.match_info.x > 0.5 && (locked_mat < 0.5 || abs(515.0 - locked_mat) < 0.5)) {
+            let max_m_t = min(select(16.0, t + 1.2, hit), 16.0);
+            for (var mi: u32 = 0u; mi < 8u; mi = mi + 1u) {
+                let m = u.matches[mi];
+                if (m.w > 0.01) {
+                    let rel_m = m.xyz - ro;
+                    let proj_m = dot(rel_m, rd);
+                    if (proj_m > 0.0 && proj_m <= max_m_t) {
+                        let perp_m = length(rel_m - rd * proj_m);
+                        if (perp_m <= 2.25) {
+                            found_gas_id = 515.0;
+                            found_gas_pos = m.xyz + vec3<f32>(0.0, 0.35, 0.0);
+                            break;
+                        }
+                    }
+                }
+            }
         }
         if (found_gas_id > 0.5) {
             hit_buffer[1] = vec4<f32>(found_gas_pos, found_gas_id);
@@ -496,8 +518,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     wet = true;
                 }
                 let mv_snuff = sample_entity_vel(m.xyz, box_min, box_max);
-                if (mv_snuff.w < -0.90 || length(mv_snuff.xyz) > 4.2) {
-                    wet = true; // Vacuum implosion or hurricane blast blows out the match!
+                if (mv_snuff.w > 0.85 || length(mv_snuff.xyz) > 2.75 || mv_snuff.w < -1.35) {
+                    wet = true; // LMB airblast, shockwave, or Baromancer deep vacuum blows out the match!
                 }
                 if (wet) {
                     snuff_mask = snuff_mask | (1u << mi);

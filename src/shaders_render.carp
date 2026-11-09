@@ -1308,8 +1308,9 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                                                vec3<f32>(ent_pod.x / flen, 0.0, ent_pod.z / flen), flen > 0.05);
                             let m_side = vec3<f32>(-m_fwd.z, 0.0, m_fwd.x);
                             let peak_m = max(ent_c.r, max(ent_c.g, ent_c.b));
-                            let elem_tint = ent_c / max(peak_m, 1.0);
-                            let elem_hdr = max(ent_c, elem_tint * 1.35);
+                            let norm_c = ent_c / max(peak_m, 0.04);
+                            let elem_tint = mix(vec3<f32>(0.58, 0.68, 0.96), norm_c, clamp(peak_m * 3.2, 0.30, 1.0));
+                            let elem_hdr = max(ent_c, elem_tint * 1.45);
                             let cast_surge = clamp(-ent_fill, 0.0, 1.0);
                             let hit_f = clamp(ent_fill, 0.0, 1.0);
 

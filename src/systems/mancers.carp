@@ -616,10 +616,10 @@
         (when (= law-id 1)
           (let [fstr (Double.to-float strength)
                 wrad (Float.clamp 2.80f 7.80f (Double.to-float radius))
-                rpush (* (if pos? 2.85f -2.65f) fstr)
-                press (* (if pos? 2.45f -2.25f) fstr)]
-            (EngineState.push-wake-capsule! state fx fy fz fx (+ fy 0.2f) fz wrad rpush 0.0f (if pos? 1.2f -0.6f) 0.0f press)))
-        (when (= (Int.mod (+ fc mslot) 6) 0)
+                rpush (* (if pos? 1.55f -1.45f) fstr)
+                press (* (if pos? 0.85f -0.80f) fstr)]
+            (EngineState.push-wake-capsule! state fx fy fz fx (+ fy 0.2f) fz wrad rpush 0.0f (if pos? 0.9f -0.5f) 0.0f press)))
+        (when (= (Int.mod (+ fc mslot) 8) 0)
           (if shell?
             (let [fr (Double.to-float radius)]
               (for [qi 0 4]
@@ -627,10 +627,10 @@
                       wx (+ fx (* (MancerSystem.fcos ang) fr))
                       wz (+ fz (* (MancerSystem.fsin ang) fr))]
                   (if (= law-id 0)
-                    ;; THERMO Wavefront: -Cryo freezes water into Ice (8); +Boil ignites Fire (515) & Steam (513)!
+                    ;; THERMO Wavefront: -Cryo freezes water into Ice (8); +Boil sweeps a crisp Fire ring that burns out cleanly behind the wave!
                     (if pos?
                       (do
-                        (EngineState.push-voxel-action! state wx (+ fy 0.2f) wz 2.15f 515.0f 0.85f 1.0f)
+                        (EngineState.push-voxel-action! state wx (+ fy 0.2f) wz 1.85f 515.0f 0.62f 0.0f)
                         (ParticleSystem.emit-sparks! ps wx (+ fy 0.3f) wz 0.0f 1.0f 0.0f 5))
                       (do
                         (EngineState.push-voxel-action! state wx (- fy 0.4f) wz 1.85f 8.0f 0.85f 0.0f)
@@ -643,13 +643,16 @@
             (if (= law-id 0)
               (if pos?
                 (do
-                  (EngineState.push-voxel-action! state fx (+ fy 0.2f) fz (Double.to-float (* radius 0.65)) 515.0f 0.88f 1.0f)
-                  (ParticleSystem.emit-sparks! ps fx (+ fy 0.4f) fz 0.0f 1.0f 0.0f 8))
+                  ;; Active Remote Well / Lance (> 3.0m or strength > 0.8) ignites Fire; idle 2.85m personal shell radiates pure caloric heat + sparks!
+                  (when (> strength 0.80)
+                    (EngineState.push-voxel-action! state fx (+ fy 0.2f) fz (Double.to-float (* radius 0.55)) 515.0f 0.65f 0.0f))
+                  (ParticleSystem.emit-sparks! ps fx (+ fy 0.4f) fz 0.0f 1.0f 0.0f 6))
                 (EngineState.push-voxel-action! state fx (- fy 0.5f) fz 2.10f 8.0f 0.85f 0.0f))
               (if (and (= law-id 1) (not pos?))
                 (EngineState.push-voxel-action! state fx fy fz (Double.to-float (* radius 0.85)) 515.0f -0.95f 0.0f)
                 (when (and (= law-id 4) pos?)
-                  (EngineState.push-voxel-action! state fx (+ fy 0.2f) fz 2.25f 515.0f 0.82f 1.0f))))))
+                  (when (> strength 0.80)
+                    (EngineState.push-voxel-action! state fx (+ fy 0.2f) fz 1.95f 515.0f 0.60f 0.0f)))))))
 
         ;; 3. RigidBody Physics & Player Law Forces (Gravity flip/crush, Baro vacuum/blast, Chrono stasis/surge, Electro pull/zap!)
         (query ecs (e (cb CompBody))
@@ -1847,6 +1850,54 @@
                           (Array.aset! m-state mk 3)
                           (Array.aset! m-timer mk 1.05f)))))))))))))
 
+  ;; Evict the active Mancer farthest from the player (never one held by [4] Gauntlet) when all 4 slots are full!
+  (defn evict-farthest-mancer-slot! [state cam-pos]
+    (when (< (MancerSystem.find-free-mancer-slot state) 0)
+      (let [mbk (EngineState.mancers state)
+            rig (EngineState.rig state)
+            ecs (EngineState.ecs-world state)
+            m-alive (MancerBank.alive mbk)
+            m-idx (MancerBank.idx mbk)
+            m-gen (MancerBank.gen mbk)
+            best-slot 0
+            best-d -1.0]
+        (do
+          (for [mk 0 4]
+            (when @(Array.unsafe-nth m-alive mk)
+              (let [idx @(Array.unsafe-nth m-idx mk)]
+                (when (not (Uint64.= @(RigBelt.grab-idx rig) idx))
+                  (let [ent (ECS.Entity.init (Handle.init idx @(Array.unsafe-nth m-gen mk)))
+                        cb-opt (the (Maybe CompBody) (get-component ecs &ent))
+                        d (match cb-opt
+                            (Maybe.Nothing) 999999.0
+                            (Maybe.Just cb)
+                              (let [p (RigidBody.position (CompBody.rb &cb))
+                                    dv (Vector3.sub p cam-pos)]
+                                (Vector3.mag &dv)))]
+                    (when (> d best-d)
+                      (do
+                        (set! best-d d)
+                        (set! best-slot mk))))))))
+          (MancerSystem.destroy-mancer-slot! state best-slot false)))))
+
+  ;; Raycast forward along aim so [U] Ecomancers & [I] Lawmancers always spawn visibly in clear air instead of inside walls/hills!
+  (defn safe-mancer-spawn-pos [world cam-pos cam-dir]
+    (let [raw-p (match (World.raycast world cam-pos cam-dir 5.6)
+                  (Maybe.Nothing)
+                    (Vector3.add cam-pos &(Vector3.add &(Vector3.mul cam-dir 5.0) &(Vector3.init 0.0 0.65 0.0)))
+                  (Maybe.Just hp)
+                    (let [to-hit (Vector3.sub &hp cam-pos)
+                          hd (Vector3.mag &to-hit)
+                          pull (Double.clamp 1.85 5.0 (- hd 1.15))]
+                      (Vector3.add cam-pos &(Vector3.add &(Vector3.mul cam-dir pull) &(Vector3.init 0.0 0.72 0.0)))))
+          out-p @&raw-p]
+      (do
+        (when (< (World.sample-sdf-nearest world &out-p) 0.55f)
+          (set! out-p (Vector3.add &raw-p &(Vector3.init 0.0 1.25 0.0))))
+        (when (< (World.sample-sdf-nearest world &out-p) 0.45f)
+          (set! out-p (Vector3.add cam-pos &(Vector3.init 0.0 1.15 0.0))))
+        out-p)))
+
   (defn update! [state input dt]
     (let [world (EngineState.world state)
           player (EngineState.player state)
@@ -1901,7 +1952,7 @@
       (do
         ;; [U] Key: Summon an Ecomancer attuned to aimed pool/plume/rock or active vessel/palette material!
         (when (and (InputManager.action-pressed? input "spawn-mancer")
-                   (> (- fc @(MancerBank.last-spawn-frame mbk)) 12))
+                   (> (- fc @(MancerBank.last-spawn-frame mbk)) 10))
           (let [succ-w (gpu-readback-get-succ-w)
                 hit-w (gpu-readback-get-hit-w)
                 hit-m (gpu-readback-get-hit-mat)
@@ -1916,20 +1967,22 @@
                          (if (= rslot 1) (+ 256.0f @(Player.current-liq player))
                          (if (= rslot 2) (+ 512.0f @(Player.current-gas player))
                            @(Player.current-mat player)))))))))
-                spawn-p (Vector3.add cam-pos &(Vector3.add &(Vector3.mul cam-dir 5.5) &(Vector3.init 0.0 0.65 0.0)))
+                spawn-p (MancerSystem.safe-mancer-spawn-pos world cam-pos cam-dir)
                 sx (Double.to-float @(Vector3.x &spawn-p))
                 sy (Double.to-float @(Vector3.y &spawn-p))
                 sz (Double.to-float @(Vector3.z &spawn-p))
                 fdx (- 0.0f (Double.to-float @(Vector3.x cam-dir)))
-                fdz (- 0.0f (Double.to-float @(Vector3.z cam-dir)))
-                slot (MancerSystem.spawn-mancer! state spawn-p (Vector3.init 0.0 1.2 0.0) pick-mat fdx fdz 2)]
-            (when (>= slot 0)
-              (let [aff @(Array.unsafe-nth m-mat slot)
-                    jpt (Materials.jet-ptype aff)]
-                (do
-                  (MancerBank.set-last-spawn-frame! mbk fc)
-                  (ParticleSystem.emit! ps sx sy sz 0.0f 3.5f 0.0f 1.6f 24 jpt 0.35f 0.25f)
-                  (ParticleSystem.emit! ps sx (+ sy 0.5f) sz 0.0f 3.0f 0.0f 1.4f 18 PARTICLE-TYPE-MAGIC 0.40f 0.1f))))))
+                fdz (- 0.0f (Double.to-float @(Vector3.z cam-dir)))]
+            (do
+              (MancerSystem.evict-farthest-mancer-slot! state cam-pos)
+              (let [slot (MancerSystem.spawn-mancer! state spawn-p (Vector3.init 0.0 1.2 0.0) pick-mat fdx fdz 2)]
+                (when (>= slot 0)
+                  (let [aff @(Array.unsafe-nth m-mat slot)
+                        jpt (Materials.jet-ptype aff)]
+                    (do
+                      (MancerBank.set-last-spawn-frame! mbk fc)
+                      (ParticleSystem.emit! ps sx sy sz 0.0f 3.5f 0.0f 1.6f 24 jpt 0.35f 0.25f)
+                      (ParticleSystem.emit! ps sx (+ sy 0.5f) sz 0.0f 3.0f 0.0f 1.4f 18 PARTICLE-TYPE-MAGIC 0.40f 0.1f))))))))
 
         ;; [I] Key: Summon a Geometric Lawmancer (cycles all 6 Laws + Dual; hold [G] or [H] for guaranteed 50/50 Split Dual Lawmancer!)
         (when (and (InputManager.action-pressed? input "spawn-lawmancer")
@@ -1943,7 +1996,7 @@
                 pick-law (if (or dual-mod? (= step 6))
                            (MancerSystem.encode-dual-law la lb)
                            (Float.from-int (+ 769 step)))
-                spawn-p (Vector3.add cam-pos &(Vector3.add &(Vector3.mul cam-dir 5.5) &(Vector3.init 0.0 0.65 0.0)))
+                spawn-p (MancerSystem.safe-mancer-spawn-pos world cam-pos cam-dir)
                 sx (Double.to-float @(Vector3.x &spawn-p))
                 sy (Double.to-float @(Vector3.y &spawn-p))
                 sz (Double.to-float @(Vector3.z &spawn-p))
@@ -1951,8 +2004,7 @@
                 fdz (- 0.0f (Double.to-float @(Vector3.z cam-dir)))]
             (do
               (MancerBank.set-law-seq! mbk (+ seq 1))
-              (when (< (MancerSystem.find-free-mancer-slot state) 0)
-                (MancerSystem.destroy-mancer-slot! state 0 false))
+              (MancerSystem.evict-farthest-mancer-slot! state cam-pos)
               (let [slot (MancerSystem.spawn-mancer! state spawn-p (Vector3.init 0.0 1.2 0.0) pick-law fdx fdz 0)]
                 (when (>= slot 0)
                   (do

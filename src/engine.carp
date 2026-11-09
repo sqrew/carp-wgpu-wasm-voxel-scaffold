@@ -1670,7 +1670,7 @@
                               vy (Double.to-float @(Vector3.y &vel))
                               vz (Double.to-float @(Vector3.z &vel))
                               spd (Float.sqrt (+ (+ (* vx vx) (* vy vy)) (* vz vz)))
-                              min-s (if (= eid player-id) 13.0f 9.5f)]
+                              min-s (if (= eid player-id) 13.5f 14.5f)]
                           (when (> spd min-s)
                             (let [epos (RigidBody.position rb)
                                   px1 (Double.to-float @(Vector3.x epos))
@@ -1682,13 +1682,13 @@
                                   brad (match-ref (CompVolume.vol cv)
                                          (Volume.Ball s) (Double.to-float @(Sphere.radius s))
                                          _ 0.5f)
-                                  wrad (Float.clamp 1.65f 3.60f (* brad 3.2f))
-                                  rpush (Float.clamp 0.55f 2.45f (* spd 0.082f))
-                                  press (Float.clamp 0.35f 1.65f (* spd 0.052f))]
-                              (when (> brad 0.24f)
+                                  wrad (Float.clamp 1.55f 3.40f (* brad 3.0f))
+                                  rpush (Float.clamp 0.45f 1.65f (* spd 0.055f))
+                                  press (Float.clamp 0.15f 0.85f (* spd 0.028f))]
+                              (when (> brad 0.28f)
                                 (EngineState.push-wake-capsule! state
                                   px0 py0 pz0 px1 py1 pz1
-                                  wrad rpush (* vx 0.14f) (* vy 0.14f) (* vz 0.14f) press)))))))))
+                                  wrad rpush (* vx 0.12f) (* vy 0.12f) (* vz 0.12f) press)))))))))
 
                 ;; Pack 16-slot 3D Velocity & Pressure Wake Capsules (`u.pad1` = count, `uniforms[428..619]`)
                 (let [vq (EngineState.voxels state)
