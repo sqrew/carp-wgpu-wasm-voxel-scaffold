@@ -1306,15 +1306,61 @@
                             _ ())
                           (match-ref vol
                             (Volume.Ball s)
-                              (do
-                                (Array.aset! entities-data (+ idx 0) (Double.to-float @(Vector3.x (Sphere.center s))))
-                                (Array.aset! entities-data (+ idx 1) (Double.to-float @(Vector3.y (Sphere.center s))))
-                                (Array.aset! entities-data (+ idx 2) (Double.to-float @(Vector3.z (Sphere.center s))))
-                                (Array.aset! entities-data (+ idx 3) 0.0f)
-                                (Array.aset! entities-data (+ idx 4) 0.0f)
-                                (Array.aset! entities-data (+ idx 5) 0.0f)
-                                (Array.aset! entities-data (+ idx 6) 0.0f)
-                                (Array.aset! entities-data (+ idx 7) (Double.to-float @(Sphere.radius s))))
+                              (let [egen (ECS.Entity.generation &e)
+                                    is-match? (EditingSystem.match-entity? state eidx egen)
+                                    oslot (MancerSystem.orb-slot-by-idx state eidx)
+                                    is-fluid-orb? (and (>= oslot 0) (>= (MancerSystem.orb-mat-at state oslot) 255.5f))
+                                    eid-i (Int.abs (Long.to-int (Uint64.to-long eidx)))
+                                    cr (Double.to-float @(Vector3.x color))
+                                    cg (Double.to-float @(Vector3.y color))
+                                    cb-c (Double.to-float @(Vector3.z color))
+                                    peak-c (MancerSystem.fmax cr (MancerSystem.fmax cg cb-c))
+                                    arch-id (if (> peak-c 0.92f)
+                                              (if (= (Int.mod eid-i 3) 0) 2.0f 3.0f)
+                                              (+ 2.0f (Float.from-int (Int.mod eid-i 3))))
+                                    frac-s (+ 0.02f (* (Float.from-int (Int.mod (+ (* eid-i 37) 13) 60)) 0.015f))
+                                    qx-f 0.0f
+                                    qy-f 0.0f
+                                    qz-f 0.0f]
+                                (do
+                                  (when (not (or is-match? is-fluid-orb?))
+                                    (let [cb-opt (the (Maybe CompBody) (get-component ecs &e))]
+                                      (match cb-opt
+                                        (Maybe.Nothing) ()
+                                        (Maybe.Just cb-ent)
+                                          (let [q (RigidBody.rotation (CompBody.rb &cb-ent))
+                                                raw-qx (Double.to-float @(Quaternion.x q))
+                                                raw-qy (Double.to-float @(Quaternion.y q))
+                                                raw-qz (Double.to-float @(Quaternion.z q))
+                                                raw-qw (Double.to-float @(Quaternion.w q))
+                                                sgn (if (< raw-qw 0.0f) -1.0f 1.0f)]
+                                            (if (and (>= oslot 0) (> (Float.abs raw-qw) 0.998f))
+                                              ;; Telekinetically orbited solid shard: slow arcane spin in the Ecomancer's halo!
+                                              (let [ang (+ (* (Float.from-int fc) 0.028f) (* (Float.from-int oslot) 1.7f))
+                                                    sh (MancerSystem.fsin ang)
+                                                    ax-x (MancerSystem.fsin (* (Float.from-int (+ oslot 1)) 2.1f))
+                                                    ax-y (MancerSystem.fcos (* (Float.from-int (+ oslot 2)) 1.3f))
+                                                    ax-z (MancerSystem.fsin (* (Float.from-int (+ oslot 3)) 3.7f))
+                                                    alen (Float.sqrt (+ (+ (* ax-x ax-x) (* ax-y ax-y)) (* ax-z ax-z)))
+                                                    inv-a (if (> alen 0.01f) (/ 1.0f alen) 1.0f)
+                                                    ch-sgn (if (< (MancerSystem.fcos ang) 0.0f) (- 0.0f inv-a) inv-a)]
+                                                (do
+                                                  (set! qx-f (* ax-x (* sh ch-sgn)))
+                                                  (set! qy-f (* ax-y (* sh ch-sgn)))
+                                                  (set! qz-f (* ax-z (* sh ch-sgn)))))
+                                              (do
+                                                (set! qx-f (* raw-qx sgn))
+                                                (set! qy-f (* raw-qy sgn))
+                                                (set! qz-f (* raw-qz sgn))))))))
+                                  (Array.aset! entities-data (+ idx 0) (Double.to-float @(Vector3.x (Sphere.center s))))
+                                  (Array.aset! entities-data (+ idx 1) (Double.to-float @(Vector3.y (Sphere.center s))))
+                                  (Array.aset! entities-data (+ idx 2) (Double.to-float @(Vector3.z (Sphere.center s))))
+                                  (Array.aset! entities-data (+ idx 3) 0.0f)
+                                  (Array.aset! entities-data (+ idx 4) qx-f)
+                                  (Array.aset! entities-data (+ idx 5) qy-f)
+                                  (Array.aset! entities-data (+ idx 6) qz-f)
+                                  (Array.aset! entities-data (+ idx 7) (Double.to-float @(Sphere.radius s)))
+                                  (Array.aset! entities-data (+ idx 11) (if (or is-match? is-fluid-orb?) 1.0f (+ arch-id frac-s)))))
                             (Volume.Box aabb)
                               (let [vmin (AABB.min aabb)
                                     vmax (AABB.max aabb)

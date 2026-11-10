@@ -592,8 +592,62 @@ fn eval_hopper_sdf(p_local: vec3<f32>, fwd_raw: vec3<f32>, rad: f32, fill_val: f
     return d_body;
 }
 
+// Rotating Fractured 3D SDF Chunk (Polyhedral Slabs, Octahedral Crystal Shards, & Craggy Boulders with 3D Noise Variations)
+fn eval_chunk_sdf(p_local: vec3<f32>, q_xyz: vec3<f32>, rad: f32, seed_val: f32) -> f32 {
+    if (seed_val < 1.5) {
+        return length(p_local) - rad;
+    }
+    let r = max(rad, 0.12);
+    let d_bound = length(p_local) - r * 1.26;
+    if (d_bound > 0.26) {
+        return d_bound;
+    }
+    // Reconstruct unit quaternion from hemisphere-packed q_xyz (qw >= 0) and rotate p_local into chunk body space
+    let q2 = clamp(dot(q_xyz, q_xyz), 0.0, 1.0);
+    let qw = sqrt(max(0.0, 1.0 - q2));
+    let t_q = 2.0 * cross(-q_xyz, p_local);
+    let p_rot = p_local + qw * t_q + cross(-q_xyz, t_q);
+
+    let arch = floor(seed_val);
+    let frac = fract(seed_val);
+    let ax = vec3<f32>(
+        mix(0.76, 1.18, fract(frac * 3.73)),
+        mix(0.68, 1.14, fract(frac * 7.19)),
+        mix(0.78, 1.20, fract(frac * 11.41))
+    );
+    let p_aniso = p_rot / ax;
+
+    var d_base = length(p_aniso) - r * 0.94;
+    if (arch < 2.5) {
+        // Archetype 2: Stratified Sedimentary / Cleaved Block Slab (beveled anisotropic box + strata shear plane)
+        let q_b = abs(p_rot) - r * ax * 0.76;
+        let d_box = length(max(q_b, vec3<f32>(0.0))) + min(max(q_b.x, max(q_b.y, q_b.z)), 0.0) - r * 0.08;
+        let d_bevel = (abs(p_aniso.x) * 0.62 + abs(p_aniso.y) * 0.56 + abs(p_aniso.z) * 0.55) - r * 0.90;
+        d_base = max(d_box, d_bevel);
+    } else if (arch < 3.5) {
+        // Archetype 3: Polyhedral Crystal / Glacial Shard (chiseled octahedron + hexagonal prism cleavage)
+        let d_oct = (abs(p_aniso.x) + abs(p_aniso.y) * 0.88 + abs(p_aniso.z) - r * 1.32) * 0.57735;
+        let d_sph = length(p_aniso) - r * 1.08;
+        d_base = max(d_oct, d_sph);
+    } else {
+        // Archetype 4: Craggy Multi-Facet Boulder / Splinter (dodecahedral cleavage planes + spheroid core)
+        let d1 = abs(p_aniso.x + p_aniso.y) + abs(p_aniso.z);
+        let d2 = abs(p_aniso.y + p_aniso.z) + abs(p_aniso.x);
+        let d3 = abs(p_aniso.z - p_aniso.x) + abs(p_aniso.y);
+        let d_poly = max(d1, max(d2, d3)) * 0.52 - r * 0.88;
+        d_base = mix(d_poly, length(p_aniso) - r * 0.92, 0.38);
+    }
+
+    // 3D body-locked crag & facet noise variations
+    let np = p_rot / r * 2.45 + vec3<f32>(frac * 17.3, frac * 31.7, frac * 47.1);
+    let crag = (sin(np.x * 2.1 + cos(np.y * 1.9)) * cos(np.z * 2.2 + sin(np.x * 1.7))
+              + 0.42 * sin((np.x - np.y + np.z) * 3.7)) * r * 0.105;
+    return (d_base + crag) * 0.84;
+}
+
 fn map_entities_dist(p: vec3<f32>, active_mask: u32) -> f32 {
     var rigid_d = 10000.0;
+    var chunk_d = 10000.0;
     var amoeba_d = 10000.0;
     let count = u32(u.entity_count);
     var has_jiggle = false;
@@ -614,8 +668,11 @@ fn map_entities_dist(p: vec3<f32>, active_mask: u32) -> f32 {
         let e = s_entities[i];
         let p_local = p - e.pos_type.xyz;
         if (e.pos_type.w < 0.5) {
-            let d = length(p_local) - e.extents_rad.w;
+            let d = eval_chunk_sdf(p_local, e.extents_rad.xyz, e.extents_rad.w, e.color.a);
             if (d < rigid_d) { rigid_d = d; }
+            if (e.color.a >= 1.5) {
+                chunk_d = smin_poly(chunk_d, d, 0.22);
+            }
         } else if (e.pos_type.w < 1.5) {
             let q = abs(p_local) - e.extents_rad.xyz;
             let d = length(max(q, vec3<f32>(0.0))) + min(max(q.x, max(q.y, q.z)), 0.0);
@@ -650,6 +707,14 @@ fn map_entities_dist(p: vec3<f32>, active_mask: u32) -> f32 {
             amoeba_d = smin_poly(amoeba_d, d, 0.34);
         }
     }
+    if (chunk_d < 0.28) {
+        let c_wrap = p - floor(p / 160.0) * 160.0;
+        let c_uvw = clamp(c_wrap / 160.0, vec3<f32>(0.002), vec3<f32>(0.998));
+        let d_rock_c = textureSampleLevel(solid_texture, voxel_sampler, c_uvw, 0.0).g * 0.5;
+        let h_cw = clamp(0.5 + 0.5 * (d_rock_c - chunk_d) / 0.26, 0.0, 1.0);
+        let c_fillet = 0.26 * h_cw * (1.0 - h_cw) * smoothstep(0.28, 0.02, chunk_d);
+        rigid_d = min(rigid_d, chunk_d - c_fillet * 1.05);
+    }
     if (amoeba_d < 0.36) {
         let m_wrap = p - floor(p / 160.0) * 160.0;
         let m_uvw = clamp(m_wrap / 160.0, vec3<f32>(0.002), vec3<f32>(0.998));
@@ -678,6 +743,7 @@ fn map_entities_full(
     var rigid_center = vec3<f32>(0.0);
     var rigid_pod = vec3<f32>(0.0);
     var rigid_rad = 0.5;
+    var chunk_d = 10000.0;
 
     var amoeba_d = 10000.0;
     var amoeba_col = vec3<f32>(0.48, 0.88, 0.98);
@@ -707,12 +773,18 @@ fn map_entities_full(
         let e = s_entities[i];
         let p_local = p - e.pos_type.xyz;
         if (e.pos_type.w < 0.5) {
-            let d = length(p_local) - e.extents_rad.w;
+            let d = eval_chunk_sdf(p_local, e.extents_rad.xyz, e.extents_rad.w, e.color.a);
+            if (e.color.a >= 1.5) {
+                chunk_d = smin_poly(chunk_d, d, 0.22);
+            }
             if (d < rigid_d) {
                 rigid_d = d;
                 rigid_col = e.color.rgb;
                 rigid_kind = 0.0;
-                rigid_fill = 0.0;
+                rigid_fill = e.color.a;
+                rigid_center = e.pos_type.xyz;
+                rigid_pod = e.extents_rad.xyz;
+                rigid_rad = e.extents_rad.w;
             }
         } else if (e.pos_type.w < 1.5) {
             let q = abs(p_local) - e.extents_rad.xyz;
@@ -783,6 +855,15 @@ fn map_entities_full(
                 best_rad = r;
             }
         }
+    }
+
+    if (chunk_d < 0.28) {
+        let c_wrap = p - floor(p / 160.0) * 160.0;
+        let c_uvw = clamp(c_wrap / 160.0, vec3<f32>(0.002), vec3<f32>(0.998));
+        let d_rock_c = textureSampleLevel(solid_texture, voxel_sampler, c_uvw, 0.0).g * 0.5;
+        let h_cw = clamp(0.5 + 0.5 * (d_rock_c - chunk_d) / 0.26, 0.0, 1.0);
+        let c_fillet = 0.26 * h_cw * (1.0 - h_cw) * smoothstep(0.28, 0.02, chunk_d);
+        rigid_d = min(rigid_d, chunk_d - c_fillet * 1.05);
     }
 
     if (amoeba_d < 0.36) {
@@ -1168,7 +1249,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 let e = s_entities[ei];
                 let oc = e.pos_type.xyz - ro;
                 let proj = dot(oc, rd);
-                var r_bound: f32 = e.extents_rad.w + 0.12;
+                var r_bound: f32 = e.extents_rad.w * 1.28 + 0.24;
                 if (e.pos_type.w > 4.5) {
                     r_bound = e.extents_rad.w * 2.15 + 0.45;
                 } else if (e.pos_type.w >= 1.5 && e.pos_type.w < 3.5) {
@@ -1457,8 +1538,26 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                             amoeba_rgb = mix(amoeba_rgb, vac_col, vac_core);
                             amoeba_rgb = mix(amoeba_rgb, vec3<f32>(0.03, 0.02, 0.06), eye_mask * 0.90);
                             final_ent_color = amoeba_rgb;
+                        } else if (ent_fill >= 1.5) {
+                            // Rotating Fractured SDF Chunk: body-locked 3D mineral grain + cleaved facet bevel highlights!
+                            let p_rel_c = p - ent_center;
+                            let q2_c = clamp(dot(ent_pod, ent_pod), 0.0, 1.0);
+                            let qw_c = sqrt(max(0.0, 1.0 - q2_c));
+                            let t_qc = 2.0 * cross(-ent_pod, p_rel_c);
+                            let p_rot_c = p_rel_c + qw_c * t_qc + cross(-ent_pod, t_qc);
+                            let c_grain = 0.84 + 0.28 * sin(p_rot_c.x * 14.0 + fract(ent_fill) * 19.0) * cos(p_rot_c.y * 14.0) * sin(p_rot_c.z * 14.0);
+                            let ndv_c = max(dot(normal, -rd), 0.0);
+                            let fres_c = pow(1.0 - ndv_c, 2.4);
+                            let refl_c = reflect(rd, normal);
+                            let spec_c = pow(max(dot(refl_c, normalize(-rd + vec3<f32>(0.2, 0.7, 0.2))), 0.0), 22.0);
+                            let peak_ec = max(ent_c.r, max(ent_c.g, ent_c.b));
+                            if (peak_ec > 1.05) {
+                                final_ent_color = ent_c * c_grain * (0.68 + 0.55 * ndv_c + 0.45 * fres_c) + vec3<f32>(0.65) * spec_c;
+                            } else {
+                                final_ent_color = ent_c * c_grain * lit_env + ent_c * fres_c * 0.28 + vec3<f32>(0.35, 0.34, 0.32) * spec_c * 0.42;
+                            }
                         } else if (max(ent_c.r, max(ent_c.g, ent_c.b)) > 1.05) {
-                            // Self-emissive incandescent ember (lit match head / glowing crystal boulder!)
+                            // Self-emissive incandescent ember (lit match head / glowing fluid orb!)
                             let rim = 0.72 + 0.55 * max(dot(normal, -rd), 0.0);
                             final_ent_color = ent_c * rim;
                         } else {

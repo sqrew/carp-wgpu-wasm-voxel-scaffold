@@ -242,13 +242,16 @@
                               sphere-sdf (Double.to-float (- dist radius))
                               neg-s (- 0.0f sphere-sdf)
                               old-sdf (Pointer.to-value (Pointer.add p-data (Long.from-int (+ offset 1))))
+                              k-w 0.95f
+                              h-w (Float.clamp 0.0f 1.0f (+ 0.5f (* 0.5f (/ (- old-sdf sphere-sdf) k-w))))
+                              smin-sdf (- (+ (* old-sdf (- 1.0f h-w)) (* sphere-sdf h-w)) (* k-w (* h-w (- 1.0f h-w))))
                               new-sdf (if carve?
                                         (if (> old-sdf neg-s) old-sdf neg-s)
-                                        (if (< old-sdf sphere-sdf) old-sdf sphere-sdf))]
+                                        (if (< smin-sdf old-sdf) smin-sdf old-sdf))]
                           (when (not (and carve? (or (= old-id 255.0f) (= old-id 18.0f))))
                             (do
                               (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) new-sdf)
-                              (when (and (not carve?) (< dist radius))
+                              (when (and (not carve?) (and (<= new-sdf 0.0f) (or (> old-sdf 0.0f) (< sphere-sdf -0.15f))))
                                 (Pointer.set (Pointer.add p-data (Long.from-int offset)) mat-id))))))))))))))))
 
   ;; Destroy an orb slot cleanly (unless it is a real GoldBank 24k nugget, which stays collectable!)

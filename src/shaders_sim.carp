@@ -2122,11 +2122,28 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     }
                 } else if (va.x > 0.0) {
                     if (next_id != 255.0 && abs(next_id) != 18.0 && fdist <= sr + 8.0) {
-                        let build_val = fdist - sr;
-                        if (build_val < next_vol) {
+                        var build_val = fdist - sr;
+                        if (va.z > 1.5) {
+                            // Fractured SDF Chunk Weld: evaluate rotated polyhedral facet + crag SDF and smin-mix into the voxel surface plane!
+                            let dp = world_pos - vp.xyz;
+                            let ang_w = va.z * 2.39996 + (vp.x * 0.17 + vp.z * 0.31);
+                            let cw = cos(ang_w);
+                            let sw = sin(ang_w);
+                            let pr = vec3<f32>(dp.x * cw - dp.z * sw, dp.y * 1.18, dp.x * sw + dp.z * cw);
+                            let d_oct = (abs(pr.x) * 0.88 + abs(pr.y) * 0.96 + abs(pr.z) * 0.88) * 0.64 - sr * 0.96;
+                            let d_box = length(max(abs(pr) - vec3<f32>(sr * 0.74, sr * 0.64, sr * 0.76), vec3<f32>(0.0))) - sr * 0.14;
+                            let shape_mix = fract(va.z * 1.73);
+                            let d_poly = mix(d_box, d_oct, shape_mix);
+                            let crag_w = (sin(pr.x * 2.3 + va.z * 5.1) * cos(pr.y * 2.1 - va.z * 3.7) * sin(pr.z * 2.4 + va.z * 2.9)) * sr * 0.14;
+                            build_val = mix(fdist - sr, d_poly + crag_w, 0.72);
+                        }
+                        let k_weld = select(0.52, 1.38, va.z > 1.5);
+                        let h_weld = clamp(0.5 + 0.5 * (next_vol - build_val) / k_weld, 0.0, 1.0);
+                        let welded_vol = mix(next_vol, build_val, h_weld) - k_weld * h_weld * (1.0 - h_weld);
+                        if (welded_vol < next_vol) {
                             let was_empty = next_vol > 0.0;
-                            next_vol = build_val;
-                            if (next_vol <= 0.0 && was_empty) { next_id = va.x; }
+                            next_vol = max(-16.0, welded_vol);
+                            if (next_vol <= 0.0 && (was_empty || build_val < -0.18)) { next_id = va.x; }
                             next_sleep = 0.0;
                         }
                     }

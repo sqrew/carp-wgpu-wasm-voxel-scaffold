@@ -41,14 +41,15 @@
                 (when (> (- by cam-y) -110.0f)
                   (let [m (Float.round mat-id)
                         jpt (Materials.jet-ptype mat-id)
-                        dep-r (Float.clamp 1.05f 1.55f (* rad 2.55f))
-                        spos (Vector3.init (Double.from-float bx) (Double.from-float (- by 0.12f)) (Double.from-float bz))]
+                        dep-r (Float.clamp 1.12f 1.68f (* rad 2.68f))
+                        weld-seed (+ 2.0f (* (Float.from-int (Int.mod (Int.abs (Long.to-int (Uint64.to-long idx))) 24)) 0.125f))
+                        spos (Vector3.init (Double.from-float bx) (Double.from-float (- by (* rad 0.28f))) (Double.from-float bz))]
                     (if (= m 13)
-                      ;; Spore Pod (13): Ruptures into a live Spore Cloud bloom + fungal floor crust!
+                      ;; Spore Pod (13): Ruptures into a live Spore Cloud bloom + smooth-welded fungal floor crust!
                       (do
                         (EngineState.push-voxel-action! state bx (+ by 0.35f) bz 3.15f 520.0f 0.90f 1.0f)
-                        (EngineState.push-voxel-action! state bx (- by 0.12f) bz 1.20f 13.0f 1.0f 0.0f)
-                        (MancerSystem.edit-bender-sdf! world &spos 1.20 13.0f false)
+                        (EngineState.push-voxel-action! state bx (- by 0.18f) bz 1.32f 13.0f 1.0f weld-seed)
+                        (MancerSystem.edit-bender-sdf! world &spos 1.32 13.0f false)
                         (ParticleSystem.emit! ps bx (+ by 0.2f) bz 0.0f 3.8f 0.0f 1.9f 22 208.0f 0.55f 0.05f))
                       (if (= m 8)
                         ;; Ice (8): Fractures & melts into a cool Water splash + frost mist!
@@ -65,9 +66,9 @@
                           (if (= m 5)
                             ;; Gold (5): Settles into a collectible 24k Gold Nugget!
                             (ignore (GoldSystem.spawn-nugget! state pos (Vector3.init 0.0 1.8 0.0) 0.30 15))
-                            ;; Cohesive Solids: Fuse & weld back into the local SDF & voxel grid!
+                            ;; Cohesive Solids: Smoothly mix & weld fractured chunk SDF into the local terrain plane!
                             (do
-                              (EngineState.push-voxel-action! state bx (- by 0.12f) bz dep-r mat-id 1.0f 0.0f)
+                              (EngineState.push-voxel-action! state bx (- by (* rad 0.28f)) bz dep-r mat-id 1.0f weld-seed)
                               (MancerSystem.edit-bender-sdf! world &spos (Double.from-float dep-r) mat-id false)
                               (when (= m 16)
                                 ;; Rad-Ore (16): Belches a radioactive Miasma wisp as it welds into the rock!
@@ -79,19 +80,33 @@
   (defn spawn-boulder! [state spawn-pos vel radius mat-id ttl-ms]
     (let [ecs (EngineState.ecs-world state)
           e (GameWorld.create-entity! ecs)
+          idx (ECS.Entity.index &e)
+          gen (ECS.Entity.generation &e)
           col (Materials.boulder-color mat-id)
           restit (Materials.boulder-restitution mat-id)
           fric (Materials.boulder-friction mat-id)
-          rb (RigidBody.new @&spawn-pos (Quaternion.identity) 1.5 restit fric 0.08 0.12 0.22)
+          px @(Vector3.x &spawn-pos)
+          py @(Vector3.y &spawn-pos)
+          pz @(Vector3.z &spawn-pos)
+          vx @(Vector3.x &vel)
+          vy @(Vector3.y &vel)
+          vz @(Vector3.z &vel)
+          s-hash (+ (* px 13.7) (+ (* py 29.3) (+ (* pz 47.1) (Double.from-int (Long.to-int (Uint64.to-long idx))))))
+          init-rot (Quaternion.from-euler (* (sin s-hash) 3.14159)
+                                          (* (cos (* s-hash 1.37)) 3.14159)
+                                          (* (sin (* s-hash 2.19)) 3.14159))
+          ang-vel (Vector3.init (+ (* vz -0.35) (* (sin (* s-hash 1.7)) 4.5))
+                                (* (cos (* s-hash 2.3)) 4.2)
+                                (+ (* vx 0.35) (* (sin (* s-hash 3.1)) 4.5)))
+          rb (RigidBody.new @&spawn-pos init-rot 1.5 restit fric 0.08 0.14 0.22)
           vol (Volume.Ball (Sphere.init @&spawn-pos radius))]
       (do
         (Body.set-velocity! (RigidBody.body &rb) vel)
+        (Body.set-angular-velocity! (RigidBody.body &rb) ang-vel)
         (add-component! ecs &e (CompBody.init rb))
         (add-component! ecs &e (CompVolume.init vol))
         (add-component! ecs &e (CompColor.init col))
-        (let [idx (ECS.Entity.index &e)
-              gen (ECS.Entity.generation &e)
-              state-ptr (Unsafe.coerce state)
+        (let [state-ptr (Unsafe.coerce state)
               f-rad (Double.to-float radius)
               _ (Coordinator.schedule! (EngineState.coord state) (AppEvent.SettleBoulder state-ptr idx gen mat-id f-rad) ttl-ms)]
           e))))
