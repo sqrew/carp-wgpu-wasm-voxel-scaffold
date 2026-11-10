@@ -275,7 +275,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     //    u.flask_action.z = active vessel's locked material ID (0 = empty)
     //    u.flask_action.w = active rig slot (0 = Solid Sack, 1 = Liquid Flask, 2 = Gas Bellows)
     // -------------------------------------------------------------------------
-    let locked_mat = round(u.flask_action.z);
+    let locked_mat = select(0.0, round(u.flask_action.z), u.match_info.y > 0.002);
     let rig_slot = i32(round(u.flask_action.w));
 
     let offsets = array<vec3<f32>, 7>(
@@ -290,12 +290,14 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     if (rig_slot == 0) {
         // [1] SOLID SACK: Multi-depth + 3x3x3 neighborhood probe catches shallow hillside Soil, SDF walls & loose CA grains up to 65m!
+        var found_locked_id: f32 = 0.0;
+        var found_locked_pos = p;
         var found_any_id: f32 = 0.0;
         var found_pos = p;
         if (hit && t <= 65.0) {
             let depth_offs = array<f32, 7>(0.0, 0.35, 0.75, 1.25, 1.85, 2.45, -0.25);
             for (var di = 0u; di < 7u; di = di + 1u) {
-                if (found_any_id > 0.5) { break; }
+                if (found_locked_id > 0.5 || (locked_mat < 0.5 && found_any_id > 0.5)) { break; }
                 let dig_center = p + rd * depth_offs[di];
                 for (var k = 0u; k < 7u; k = k + 1u) {
                     let sp = dig_center + offsets[k] * 1.05;
@@ -307,13 +309,22 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     let sol = get_solid_world(sp);
                     let s_raw = round(abs(sol.x));
                     if (s_raw >= 0.5 && s_raw < 254.5 && s_raw != 18.0) {
-                        found_any_id = s_raw;
-                        found_pos = sp;
-                        break;
+                        if (found_any_id < 0.5) {
+                            found_any_id = s_raw;
+                            found_pos = sp;
+                        }
+                        if (locked_mat > 0.5 && (s_raw == locked_mat || s_raw == 5.0)) {
+                            found_locked_id = s_raw;
+                            found_locked_pos = sp;
+                            break;
+                        }
+                        if (locked_mat < 0.5) {
+                            break;
+                        }
                     }
                 }
             }
-            if (found_any_id < 0.5) {
+            if (found_locked_id < 0.5 && (locked_mat > 0.5 || found_any_id < 0.5)) {
                 let base_c = floor(p + rd * 0.45) + vec3<f32>(0.5);
                 for (var dy = -2; dy <= 1; dy = dy + 1) {
                     for (var dx = -1; dx <= 1; dx = dx + 1) {
@@ -321,28 +332,39 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                             let sp = base_c + vec3<f32>(f32(dx), f32(dy), f32(dz));
                             let sol = get_solid_world(sp);
                             let s_raw = round(abs(sol.x));
-                            if (s_raw >= 0.5 && s_raw < 254.5 && s_raw != 18.0 && found_any_id < 0.5) {
-                                found_any_id = s_raw;
-                                found_pos = sp;
+                            if (s_raw >= 0.5 && s_raw < 254.5 && s_raw != 18.0) {
+                                if (found_any_id < 0.5) {
+                                    found_any_id = s_raw;
+                                    found_pos = sp;
+                                }
+                                if (locked_mat > 0.5 && (s_raw == locked_mat || s_raw == 5.0) && found_locked_id < 0.5) {
+                                    found_locked_id = s_raw;
+                                    found_locked_pos = sp;
+                                }
                             }
                         }
                     }
                 }
             }
         }
-        if (found_any_id > 0.5) {
-            hit_buffer[1] = vec4<f32>(found_pos, found_any_id);
+        let use_sol_lock = found_locked_id > 0.5;
+        let out_sol_id = select(found_any_id, found_locked_id, use_sol_lock);
+        let out_sol_pos = select(found_pos, found_locked_pos, use_sol_lock);
+        if (out_sol_id > 0.5) {
+            hit_buffer[1] = vec4<f32>(out_sol_pos, out_sol_id);
         } else {
             hit_buffer[1] = vec4<f32>(0.0, 0.0, 0.0, 0.0);
         }
     } else if (rig_slot == 1) {
         // [2] LIQUID FLASK: Probe Liquids (257..271) through steam/smoke up to 65m (including thin surface puddles!)
         let max_succ_t = min(select(65.0, t + 1.25, hit), 65.0);
+        var found_locked_id: f32 = 0.0;
+        var found_locked_pos = vec3<f32>(0.0);
         var found_any_id: f32 = 0.0;
         var found_any_pos = vec3<f32>(0.0);
         var st: f32 = 0.0;
         for (var s = 0; s < 112; s = s + 1) {
-            if (st > max_succ_t || found_any_id > 0.5) { break; }
+            if (st > max_succ_t || found_locked_id > 0.5 || (locked_mat < 0.5 && found_any_id > 0.5)) { break; }
             let base_p = ro + rd * st;
             for (var k = 0u; k < 7u; k = k + 1u) {
                 let sp = base_p + offsets[k] * 1.35;
@@ -354,17 +376,28 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 let liq = get_liquid_world(sp);
                 let l_raw = round(abs(liq.x));
                 if (l_raw > 0.5 && liq.y > 0.012) {
-                    found_any_id = 256.0 + l_raw;
-                    found_any_pos = floor(sp) + vec3<f32>(0.5);
-                    break;
+                    let l_mat = 256.0 + l_raw;
+                    let c_pos = floor(sp) + vec3<f32>(0.5);
+                    if (found_any_id < 0.5) {
+                        found_any_id = l_mat;
+                        found_any_pos = c_pos;
+                    }
+                    if (locked_mat > 0.5 && l_mat == locked_mat) {
+                        found_locked_id = l_mat;
+                        found_locked_pos = c_pos;
+                        break;
+                    }
+                    if (locked_mat < 0.5) {
+                        break;
+                    }
                 }
             }
             st = st + 0.58;
         }
-        if (hit && t <= 65.0 && found_any_id < 0.5) {
+        if (hit && t <= 65.0 && found_locked_id < 0.5 && (locked_mat > 0.5 || found_any_id < 0.5)) {
             let surf_c = array<vec3<f32>, 3>(p - rd * 0.45, p, p + vec3<f32>(0.0, 0.75, 0.0));
             for (var si = 0u; si < 3u; si = si + 1u) {
-                if (found_any_id > 0.5) { break; }
+                if (found_locked_id > 0.5 || (locked_mat < 0.5 && found_any_id > 0.5)) { break; }
                 for (var k = 0u; k < 7u; k = k + 1u) {
                     let sp = surf_c[si] + offsets[k] * 1.35;
                     if (sp.x <= box_min.x + 1.0 || sp.x >= box_max.x - 1.0 ||
@@ -375,28 +408,44 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     let liq = get_liquid_world(sp);
                     let l_raw = round(abs(liq.x));
                     if (l_raw > 0.5 && liq.y > 0.010) {
-                        found_any_id = 256.0 + l_raw;
-                        found_any_pos = floor(sp) + vec3<f32>(0.5);
-                        break;
+                        let l_mat = 256.0 + l_raw;
+                        let c_pos = floor(sp) + vec3<f32>(0.5);
+                        if (found_any_id < 0.5) {
+                            found_any_id = l_mat;
+                            found_any_pos = c_pos;
+                        }
+                        if (locked_mat > 0.5 && l_mat == locked_mat) {
+                            found_locked_id = l_mat;
+                            found_locked_pos = c_pos;
+                            break;
+                        }
+                        if (locked_mat < 0.5) {
+                            break;
+                        }
                     }
                 }
             }
         }
-        if (found_any_id > 0.5) {
-            hit_buffer[1] = vec4<f32>(found_any_pos, found_any_id);
+        let use_locked = found_locked_id > 0.5;
+        let out_id = select(found_any_id, found_locked_id, use_locked);
+        let out_pos = select(found_any_pos, found_locked_pos, use_locked);
+        if (out_id > 0.5) {
+            hit_buffer[1] = vec4<f32>(out_pos, out_id);
         } else {
             hit_buffer[1] = vec4<f32>(0.0, 0.0, 0.0, 0.0);
         }
     } else if (rig_slot == 2) {
         // [3] GAS BELLOWS: Wide-cone Gas intake (513..525) up to 65m + direct lit [Z] Match Fire siphon!
         let max_gas_t = min(select(65.0, t + 1.35, hit), 65.0);
+        var found_locked_id: f32 = 0.0;
+        var found_locked_pos = vec3<f32>(0.0);
         var found_pref_id: f32 = 0.0;
         var found_pref_pos = vec3<f32>(0.0);
         var found_any_id: f32 = 0.0;
         var found_any_pos = vec3<f32>(0.0);
         var st: f32 = 0.0;
         for (var s = 0; s < 112; s = s + 1) {
-            if (st > max_gas_t || found_pref_id > 0.5) { break; }
+            if (st > max_gas_t || found_locked_id > 0.5 || (locked_mat < 0.5 && found_pref_id > 0.5)) { break; }
             let base_p = ro + rd * st;
             for (var k = 0u; k < 7u; k = k + 1u) {
                 let sp = base_p + offsets[k] * 1.85;
@@ -417,16 +466,23 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     if (g_mat != 514.0 && found_pref_id < 0.5) {
                         found_pref_id = g_mat;
                         found_pref_pos = c_pos;
+                    }
+                    if (locked_mat > 0.5 && g_mat == locked_mat) {
+                        found_locked_id = g_mat;
+                        found_locked_pos = c_pos;
+                        break;
+                    }
+                    if (locked_mat < 0.5 && found_pref_id > 0.5) {
                         break;
                     }
                 }
             }
             st = st + 0.58;
         }
-        if (hit && t <= 65.0 && found_pref_id < 0.5) {
+        if (hit && t <= 65.0 && found_locked_id < 0.5 && (locked_mat > 0.5 || found_pref_id < 0.5)) {
             let surf_g = array<vec3<f32>, 3>(p - rd * 0.45, p, p + vec3<f32>(0.0, 0.85, 0.0));
             for (var si = 0u; si < 3u; si = si + 1u) {
-                if (found_pref_id > 0.5) { break; }
+                if (found_locked_id > 0.5 || (locked_mat < 0.5 && found_pref_id > 0.5)) { break; }
                 for (var k = 0u; k < 7u; k = k + 1u) {
                     let sp = surf_g[si] + offsets[k] * 1.85;
                     if (sp.x <= box_min.x + 1.0 || sp.x >= box_max.x - 1.0 ||
@@ -446,15 +502,24 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                         if (g_mat != 514.0 && found_pref_id < 0.5) {
                             found_pref_id = g_mat;
                             found_pref_pos = c_pos;
+                        }
+                        if (locked_mat > 0.5 && g_mat == locked_mat) {
+                            found_locked_id = g_mat;
+                            found_locked_pos = c_pos;
+                            break;
+                        }
+                        if (locked_mat < 0.5 && found_pref_id > 0.5) {
                             break;
                         }
                     }
                 }
             }
         }
-        var found_gas_id = select(found_any_id, found_pref_id, found_pref_id > 0.5);
-        var found_gas_pos = select(found_any_pos, found_pref_pos, found_pref_id > 0.5);
-        if (found_gas_id < 0.5 && u.match_info.x > 0.5) {
+        let use_g_lock = found_locked_id > 0.5;
+        let use_g_pref = !use_g_lock && (found_pref_id > 0.5);
+        var found_gas_id = select(select(found_any_id, found_pref_id, use_g_pref), found_locked_id, use_g_lock);
+        var found_gas_pos = select(select(found_any_pos, found_pref_pos, use_g_pref), found_locked_pos, use_g_lock);
+        if (found_gas_id < 0.5 && u.match_info.x > 0.5 && (locked_mat < 0.5 || locked_mat == 515.0)) {
             let max_m_t = min(select(45.0, t + 1.5, hit), 45.0);
             for (var mi: u32 = 0u; mi < 8u; mi = mi + 1u) {
                 let m = u.matches[mi];

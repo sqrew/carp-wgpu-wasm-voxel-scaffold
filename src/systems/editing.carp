@@ -853,7 +853,11 @@
                               (set! ui-mode 1.0f)))
 
                           ;; 2c. Right-Click: Gather into Active Vessel ([1] Dredge/Mine Wall | [2] Siphon Pool | [3] Inhale Gas/Fire)
-                          (let [mining-gold? (and (= slot 0) (= (Float.round succ-w) 5))]
+                          (let [mining-gold? (and (= slot 0) (= (Float.round succ-w) 5))
+                                can-gather? (or mining-gold?
+                                                (and (< cur-fill 0.995f)
+                                                     (or (<= cur-fill 0.002f)
+                                                         (< (Float.abs (- succ-w cur-mat)) 0.5f))))]
                             (do
                               (when (and right-pressed (= slot 2))
                                 ;; Bellows RMB Vacuum Suction Wake — visibly draws nearby volfog & flames toward your nozzle!
@@ -862,10 +866,8 @@
                                       sz1 (if (> succ-w 0.5f) succ-z (+ noz-z (* fz 8.0f)))]
                                   (EngineState.push-wake-capsule! state sx1 sy1 sz1 noz-x noz-y noz-z
                                     3.65f -1.05f (* fx -2.3f) (* fy -2.3f) (* fz -2.3f) -0.35f)))
-                              (when (and right-pressed (> succ-w 0.5f))
+                              (when (and (and right-pressed (> succ-w 0.5f)) can-gather?)
                                 (let [lock-mat (if mining-gold? 5.0f succ-w)
-                                      same-mat? (< (Float.abs (- lock-mat cur-mat)) 0.5f)
-                                      base-fill (if same-mat? cur-fill 0.0f)
                                       spt (Materials.succ-ptype lock-mat)
                                       dx (- noz-x succ-x)
                                       dy (- noz-y succ-y)
@@ -879,7 +881,7 @@
                                   (do
                                     (if (= slot 0)
                                       ;; [1] SOLID SACK: Chew into wall & vacuum chunks into Sack (or pop pure Gold Nuggets if mining Gold!)
-                                      (let [next-fill (Float.clamp 0.0f 1.0f (+ base-fill (* 0.38f fdt)))]
+                                      (let [next-fill (Float.clamp 0.0f 1.0f (+ cur-fill (* 0.38f fdt)))]
                                         (do
                                           (when (not mining-gold?)
                                             (do
@@ -896,7 +898,7 @@
 
                                       (if (= slot 1)
                                         ;; [2] LIQUID FLASK: Siphon pool
-                                        (let [next-fill (Float.clamp 0.0f 1.0f (+ base-fill (* 0.52f fdt)))]
+                                        (let [next-fill (Float.clamp 0.0f 1.0f (+ cur-fill (* 0.52f fdt)))]
                                           (do
                                             (RigBelt.set-flask-mat! rig lock-mat)
                                             (RigBelt.set-flask-fill! rig next-fill)
@@ -906,7 +908,7 @@
                                             (ParticleSystem.emit! ps succ-x succ-y succ-z svx svy svz travel 12 spt 0.055f 0.0f)))
 
                                         ;; [3] GAS BELLOWS: Wide-cone inhale (snags rising Methane & live Match Fire!)
-                                        (let [next-fill (Float.clamp 0.0f 1.0f (+ base-fill (* 0.58f fdt)))]
+                                        (let [next-fill (Float.clamp 0.0f 1.0f (+ cur-fill (* 0.58f fdt)))]
                                           (do
                                             (RigBelt.set-bellows-mat! rig lock-mat)
                                             (RigBelt.set-bellows-fill! rig next-fill)

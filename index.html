@@ -1122,7 +1122,7 @@ canvas.emscripten { border: 0px none; background-color: black; }
             hintEl.innerText         = (mode < -0.5) ? 'Mining Gold Nuggets!' : 'RMB: Mine Gold Vein!';
             hintEl.style.color       = '#ffd54f';
             hintEl.style.opacity     = '1';
-          } else if (pInfo && (actFill < 0.995 || mats[activeSlot] !== pId || mode < -0.5)) {
+          } else if (pInfo && actFill < 0.995 && (actFill < 0.002 || mats[activeSlot] === pId)) {
             ringEl.style.borderColor = pInfo.col;
             ringEl.style.boxShadow   = '0 0 8px ' + pInfo.col;
             hintEl.innerText         = (mode < -0.5 ? RIG_IN_HINT[activeSlot] : RIG_IDLE_HINT[activeSlot]) + pInfo.name;
@@ -1375,6 +1375,6 @@ canvas.emscripten { border: 0px none; background-color: black; }
         canvasElement.focus();
       });
     </script>
-    <script async type="text/javascript" src="index.js?v=1788920017"></script>
+    <script async type="text/javascript" src="index.js?v=1788920018"></script>
   </body>
 </html>
