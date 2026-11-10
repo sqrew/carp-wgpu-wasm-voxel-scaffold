@@ -20,16 +20,9 @@
 
 (defn main-loop-tick [state-ptr]
   (let [win @(M-GLFWWindow.p (Engine.win (EngineState.eng state-ptr)))
-        fixed-dt (/ 1.0 60.0)]
+        dt (Double.clamp (/ 1.0 120.0) (/ 1.0 30.0) (do (Clock.tick! (EngineState.clock state-ptr)) (Clock.clamped-dt (EngineState.clock state-ptr))))]
     (do
-      (Clock.tick! (EngineState.clock state-ptr))
-      (EngineState.set-accumulator! state-ptr (+ @(EngineState.accumulator state-ptr) (Clock.clamped-dt (EngineState.clock state-ptr))))
-      
-      (while (>= @(EngineState.accumulator state-ptr) fixed-dt)
-        (do
-          (EngineState.tick-update! state-ptr win fixed-dt)
-          (EngineState.set-accumulator! state-ptr (- @(EngineState.accumulator state-ptr) fixed-dt))))
-          
+      (EngineState.tick-update! state-ptr win dt)
       (EngineState.tick-render! state-ptr win))))
 
 

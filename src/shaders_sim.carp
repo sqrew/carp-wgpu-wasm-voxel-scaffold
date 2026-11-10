@@ -1507,8 +1507,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             let n_sol = get_solid(ip, nd, win_min);
             if (n_sol.y <= 0.0 && abs(n_sol.x) > 0.5) {
                 let rx = get_reaction(abs(my_liq.x), 256u, abs(n_sol.x), 0u);
-                if (rx.x >= 512.0) {
-                    spawn_gas_id = rx.x - 512.0; spawn_gas_vol = 1.0; break;
+                let g_prod = select(rx.y, rx.x, rx.x >= 512.0);
+                if (g_prod >= 512.0) {
+                    spawn_gas_id = g_prod - 512.0; spawn_gas_vol = 1.0; break;
                 }
             }
             let n_liq = get_liquid(ip, nd, win_min);
@@ -3181,7 +3182,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     } else if (s_abs == 12.0) {
                         expl_yield = max(expl_yield, 1.00);
                         shock_sens = true;
-                    } else if (s_abs == 22.0) {
+                    } else if (s_abs == 20.0) {
                         expl_yield = max(expl_yield, 0.65);
                         is_sodium = true;
                     } else {
@@ -3190,7 +3191,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 }
             }
         }
-        if (raw_liq.g > 0.12) {
+        if (raw_sol.g > 0.0 && raw_liq.g > 0.25) {
             let l_abs = round(abs(raw_liq.r));
             if (l_abs > 1.5) {
                 if ((get_mat_tags(l_abs, 256u) & TAG_EXPLOSIVE) != 0u) {
@@ -3205,7 +3206,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 }
             }
         }
-        if (raw_gas.g > 0.18) {
+        if (raw_sol.g > 0.0 && raw_gas.g > 0.52) {
             let g_abs = round(abs(raw_gas.r));
             if (g_abs > 1.5 && g_abs != 3.0 && g_abs != 4.0) {
                 if ((get_mat_tags(g_abs, 512u) & TAG_EXPLOSIVE) != 0u) {
@@ -3227,14 +3228,16 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             var ignited = false;
             var max_shock = abs(self_v.w);
             let sf = field_in[idx];
-            if (sf.w <= -0.5) {
-                if (unpack_air_tp_v(sf).x > 0.74 || unpack_air_vm_v(sf).x > 0.68) { ignited = true; }
+            if (!is_sodium) {
+                if (sf.w <= -0.5) {
+                    if (unpack_air_tp_v(sf).x > 0.78 || unpack_air_vm_v(sf).x > 0.74) { ignited = true; }
+                }
+                if (raw_gas.g > 0.12 && (get_mat_tags(abs(raw_gas.r), 512u) & TAG_IGNITER) != 0u) { ignited = true; }
+                if (raw_liq.g > 0.12 && (get_mat_tags(abs(raw_liq.r), 256u) & TAG_IGNITER) != 0u) { ignited = true; }
             }
-            if (raw_gas.g > 0.08 && (get_mat_tags(abs(raw_gas.r), 512u) & TAG_IGNITER) != 0u) { ignited = true; }
-            if (raw_liq.g > 0.08 && (get_mat_tags(abs(raw_liq.r), 256u) & TAG_IGNITER) != 0u) { ignited = true; }
-            if (is_sodium && raw_liq.g > 0.08 && round(abs(raw_liq.r)) == 1.0) { ignited = true; }
+            if (is_sodium && raw_liq.g > 0.12 && round(abs(raw_liq.r)) == 1.0) { ignited = true; }
 
-            if (!ignited && u.match_info.x > 0.5) {
+            if (!ignited && !is_sodium && u.match_info.x > 0.5) {
                 for (var mi: u32 = 0u; mi < 8u; mi = mi + 1u) {
                     let m = u.matches[mi];
                     if (m.w > 0.01 && distance(world_p, m.xyz) <= 1.85) { ignited = true; break; }
@@ -3251,23 +3254,20 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     let nip = (win_min + lp + d6[di]) % 160;
                     let nv = textureLoad(vel_texture, nip, 0);
                     max_shock = max(max_shock, select(abs(nv.w), 3.6, nv.w >= 4.3));
-                    let ng = textureLoad(gas_texture, nip, 0);
-                    if (ng.g > 0.08 && (get_mat_tags(abs(ng.r), 512u) & TAG_IGNITER) != 0u) { ignited = true; break; }
                     let nl = textureLoad(liquid_texture, nip, 0);
-                    if (nl.g > 0.08) {
+                    if (nl.g > 0.12) {
                         let nlid = round(abs(nl.r));
                         if (is_sodium && nlid == 1.0) { ignited = true; break; }
-                        if ((get_mat_tags(nlid, 256u) & TAG_IGNITER) != 0u) { ignited = true; break; }
+                        if (!is_sodium && (get_mat_tags(nlid, 256u) & TAG_IGNITER) != 0u) { ignited = true; break; }
                     }
-                    let ns = textureLoad(solid_texture, nip, 0);
-                    if (ns.g <= 0.0 && abs(ns.r) > 1.5 && (get_mat_tags(abs(ns.r), 0u) & TAG_IGNITER) != 0u) { ignited = true; break; }
-                    let n_idx = u32(nip.x) + u32(nip.y) * 160u + u32(nip.z) * 25600u;
-                    let nf = field_in[n_idx];
-                    if (nf.w <= -0.5) {
-                        if (unpack_air_tp_v(nf).x > 0.74 || unpack_air_vm_v(nf).x > 0.68) { ignited = true; break; }
+                    if (!is_sodium) {
+                        let ng = textureLoad(gas_texture, nip, 0);
+                        if (ng.g > 0.12 && (get_mat_tags(abs(ng.r), 512u) & TAG_IGNITER) != 0u) { ignited = true; break; }
+                        let ns = textureLoad(solid_texture, nip, 0);
+                        if (ns.g <= 0.0 && abs(ns.r) > 1.5 && (get_mat_tags(abs(ns.r), 0u) & TAG_IGNITER) != 0u) { ignited = true; break; }
                     }
                 }
-                if (!ignited && ((shock_sens && max_shock > 1.95) || max_shock > 3.10)) {
+                if (!ignited && shock_sens && max_shock > 2.65) {
                     ignited = true;
                 }
             }

@@ -11,11 +11,28 @@
                "GLFWwindow* $NAME(void* p)"
                "$DECL { return (GLFWwindow*)p; }")
 
+  (deftemplate js-mouse-btn-down? (Fn [Int] Bool)
+    "bool $NAME(int btn)"
+    "#ifdef __EMSCRIPTEN__
+     #include <emscripten.h>
+     static int g_js_mouse_btn[8] = {0};
+     EMSCRIPTEN_KEEPALIVE void set_js_mouse_btn(int b, int down) {
+         if (b >= 0 && b < 8) g_js_mouse_btn[b] = down;
+     }
+     #endif
+     $DECL {
+     #ifdef __EMSCRIPTEN__
+         if (btn >= 0 && btn < 8 && g_js_mouse_btn[btn] != 0) return true;
+     #endif
+         return false;
+     }")
+
   (defn- get-key [ctx keycode]
     (= (GLFW.get-key (glfw-ptr->window ctx) keycode) GLFW.PRESS))
 
   (defn- get-mouse-btn [ctx btn]
-    (= (GLFW.get-mouse-button (glfw-ptr->window ctx) btn) GLFW.PRESS))
+    (or (= (GLFW.get-mouse-button (glfw-ptr->window ctx) btn) GLFW.PRESS)
+        (js-mouse-btn-down? btn)))
 
   (defn- get-cursor-pos [ctx x y]
     (GLFW.get-cursor-pos (glfw-ptr->window ctx) x y))

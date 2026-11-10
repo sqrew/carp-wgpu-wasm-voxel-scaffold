@@ -609,6 +609,8 @@
                     (Array.aset! vpos (+ b 2) z)
                     (let [ex-r @(Array.unsafe-nth vpos (+ b 3))]
                       (Array.aset! vpos (+ b 3) (if (> rad ex-r) rad ex-r)))
+                    (when (>= (Float.abs mat-id) 255.0f)
+                      (Array.aset! vact (+ b 1) (Float.clamp -1.0f 1.0f (+ ex-amt amount))))
                     (set! merged? true))))))
           (when (and (not merged?) (< cnt 12))
             (let [b (* cnt 4)]
@@ -785,7 +787,7 @@
           pos (Vector3.init px py pz)
           w-rad (Float.clamp 3.80f 8.60f (* carve-r (+ 1.65f (* 0.50f clamped-yld))))
           r-push (Float.clamp 2.25f 5.20f (+ 1.95f (* 2.95f clamped-yld)))
-          p-spike (Float.clamp 1.85f 3.75f (+ 1.65f (* 2.00f clamped-yld)))
+          p-spike (Float.clamp 1.55f 2.45f (+ 1.45f (* 1.00f clamped-yld)))
           shock-r (Double.from-float (+ (* carve-r 2.05f) (* 2.20f clamped-yld)))
           chain-r (* shock-r 0.72)
           mbk (EngineState.mancers state)
@@ -793,7 +795,7 @@
           cbank (EngineState.critters state)]
       (do
         ;; Debounce GPU readback around this crater so async readback never echoes our own blast
-        (EngineState.record-expl-cd! vq x y z 0.24f)
+        (EngineState.record-expl-cd! vq x y z 0.48f)
 
         ;; 1. Smooth Euclidean SDF Crater (GPU + CPU) & Fire/Smoke Bloom
         (EngineState.push-voxel-action! state x y z carve-r 1.0f -1.0f 0.0f)
@@ -1030,7 +1032,7 @@
                               dy (- @(Array.unsafe-nth cd (+ b 1)) gy)
                               dz (- @(Array.unsafe-nth cd (+ b 2)) gz)
                               d2 (+ (+ (* dx dx) (* dy dy)) (* dz dz))]
-                          (when (< d2 19.36f)
+                          (when (< d2 64.0f)
                             (set! debounced? true))))))
                   (when (not debounced?)
                     (EngineState.enqueue-explosion! state gx gy gz (+ 2.25f (* 2.35f gyld)) gyld -1)))))))
