@@ -900,18 +900,18 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
             let dist = val.g * 0.5;
             let step_len = clamp(dist, 0.008, 0.85);
 
-            // 3D Eikonal Schlieren Ray-Bending in open air (only at t > 1.3m and dist > 0.35m from stained solids, capped at +/-0.018 rad)
-            if (t > 1.3 && dist > 0.35 && abs(val.b) > 0.0018 && abs(val.b) < 0.09) {
+            // 3D Eikonal Schlieren Ray-Bending in open air (strictly outside 1-voxel trilinear footprint of stained/piezo solids!)
+            if (t > 1.5 && dist > 0.95 && abs(val.r) < 0.001 && abs(val.b) > 0.0025 && abs(val.b) < 0.065) {
                 let dn0 = val.b;
                 let eps_u = 1.0 / 160.0;
-                let bx = textureSampleLevel(solid_texture, voxel_sampler, clamp(uvw + vec3<f32>(eps_u, 0.0, 0.0), vec3<f32>(0.002), vec3<f32>(0.998)), 0.0).b;
-                let by = textureSampleLevel(solid_texture, voxel_sampler, clamp(uvw + vec3<f32>(0.0, eps_u, 0.0), vec3<f32>(0.002), vec3<f32>(0.998)), 0.0).b;
-                let bz = textureSampleLevel(solid_texture, voxel_sampler, clamp(uvw + vec3<f32>(0.0, 0.0, eps_u), vec3<f32>(0.002), vec3<f32>(0.998)), 0.0).b;
-                let dnx = select(bx - dn0, 0.0, abs(bx) >= 0.09);
-                let dny = select(by - dn0, 0.0, abs(by) >= 0.09);
-                let dnz = select(bz - dn0, 0.0, abs(bz) >= 0.09);
-                let bend = vec3<f32>(dnx, dny, dnz) * (step_len * 0.36);
-                let tot_bend = clamp((cur_rd - rd) + bend, vec3<f32>(-0.018), vec3<f32>(0.018));
+                let sx = textureSampleLevel(solid_texture, voxel_sampler, clamp(uvw + vec3<f32>(eps_u, 0.0, 0.0), vec3<f32>(0.002), vec3<f32>(0.998)), 0.0);
+                let sy = textureSampleLevel(solid_texture, voxel_sampler, clamp(uvw + vec3<f32>(0.0, eps_u, 0.0), vec3<f32>(0.002), vec3<f32>(0.998)), 0.0);
+                let sz = textureSampleLevel(solid_texture, voxel_sampler, clamp(uvw + vec3<f32>(0.0, 0.0, eps_u), vec3<f32>(0.002), vec3<f32>(0.998)), 0.0);
+                let dnx = select(sx.b - dn0, 0.0, abs(sx.r) > 0.001 || abs(sx.b) >= 0.065 || abs(sx.b - dn0) > 0.022);
+                let dny = select(sy.b - dn0, 0.0, abs(sy.r) > 0.001 || abs(sy.b) >= 0.065 || abs(sy.b - dn0) > 0.022);
+                let dnz = select(sz.b - dn0, 0.0, abs(sz.r) > 0.001 || abs(sz.b) >= 0.065 || abs(sz.b - dn0) > 0.022);
+                let bend = vec3<f32>(dnx, dny, dnz) * (step_len * 0.18);
+                let tot_bend = clamp((cur_rd - rd) + bend, vec3<f32>(-0.008), vec3<f32>(0.008));
                 cur_rd = normalize(rd + tot_bend);
             }
             

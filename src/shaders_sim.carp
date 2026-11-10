@@ -1807,15 +1807,15 @@ fn grain_desired_step(s_ip: vec3<i32>, win_min: vec3<i32>, tick: f32, active_tg:
     }
 
     let h1 = fract(sin(dot(vec3<f32>(s_ip), vec3<f32>(12.9898, 78.233, 37.719)) + tick * 1.37) * 43758.5453);
-    let wind_lifts = select(w_spd > 3.10 || abs(gv.w) > 2.15, w_spd > 1.35 || abs(gv.w) > 1.65, is_granular);
+    let wind_lifts = select(w_spd > 3.20 || abs(gv.w) > 2.25, w_spd > 1.65 || abs(gv.w) > 1.85, is_granular);
     if (wind_lifts) {
-        let lift_y = clamp(max(0.0, abs(gv.w) - 0.85) * 0.42 + max(0.0, w_spd - 1.35) * 0.30, 0.0, 1.15);
+        let lift_y = clamp(max(0.0, abs(gv.w) - 1.15) * 0.36 + max(0.0, w_spd - 1.65) * 0.24, 0.0, 0.95);
         let tv = gv.xyz + vec3<f32>(0.0, lift_y, 0.0);
         let ax = abs(tv.x);
         let ay = abs(tv.y);
         let az = abs(tv.z);
         let asum = ax + ay + az;
-        if (asum > 0.20) {
+        if (asum > 0.35) {
             let pick = h1 * asum;
             var wd = vec3<i32>(0, 0, select(-1, 1, tv.z >= 0.0));
             if (pick < ax) {
@@ -1826,8 +1826,9 @@ fn grain_desired_step(s_ip: vec3<i32>, win_min: vec3<i32>, tick: f32, active_tg:
             if (step_in_window(s_ip, wd, win_min) && get_solid(s_ip, wd, win_min).y > 0.0) {
                 return wd;
             }
-            if (w_spd > 1.75 && step_in_window(s_ip, vec3<i32>(0, 1, 0), win_min) && get_solid(s_ip, vec3<i32>(0, 1, 0), win_min).y > 0.0) {
-                return vec3<i32>(0, 1, 0);
+            // If wind is pushing upward/sideways into a rigid wall, do not fall through to -Y gravity on the same tick (prevents 60Hz up/down wall bounce!)
+            if (tv.y > 0.15) {
+                return vec3<i32>(0);
             }
         }
     }
@@ -1841,15 +1842,19 @@ fn grain_desired_step(s_ip: vec3<i32>, win_min: vec3<i32>, tick: f32, active_tg:
     if (step_in_window(s_ip, vd, win_min) && get_solid(s_ip, vd, win_min).y > 0.0) {
         return vd;
     }
-    let dx = select(-1, 1, h1 > 0.5);
-    let dz = select(1, -1, h1 > 0.5);
+    let parity = ((s_ip.x * 3 + s_ip.y * 5 + s_ip.z * 7) & 1) == 0;
+    let dx = select(-1, 1, parity);
+    let dz = select(1, -1, parity);
     let diags = array<vec3<i32>, 4>(
         vec3<i32>(dx, gy, 0), vec3<i32>(-dx, gy, 0),
         vec3<i32>(0, gy, dz), vec3<i32>(0, gy, -dz)
     );
     for (var di = 0; di < 4; di = di + 1) {
         let dd = diags[di];
-        if (step_in_window(s_ip, dd, win_min) && get_solid(s_ip, dd, win_min).y > 0.0) {
+        let side_d = vec3<i32>(dd.x, 0, dd.z);
+        if (step_in_window(s_ip, dd, win_min) &&
+            get_solid(s_ip, dd, win_min).y > 0.0 &&
+            get_solid(s_ip, side_d, win_min).y > 0.0) {
             return dd;
         }
     }
@@ -1907,7 +1912,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     let active_tg = has_law_tg_sol();
     let self_gv = effective_grain_vel(ip, win_min);
-    let wind_wake = dot(self_gv.xyz, self_gv.xyz) > 0.08 || abs(self_gv.w) > 0.85;
+    let wind_wake = dot(self_gv.xyz, self_gv.xyz) > 2.25 || abs(self_gv.w) > 1.80;
 
     if (next_sleep >= 10.0 && !wind_wake) {
         let n1 = get_solid(ip, vec3<i32>(-1,0,0), win_min).w;
@@ -1984,8 +1989,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_sleep = 0.0;
     }
     
-    if (next_vol <= 0.0 && next_id < 0.0 && next_sleep >= 10.0) {
+    if (next_vol <= 0.0 && next_id < 0.0 && next_sleep >= 4.0) {
         next_id = abs(next_id);
+        next_sleep = 10.0;
     }
     
     if ((next_vol > 0.0) == (self_vol > 0.0)) {
@@ -2149,6 +2155,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_vol = 2.2;
         next_age = 0.0;
         next_sleep = 0.0;
+    }
+    if (abs(next_id) < 0.5 && next_vol <= 0.0) {
+        next_vol = 0.5;
     }
 
     output_buffer[idx] = vec4<f32>(next_id, next_vol, next_age, next_sleep);
@@ -2604,18 +2613,18 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             -(1.0 + pack_quartet(next_rec))
         );
 
-        // Compute Refractive Index Offset Delta_n in rising heat plumes (T > 0.42), blast shockwaves, & hypersonic Mach wakes!
-        let t_excess = max(0.0, next_T - 0.42);
-        let p_excess = max(0.0, next_P - 0.16);
-        let plume_wave = 1.0 + 0.72 * sin(u.time * 10.5 - world_p.y * 2.8 + sin(world_p.x * 2.2 + world_p.z * 2.0 + u.time * 4.2) * 1.5);
-        let thermal_dn = -0.092 * t_excess * plume_wave;
-        let shock_dn = 0.065 * p_excess;
-        let mach_dn = clamp(raw_vel.w * 0.038, -0.055, 0.065);
-        var target_dn = clamp(thermal_dn + shock_dn + mach_dn + cloak_dn, -0.078, 0.078);
-        if (abs(target_dn) < 0.002) { target_dn = 0.0; }
-        let prev_dn = select(raw_sol.b, 0.0, raw_sol.b >= 2.0);
+        // Compute Refractive Index Offset Delta_n in rising heat plumes (T > 0.62), blast shockwaves (P > 0.58), & hypersonic Mach wakes!
+        let t_excess = max(0.0, next_T - 0.62);
+        let p_excess = max(0.0, next_P - 0.58);
+        let plume_wave = 1.0 + 0.55 * sin(u.time * 10.5 - world_p.y * 2.8 + sin(world_p.x * 2.2 + world_p.z * 2.0 + u.time * 4.2) * 1.5);
+        let thermal_dn = -0.055 * t_excess * plume_wave;
+        let shock_dn = 0.045 * p_excess;
+        let mach_dn = clamp(raw_vel.w * 0.024, -0.040, 0.045);
+        var target_dn = clamp(thermal_dn + shock_dn + mach_dn + cloak_dn, -0.055, 0.055);
+        if (abs(target_dn) < 0.0025) { target_dn = 0.0; }
+        let prev_dn = select(0.0, raw_sol.b, raw_sol.g > 0.0 && abs(raw_sol.b) < 0.065);
         let smooth_dn = mix(prev_dn, target_dn, 0.32);
-        let final_dn = select(smooth_dn, 0.0, abs(smooth_dn) < 0.0015);
+        let final_dn = select(smooth_dn, 0.0, abs(smooth_dn) < 0.002);
         solid_buffer[idx] = vec4<f32>(sol.x, sol.y, final_dn, sol.w);
     } else {
         var max_neighbor_w = 0.0;
@@ -2645,7 +2654,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 max_adj_P = max(max_adj_P, 1.0);
                 law_flare = max(law_flare, 0.95);
             }
-            if (n_sol.y <= 0.0 && n_sol.x > 0.0) { // If neighbor is rigid solid
+            if (n_sol.y <= 0.0 && (n_sol.x > 0.0 || (nd.y == -1 && abs(n_sol.x) > 0.5))) { // Rigid solid neighbor or supporting grain directly below
                 let n_field = field_in[n_idx];
                 var decay = 1.0;
                 if (nd.y == -1) { decay = 0.0; }
