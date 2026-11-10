@@ -1539,7 +1539,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                             amoeba_rgb = mix(amoeba_rgb, vec3<f32>(0.03, 0.02, 0.06), eye_mask * 0.90);
                             final_ent_color = amoeba_rgb;
                         } else if (ent_fill >= 1.5) {
-                            // Rotating Fractured SDF Chunk: body-locked 3D mineral grain + cleaved facet bevel highlights!
+                            // Rotating Fractured SDF Chunk: body-locked 3D mineral grain + cleaved facet bevel highlights + rock-seam blend!
                             let p_rel_c = p - ent_center;
                             let q2_c = clamp(dot(ent_pod, ent_pod), 0.0, 1.0);
                             let qw_c = sqrt(max(0.0, 1.0 - q2_c));
@@ -1551,11 +1551,18 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                             let refl_c = reflect(rd, normal);
                             let spec_c = pow(max(dot(refl_c, normalize(-rd + vec3<f32>(0.2, 0.7, 0.2))), 0.0), 22.0);
                             let peak_ec = max(ent_c.r, max(ent_c.g, ent_c.b));
+                            var chunk_rgb = vec3<f32>(0.0);
                             if (peak_ec > 1.05) {
-                                final_ent_color = ent_c * c_grain * (0.68 + 0.55 * ndv_c + 0.45 * fres_c) + vec3<f32>(0.65) * spec_c;
+                                chunk_rgb = ent_c * c_grain * (0.68 + 0.55 * ndv_c + 0.45 * fres_c) + vec3<f32>(0.65) * spec_c;
                             } else {
-                                final_ent_color = ent_c * c_grain * lit_env + ent_c * fres_c * 0.28 + vec3<f32>(0.35, 0.34, 0.32) * spec_c * 0.42;
+                                chunk_rgb = ent_c * c_grain * lit_env + ent_c * fres_c * 0.28 + vec3<f32>(0.35, 0.34, 0.32) * spec_c * 0.42;
                             }
+                            if (hit && (voxel_hit_t - ent_t) < 0.42) {
+                                let d_rock_seam = textureSampleLevel(solid_texture, voxel_sampler, e_uvw, 0.0).g * 0.5;
+                                let seam_blend = smoothstep(0.24, -0.04, d_rock_seam) * smoothstep(0.42, 0.04, voxel_hit_t - ent_t);
+                                chunk_rgb = mix(chunk_rgb, hit_color, seam_blend * 0.78);
+                            }
+                            final_ent_color = chunk_rgb;
                         } else if (max(ent_c.r, max(ent_c.g, ent_c.b)) > 1.05) {
                             // Self-emissive incandescent ember (lit match head / glowing fluid orb!)
                             let rim = 0.72 + 0.55 * max(dot(normal, -rd), 0.0);
