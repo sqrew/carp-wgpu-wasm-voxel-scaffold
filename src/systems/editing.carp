@@ -568,18 +568,6 @@
       (do
         ;; Sync active Rig Slot (0 = Solid Sack [1], 1 = Liquid Flask [2], 2 = Gas Bellows [3], 3 = Gauntlet & Boot [4])
         (RigBelt.set-slot! rig (get-js-rig-slot))
-        (let [lv-slot (get-js-load-vessel-slot)
-              lv-mat (get-js-load-vessel-mat)]
-          (when (and (>= lv-slot 0) (> lv-mat 0.5f))
-            (do
-              (if (= lv-slot 0)
-                (when (< lv-mat 254.5f)
-                  (do (RigBelt.set-sack-mat! rig lv-mat) (RigBelt.set-sack-fill! rig 1.0f)))
-                (if (= lv-slot 1)
-                  (do (RigBelt.set-flask-mat! rig lv-mat) (RigBelt.set-flask-fill! rig 1.0f))
-                  (when (= lv-slot 2)
-                    (do (RigBelt.set-bellows-mat! rig lv-mat) (RigBelt.set-bellows-fill! rig 1.0f)))))
-              (clear-js-load-vessel!))))
         (when (InputManager.action-pressed? input "mat-solid")
           (do (RigBelt.set-slot! rig 0) (set-js-rig-slot 0)))
         (when (InputManager.action-pressed? input "mat-liquid")
@@ -866,62 +854,65 @@
 
                           ;; 2c. Right-Click: Gather into Active Vessel ([1] Dredge/Mine Wall | [2] Siphon Pool | [3] Inhale Gas/Fire)
                           (let [mining-gold? (and (= slot 0) (= (Float.round succ-w) 5))]
-                            (when (and right-pressed (= slot 2))
-                              ;; Bellows RMB Vacuum Suction Wake — visibly draws nearby volfog & flames toward your nozzle!
-                              (let [sx1 (if (> succ-w 0.5f) succ-x (+ noz-x (* fx 8.0f)))
-                                    sy1 (if (> succ-w 0.5f) succ-y (+ noz-y (* fy 8.0f)))
-                                    sz1 (if (> succ-w 0.5f) succ-z (+ noz-z (* fz 8.0f)))]
-                                (EngineState.push-wake-capsule! state sx1 sy1 sz1 noz-x noz-y noz-z
-                                  3.65f -1.05f (* fx -2.3f) (* fy -2.3f) (* fz -2.3f) -0.35f)))
-                            (when (and right-pressed (> succ-w 0.5f))
-                              (let [lock-mat (if mining-gold? 5.0f succ-w)
-                                    spt (Materials.succ-ptype lock-mat)
-                                    dx (- noz-x succ-x)
-                                    dy (- noz-y succ-y)
-                                    dz (- noz-z succ-z)
-                                    dist (Float.clamp 0.30f 65.0f (Float.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz))))
-                                    travel (Float.clamp 0.11f 0.52f (/ dist 28.0f))
-                                    spd (/ dist travel)
-                                    svx (* (/ dx dist) spd)
-                                    svy (* (/ dy dist) spd)
-                                    svz (* (/ dz dist) spd)]
-                                (do
-                                  (if (= slot 0)
-                                    ;; [1] SOLID SACK: Chew into wall & vacuum chunks into Sack (or pop pure Gold Nuggets if mining Gold!)
-                                    (let [next-fill (Float.clamp 0.0f 1.0f (+ cur-fill (* 0.38f fdt)))]
-                                      (do
-                                        (when (not mining-gold?)
-                                          (do
-                                            (RigBelt.set-sack-mat! rig lock-mat)
-                                            (RigBelt.set-sack-fill! rig next-fill)))
-                                        (ParticleSystem.emit! ps succ-x succ-y succ-z svx svy svz travel 10 spt 0.065f 0.0f)
-                                        (when (>= (- fc @(RigBelt.last-sack-bite-frame rig)) 4)
-                                          (let [svec (Vector3.init (Double.from-float succ-x) (Double.from-float succ-y) (Double.from-float succ-z))]
+                            (do
+                              (when (and right-pressed (= slot 2))
+                                ;; Bellows RMB Vacuum Suction Wake — visibly draws nearby volfog & flames toward your nozzle!
+                                (let [sx1 (if (> succ-w 0.5f) succ-x (+ noz-x (* fx 8.0f)))
+                                      sy1 (if (> succ-w 0.5f) succ-y (+ noz-y (* fy 8.0f)))
+                                      sz1 (if (> succ-w 0.5f) succ-z (+ noz-z (* fz 8.0f)))]
+                                  (EngineState.push-wake-capsule! state sx1 sy1 sz1 noz-x noz-y noz-z
+                                    3.65f -1.05f (* fx -2.3f) (* fy -2.3f) (* fz -2.3f) -0.35f)))
+                              (when (and right-pressed (> succ-w 0.5f))
+                                (let [lock-mat (if mining-gold? 5.0f succ-w)
+                                      same-mat? (< (Float.abs (- lock-mat cur-mat)) 0.5f)
+                                      base-fill (if same-mat? cur-fill 0.0f)
+                                      spt (Materials.succ-ptype lock-mat)
+                                      dx (- noz-x succ-x)
+                                      dy (- noz-y succ-y)
+                                      dz (- noz-z succ-z)
+                                      dist (Float.clamp 0.30f 65.0f (Float.sqrt (+ (+ (* dx dx) (* dy dy)) (* dz dz))))
+                                      travel (Float.clamp 0.11f 0.52f (/ dist 28.0f))
+                                      spd (/ dist travel)
+                                      svx (* (/ dx dist) spd)
+                                      svy (* (/ dy dist) spd)
+                                      svz (* (/ dz dist) spd)]
+                                  (do
+                                    (if (= slot 0)
+                                      ;; [1] SOLID SACK: Chew into wall & vacuum chunks into Sack (or pop pure Gold Nuggets if mining Gold!)
+                                      (let [next-fill (Float.clamp 0.0f 1.0f (+ base-fill (* 0.38f fdt)))]
+                                        (do
+                                          (when (not mining-gold?)
                                             (do
-                                              (RigBelt.set-last-sack-bite-frame! rig fc)
-                                              (EngineState.push-voxel-action! state succ-x succ-y succ-z 1.85f lock-mat -1.0f 0.0f)
-                                              (ParticleSystem.emit-dust! ps succ-x succ-y succ-z 5)
-                                              (ignore (World.edit-sdf! world &svec 1.85 lock-mat true)))))))
+                                              (RigBelt.set-sack-mat! rig lock-mat)
+                                              (RigBelt.set-sack-fill! rig next-fill)))
+                                          (ParticleSystem.emit! ps succ-x succ-y succ-z svx svy svz travel 10 spt 0.065f 0.0f)
+                                          (when (>= (- fc @(RigBelt.last-sack-bite-frame rig)) 4)
+                                            (let [svec (Vector3.init (Double.from-float succ-x) (Double.from-float succ-y) (Double.from-float succ-z))]
+                                              (do
+                                                (RigBelt.set-last-sack-bite-frame! rig fc)
+                                                (EngineState.push-voxel-action! state succ-x succ-y succ-z 1.85f lock-mat -1.0f 0.0f)
+                                                (ParticleSystem.emit-dust! ps succ-x succ-y succ-z 5)
+                                                (ignore (World.edit-sdf! world &svec 1.85 lock-mat true)))))))
 
-                                    (if (= slot 1)
-                                      ;; [2] LIQUID FLASK: Siphon pool
-                                      (let [next-fill (Float.clamp 0.0f 1.0f (+ cur-fill (* 0.52f fdt)))]
-                                        (do
-                                          (RigBelt.set-flask-mat! rig lock-mat)
-                                          (RigBelt.set-flask-fill! rig next-fill)
-                                          (EngineState.push-voxel-action! state succ-x succ-y succ-z 3.10f lock-mat -0.55f 0.0f)
-                                          (EngineState.push-wake-capsule! state succ-x succ-y succ-z noz-x noz-y noz-z
-                                            2.55f -0.75f (* fx -1.6f) (* fy -1.6f) (* fz -1.6f) -0.28f)
-                                          (ParticleSystem.emit! ps succ-x succ-y succ-z svx svy svz travel 12 spt 0.055f 0.0f)))
+                                      (if (= slot 1)
+                                        ;; [2] LIQUID FLASK: Siphon pool
+                                        (let [next-fill (Float.clamp 0.0f 1.0f (+ base-fill (* 0.52f fdt)))]
+                                          (do
+                                            (RigBelt.set-flask-mat! rig lock-mat)
+                                            (RigBelt.set-flask-fill! rig next-fill)
+                                            (EngineState.push-voxel-action! state succ-x succ-y succ-z 3.10f lock-mat -0.55f 0.0f)
+                                            (EngineState.push-wake-capsule! state succ-x succ-y succ-z noz-x noz-y noz-z
+                                              2.55f -0.75f (* fx -1.6f) (* fy -1.6f) (* fz -1.6f) -0.28f)
+                                            (ParticleSystem.emit! ps succ-x succ-y succ-z svx svy svz travel 12 spt 0.055f 0.0f)))
 
-                                      ;; [3] GAS BELLOWS: Wide-cone inhale (snags rising Methane & live Match Fire!)
-                                      (let [next-fill (Float.clamp 0.0f 1.0f (+ cur-fill (* 0.58f fdt)))]
-                                        (do
-                                          (RigBelt.set-bellows-mat! rig lock-mat)
-                                          (RigBelt.set-bellows-fill! rig next-fill)
-                                          (EngineState.push-voxel-action! state succ-x succ-y succ-z 3.85f lock-mat -0.65f 0.0f)
-                                          (ParticleSystem.emit! ps succ-x succ-y succ-z svx svy svz travel 14 spt 0.085f 0.0f)))))
-                                  (set! ui-mode -1.0f))))))))))))
+                                        ;; [3] GAS BELLOWS: Wide-cone inhale (snags rising Methane & live Match Fire!)
+                                        (let [next-fill (Float.clamp 0.0f 1.0f (+ base-fill (* 0.58f fdt)))]
+                                          (do
+                                            (RigBelt.set-bellows-mat! rig lock-mat)
+                                            (RigBelt.set-bellows-fill! rig next-fill)
+                                            (EngineState.push-voxel-action! state succ-x succ-y succ-z 3.85f lock-mat -0.65f 0.0f)
+                                            (ParticleSystem.emit! ps succ-x succ-y succ-z svx svy svz travel 14 spt 0.085f 0.0f)))))
+                                    (set! ui-mode -1.0f)))))))))))))
 
               (js-sync-rig @(RigBelt.slot rig)
                            @(RigBelt.sack-mat rig)
