@@ -52,80 +52,89 @@
                 base-r (if (= stage 0) rad (if (= stage 1) (- 0.0f rad) (if (= stage 2) (- -1.0f rad) (- -2.0f rad))))]
             (if (<= (- by cam-y) -110.0f)
               (GameWorld.destroy-entity! ecs &ent)
-              (if (or held? (and (= stage 0) (> spd 3.2)))
-                ;; Still held in [4] Gauntlet or flying/rolling fast -> restore full radius & defer settling!
-                (do
-                  (when (> stage 0)
-                    (ECS.add-component! ecs &ent (CompVolume.init (Volume.Ball (Sphere.init pos (Double.from-float base-r))))))
-                  (ignore (Coordinator.schedule! (EngineState.coord state)
-                            (AppEvent.SettleBoulder state-ptr idx gen mat-id base-r) 2500l)))
-                (if (= stage 3)
-                  ;; Stage 3 (t = +305ms): GPU 3D texture has completed all weld passes -> despawn cleanly with zero 1-frame gap!
-                  (GameWorld.destroy-entity! ecs &ent)
-                  (let [m (Float.round mat-id)
-                        jpt (Materials.jet-ptype mat-id)
-                        dep-r (Float.clamp 0.68f 0.90f (* base-r 1.55f))
-                        weld-y (- by (* base-r 0.58f))
-                        weld-seed (+ 2.0f (* (Float.from-int (Int.mod (Int.abs (Long.to-int (Uint64.to-long idx))) 24)) 0.125f))
-                        spos (Vector3.init (Double.from-float bx) (Double.from-float weld-y) (Double.from-float bz))]
-                    (if (= m 13)
-                      ;; Spore Pod (13): Ruptures into a live Spore Cloud bloom + smooth-welded fungal floor crust, then despawns next tick!
-                      (do
-                        (EngineState.push-voxel-action! state bx (+ by 0.35f) bz 3.15f 520.0f 0.90f 1.0f)
-                        (EngineState.push-voxel-action! state bx weld-y bz 0.88f 13.0f 1.0f weld-seed)
-                        (MancerSystem.edit-bender-sdf! world &spos 0.88 13.0f false)
-                        (ParticleSystem.emit! ps bx (+ by 0.2f) bz 0.0f 3.8f 0.0f 1.9f 22 208.0f 0.55f 0.05f)
-                        (EditingSystem.sink-boulder-step! ecs &ent rb b &pos base-r 0.20f 0.65f)
-                        (ignore (Coordinator.schedule! (EngineState.coord state)
-                                  (AppEvent.SettleBoulder state-ptr idx gen mat-id (- -2.0f base-r)) 75l)))
-                      (if (= m 8)
-                        ;; Ice (8): Fractures & melts into a cool Water splash + frost mist, then despawns after GPU writes water!
+              (let [surf-d (World.sample-sdf-nearest world &pos)
+                    near-surf? (<= surf-d (+ base-r 0.75f))]
+                (if (or held? (and (= stage 0) (or (> spd 4.8) (and (not near-surf?) (> spd 1.4)))))
+                  ;; Still held in [4] Gauntlet, airborne, or flying fast -> damp creep & re-check in 360ms!
+                  (do
+                    (when (> stage 0)
+                      (ECS.add-component! ecs &ent (CompVolume.init (Volume.Ball (Sphere.init pos (Double.from-float base-r))))))
+                    (when (and (not held?) near-surf?)
+                      (let [old-w @(Body.angular-velocity b)]
                         (do
-                          (EngineState.push-voxel-action! state bx (+ by 0.20f) bz 2.35f 257.0f 0.85f 0.0f)
-                          (ParticleSystem.emit! ps bx (+ by 0.15f) bz 0.0f 3.2f 0.0f 1.4f 16 jpt 0.35f 0.22f)
-                          (ParticleSystem.emit-dust! ps bx by bz 8)
-                          (EditingSystem.sink-boulder-step! ecs &ent rb b &pos base-r 0.22f 0.60f)
+                          (Body.set-velocity! b (Vector3.mul &vel 0.72))
+                          (Body.set-angular-velocity! b (Vector3.mul &old-w 0.68))
+                          (RigidBody.set-body! rb @b)
+                          (ECS.add-component! ecs &ent (CompBody.init @rb)))))
+                    (ignore (Coordinator.schedule! (EngineState.coord state)
+                              (AppEvent.SettleBoulder state-ptr idx gen mat-id base-r) 360l)))
+                  (if (= stage 3)
+                    ;; Stage 3 (t = +260ms): GPU 3D texture has completed all weld passes -> despawn cleanly with zero 1-frame gap!
+                    (GameWorld.destroy-entity! ecs &ent)
+                    (let [m (Float.round mat-id)
+                          jpt (Materials.jet-ptype mat-id)
+                          dep-r (Float.clamp 0.68f 0.90f (* base-r 1.55f))
+                          weld-y (- by (* base-r 0.58f))
+                          weld-seed (+ 2.0f (* (Float.from-int (Int.mod (Int.abs (Long.to-int (Uint64.to-long idx))) 24)) 0.125f))
+                          spos (Vector3.init (Double.from-float bx) (Double.from-float weld-y) (Double.from-float bz))]
+                      (if (= m 13)
+                        ;; Spore Pod (13): Ruptures into a live Spore Cloud bloom + smooth-welded fungal floor crust, then despawns next tick!
+                        (do
+                          (EngineState.push-voxel-action! state bx (+ by 0.35f) bz 3.15f 520.0f 0.90f 1.0f)
+                          (EngineState.push-voxel-action! state bx weld-y bz 0.88f 13.0f 1.0f weld-seed)
+                          (MancerSystem.edit-bender-sdf! world &spos 0.88 13.0f false)
+                          (ParticleSystem.emit! ps bx (+ by 0.2f) bz 0.0f 3.8f 0.0f 1.9f 22 208.0f 0.55f 0.05f)
+                          (EditingSystem.sink-boulder-step! ecs &ent rb b &pos base-r 0.20f 0.65f)
                           (ignore (Coordinator.schedule! (EngineState.coord state)
                                     (AppEvent.SettleBoulder state-ptr idx gen mat-id (- -2.0f base-r)) 75l)))
-                        (if (Materials.granular? mat-id)
-                          ;; Granular Solids (Sand 6, Gunpowder 12): Slump into a live falling GPU CA pile, then despawn after GPU write!
+                        (if (= m 8)
+                          ;; Ice (8): Fractures & melts into a cool Water splash + frost mist, then despawns after GPU writes water!
                           (do
-                            (EngineState.push-voxel-action! state bx (+ by 0.30f) bz (* base-r 2.35f) (- 0.0f mat-id) 1.0f 0.0f)
-                            (ParticleSystem.emit! ps bx (+ by 0.20f) bz 0.0f 2.6f 0.0f 1.25f 16 jpt 0.36f 0.25f)
-                            (ParticleSystem.emit-dust! ps bx by bz 10)
-                            (EditingSystem.sink-boulder-step! ecs &ent rb b &pos base-r 0.20f 0.62f)
+                            (EngineState.push-voxel-action! state bx (+ by 0.20f) bz 2.35f 257.0f 0.85f 0.0f)
+                            (ParticleSystem.emit! ps bx (+ by 0.15f) bz 0.0f 3.2f 0.0f 1.4f 16 jpt 0.35f 0.22f)
+                            (ParticleSystem.emit-dust! ps bx by bz 8)
+                            (EditingSystem.sink-boulder-step! ecs &ent rb b &pos base-r 0.22f 0.60f)
                             (ignore (Coordinator.schedule! (EngineState.coord state)
                                       (AppEvent.SettleBoulder state-ptr idx gen mat-id (- -2.0f base-r)) 75l)))
-                          (if (= m 5)
-                            ;; Gold (5): Settles into a collectible 24k Gold Nugget!
+                          (if (Materials.granular? mat-id)
+                            ;; Granular Solids (Sand 6, Gunpowder 12): Slump into a live falling GPU CA pile, then despawn after GPU write!
                             (do
-                              (ignore (GoldSystem.spawn-nugget! state pos (Vector3.init 0.0 1.8 0.0) 0.30 15))
-                              (GameWorld.destroy-entity! ecs &ent))
-                            ;; Cohesive Solids: Single mass-conserving SDF stamp on Stage 0 while entity smoothly sinks into it across Stages 0..2!
-                            (if (= stage 0)
-                              ;; Stage 0 (t = 0ms): Single volume-matched SDF weld + begin sinking rigid body into the emerging rock mound
+                              (EngineState.push-voxel-action! state bx (+ by 0.30f) bz (* base-r 2.35f) (- 0.0f mat-id) 1.0f 0.0f)
+                              (ParticleSystem.emit! ps bx (+ by 0.20f) bz 0.0f 2.6f 0.0f 1.25f 16 jpt 0.36f 0.25f)
+                              (ParticleSystem.emit-dust! ps bx by bz 10)
+                              (EditingSystem.sink-boulder-step! ecs &ent rb b &pos base-r 0.20f 0.62f)
+                              (ignore (Coordinator.schedule! (EngineState.coord state)
+                                        (AppEvent.SettleBoulder state-ptr idx gen mat-id (- -2.0f base-r)) 75l)))
+                            (if (= m 5)
+                              ;; Gold (5): Settles into a collectible 24k Gold Nugget!
                               (do
-                                (EngineState.push-voxel-action! state bx weld-y bz dep-r mat-id 1.0f weld-seed)
-                                (MancerSystem.edit-bender-sdf! world &spos (Double.from-float dep-r) mat-id false)
-                                (when (= m 16)
-                                  ;; Rad-Ore (16): Belches a radioactive Miasma wisp as it welds into the rock!
-                                  (EngineState.push-voxel-action! state bx (+ by 0.35f) bz 2.25f 519.0f 0.78f 0.0f))
-                                (ParticleSystem.emit! ps bx (+ by 0.12f) bz 0.0f 2.2f 0.0f 0.95f 6 jpt 0.26f 0.18f)
-                                (ParticleSystem.emit-dust! ps bx by bz 6)
-                                (EditingSystem.sink-boulder-step! ecs &ent rb b &pos base-r 0.18f 0.86f)
-                                (ignore (Coordinator.schedule! (EngineState.coord state)
-                                          (AppEvent.SettleBoulder state-ptr idx gen mat-id (- 0.0f base-r)) 90l)))
-                              (if (= stage 1)
-                                ;; Stage 1 (t = +90ms): Sink deeper into the newly welded voxel mound
+                                (ignore (GoldSystem.spawn-nugget! state pos (Vector3.init 0.0 1.8 0.0) 0.30 15))
+                                (GameWorld.destroy-entity! ecs &ent))
+                              ;; Cohesive Solids: Single mass-conserving SDF stamp on Stage 0 while entity smoothly sinks into it across Stages 0..2!
+                              (if (= stage 0)
+                                ;; Stage 0 (t = 0ms): Single volume-matched SDF weld + begin sinking rigid body into the emerging rock mound
                                 (do
-                                  (EditingSystem.sink-boulder-step! ecs &ent rb b &pos base-r 0.20f 0.68f)
+                                  (EngineState.push-voxel-action! state bx weld-y bz dep-r mat-id 1.0f weld-seed)
+                                  (MancerSystem.edit-bender-sdf! world &spos (Double.from-float dep-r) mat-id false)
+                                  (when (= m 16)
+                                    ;; Rad-Ore (16): Belches a radioactive Miasma wisp as it welds into the rock!
+                                    (EngineState.push-voxel-action! state bx (+ by 0.35f) bz 2.25f 519.0f 0.78f 0.0f))
+                                  (ParticleSystem.emit! ps bx (+ by 0.12f) bz 0.0f 2.2f 0.0f 0.95f 6 jpt 0.26f 0.18f)
+                                  (ParticleSystem.emit-dust! ps bx by bz 6)
+                                  (EditingSystem.sink-boulder-step! ecs &ent rb b &pos base-r 0.18f 0.86f)
                                   (ignore (Coordinator.schedule! (EngineState.coord state)
-                                            (AppEvent.SettleBoulder state-ptr idx gen mat-id (- -1.0f base-r)) 90l)))
-                                ;; Stage 2 (t = +180ms): Final sink into the rock interior before Stage 3 despawn
-                                (do
-                                  (EditingSystem.sink-boulder-step! ecs &ent rb b &pos base-r 0.18f 0.48f)
-                                  (ignore (Coordinator.schedule! (EngineState.coord state)
-                                            (AppEvent.SettleBoulder state-ptr idx gen mat-id (- -2.0f base-r)) 80l)))))))))))))))))
+                                            (AppEvent.SettleBoulder state-ptr idx gen mat-id (- 0.0f base-r)) 90l)))
+                                (if (= stage 1)
+                                  ;; Stage 1 (t = +90ms): Sink deeper into the newly welded voxel mound
+                                  (do
+                                    (EditingSystem.sink-boulder-step! ecs &ent rb b &pos base-r 0.20f 0.68f)
+                                    (ignore (Coordinator.schedule! (EngineState.coord state)
+                                              (AppEvent.SettleBoulder state-ptr idx gen mat-id (- -1.0f base-r)) 90l)))
+                                  ;; Stage 2 (t = +180ms): Final sink into the rock interior before Stage 3 despawn
+                                  (do
+                                    (EditingSystem.sink-boulder-step! ecs &ent rb b &pos base-r 0.18f 0.48f)
+                                    (ignore (Coordinator.schedule! (EngineState.coord state)
+                                              (AppEvent.SettleBoulder state-ptr idx gen mat-id (- -2.0f base-r)) 80l))))))))))))))))))
 
   (defn spawn-boulder! [state spawn-pos vel radius mat-id ttl-ms]
     (let [ecs (EngineState.ecs-world state)
@@ -148,8 +157,9 @@
           ang-vel (Vector3.init (+ (* vz -0.35) (* (sin (* s-hash 1.7)) 4.5))
                                 (* (cos (* s-hash 2.3)) 4.2)
                                 (+ (* vx 0.35) (* (sin (* s-hash 3.1)) 4.5)))
-          rb (RigidBody.new @&spawn-pos init-rot 1.5 restit fric 0.08 0.14 0.22)
-          vol (Volume.Ball (Sphere.init @&spawn-pos radius))]
+          rb (RigidBody.new @&spawn-pos init-rot 1.5 restit fric 0.14 0.22 0.26)
+          vol (Volume.Ball (Sphere.init @&spawn-pos radius))
+          first-check (if (< ttl-ms 850l) ttl-ms 720l)]
       (do
         (Body.set-velocity! (RigidBody.body &rb) vel)
         (Body.set-angular-velocity! (RigidBody.body &rb) ang-vel)
@@ -158,7 +168,7 @@
         (add-component! ecs &e (CompColor.init col))
         (let [state-ptr (Unsafe.coerce state)
               f-rad (Double.to-float radius)
-              _ (Coordinator.schedule! (EngineState.coord state) (AppEvent.SettleBoulder state-ptr idx gen mat-id f-rad) ttl-ms)]
+              _ (Coordinator.schedule! (EngineState.coord state) (AppEvent.SettleBoulder state-ptr idx gen mat-id f-rad) first-check)]
           e))))
 
 

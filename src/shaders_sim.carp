@@ -2134,8 +2134,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                             let d_box = length(max(abs(pr) - vec3<f32>(sr * 0.74, sr * 0.64, sr * 0.76), vec3<f32>(0.0))) - sr * 0.14;
                             let shape_mix = fract(va.z * 1.73);
                             let d_poly = mix(d_box, d_oct, shape_mix);
-                            let crag_w = (sin(pr.x * 2.3 + va.z * 5.1) * cos(pr.y * 2.1 - va.z * 3.7) * sin(pr.z * 2.4 + va.z * 2.9)) * sr * 0.14;
-                            build_val = mix(fdist - sr, d_poly + crag_w, 0.72);
+                            let crag_w = (sin(pr.x * 0.95 + va.z * 5.1) * cos(pr.y * 0.90 - va.z * 3.7) * sin(pr.z * 0.95 + va.z * 2.9)) * sr * 0.25;
+                            build_val = mix(fdist - sr, d_poly + crag_w, 0.74);
                         }
                         let k_weld = select(0.28, 0.44, va.z > 1.5);
                         let h_weld = clamp(0.5 + 0.5 * (next_vol - build_val) / k_weld, 0.0, 1.0);
