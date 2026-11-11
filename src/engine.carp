@@ -126,6 +126,11 @@
 
 (deftype RigBelt [
   slot Int
+  stance Int
+  left-kind Int
+  right-kind Int
+  left-vessel Int
+  right-vessel Int
   sack-mat Float
   sack-fill Float
   flask-mat Float
@@ -143,7 +148,7 @@
 
 (defmodule RigBelt
   (defn make []
-    (RigBelt.init 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f false 0
+    (RigBelt.init 0 0 0 0 0 1 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f false 0
       (Uint64.from-long 0l)
       (Uint32.from-long 0l)
       0.0f 0 0))
@@ -311,8 +316,15 @@
 
 (deftype WandBelt [
   idx Int
+  right-idx Int
+  staff-idx Int
   cooldown Float
+  right-cd Float
+  staff-cd Float
+  rite-cd Float
   flash Float
+  right-flash Float
+  staff-flash Float
   rmb-last Bool
   mana (Array Float)
   bolt-alive (Array Bool)
@@ -328,8 +340,8 @@
 
 (defmodule WandBelt
   (defn make []
-    (WandBelt.init 0 0.0f 0.0f false
-      (Array.replicate 7 &100.0f)
+    (WandBelt.init 0 1 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f false
+      (Array.replicate 12 &100.0f)
       (Array.replicate 24 &false)
       (Array.replicate 24 &(Uint64.from-long 0l))
       (Array.replicate 24 &(Uint32.from-long 0l))
@@ -524,11 +536,14 @@
         (InputManager.add-binding! input "brush-dec" (InputSource.Key GLFW.Keycode.LEFT_BRACKET) 1.0)
         (InputManager.add-binding! input "brush-inc" (InputSource.Key GLFW.Keycode.RIGHT_BRACKET) 1.0)
         
+        (InputManager.add-binding! input "rig-hands" (InputSource.Key GLFW.Keycode.GRAVE_ACCENT) 1.0)
         (InputManager.add-binding! input "mat-solid" (InputSource.Key GLFW.Keycode.NUM_1) 1.0)
         (InputManager.add-binding! input "mat-liquid" (InputSource.Key GLFW.Keycode.NUM_2) 1.0)
         (InputManager.add-binding! input "mat-gas" (InputSource.Key GLFW.Keycode.NUM_3) 1.0)
         (InputManager.add-binding! input "rig-interact" (InputSource.Key GLFW.Keycode.NUM_4) 1.0)
         (InputManager.add-binding! input "rig-wand" (InputSource.Key GLFW.Keycode.NUM_5) 1.0)
+        (InputManager.add-binding! input "mod-shift" (InputSource.Key GLFW.Keycode.LEFT_SHIFT) 1.0)
+        (InputManager.add-binding! input "mod-shift" (InputSource.Key GLFW.Keycode.RIGHT_SHIFT) 1.0)
         
         (InputManager.add-binding! input "edit-add" (InputSource.Key GLFW.Keycode.F) 1.0)
         (InputManager.add-binding! input "edit-remove" (InputSource.Key GLFW.Keycode.H) 1.0)
@@ -1394,6 +1409,9 @@
                   wb (EngineState.wands state)
                   mb (EngineState.matches state)
                   rslot @(RigBelt.slot rig)
+                  stance @(RigBelt.stance rig)
+                  l-kind @(RigBelt.left-kind rig)
+                  r-kind @(RigBelt.right-kind rig)
                   holding? (> (Uint64.to-long @(RigBelt.grab-idx rig)) 0l)
                   gmat @(RigBelt.grab-mat rig)
                   held-elem (if (and (>= gmat 4000.0f) (< gmat 5000.0f))
@@ -1405,15 +1423,20 @@
                                   (if (and (>= gmat 1000.0f) (< gmat 2000.0f))
                                     (- gmat 1000.0f)
                                     gmat))))
-                  wch (WandSystem.get-chassis @(WandBelt.idx wb))
-                  wmana @(Array.unsafe-nth (WandBelt.mana wb) @(WandBelt.idx wb))
+                  active-wid (if (= stance 2)
+                               (+ 8 @(WandBelt.staff-idx wb))
+                               (if (= l-kind 1)
+                                 @(WandBelt.idx wb)
+                                 @(WandBelt.right-idx wb)))
+                  wch (WandSystem.get-chassis active-wid)
+                  wmana @(Array.unsafe-nth (WandBelt.mana wb) active-wid)
                   act-mat (if (= rslot 0)
                             @(RigBelt.sack-mat rig)
                             (if (= rslot 1)
                               @(RigBelt.flask-mat rig)
                               (if (= rslot 2)
                                 @(RigBelt.bellows-mat rig)
-                                (if (= rslot 4)
+                                (if (or (= stance 2) (and (= stance 0) (or (= l-kind 1) (= r-kind 1))))
                                   @(WandChassis.lantern-mat &wch)
                                   (if (and holding? (< held-elem 525.0f)) held-elem 0.0f)))))
                   act-fill (if (= rslot 0)
@@ -1422,7 +1445,7 @@
                                @(RigBelt.flask-fill rig)
                                (if (= rslot 2)
                                  @(RigBelt.bellows-fill rig)
-                                 (if (= rslot 4)
+                                 (if (or (= stance 2) (and (= stance 0) (or (= l-kind 1) (= r-kind 1))))
                                    (Float.clamp 0.12f 1.0f (/ wmana @(WandChassis.mana-max &wch)))
                                    (if (and holding? (and (> held-elem 0.5f) (< held-elem 525.0f))) 0.85f 0.0f)))))]
               (do

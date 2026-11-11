@@ -96,19 +96,20 @@
 #endif
   }")
 
-(deftemplate js-sync-wand (Fn [Int Int Float Int] ())
-  "void $NAME(int slot, int wand_idx, float mana_frac, int cast_state)"
+(deftemplate js-sync-wand (Fn [Int Int Float Int Int Float Int Int Float Int] ())
+  "void $NAME(int slot_code, int lw, float lm, int ls, int rw, float rm, int rs, int stw, float stm, int sts)"
   "$DECL {
 #ifdef __EMSCRIPTEN__
-      static int prev_slot = -1;
-      static int prev_wand = -1;
-      static int prev_state = -9;
-      static float prev_mana = -1.0f;
-      float dm = mana_frac - prev_mana; if (dm < 0.0f) dm = -dm;
-      if (slot == prev_slot && wand_idx == prev_wand && cast_state == prev_state && dm < 0.005f) return;
-      prev_slot = slot; prev_wand = wand_idx; prev_state = cast_state; prev_mana = mana_frac;
-      char buf[192];
-      sprintf(buf, \"if (window.sync_wand) window.sync_wand(%d, %d, %.4f, %d);\", slot, wand_idx, mana_frac, cast_state);
+      static int p_code = -1, p_lw = -1, p_ls = -9, p_rw = -1, p_rs = -9, p_stw = -1, p_sts = -9;
+      static float p_lm = -1.0f, p_rm = -1.0f, p_stm = -1.0f;
+      float dlm = lm - p_lm; if (dlm < 0.0f) dlm = -dlm;
+      float drm = rm - p_rm; if (drm < 0.0f) drm = -drm;
+      float dstm = stm - p_stm; if (dstm < 0.0f) dstm = -dstm;
+      if (slot_code == p_code && lw == p_lw && ls == p_ls && rw == p_rw && rs == p_rs && stw == p_stw && sts == p_sts && dlm < 0.005f && drm < 0.005f && dstm < 0.005f) return;
+      p_code = slot_code; p_lw = lw; p_ls = ls; p_rw = rw; p_rs = rs; p_stw = stw; p_sts = sts;
+      p_lm = lm; p_rm = rm; p_stm = stm;
+      char buf[256];
+      sprintf(buf, \"if (window.sync_wand) window.sync_wand(%d, %d, %.4f, %d, %d, %.4f, %d, %d, %.4f, %d);\", slot_code, lw, lm, ls, rw, rm, rs, stw, stm, sts);
       emscripten_run_script(buf);
 #endif
   }")

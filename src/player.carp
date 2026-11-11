@@ -5,6 +5,9 @@
   (defmodule Keycode
     (register LEFT_BRACKET Int "GLFW_KEY_LEFT_BRACKET")
     (register RIGHT_BRACKET Int "GLFW_KEY_RIGHT_BRACKET")
+    (register LEFT_SHIFT Int "GLFW_KEY_LEFT_SHIFT")
+    (register RIGHT_SHIFT Int "GLFW_KEY_RIGHT_SHIFT")
+    (register GRAVE_ACCENT Int "GLFW_KEY_GRAVE_ACCENT")
   )
 )
 
