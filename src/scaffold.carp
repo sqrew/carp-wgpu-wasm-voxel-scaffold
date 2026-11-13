@@ -22,6 +22,9 @@
    int js_rig_slot = 0;
    int js_load_vessel_slot = -1;
    float js_load_vessel_mat = 0.0f;
+   int js_satchel_open = 0;
+   int js_satchel_scroll_delta = 0;
+   int js_vessel_dump_mask = 0;
 
    typedef struct {
        WGPUBindGroupEntry entries[16];
@@ -41,6 +44,8 @@
    EMSCRIPTEN_KEEPALIVE void set_flashlight(float f) { js_flashlight = f; }
    EMSCRIPTEN_KEEPALIVE void set_rig_slot(int s) { if (s >= 0 && s <= 4) js_rig_slot = s; }
    EMSCRIPTEN_KEEPALIVE void load_rig_vessel(int slot, float mat) { js_load_vessel_slot = slot; js_load_vessel_mat = mat; }
+   EMSCRIPTEN_KEEPALIVE void satchel_scroll(int step) { js_satchel_scroll_delta += step; }
+   EMSCRIPTEN_KEEPALIVE void queue_vessel_dump(int hand_bit) { js_vessel_dump_mask |= (hand_bit & 3); }
    #endif
    #endif
 
@@ -168,6 +173,36 @@
 (deftemplate get-js-load-vessel-slot (Fn [] Int) "int $NAME(void)" "$DECL { return js_load_vessel_slot; }")
 (deftemplate get-js-load-vessel-mat (Fn [] Float) "float $NAME(void)" "$DECL { return js_load_vessel_mat; }")
 (deftemplate clear-js-load-vessel! (Fn [] ()) "void $NAME(void)" "$DECL { js_load_vessel_slot = -1; js_load_vessel_mat = 0.0f; }")
+(deftemplate get-js-satchel-open (Fn [] Int) "int $NAME(void)" "$DECL { return js_satchel_open; }")
+(deftemplate set-js-satchel-open (Fn [Int] ()) "void $NAME(int v)" "$DECL { js_satchel_open = v; }")
+(deftemplate consume-js-satchel-scroll! (Fn [] Int)
+  "int $NAME(void)"
+  "$DECL { int d = js_satchel_scroll_delta; js_satchel_scroll_delta = 0; return d; }")
+(deftemplate consume-js-dump-mask! (Fn [] Int)
+  "int $NAME(void)"
+  "$DECL { int m = js_vessel_dump_mask; js_vessel_dump_mask = 0; return m; }")
+
+(deftemplate js-sync-satchel (Fn [Int Int Int Float Int Int Int Int Int Int Int Int] ())
+  "void $NAME(int open_i, int cur, int tgt, float wpct, int pg0, int pg1, int pg2, int pg3, int pg4, int bkp, int pcr, int bc)"
+  "$DECL {
+#ifdef __EMSCRIPTEN__
+      static int p_open = -1, p_cur = -1, p_tgt = -1;
+      static int p_pg0 = -1, p_pg1 = -1, p_pg2 = -1, p_pg3 = -1, p_pg4 = -1, p_bkp = -1, p_pcr = -1, p_bc = -1;
+      static float p_wp = -9.0f;
+      float dw = wpct - p_wp; if (dw < 0.0f) dw = -dw;
+      if (open_i == p_open && cur == p_cur && tgt == p_tgt && dw < 0.015f &&
+          pg0 == p_pg0 && pg1 == p_pg1 && pg2 == p_pg2 && pg3 == p_pg3 &&
+          pg4 == p_pg4 && bkp == p_bkp && pcr == p_pcr && bc == p_bc) return;
+      p_open = open_i; p_cur = cur; p_tgt = tgt; p_wp = wpct;
+      p_pg0 = pg0; p_pg1 = pg1; p_pg2 = pg2; p_pg3 = pg3;
+      p_pg4 = pg4; p_bkp = bkp; p_pcr = pcr; p_bc = bc;
+      char buf[384];
+      snprintf(buf, sizeof(buf),
+        \"if (window.sync_satchel) window.sync_satchel(%d, %d, %d, %.3f, %d, %d, %d, %d, %d, %d, %d, %d);\",
+        open_i, cur, tgt, wpct, pg0, pg1, pg2, pg3, pg4, bkp, pcr, bc);
+      emscripten_run_script(buf);
+#endif
+  }")
 
 (deftemplate js-clear-materials (Fn [] ())
   "void $NAME(void)"

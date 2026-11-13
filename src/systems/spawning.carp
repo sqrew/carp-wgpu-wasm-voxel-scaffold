@@ -43,33 +43,6 @@
                 sy (+ py (* fy 1.5f))
                 sz (+ pz (* fz 1.5f))]
             (ParticleSystem.emit! ps sx sy sz (* fx 18.0f) (* fy 18.0f) (* fz 18.0f) 2.2f 40 PARTICLE-TYPE-MAGIC 0.5f 0.8f)))
-        (when (and (InputManager.action-pressed? input "spawn-entity") (> (- fc @(MatchBook.last-spawn-frame mb)) 10))
-          (do
-            (MatchBook.set-last-spawn-frame! mb fc)
-            (let [pos (Camera.pos cam)
-                  dir (Camera.front cam)
-                  spawn-pos (Vector3.add pos &(Vector3.mul dir 1.6))
-                  vel (Vector3.mul dir 7.5)
-                  cidx (Int.mod fc 3)
-                  color (if (= cidx 0)
-                          (Vector3.init 0.95 0.28 0.22)
-                          (if (= cidx 1)
-                            (Vector3.init 0.22 0.85 0.95)
-                            (Vector3.init 0.95 0.78 0.20)))
-                  e (GameWorld.create-entity! ecs)
-                  rb (RigidBody.new @&spawn-pos (Quaternion.identity) 1.0 0.65 0.35 0.1 0.1 0.1)
-                  vol (Volume.Ball (Sphere.init spawn-pos 0.6))]
-              (do
-                (Body.set-velocity! (RigidBody.body &rb) vel)
-                (add-component! ecs &e (CompBody.init rb))
-                (add-component! ecs &e (CompVolume.init vol))
-                (add-component! ecs &e (CompColor.init color))
-                (let [idx (ECS.Entity.index &e)
-                      gen (ECS.Entity.generation &e)
-                      ecs-ptr (Unsafe.coerce (EngineState.ecs-world state))]
-                  (do
-                    (let [_ (Coordinator.schedule! (EngineState.coord state) (AppEvent.DespawnEntity ecs-ptr idx gen) 60000l)] ())
-                    ()))))))
 
         ;; Off-Hand Matchbox / Flint Snap (Z or Middle Mouse Button)
         (when (and (or (InputManager.action-pressed? input "strike-match")

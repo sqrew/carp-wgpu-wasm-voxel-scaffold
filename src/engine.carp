@@ -55,15 +55,15 @@
 (defmodule VoxelQueue
   (defn make []
     (VoxelQueue.init 0
-      (Array.replicate 48 &0.0f)
-      (Array.replicate 48 &0.0f)
+      (Array.replicate 256 &0.0f)
+      (Array.replicate 256 &0.0f)
       0
       (Array.replicate 64 &0)
       0 0 0
       0
-      (Array.replicate 64 &0.0f)
-      (Array.replicate 64 &0.0f)
-      (Array.replicate 64 &0.0f)
+      (Array.replicate 128 &0.0f)
+      (Array.replicate 128 &0.0f)
+      (Array.replicate 128 &0.0f)
       0
       (Array.replicate 48 &0.0f)
       (Array.replicate 16 &0.0f)))
@@ -314,43 +314,154 @@
       0 0 0))
 )
 
+(def MAX-BOLTS 8192)
+
 (deftype WandBelt [
   idx Int
   right-idx Int
   staff-idx Int
+  relic-charges Int
+  coupled-drv Int
+  coupled-inf Int
   cooldown Float
   right-cd Float
   staff-cd Float
   rite-cd Float
+  coupled-cd Float
+  power-cd (Array Float)
   flash Float
   right-flash Float
   staff-flash Float
+  coupled-flash Float
   rmb-last Bool
   mana (Array Float)
-  bolt-alive (Array Bool)
-  bolt-idx (Array Uint64)
-  bolt-gen (Array Uint32)
+  ;; Stateful Chassis (4 slots: 0=Solid, 1=Liquid, 2=Gas, 3=Backup)
+  ch-phase (Array Int)
+  ch-arch (Array Int)
+  ch-delay (Array Float)
+  ch-mana-max (Array Float)
+  ch-mana-regen (Array Float)
+  ch-mana-cost (Array Float)
+  ch-multicast (Array Int)
+  ch-spread (Array Float)
+  ch-speed-mult (Array Float)
+  ch-blast-mult (Array Float)
+  ch-sip-mult (Array Float)
+  ch-bounces (Array Int)
+  ch-power-core (Array Int)
+  ch-mod-cap (Array Int)
+  ch-mods (Array Int)
+  ;; Zero-Cursor [Tab] Tinkering Satchel (5 Gems + 1 Backup Chassis)
+  has-backup Bool
+  satchel-gems (Array Int)
+  satchel-open Bool
+  satchel-cursor Int
+  satchel-target Int
+  weld-hold Float
+  loot-seq Int
+  ;; 8,192-Bolt Dense Swap-Remove SoA Pool + GPU Staging + Pre-Cached Creature Hitboxes
+  bolt-count Int
   bolt-pos (Array Float)
   bolt-vel (Array Float)
+  bolt-col (Array Float)
   bolt-life (Array Float)
+  bolt-rad (Array Float)
+  bolt-grav (Array Float)
+  bolt-dmg (Array Float)
+  bolt-blast (Array Float)
+  bolt-homing (Array Float)
   bolt-bounces (Array Int)
+  bolt-pierce (Array Int)
+  bolt-split (Array Int)
+  bolt-light (Array Int)
+  bolt-style (Array Int)
   bolt-wand (Array Int)
-  bolt-slot Int
+  bolt-mat (Array Float)
+  bolt-inf-wand (Array Int)
+  bolt-inf-mat (Array Float)
+  bolt-gpu-staging (Array Float)
+  target-cache (Array Float)
+  target-count Int
 ])
 
 (defmodule WandBelt
-  (defn make []
-    (WandBelt.init 0 1 0 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f false
-      (Array.replicate 12 &100.0f)
-      (Array.replicate 24 &false)
-      (Array.replicate 24 &(Uint64.from-long 0l))
-      (Array.replicate 24 &(Uint32.from-long 0l))
-      (Array.replicate 72 &0.0f)
-      (Array.replicate 72 &0.0f)
-      (Array.replicate 24 &0.0f)
-      (Array.replicate 24 &0)
-      (Array.replicate 24 &0)
-      0))
+  (defn make [seed]
+    (let [starter-core (+ 101 (Int.mod (Int.abs seed) 3))
+          gems [starter-core 0 0 0 0]]
+      (WandBelt.init
+        0 1 0 0 0 1
+        0.0f 0.0f 0.0f 0.0f 0.0f
+        (Array.replicate 3 &0.0f)
+        0.0f 0.0f 0.0f 0.0f false
+        (Array.replicate 12 &100.0f)
+        ;; 4 Chassis slots (0: Solid, 1: Liquid, 2: Gas, 3: Backup)
+        [0 1 2 0]
+        [0 0 0 5]
+        [0.18f 0.075f 0.26f 0.13f]
+        [100.0f 100.0f 100.0f 150.0f]
+        [34.0f 36.0f 34.0f 48.0f]
+        [10.5f 3.8f 15.0f 9.0f]
+        [1 1 1 1]
+        [0.005f 0.022f 0.012f 0.008f]
+        [1.0f 1.0f 1.0f 1.50f]
+        [1.0f 1.0f 1.0f 1.15f]
+        [1.0f 1.0f 1.0f 0.90f]
+        [0 0 0 1]
+        [0 0 0 0]
+        [3 3 3 3]
+        (Array.replicate 12 &0)
+        ;; Satchel (starts with 1 random Starter Power Core in slot 0!)
+        false
+        gems
+        false 0 0 0.0f 1
+        ;; 8,192-Bolt SoA Pool
+        0
+        (Array.replicate (* MAX-BOLTS 3) &0.0f)
+        (Array.replicate (* MAX-BOLTS 3) &0.0f)
+        (Array.replicate (* MAX-BOLTS 4) &0.0f)
+        (Array.replicate MAX-BOLTS &0.0f)
+        (Array.replicate MAX-BOLTS &0.15f)
+        (Array.replicate MAX-BOLTS &0.0f)
+        (Array.replicate MAX-BOLTS &1.0f)
+        (Array.replicate MAX-BOLTS &1.0f)
+        (Array.replicate MAX-BOLTS &0.0f)
+        (Array.replicate MAX-BOLTS &0)
+        (Array.replicate MAX-BOLTS &0)
+        (Array.replicate MAX-BOLTS &0)
+        (Array.replicate MAX-BOLTS &0)
+        (Array.replicate MAX-BOLTS &0)
+        (Array.replicate MAX-BOLTS &0)
+        (Array.replicate MAX-BOLTS &0.0f)
+        (Array.replicate MAX-BOLTS &-1)
+        (Array.replicate MAX-BOLTS &0.0f)
+        (Array.replicate (* MAX-BOLTS 12) &0.0f)
+        (Array.replicate 160 &0.0f)
+        0)))
+
+  (defn grant-satchel-gem! [wb gem-id]
+    (let [gems (WandBelt.satchel-gems wb)
+          placed? false]
+      (do
+        (for [i 0 5]
+          (when (and (not placed?) (= @(Array.unsafe-nth gems i) 0))
+            (do
+              (Array.aset! gems i gem-id)
+              (let [cur @(WandBelt.satchel-cursor wb)
+                    cc (if (< cur 0) 0 (if (> cur 4) 4 cur))]
+                (when (= @(Array.unsafe-nth gems cc) 0)
+                  (WandBelt.set-satchel-cursor! wb i)))
+              (set! placed? true))))
+        placed?)))
+
+  (defn roll-loot-gem! [wb seed]
+    (let [seq @(WandBelt.loot-seq wb)
+          h (Int.abs (+ (* seq 73) (* seed 37)))
+          gem-id (if (= (Int.mod h 4) 0)
+                   (+ 101 (Int.mod (/ h 4) 3))
+                   (+ 1 (Int.mod (/ h 4) 12)))]
+      (do
+        (WandBelt.set-loot-seq! wb (+ seq 1))
+        (WandBelt.grant-satchel-gem! wb gem-id))))
 )
 
 (deftype EngineState [
@@ -402,7 +513,7 @@
                   spawn-foot-pos (Vector3.init 32.0 spawn-foot-y 32.0)
                   spawn-eye-pos (Vector3.init 32.0 (+ spawn-foot-y 1.2) 32.0)
                   player (Player.create spawn-eye-pos)
-                  uniforms (Array.replicate 624 &0.0f)
+                  uniforms (Array.replicate 1488 &0.0f)
                   diag (Diagnostics.new @"diagnostics.log")
                   ecs-world (GameWorld.new)
                   grid (SpatialGrid.new-with-origin 8.0 24 36 24 (Vector3.init -64.0 (- spawn-foot-y 144.0) -64.0))
@@ -434,7 +545,8 @@
                           surf-format (WGPURender.surface-format @(M-WGPUSurface.p (Engine.surf &platform-eng)))
                           solid-tex @(M-RenderTexture.p (Renderer.voxel-texture &ren))
                           vel-tex @(M-RenderTexture.p (Renderer.vel-texture &ren))
-                          ps (ParticleSystem.create ps-ctx &surf-format solid-tex vel-tex)]
+                          ps (ParticleSystem.create ps-ctx &surf-format solid-tex vel-tex)
+                          w-seed (Double.to-int (* (Double.abs spawn-foot-y) 13.0))]
                       (Result.Success (EngineState.init
                         platform-eng ren world player uniforms
                         (Array.replicate 24576 &0.0f)
@@ -450,7 +562,7 @@
                         (CritterBank.make)
                         (EnemyBank.make)
                         (MancerBank.make)
-                        (WandBelt.make)
+                        (WandBelt.make w-seed)
                         (GoldBank.make)))))))))))
 
   (defn draw-bounds-wireframe! [ren min-x min-y min-z max-x max-y max-z color]
@@ -542,6 +654,7 @@
         (InputManager.add-binding! input "mat-gas" (InputSource.Key GLFW.Keycode.NUM_3) 1.0)
         (InputManager.add-binding! input "rig-interact" (InputSource.Key GLFW.Keycode.NUM_4) 1.0)
         (InputManager.add-binding! input "rig-wand" (InputSource.Key GLFW.Keycode.NUM_5) 1.0)
+        (InputManager.add-binding! input "rig-staff" (InputSource.Key GLFW.Keycode.NUM_6) 1.0)
         (InputManager.add-binding! input "mod-shift" (InputSource.Key GLFW.Keycode.LEFT_SHIFT) 1.0)
         (InputManager.add-binding! input "mod-shift" (InputSource.Key GLFW.Keycode.RIGHT_SHIFT) 1.0)
         
@@ -549,7 +662,7 @@
         (InputManager.add-binding! input "edit-remove" (InputSource.Key GLFW.Keycode.H) 1.0)
         (InputManager.add-binding! input "edit-paint" (InputSource.Key GLFW.Keycode.G) 1.0)
         
-        (InputManager.add-binding! input "spawn-entity" (InputSource.Key GLFW.Keycode.R) 1.0)
+        (InputManager.add-binding! input "double-succ" (InputSource.Key GLFW.Keycode.R) 1.0)
         (InputManager.add-binding! input "spawn-amoeba" (InputSource.Key GLFW.Keycode.T) 1.0)
         (InputManager.add-binding! input "spawn-hopper" (InputSource.Key GLFW.Keycode.Y) 1.0)
         (InputManager.add-binding! input "spawn-mancer" (InputSource.Key GLFW.Keycode.U) 1.0)
@@ -559,6 +672,11 @@
         (InputManager.add-binding! input "purge-flask" (InputSource.Key GLFW.Keycode.X) 1.0)
         (InputManager.add-binding! input "strike-match" (InputSource.Key GLFW.Keycode.Z) 1.0)
         (InputManager.add-binding! input "strike-match-mmb" (InputSource.MouseButton 2) 1.0)
+        (InputManager.add-binding! input "toggle-satchel" (InputSource.Key GLFW.Keycode.TAB) 1.0)
+        (InputManager.add-binding! input "satchel-left" (InputSource.Key GLFW.Keycode.LEFT) 1.0)
+        (InputManager.add-binding! input "satchel-right" (InputSource.Key GLFW.Keycode.RIGHT) 1.0)
+        (InputManager.add-binding! input "weld-hold" (InputSource.Key GLFW.Keycode.E) 1.0)
+        (InputManager.add-binding! input "debug-loot" (InputSource.Key GLFW.Keycode.K) 1.0)
         
         (InputManager.add-binding! input "look-x" (InputSource.MouseDeltaX) 1.0)
         (InputManager.add-binding! input "click-left" (InputSource.MouseButton 0) 1.0)
@@ -599,6 +717,7 @@
             cnt @(VoxelQueue.count vq)
             vpos (VoxelQueue.pos vq)
             vact (VoxelQueue.act vq)
+            merge-d2 (Float.clamp 0.36f 2.25f (* rad 0.45f))
             merged? false]
         (do
           (for [i 0 cnt]
@@ -614,7 +733,7 @@
                     ddy (- ex-y y)
                     ddz (- ex-z z)
                     d2 (+ (+ (* ddx ddx) (* ddy ddy)) (* ddz ddz))]
-                (when (and (< d2 0.36f)
+                (when (and (< d2 merge-d2)
                            (and (< (Float.abs (- ex-mat mat-id)) 0.1f)
                                 (and (> (* ex-amt amount) 0.0f)
                                      (< (Float.abs (- ex-flg flags)) 0.1f))))
@@ -627,7 +746,7 @@
                     (when (>= (Float.abs mat-id) 255.0f)
                       (Array.aset! vact (+ b 1) (Float.clamp -1.0f 1.0f (+ ex-amt amount))))
                     (set! merged? true))))))
-          (when (and (not merged?) (< cnt 12))
+          (when (and (not merged?) (< cnt 64))
             (let [b (* cnt 4)]
               (do
                 (Array.aset! vpos b x)
@@ -650,7 +769,7 @@
                                     (or (= rm 517) (= rm 519))))))
                 (EngineState.mark-dirty-sphere! state x y z rad 6))))))))
 
-  ;; Enqueue a swept 3D fluid/volfog wake capsule (`p0 -> p1`) into the 16-slot GPU velocity/pressure pass!
+  ;; Enqueue a swept 3D fluid/volfog wake capsule (`p0 -> p1`) into the 32-slot GPU velocity/pressure pass!
   (defn push-wake-capsule! [state x0 y0 z0 x1 y1 z1 rad radial-push vx vy vz pressure]
     (when (> rad 0.05f)
       (let [vq (EngineState.voxels state)
@@ -685,7 +804,7 @@
                     (Array.aset! wvel (+ b 2) vz)
                     (Array.aset! wvel (+ b 3) pressure)
                     (set! merged? true))))))
-          (when (and (not merged?) (< cnt 16))
+          (when (and (not merged?) (< cnt 32))
             (let [b (* cnt 4)]
               (do
                 (Array.aset! wp0 b x0)
@@ -793,14 +912,14 @@
           player (EngineState.player state)
           flying? @(Player.flying player)
           player-id @(EngineState.player-ent-id state)
-          clamped-yld (Float.clamp 0.30f 1.25f yld)
-          carve-r (Float.clamp 1.65f 5.20f blast-r)
+          clamped-yld (Float.clamp 0.30f 1.85f yld)
+          carve-r (Float.clamp 1.65f 8.20f blast-r)
           cpu-carve (Double.from-float (- carve-r 0.12f))
           px (Double.from-float x)
           py (Double.from-float y)
           pz (Double.from-float z)
           pos (Vector3.init px py pz)
-          w-rad (Float.clamp 3.80f 8.60f (* carve-r (+ 1.65f (* 0.50f clamped-yld))))
+          w-rad (Float.clamp 3.80f 12.60f (* carve-r (+ 1.65f (* 0.50f clamped-yld))))
           r-push (Float.clamp 2.25f 5.20f (+ 1.95f (* 2.95f clamped-yld)))
           p-spike (Float.clamp 1.55f 2.45f (+ 1.45f (* 1.00f clamped-yld)))
           shock-r (Double.from-float (+ (* carve-r 2.05f) (* 2.20f clamped-yld)))
@@ -1423,12 +1542,16 @@
                                   (if (and (>= gmat 1000.0f) (< gmat 2000.0f))
                                     (- gmat 1000.0f)
                                     gmat))))
+                  c-drv (Int.mod @(WandBelt.coupled-drv wb) 3)
+                  c-inf (Int.mod @(WandBelt.coupled-inf wb) 3)
                   active-wid (if (= stance 2)
                                (+ 8 @(WandBelt.staff-idx wb))
-                               (if (= l-kind 1)
-                                 @(WandBelt.idx wb)
-                                 @(WandBelt.right-idx wb)))
-                  wch (WandSystem.get-chassis active-wid)
+                               (if (= stance 3)
+                                 c-drv
+                                 (if (= l-kind 1)
+                                   (Int.mod @(WandBelt.idx wb) 3)
+                                   (Int.mod @(WandBelt.right-idx wb) 3))))
+                  wch (WandSystem.get-chassis wb active-wid)
                   wmana @(Array.unsafe-nth (WandBelt.mana wb) active-wid)
                   act-mat (if (= rslot 0)
                             @(RigBelt.sack-mat rig)
@@ -1436,18 +1559,22 @@
                               @(RigBelt.flask-mat rig)
                               (if (= rslot 2)
                                 @(RigBelt.bellows-mat rig)
-                                (if (or (= stance 2) (and (= stance 0) (or (= l-kind 1) (= r-kind 1))))
-                                  @(WandChassis.lantern-mat &wch)
-                                  (if (and holding? (< held-elem 525.0f)) held-elem 0.0f)))))
+                                (if (= stance 3)
+                                  (WandSystem.coupled-lantern-mat rig c-drv c-inf)
+                                  (if (or (= stance 2) (and (= stance 0) (or (= l-kind 1) (= r-kind 1))))
+                                    (WandSystem.wand-lantern-mat rig active-wid &wch)
+                                    (if (and holding? (< held-elem 525.0f)) held-elem 0.0f))))))
                   act-fill (if (= rslot 0)
                              @(RigBelt.sack-fill rig)
                              (if (= rslot 1)
                                @(RigBelt.flask-fill rig)
                                (if (= rslot 2)
                                  @(RigBelt.bellows-fill rig)
-                                 (if (or (= stance 2) (and (= stance 0) (or (= l-kind 1) (= r-kind 1))))
-                                   (Float.clamp 0.12f 1.0f (/ wmana @(WandChassis.mana-max &wch)))
-                                   (if (and holding? (and (> held-elem 0.5f) (< held-elem 525.0f))) 0.85f 0.0f)))))]
+                                 (if (= stance 3)
+                                   (WandSystem.coupled-lantern-fill wb rig c-drv c-inf (WandBelt.mana wb))
+                                   (if (or (= stance 2) (and (= stance 0) (or (= l-kind 1) (= r-kind 1))))
+                                     (WandSystem.wand-lantern-fill rig active-wid wmana &wch)
+                                     (if (and holding? (and (> held-elem 0.5f) (< held-elem 525.0f))) 0.85f 0.0f))))))]
               (do
                 (Array.aset! uniforms 56 0.0f)
                 (Array.aset! uniforms 57 0.0f)
@@ -1479,12 +1606,13 @@
                     (Array.aset! uniforms 97 act-fill)
                     (Array.aset! uniforms 98 (Float.from-int vcnt))
                     (Array.aset! uniforms 99 0.0f)
-                    (for [vi 0 48]
+                    ;; 64-slot VoxelQueue (`uniforms[236..491]` pos, `uniforms[492..747]` act)
+                    (for [vi 0 256]
                       (do
                         (Array.aset! uniforms (+ 236 vi) @(Array.unsafe-nth vpos vi))
-                        (Array.aset! uniforms (+ 284 vi) @(Array.unsafe-nth vact vi))))))
+                        (Array.aset! uniforms (+ 492 vi) @(Array.unsafe-nth vact vi))))))
 
-                ;; 16-slot Ditto-Amoeba chemoreception & 3D GI light emitters (+ flying wand bolts & glowing Ecomancer crowns!)
+                ;; 16-slot Ditto-Amoeba chemoreception & 3D GI light emitters (+ glowing Ecomancer crowns & orbs!)
                 (Array.aset! uniforms 100 0.0f)
                 (Array.aset! uniforms 101 0.0f)
                 (Array.aset! uniforms 102 0.0f)
@@ -1496,15 +1624,11 @@
                       a-idx (CritterBank.idx cbank)
                       a-gen (CritterBank.gen cbank)
                       a-mat (CritterBank.mat cbank)
-                      b-alive (WandBelt.bolt-alive wb)
-                      b-pos (WandBelt.bolt-pos wb)
-                      b-wand (WandBelt.bolt-wand wb)
                       mn-state (MancerBank.state mbank)
                       o-state (MancerBank.orb-state mbank)
                       o-idx (MancerBank.orb-idx mbank)
                       o-gen (MancerBank.orb-gen mbank)
                       o-mat (MancerBank.orb-mat mbank)
-                      bolt-cur 0
                       mancer-cur 0
                       orb-cur 0
                       glow-mask 0
@@ -1516,32 +1640,65 @@
                         (do
                           (if (not @(Array.unsafe-nth a-alive ak))
                             (do
-                              (while (and (< bolt-cur 24) (not @(Array.unsafe-nth b-alive bolt-cur)))
-                                (set! bolt-cur (+ bolt-cur 1)))
-                              (if (< bolt-cur 24)
-                                (let [b3 (* bolt-cur 3)
-                                      bpay (WandSystem.get-payload @(Array.unsafe-nth b-wand bolt-cur))]
+                              (while (and (< mancer-cur 4) (not @(Array.unsafe-nth mn-alive mancer-cur)))
+                                (set! mancer-cur (+ mancer-cur 1)))
+                              (if (< mancer-cur 4)
+                                (let [mk mancer-cur
+                                      ment (ECS.Entity.init (Handle.init @(Array.unsafe-nth mn-idx mk) @(Array.unsafe-nth mn-gen mk)))
+                                      mcb-opt (the (Maybe CompBody) (get-component ecs &ment))]
                                   (do
-                                    (set! glow-mask (+ glow-mask bit-val))
-                                    (Array.aset! uniforms l-base @(Array.unsafe-nth b-pos b3))
-                                    (Array.aset! uniforms (+ l-base 1) @(Array.unsafe-nth b-pos (+ b3 1)))
-                                    (Array.aset! uniforms (+ l-base 2) @(Array.unsafe-nth b-pos (+ b3 2)))
-                                    (Array.aset! uniforms (+ l-base 3) -1.0f)
-                                    (Array.aset! uniforms c-base (* @(SpellPayload.col-r &bpay) 0.92f))
-                                    (Array.aset! uniforms (+ c-base 1) (* @(SpellPayload.col-g &bpay) 0.92f))
-                                    (Array.aset! uniforms (+ c-base 2) (* @(SpellPayload.col-b &bpay) 0.92f))
-                                    (Array.aset! uniforms (+ c-base 3) @(SpellPayload.radius &bpay))
-                                    (set! bolt-cur (+ bolt-cur 1))))
+                                    (set! mancer-cur (+ mancer-cur 1))
+                                    (match mcb-opt
+                                      (Maybe.Nothing)
+                                        (do
+                                          (Array.aset! uniforms l-base 0.0f)
+                                          (Array.aset! uniforms (+ l-base 1) 0.0f)
+                                          (Array.aset! uniforms (+ l-base 2) 0.0f)
+                                          (Array.aset! uniforms (+ l-base 3) 0.0f)
+                                          (Array.aset! uniforms c-base 0.0f)
+                                          (Array.aset! uniforms (+ c-base 1) 0.0f)
+                                          (Array.aset! uniforms (+ c-base 2) 0.0f)
+                                          (Array.aset! uniforms (+ c-base 3) 0.0f))
+                                      (Maybe.Just mcb)
+                                        (let [mpos (RigidBody.position (CompBody.rb &mcb))
+                                              mmat @(Array.unsafe-nth mn-mat mk)
+                                              mst @(Array.unsafe-nth mn-state mk)
+                                              is-law? (>= mmat 768.5f)
+                                              pol (if (>= @(Array.unsafe-nth mn-trap mk) 0.0f) 1.0f -1.0f)
+                                              mb3 (* mk 3)
+                                              beam-fwd (if (and (not is-law?) (= mst 2)) 2.2f 0.0f)
+                                              gain (if (= mst 2) 1.35 0.75)
+                                              lcol (if is-law?
+                                                     (MancerSystem.law-gi-emission mmat pol)
+                                                     (let [scol (Materials.slime-color mmat 0)
+                                                           gi (Materials.gi-emission mmat 0 0.92f)]
+                                                       (Vector3.init (+ (* @(Vector3.x &scol) gain) (* @(Vector3.x &gi) gain))
+                                                                     (+ (* @(Vector3.y &scol) gain) (* @(Vector3.y &gi) gain))
+                                                                     (+ (* @(Vector3.z &scol) gain) (* @(Vector3.z &gi) gain)))))
+                                              lr (Double.to-float @(Vector3.x &lcol))
+                                              lg (Double.to-float @(Vector3.y &lcol))
+                                              lb (Double.to-float @(Vector3.z &lcol))]
+                                          (do
+                                            (set! glow-mask (+ glow-mask bit-val))
+                                            (Array.aset! uniforms l-base (+ (Double.to-float @(Vector3.x mpos)) (* @(Array.unsafe-nth mn-dir mb3) beam-fwd)))
+                                            (Array.aset! uniforms (+ l-base 1) (+ (Double.to-float (+ @(Vector3.y mpos) (if is-law? 0.35 1.05))) (* @(Array.unsafe-nth mn-dir (+ mb3 1)) beam-fwd)))
+                                            (Array.aset! uniforms (+ l-base 2) (+ (Double.to-float @(Vector3.z mpos)) (* @(Array.unsafe-nth mn-dir (+ mb3 2)) beam-fwd)))
+                                            (Array.aset! uniforms (+ l-base 3) -1.0f)
+                                            (Array.aset! uniforms c-base lr)
+                                            (Array.aset! uniforms (+ c-base 1) lg)
+                                            (Array.aset! uniforms (+ c-base 2) lb)
+                                            (Array.aset! uniforms (+ c-base 3) (if is-law? 1.35f (if (= mst 2) 1.05f 0.76f))))))))
                                 (do
-                                  (while (and (< mancer-cur 4) (not @(Array.unsafe-nth mn-alive mancer-cur)))
-                                    (set! mancer-cur (+ mancer-cur 1)))
-                                  (if (< mancer-cur 4)
-                                    (let [mk mancer-cur
-                                          ment (ECS.Entity.init (Handle.init @(Array.unsafe-nth mn-idx mk) @(Array.unsafe-nth mn-gen mk)))
-                                          mcb-opt (the (Maybe CompBody) (get-component ecs &ment))]
+                                  (while (and (< orb-cur 20) (<= @(Array.unsafe-nth o-state orb-cur) 0))
+                                    (set! orb-cur (+ orb-cur 1)))
+                                  (if (< orb-cur 20)
+                                    (let [ok orb-cur
+                                          ost @(Array.unsafe-nth o-state ok)
+                                          oent (ECS.Entity.init (Handle.init @(Array.unsafe-nth o-idx ok) @(Array.unsafe-nth o-gen ok)))
+                                          ocb-opt (the (Maybe CompBody) (get-component ecs &oent))]
                                       (do
-                                        (set! mancer-cur (+ mancer-cur 1))
-                                        (match mcb-opt
+                                        (set! orb-cur (+ orb-cur 1))
+                                        (match ocb-opt
                                           (Maybe.Nothing)
                                             (do
                                               (Array.aset! uniforms l-base 0.0f)
@@ -1552,84 +1709,34 @@
                                               (Array.aset! uniforms (+ c-base 1) 0.0f)
                                               (Array.aset! uniforms (+ c-base 2) 0.0f)
                                               (Array.aset! uniforms (+ c-base 3) 0.0f))
-                                          (Maybe.Just mcb)
-                                            (let [mpos (RigidBody.position (CompBody.rb &mcb))
-                                                  mmat @(Array.unsafe-nth mn-mat mk)
-                                                  mst @(Array.unsafe-nth mn-state mk)
-                                                  is-law? (>= mmat 768.5f)
-                                                  pol (if (>= @(Array.unsafe-nth mn-trap mk) 0.0f) 1.0f -1.0f)
-                                                  mb3 (* mk 3)
-                                                  beam-fwd (if (and (not is-law?) (= mst 2)) 2.2f 0.0f)
-                                                  gain (if (= mst 2) 1.35 0.75)
-                                                  lcol (if is-law?
-                                                         (MancerSystem.law-gi-emission mmat pol)
-                                                         (let [scol (Materials.slime-color mmat 0)
-                                                               gi (Materials.gi-emission mmat 0 0.92f)]
-                                                           (Vector3.init (+ (* @(Vector3.x &scol) gain) (* @(Vector3.x &gi) gain))
-                                                                         (+ (* @(Vector3.y &scol) gain) (* @(Vector3.y &gi) gain))
-                                                                         (+ (* @(Vector3.z &scol) gain) (* @(Vector3.z &gi) gain)))))
-                                                  lr (Double.to-float @(Vector3.x &lcol))
-                                                  lg (Double.to-float @(Vector3.y &lcol))
-                                                  lb (Double.to-float @(Vector3.z &lcol))]
+                                          (Maybe.Just ocb)
+                                            (let [opos (RigidBody.position (CompBody.rb &ocb))
+                                                  omat @(Array.unsafe-nth o-mat ok)
+                                                  scol (Materials.slime-color omat 0)
+                                                  gi (Materials.gi-emission omat 0 0.90f)
+                                                  ogain (if (= ost 3) 1.05 0.68)
+                                                  lr (Double.to-float (+ (* @(Vector3.x &scol) ogain) (* @(Vector3.x &gi) ogain)))
+                                                  lg (Double.to-float (+ (* @(Vector3.y &scol) ogain) (* @(Vector3.y &gi) ogain)))
+                                                  lb (Double.to-float (+ (* @(Vector3.z &scol) ogain) (* @(Vector3.z &gi) ogain)))]
                                               (do
                                                 (set! glow-mask (+ glow-mask bit-val))
-                                                (Array.aset! uniforms l-base (+ (Double.to-float @(Vector3.x mpos)) (* @(Array.unsafe-nth mn-dir mb3) beam-fwd)))
-                                                (Array.aset! uniforms (+ l-base 1) (+ (Double.to-float (+ @(Vector3.y mpos) (if is-law? 0.35 1.05))) (* @(Array.unsafe-nth mn-dir (+ mb3 1)) beam-fwd)))
-                                                (Array.aset! uniforms (+ l-base 2) (+ (Double.to-float @(Vector3.z mpos)) (* @(Array.unsafe-nth mn-dir (+ mb3 2)) beam-fwd)))
+                                                (Array.aset! uniforms l-base (Double.to-float @(Vector3.x opos)))
+                                                (Array.aset! uniforms (+ l-base 1) (Double.to-float @(Vector3.y opos)))
+                                                (Array.aset! uniforms (+ l-base 2) (Double.to-float @(Vector3.z opos)))
                                                 (Array.aset! uniforms (+ l-base 3) -1.0f)
                                                 (Array.aset! uniforms c-base lr)
                                                 (Array.aset! uniforms (+ c-base 1) lg)
                                                 (Array.aset! uniforms (+ c-base 2) lb)
-                                                (Array.aset! uniforms (+ c-base 3) (if is-law? 1.35f (if (= mst 2) 1.05f 0.76f))))))))
+                                                (Array.aset! uniforms (+ c-base 3) (if (= ost 3) 0.88f 0.58f)))))))
                                     (do
-                                      (while (and (< orb-cur 20) (<= @(Array.unsafe-nth o-state orb-cur) 0))
-                                        (set! orb-cur (+ orb-cur 1)))
-                                      (if (< orb-cur 20)
-                                        (let [ok orb-cur
-                                              ost @(Array.unsafe-nth o-state ok)
-                                              oent (ECS.Entity.init (Handle.init @(Array.unsafe-nth o-idx ok) @(Array.unsafe-nth o-gen ok)))
-                                              ocb-opt (the (Maybe CompBody) (get-component ecs &oent))]
-                                          (do
-                                            (set! orb-cur (+ orb-cur 1))
-                                            (match ocb-opt
-                                              (Maybe.Nothing)
-                                                (do
-                                                  (Array.aset! uniforms l-base 0.0f)
-                                                  (Array.aset! uniforms (+ l-base 1) 0.0f)
-                                                  (Array.aset! uniforms (+ l-base 2) 0.0f)
-                                                  (Array.aset! uniforms (+ l-base 3) 0.0f)
-                                                  (Array.aset! uniforms c-base 0.0f)
-                                                  (Array.aset! uniforms (+ c-base 1) 0.0f)
-                                                  (Array.aset! uniforms (+ c-base 2) 0.0f)
-                                                  (Array.aset! uniforms (+ c-base 3) 0.0f))
-                                              (Maybe.Just ocb)
-                                                (let [opos (RigidBody.position (CompBody.rb &ocb))
-                                                      omat @(Array.unsafe-nth o-mat ok)
-                                                      scol (Materials.slime-color omat 0)
-                                                      gi (Materials.gi-emission omat 0 0.90f)
-                                                      ogain (if (= ost 3) 1.05 0.68)
-                                                      lr (Double.to-float (+ (* @(Vector3.x &scol) ogain) (* @(Vector3.x &gi) ogain)))
-                                                      lg (Double.to-float (+ (* @(Vector3.y &scol) ogain) (* @(Vector3.y &gi) ogain)))
-                                                      lb (Double.to-float (+ (* @(Vector3.z &scol) ogain) (* @(Vector3.z &gi) ogain)))]
-                                                  (do
-                                                    (set! glow-mask (+ glow-mask bit-val))
-                                                    (Array.aset! uniforms l-base (Double.to-float @(Vector3.x opos)))
-                                                    (Array.aset! uniforms (+ l-base 1) (Double.to-float @(Vector3.y opos)))
-                                                    (Array.aset! uniforms (+ l-base 2) (Double.to-float @(Vector3.z opos)))
-                                                    (Array.aset! uniforms (+ l-base 3) -1.0f)
-                                                    (Array.aset! uniforms c-base lr)
-                                                    (Array.aset! uniforms (+ c-base 1) lg)
-                                                    (Array.aset! uniforms (+ c-base 2) lb)
-                                                    (Array.aset! uniforms (+ c-base 3) (if (= ost 3) 0.88f 0.58f)))))))
-                                        (do
-                                          (Array.aset! uniforms l-base 0.0f)
-                                          (Array.aset! uniforms (+ l-base 1) 0.0f)
-                                          (Array.aset! uniforms (+ l-base 2) 0.0f)
-                                          (Array.aset! uniforms (+ l-base 3) 0.0f)
-                                          (Array.aset! uniforms c-base 0.0f)
-                                          (Array.aset! uniforms (+ c-base 1) 0.0f)
-                                          (Array.aset! uniforms (+ c-base 2) 0.0f)
-                                          (Array.aset! uniforms (+ c-base 3) 0.0f))))))))
+                                      (Array.aset! uniforms l-base 0.0f)
+                                      (Array.aset! uniforms (+ l-base 1) 0.0f)
+                                      (Array.aset! uniforms (+ l-base 2) 0.0f)
+                                      (Array.aset! uniforms (+ l-base 3) 0.0f)
+                                      (Array.aset! uniforms c-base 0.0f)
+                                      (Array.aset! uniforms (+ c-base 1) 0.0f)
+                                      (Array.aset! uniforms (+ c-base 2) 0.0f)
+                                      (Array.aset! uniforms (+ c-base 3) 0.0f))))))
 
                             (let [aent (ECS.Entity.init (Handle.init @(Array.unsafe-nth a-idx ak) @(Array.unsafe-nth a-gen ak)))
                                   acb-opt (the (Maybe CompBody) (get-component ecs &aent))]
@@ -1660,9 +1767,9 @@
                           (set! bit-val (* bit-val 2)))))
                     (Array.aset! uniforms 107 (Float.from-int glow-mask))))
 
-                ;; 16-slot Cave Hopper GPU CA contact & SDF line-of-sight probes (uniforms[332..395])
+                ;; 16-slot Cave Hopper GPU CA contact & SDF line-of-sight probes (`uniforms[748..811]`)
                 (for [hk 0 16]
-                  (let [u-base (+ 332 (* hk 4))]
+                  (let [u-base (+ 748 (* hk 4))]
                     (if (not @(Array.unsafe-nth h-alive hk))
                       (do
                         (Array.aset! uniforms u-base 0.0f)
@@ -1686,10 +1793,10 @@
                                 (Array.aset! uniforms (+ u-base 2) (Double.to-float @(Vector3.z hpos)))
                                 (Array.aset! uniforms (+ u-base 3) @(Array.unsafe-nth h-rad hk)))))))))
 
-                ;; 4-slot Ecomancer GPU 20-ray 3D supply scanner & LOS probes (uniforms[396..427])
+                ;; 4-slot Ecomancer GPU 20-ray 3D supply scanner & LOS probes (`uniforms[812..843]`)
                 (for [mk 0 4]
-                  (let [p-base (+ 396 (* mk 4))
-                        m-base (+ 412 (* mk 4))]
+                  (let [p-base (+ 812 (* mk 4))
+                        m-base (+ 828 (* mk 4))]
                     (if (not @(Array.unsafe-nth mn-alive mk))
                       (do
                         (Array.aset! uniforms p-base 0.0f)
@@ -1761,7 +1868,7 @@
                                   px0 py0 pz0 px1 py1 pz1
                                   wrad rpush (* vx 0.12f) (* vy 0.12f) (* vz 0.12f) press)))))))))
 
-                ;; Pack 16-slot 3D Velocity & Pressure Wake Capsules (`u.pad1` = count, `uniforms[428..619]`)
+                ;; Pack 32-slot 3D Velocity & Pressure Wake Capsules (`u.pad1` = count, `uniforms[844..1227]`)
                 (let [vq (EngineState.voxels state)
                       wcnt @(VoxelQueue.wake-count vq)
                       wp0 (VoxelQueue.wake-p0 vq)
@@ -1769,11 +1876,101 @@
                       wvel (VoxelQueue.wake-vel vq)]
                   (do
                     (Array.aset! uniforms 37 (Float.from-int wcnt))
-                    (for [wi 0 64]
+                    (for [wi 0 128]
                       (do
-                        (Array.aset! uniforms (+ 428 wi) @(Array.unsafe-nth wp0 wi))
-                        (Array.aset! uniforms (+ 492 wi) @(Array.unsafe-nth wp1 wi))
-                        (Array.aset! uniforms (+ 556 wi) @(Array.unsafe-nth wvel wi))))))
+                        (Array.aset! uniforms (+ 844 wi) @(Array.unsafe-nth wp0 wi))
+                        (Array.aset! uniforms (+ 972 wi) @(Array.unsafe-nth wp1 wi))
+                        (Array.aset! uniforms (+ 1100 wi) @(Array.unsafe-nth wvel wi))))))
+
+                ;; Pack 32-slot Dedicated 3D GI Spell Lights (`u.pad3` = `uniforms[39]`, `1228..1483`) & Upload 8,192-Bolt Impostor Buffer!
+                (let [bcnt @(WandBelt.bolt-count wb)
+                      b-pos (WandBelt.bolt-pos wb)
+                      b-col (WandBelt.bolt-col wb)
+                      b-rad (WandBelt.bolt-rad wb)
+                      b-light (WandBelt.bolt-light wb)
+                      b-style (WandBelt.bolt-style wb)
+                      b-wand (WandBelt.bolt-wand wb)
+                      stride (if (> bcnt 64) (/ bcnt 32) 1)
+                      spell-cnt 0
+                      bi 0]
+                  (do
+                    ;; Pass 1: Bright Light-rune / Power-Core / Glowing-Reagent / Relic bolts
+                    (while (and (< bi bcnt) (< spell-cnt 32))
+                      (let [bl @(Array.unsafe-nth b-light bi)
+                            bs @(Array.unsafe-nth b-style bi)
+                            bw @(Array.unsafe-nth b-wand bi)
+                            c4 (* bi 4)
+                            gflg @(Array.unsafe-nth b-col (+ c4 3))]
+                        (do
+                          (when (or (> bl 0) (or (> bs 0) (or (>= bw 8) (>= gflg 0.5f))))
+                            (let [b3 (* bi 3)
+                                  brad @(Array.unsafe-nth b-rad bi)
+                                  sl-base (+ 1228 (* spell-cnt 4))
+                                  sc-base (+ 1356 (* spell-cnt 4))
+                                  gi-rad (if (> bl 0)
+                                           (Float.clamp 4.8f 16.0f (+ 4.5f (* 3.2f (Float.from-int bl))))
+                                           (if (or (> bs 0) (>= bw 8))
+                                             3.8f
+                                             (Float.clamp 2.2f 6.5f (* brad 12.0f))))
+                                  escale (if (> bl 0)
+                                           (+ 1.35f (* 0.55f (Float.from-int bl)))
+                                           (if (or (> bs 0) (>= bw 8)) 0.95f 0.72f))]
+                              (do
+                                (Array.aset! uniforms sl-base @(Array.unsafe-nth b-pos b3))
+                                (Array.aset! uniforms (+ sl-base 1) @(Array.unsafe-nth b-pos (+ b3 1)))
+                                (Array.aset! uniforms (+ sl-base 2) @(Array.unsafe-nth b-pos (+ b3 2)))
+                                (Array.aset! uniforms (+ sl-base 3) gi-rad)
+                                (Array.aset! uniforms sc-base (* @(Array.unsafe-nth b-col c4) escale))
+                                (Array.aset! uniforms (+ sc-base 1) (* @(Array.unsafe-nth b-col (+ c4 1)) escale))
+                                (Array.aset! uniforms (+ sc-base 2) (* @(Array.unsafe-nth b-col (+ c4 2)) escale))
+                                (Array.aset! uniforms (+ sc-base 3) 0.0f)
+                                (set! spell-cnt (+ spell-cnt 1)))))
+                          (set! bi (+ bi stride)))))
+                    ;; Pass 2: Fill remaining GI light budget with subtle arcane/kinetic bolt glints when count is modest
+                    (when (and (< spell-cnt 16) (> bcnt 0))
+                      (let [bi2 0
+                            stride2 (if (> bcnt 32) (/ bcnt 16) 1)]
+                        (while (and (< bi2 bcnt) (< spell-cnt 24))
+                          (let [bl @(Array.unsafe-nth b-light bi2)
+                                bs @(Array.unsafe-nth b-style bi2)
+                                bw @(Array.unsafe-nth b-wand bi2)
+                                c4 (* bi2 4)
+                                gflg @(Array.unsafe-nth b-col (+ c4 3))]
+                            (do
+                              (when (and (<= bl 0) (and (<= bs 0) (and (< bw 8) (< gflg 0.5f))))
+                                (let [b3 (* bi2 3)
+                                      sl-base (+ 1228 (* spell-cnt 4))
+                                      sc-base (+ 1356 (* spell-cnt 4))]
+                                  (do
+                                    (Array.aset! uniforms sl-base @(Array.unsafe-nth b-pos b3))
+                                    (Array.aset! uniforms (+ sl-base 1) @(Array.unsafe-nth b-pos (+ b3 1)))
+                                    (Array.aset! uniforms (+ sl-base 2) @(Array.unsafe-nth b-pos (+ b3 2)))
+                                    (Array.aset! uniforms (+ sl-base 3) 1.85f)
+                                    (Array.aset! uniforms sc-base (* @(Array.unsafe-nth b-col c4) 0.28f))
+                                    (Array.aset! uniforms (+ sc-base 1) (* @(Array.unsafe-nth b-col (+ c4 1)) 0.28f))
+                                    (Array.aset! uniforms (+ sc-base 2) (* @(Array.unsafe-nth b-col (+ c4 2)) 0.28f))
+                                    (Array.aset! uniforms (+ sc-base 3) 0.0f)
+                                    (set! spell-cnt (+ spell-cnt 1)))))
+                              (set! bi2 (+ bi2 stride2)))))))
+                    (for [zi spell-cnt 32]
+                      (let [sl-base (+ 1228 (* zi 4))
+                            sc-base (+ 1356 (* zi 4))]
+                        (do
+                          (Array.aset! uniforms sl-base 0.0f)
+                          (Array.aset! uniforms (+ sl-base 1) 0.0f)
+                          (Array.aset! uniforms (+ sl-base 2) 0.0f)
+                          (Array.aset! uniforms (+ sl-base 3) 0.0f)
+                          (Array.aset! uniforms sc-base 0.0f)
+                          (Array.aset! uniforms (+ sc-base 1) 0.0f)
+                          (Array.aset! uniforms (+ sc-base 2) 0.0f)
+                          (Array.aset! uniforms (+ sc-base 3) 0.0f))))
+                    (Array.aset! uniforms 39 (Float.from-int spell-cnt))
+                    (ParticleSystem.upload-bolts!
+                      @(M-WGPUContext.p (Engine.ctx eng))
+                      (EngineState.particles state)
+                      (WandBelt.bolt-gpu-staging wb)
+                      bcnt
+                      (* (Float.from-int fc) 0.01667f))))
                 ))
             
             (Engine.update-uniform-buffer eng @(M-UniformBuffer.p (Renderer.uniform-buffer ren)) uniforms)

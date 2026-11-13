@@ -403,6 +403,7 @@
             (ParticleSystem.emit! ps fx (+ fy 0.65f) fz 0.0f 4.2f 0.0f 1.8f 24 PARTICLE-TYPE-MAGIC 0.45f 0.2f)))
         (ignore (GoldSystem.spawn-nugget! state p1 v1 0.34 val1))
         (ignore (GoldSystem.spawn-nugget! state p2 v2 0.30 val2))
+        (ignore (WandBelt.roll-loot-gem! (EngineState.wands state) (+ (* slot 37) @(EngineState.frame-count state))))
         (MancerSystem.destroy-mancer-slot! state slot true))))
 
   ;; Apply combat/hazard damage to an Ecomancer or Lawmancer
@@ -552,7 +553,8 @@
   (defn apply-single-law! [state world ecs ps mslot law-id pol center-pos radius band-w strength dt fc]
     (let [mbk (EngineState.mancers state)
           wb (EngineState.wands state)
-          b-alive (WandBelt.bolt-alive wb)
+          b-cnt @(WandBelt.bolt-count wb)
+          b-life (WandBelt.bolt-life wb)
           b-pos (WandBelt.bolt-pos wb)
           b-vel (WandBelt.bolt-vel wb)
           midx @(Array.unsafe-nth (MancerBank.idx mbk) mslot)
@@ -567,9 +569,9 @@
           fdt (Double.to-float dt)
           shell? (> band-w 0.05)]
       (do
-        ;; 1. Affect active [5] Wand Bolts entering the Law volume / wavefront shell!
-        (for [bi 0 24]
-          (when @(Array.unsafe-nth b-alive bi)
+        ;; 1. Affect active Wand Bolts entering the Law volume / wavefront shell (all dense active bolts up to 8,192)!
+        (for [bi 0 b-cnt]
+          (when (> @(Array.unsafe-nth b-life bi) 0.01f)
             (let [b3 (* bi 3)
                   bx (Double.from-float @(Array.unsafe-nth b-pos b3))
                   by (Double.from-float @(Array.unsafe-nth b-pos (+ b3 1)))
@@ -1544,9 +1546,7 @@
         false
         (let [mbk (EngineState.mancers state)
               wb (EngineState.wands state)
-              b-alive (WandBelt.bolt-alive wb)
-              b-idx (WandBelt.bolt-idx wb)
-              b-gen (WandBelt.bolt-gen wb)
+              b-cnt @(WandBelt.bolt-count wb)
               b-pos (WandBelt.bolt-pos wb)
               b-vel (WandBelt.bolt-vel wb)
               b-life (WandBelt.bolt-life wb)
@@ -1555,11 +1555,9 @@
               mz (Double.to-float @(Vector3.z mpos))
               parried? false]
           (do
-            ;; 1. Scan active [5] Wand Bolts within 5.2m hurtling toward this Ecomancer!
-            (for [bi 0 24]
-              (when (and (not parried?)
-                         (and @(Array.unsafe-nth b-alive bi)
-                              (> @(Array.unsafe-nth b-life bi) 0.02f)))
+            ;; 1. Scan active Wand Bolts within 5.2m hurtling toward this Ecomancer!
+            (for [bi 0 b-cnt]
+              (when (and (not parried?) (> @(Array.unsafe-nth b-life bi) 0.02f))
                 (let [b3 (* bi 3)
                       bx @(Array.unsafe-nth b-pos b3)
                       by @(Array.unsafe-nth b-pos (+ b3 1))
@@ -1574,12 +1572,9 @@
                       approaching? (> (+ (+ (* bvx dx) (* bvy dy)) (* bvz dz)) 0.0f)]
                   (when (and (< d2 27.0f) approaching?)
                     (let [ipos (Vector3.init (Double.from-float bx) (Double.from-float by) (Double.from-float bz))
-                          ivel (Vector3.init (Double.from-float bvx) (Double.from-float bvy) (Double.from-float bvz))
-                          bent (ECS.Entity.init (Handle.init @(Array.unsafe-nth b-idx bi) @(Array.unsafe-nth b-gen bi)))]
+                          ivel (Vector3.init (Double.from-float bvx) (Double.from-float bvy) (Double.from-float bvz))]
                       (do
-                        (Array.aset! b-alive bi false)
                         (Array.aset! b-life bi 0.0f)
-                        (GameWorld.destroy-entity! ecs &bent)
                         (ParticleSystem.emit-sparks! ps bx by bz 0.0f 1.0f 0.0f 24)
                         (ParticleSystem.emit! ps bx by bz 0.0f 3.5f 0.0f 1.4f 16 PARTICLE-TYPE-MAGIC 0.35f 0.1f)
                         (Array.aset! (MancerBank.flash mbk) mslot -1.0f)

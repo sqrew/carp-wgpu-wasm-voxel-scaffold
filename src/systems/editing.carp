@@ -617,6 +617,20 @@
 
         (Vector3.init ui-mode probe-code probe-stress))))
 
+  (defn vessel-has-fill? [rig v]
+    (if (= v 0)
+      (> @(RigBelt.sack-fill rig) 0.002f)
+      (if (= v 1)
+        (> @(RigBelt.flask-fill rig) 0.002f)
+        (> @(RigBelt.bellows-fill rig) 0.002f))))
+
+  (defn pick-ready-vessel [rig pref p1 p2]
+    (if (EditingSystem.vessel-has-fill? rig pref)
+      pref
+      (if (EditingSystem.vessel-has-fill? rig p1)
+        p1
+        (if (EditingSystem.vessel-has-fill? rig p2) p2 pref))))
+
   (defn handle-belt-keys! [state input]
     (let [rig (EngineState.rig state)
           wb (EngineState.wands state)
@@ -624,76 +638,165 @@
           cur-stance @(RigBelt.stance rig)
           l-kind @(RigBelt.left-kind rig)
           r-kind @(RigBelt.right-kind rig)
-          l-ves @(RigBelt.left-vessel rig)
-          r-ves @(RigBelt.right-vessel rig)
-          l-wnd @(WandBelt.idx wb)
-          r-wnd @(WandBelt.right-idx wb)
           s-idx @(WandBelt.staff-idx wb)]
       (do
-        ;; [`] 2H Hands & Boot Stance
-        (when (InputManager.action-pressed? input "rig-hands")
-          (RigBelt.set-stance! rig 1))
+        ;; Auto-close [Tab] Workbench as soon as the player attacks, Triple-Succs, or switches 2H stances
+        (when (and @(WandBelt.satchel-open wb)
+                   (or (InputManager.action-digital? input "click-left")
+                       (or (InputManager.action-digital? input "click-right")
+                           (or (InputManager.action-digital? input "double-succ")
+                               (or (InputManager.action-pressed? input "rig-hands")
+                                   (or (InputManager.action-pressed? input "rig-wand")
+                                       (InputManager.action-pressed? input "rig-staff")))))))
+          (do
+            (WandBelt.set-satchel-open! wb false)
+            (set-js-satchel-open 0)
+            (WandBelt.set-weld-hold! wb 0.0f)))
 
-        ;; [1] Left Hand Vessel (modulo-skip roulette around Right Hand Vessel!)
-        (when (InputManager.action-pressed? input "mat-solid")
-          (let [already-l-ves? (and (= cur-stance 0) (= l-kind 0))
-                step (if shift? 2 1)
-                cand (if already-l-ves? (Int.mod (+ l-ves step) 3) l-ves)
-                final-v (if (and (= r-kind 0) (= cand r-ves))
-                          (Int.mod (+ cand step) 3)
-                          cand)]
-            (do
-              (RigBelt.set-stance! rig 0)
-              (RigBelt.set-left-kind! rig 0)
-              (RigBelt.set-left-vessel! rig final-v))))
+      (if @(WandBelt.satchel-open wb)
+        ;; Zero-Cursor [Tab] Tinkering Satchel open: [1]=Solid Wand, [2]=Liquid Wand, [3]=Gas Wand, [4]=Backup Swap!
+        (do
+          (when (InputManager.action-pressed? input "mat-solid")
+            (do (WandBelt.set-satchel-target! wb 0) (WandBelt.set-weld-hold! wb 0.0f)))
+          (when (InputManager.action-pressed? input "mat-liquid")
+            (do (WandBelt.set-satchel-target! wb 1) (WandBelt.set-weld-hold! wb 0.0f)))
+          (when (InputManager.action-pressed? input "mat-gas")
+            (do (WandBelt.set-satchel-target! wb 2) (WandBelt.set-weld-hold! wb 0.0f)))
+          (when (and (InputManager.action-pressed? input "rig-interact") @(WandBelt.has-backup wb))
+            (do (WandBelt.set-satchel-cursor! wb 5) (WandBelt.set-weld-hold! wb 0.0f))))
+        (do
+          ;; [`] 2H Hands & Boot Stance
+          (when (InputManager.action-pressed? input "rig-hands")
+            (RigBelt.set-stance! rig 1))
 
-        ;; [2] Right Hand Vessel (modulo-skip roulette around Left Hand Vessel!)
-        (when (InputManager.action-pressed? input "mat-liquid")
-          (let [already-r-ves? (and (= cur-stance 0) (= r-kind 0))
-                step (if shift? 2 1)
-                cand (if already-r-ves? (Int.mod (+ r-ves step) 3) r-ves)
-                final-v (if (and (= @(RigBelt.left-kind rig) 0) (= cand @(RigBelt.left-vessel rig)))
-                          (Int.mod (+ cand step) 3)
-                          cand)]
-            (do
-              (RigBelt.set-stance! rig 0)
-              (RigBelt.set-right-kind! rig 0)
-              (RigBelt.set-right-vessel! rig final-v))))
+          ;; [1] Left Hand Vessel (smart-picks filled Sack/Vessel on equip; swaps hands cleanly when cycling!)
+          (when (InputManager.action-pressed? input "mat-solid")
+            (let [already-l-ves? (and (= cur-stance 0) (= l-kind 0))
+                  step (if shift? 2 1)
+                  cur-lv (Int.mod @(RigBelt.left-vessel rig) 3)
+                  cur-rv (Int.mod @(RigBelt.right-vessel rig) 3)
+                  final-lv (if already-l-ves?
+                             (Int.mod (+ cur-lv step) 3)
+                             (EditingSystem.pick-ready-vessel rig cur-lv 0 1))
+                  final-rv (if (= final-lv cur-rv)
+                             (if (/= cur-lv final-lv) cur-lv (Int.mod (+ final-lv 1) 3))
+                             cur-rv)]
+              (do
+                (RigBelt.set-stance! rig 0)
+                (RigBelt.set-left-kind! rig 0)
+                (RigBelt.set-left-vessel! rig final-lv)
+                (RigBelt.set-right-vessel! rig final-rv))))
 
-        ;; [3] Left Hand Wand (modulo-skip roulette around Right Hand Wand!)
-        (when (InputManager.action-pressed? input "mat-gas")
-          (let [already-l-wnd? (and (= cur-stance 0) (= l-kind 1))
-                step (if shift? 6 1)
-                cand (if already-l-wnd? (Int.mod (+ l-wnd step) 7) l-wnd)
-                final-w (if (and (= r-kind 1) (= cand r-wnd))
-                          (Int.mod (+ cand step) 7)
-                          cand)]
-            (do
-              (RigBelt.set-stance! rig 0)
-              (RigBelt.set-left-kind! rig 1)
-              (WandBelt.set-idx! wb final-w))))
+          ;; [2] Right Hand Vessel (smart-picks filled Flask/Vessel on equip; swaps hands cleanly when cycling!)
+          (when (InputManager.action-pressed? input "mat-liquid")
+            (let [already-r-ves? (and (= cur-stance 0) (= r-kind 0))
+                  step (if shift? 2 1)
+                  cur-lv (Int.mod @(RigBelt.left-vessel rig) 3)
+                  cur-rv (Int.mod @(RigBelt.right-vessel rig) 3)
+                  final-rv (if already-r-ves?
+                             (Int.mod (+ cur-rv step) 3)
+                             (EditingSystem.pick-ready-vessel rig cur-rv 1 2))
+                  final-lv (if (= final-rv cur-lv)
+                             (if (/= cur-rv final-rv) cur-rv (Int.mod (+ final-rv 1) 3))
+                             cur-lv)]
+              (do
+                (RigBelt.set-stance! rig 0)
+                (RigBelt.set-right-kind! rig 0)
+                (RigBelt.set-left-vessel! rig final-lv)
+                (RigBelt.set-right-vessel! rig final-rv))))
 
-        ;; [4] Right Hand Wand (modulo-skip roulette around Left Hand Wand!)
-        (when (InputManager.action-pressed? input "rig-interact")
-          (let [already-r-wnd? (and (= cur-stance 0) (= r-kind 1))
-                step (if shift? 6 1)
-                cand (if already-r-wnd? (Int.mod (+ r-wnd step) 7) r-wnd)
-                final-w (if (and (= @(RigBelt.left-kind rig) 1) (= cand @(WandBelt.idx wb)))
-                          (Int.mod (+ cand step) 7)
-                          cand)]
-            (do
-              (RigBelt.set-stance! rig 0)
-              (RigBelt.set-right-kind! rig 1)
-              (WandBelt.set-right-idx! wb final-w))))
+          ;; [3] Left Hand Phase Wand (swaps hands cleanly when cycling onto Right Wand!)
+          (when (InputManager.action-pressed? input "mat-gas")
+            (let [already-l-wnd? (and (= cur-stance 0) (= l-kind 1))
+                  step (if shift? 2 1)
+                  cur-lw (Int.mod @(WandBelt.idx wb) 3)
+                  cur-rw (Int.mod @(WandBelt.right-idx wb) 3)
+                  final-lw (if already-l-wnd? (Int.mod (+ cur-lw step) 3) cur-lw)
+                  final-rw (if (= final-lw cur-rw)
+                             (if (/= cur-lw final-lw) cur-lw (Int.mod (+ final-lw 1) 3))
+                             cur-rw)]
+              (do
+                (RigBelt.set-stance! rig 0)
+                (RigBelt.set-left-kind! rig 1)
+                (WandBelt.set-idx! wb final-lw)
+                (WandBelt.set-right-idx! wb final-rw))))
 
-        ;; [5] 2H Grand Staff (cycles 4 Grand Staves when already in Staff stance!)
-        (when (InputManager.action-pressed? input "rig-wand")
-          (let [already-staff? (= cur-stance 2)
-                step (if shift? 3 1)
-                final-s (if already-staff? (Int.mod (+ s-idx step) 4) s-idx)]
-            (do
-              (RigBelt.set-stance! rig 2)
-              (WandBelt.set-staff-idx! wb final-s)))))))
+          ;; [4] Right Hand Phase Wand (swaps hands cleanly when cycling onto Left Wand!)
+          (when (InputManager.action-pressed? input "rig-interact")
+            (let [already-r-wnd? (and (= cur-stance 0) (= r-kind 1))
+                  step (if shift? 2 1)
+                  cur-lw (Int.mod @(WandBelt.idx wb) 3)
+                  cur-rw (Int.mod @(WandBelt.right-idx wb) 3)
+                  final-rw (if already-r-wnd? (Int.mod (+ cur-rw step) 3) cur-rw)
+                  final-lw (if (= final-rw cur-lw)
+                             (if (/= cur-rw final-rw) cur-rw (Int.mod (+ final-rw 1) 3))
+                             cur-lw)]
+              (do
+                (RigBelt.set-stance! rig 0)
+                (RigBelt.set-right-kind! rig 1)
+                (WandBelt.set-idx! wb final-lw)
+                (WandBelt.set-right-idx! wb final-rw))))
+
+          ;; [5] 2H Coupled Phase Wands:
+          ;;   - From Dual Wands ([3]+[4]): lock Left as Driver & Right as Infusion (`stance = 3`)
+          ;;   - While Coupled (`stance == 3`): flip polarity (`Driver <-> Infusion`) on the fly
+          ;;   - From Mixed Hands / Vessels / Hands & Boot / Staff: recall last locked Coupled pair
+          (when (InputManager.action-pressed? input "rig-wand")
+            (if (and (= cur-stance 0) (and (= l-kind 1) (= r-kind 1)))
+              (let [drv (Int.mod @(WandBelt.idx wb) 3)
+                    raw-inf (Int.mod @(WandBelt.right-idx wb) 3)
+                    inf (if (= raw-inf drv) (Int.mod (+ drv 1) 3) raw-inf)]
+                (do
+                  (WandBelt.set-coupled-drv! wb drv)
+                  (WandBelt.set-coupled-inf! wb inf)
+                  (WandBelt.set-idx! wb drv)
+                  (WandBelt.set-right-idx! wb inf)
+                  (RigBelt.set-stance! rig 3)))
+              (if (= cur-stance 3)
+                (let [cur-cdrv (Int.mod @(WandBelt.coupled-drv wb) 3)
+                      raw-cinf (Int.mod @(WandBelt.coupled-inf wb) 3)
+                      cur-cinf (if (= raw-cinf cur-cdrv) (Int.mod (+ cur-cdrv 1) 3) raw-cinf)
+                      new-drv cur-cinf
+                      new-inf cur-cdrv]
+                  (do
+                    (WandBelt.set-coupled-drv! wb new-drv)
+                    (WandBelt.set-coupled-inf! wb new-inf)
+                    (WandBelt.set-idx! wb new-drv)
+                    (WandBelt.set-right-idx! wb new-inf)))
+                (let [drv (Int.mod @(WandBelt.coupled-drv wb) 3)
+                      raw-inf (Int.mod @(WandBelt.coupled-inf wb) 3)
+                      inf (if (= raw-inf drv) (Int.mod (+ drv 1) 3) raw-inf)]
+                  (do
+                    (WandBelt.set-coupled-drv! wb drv)
+                    (WandBelt.set-coupled-inf! wb inf)
+                    (WandBelt.set-idx! wb drv)
+                    (WandBelt.set-right-idx! wb inf)
+                    (RigBelt.set-stance! rig 3))))))
+
+          ;; [6] 2H Relic Staff (starts empty until stocked via Vault Relics or [K] gift!)
+          (when (and (InputManager.action-pressed? input "rig-staff")
+                     (> @(WandBelt.relic-charges wb) 0))
+            (let [already-staff? (= cur-stance 2)
+                  step (if shift? 3 1)
+                  final-s (if already-staff? (Int.mod (+ s-idx step) 4) s-idx)]
+              (do
+                (RigBelt.set-stance! rig 2)
+                (WandBelt.set-staff-idx! wb final-s))))))
+
+        ;; Belt uniqueness post-invariant: Left & Right holsters (and Coupled pair) can never collide
+        (let [chk-lv (Int.mod @(RigBelt.left-vessel rig) 3)
+              chk-rv (Int.mod @(RigBelt.right-vessel rig) 3)
+              chk-lw (Int.mod @(WandBelt.idx wb) 3)
+              chk-rw (Int.mod @(WandBelt.right-idx wb) 3)
+              chk-cdrv (Int.mod @(WandBelt.coupled-drv wb) 3)
+              chk-cinf (Int.mod @(WandBelt.coupled-inf wb) 3)]
+          (do
+            (when (= chk-lv chk-rv)
+              (RigBelt.set-right-vessel! rig (Int.mod (+ chk-lv 1) 3)))
+            (when (= chk-lw chk-rw)
+              (WandBelt.set-right-idx! wb (Int.mod (+ chk-lw 1) 3)))
+            (when (= chk-cdrv chk-cinf)
+              (WandBelt.set-coupled-inf! wb (Int.mod (+ chk-cdrv 1) 3))))))))
 
   (defn step-vessel-hand! [state world ps rig ro rd right up dt fdt fc
                            vslot hand-side deploy-held gather-held dump-trig
@@ -812,11 +915,11 @@
                         (when (> jet-w 0.5f)
                           (do
                             (EngineState.push-voxel-action! state jet-x jet-y jet-z 2.35f cur-mat 0.75f 0.0f)
-                            (when (and (= (Float.round cur-mat) 262) (>= (- fc @(RigBelt.last-sack-bite-frame rig)) 4))
+                            (when (and (Materials.has-tag? cur-mat Materials.ACIDIC) (>= (- fc @(RigBelt.last-sack-bite-frame rig)) 4))
                               (let [pvec (Vector3.init (Double.from-float jet-x) (Double.from-float jet-y) (Double.from-float jet-z))]
                                 (do
                                   (RigBelt.set-last-sack-bite-frame! rig fc)
-                                  (ignore (World.edit-sdf! world &pvec 1.75 262.0f true)))))
+                                  (ignore (World.edit-sdf! world &pvec 1.75 cur-mat true)))))
                             (ParticleSystem.emit! ps jet-x jet-y jet-z (* fx -3.0f) 4.2f (* fz -3.0f) 0.5f 7 jpt 0.48f 0.25f)
                             (EditingSystem.apply-firehose-knockback! state jet-x jet-y jet-z jet-w rd dt 1.0f)))
                         (if (<= next-fill 0.002f)
@@ -938,6 +1041,34 @@
                             (set! hand-mode -1)))))))))))
         hand-mode)))
 
+  (defn step-triple-succ! [state world ps rig ro rd right up dt fdt fluid-fdt fc
+                           allow-dump dump-l-ves dump-r-ves l-dump r-dump
+                           sack-full? flask-full? bellows-full?
+                           raw-sx raw-sy raw-sz raw-sw hx hy hz hw hm-fb
+                           jet-x jet-y jet-z jet-w]
+    (let [d0 (and allow-dump (or (and l-dump (= dump-l-ves 0)) (and r-dump (= dump-r-ves 0))))
+          d1 (and allow-dump (or (and l-dump (= dump-l-ves 1)) (and r-dump (= dump-r-ves 1))))
+          d2 (and allow-dump (or (and l-dump (= dump-l-ves 2)) (and r-dump (= dump-r-ves 2))))
+          g0 (or (not sack-full?) (= (Float.round hm-fb) 5))
+          g1 (not flask-full?)
+          g2 (not bellows-full?)
+          s0 (if (= dump-l-ves 0) -0.95f (if (= dump-r-ves 0) 0.95f -0.45f))
+          s1 (if (= dump-l-ves 1) -0.95f (if (= dump-r-ves 1) 0.95f 0.0f))
+          s2 (if (= dump-l-ves 2) -0.95f (if (= dump-r-ves 2) 0.95f 0.45f))
+          m0 (EditingSystem.step-vessel-hand! state world ps rig ro rd right up dt fdt fc
+               0 s0 false g0 d0
+               raw-sx raw-sy raw-sz raw-sw hx hy hz hw hm-fb jet-x jet-y jet-z jet-w)
+          m1 (EditingSystem.step-vessel-hand! state world ps rig ro rd right up dt fluid-fdt fc
+               1 s1 false g1 d1
+               raw-sx raw-sy raw-sz raw-sw hx hy hz hw hm-fb jet-x jet-y jet-z jet-w)
+          m2 (EditingSystem.step-vessel-hand! state world ps rig ro rd right up dt fluid-fdt fc
+               2 s2 false g2 d2
+               raw-sx raw-sy raw-sz raw-sw hx hy hz hw hm-fb jet-x jet-y jet-z jet-w)]
+      (+ 1000.0f
+         (+ (Float.from-int (+ m0 2))
+            (+ (* (Float.from-int (+ m1 2)) 10.0f)
+               (* (Float.from-int (+ m2 2)) 100.0f))))))
+
   (defn update! [state input dt]
     (let [world (EngineState.world state)
           player (EngineState.player state)
@@ -956,42 +1087,82 @@
           left-pressed (InputManager.action-digital? input "click-left")
           right-pressed (InputManager.action-digital? input "click-right")
           shift-held (InputManager.action-digital? input "mod-shift")
+          r-held (InputManager.action-digital? input "double-succ")
           f-held (InputManager.action-digital? input "edit-add")
           h-held (InputManager.action-digital? input "edit-remove")
           g-held (InputManager.action-digital? input "edit-paint")
           x-pressed (InputManager.action-digital? input "purge-flask")
+          js-dump (consume-js-dump-mask!)
           brush-mod (or f-held (or h-held g-held))
           hit-opt (if (> hw 0.5f) (Maybe.Just (Vector3.init (Double.from-float hx) (Double.from-float hy) (Double.from-float hz))) (Maybe.Nothing))]
       (do
-        ;; 0. Handle [`] [1] [2] [3] [4] [5] Stance & Modulo-Skip Roulette Keys
+        ;; 0. Handle [`] [1] [2] [3] [4] [5] [6] Stance & Modulo-Skip Roulette Keys
         (EditingSystem.handle-belt-keys! state input)
 
-        (let [stance @(RigBelt.stance rig)
+        (let [wb (EngineState.wands state)
+              stance @(RigBelt.stance rig)
               l-kind @(RigBelt.left-kind rig)
               r-kind @(RigBelt.right-kind rig)
               l-ves @(RigBelt.left-vessel rig)
               r-ves @(RigBelt.right-vessel rig)
+              l-wid (Int.mod @(WandBelt.idx wb) 3)
+              r-wid (Int.mod @(WandBelt.right-idx wb) 3)
+              c-drv (Int.mod @(WandBelt.coupled-drv wb) 3)
+              raw-cinf (Int.mod @(WandBelt.coupled-inf wb) 3)
+              c-inf (if (= raw-cinf c-drv) (Int.mod (+ c-drv 1) 3) raw-cinf)
+              succ-l (if (= stance 3)
+                       c-drv
+                       (if (and (= stance 0) (and (= l-kind 1) (= r-kind 1)))
+                         l-wid
+                         (if (and (= stance 0) (and (= l-kind 1) (= r-kind 0)))
+                           (if (= l-wid r-ves) l-ves l-wid)
+                           l-ves)))
+              succ-r (if (= stance 3)
+                       c-inf
+                       (if (and (= stance 0) (and (= l-kind 1) (= r-kind 1)))
+                         (if (= r-wid l-wid) (Int.mod (+ l-wid 1) 3) r-wid)
+                         (if (and (= stance 0) (and (= l-kind 0) (= r-kind 1)))
+                           (if (= r-wid l-ves) r-ves r-wid)
+                           (if (= r-ves succ-l) (Int.mod (+ succ-l 1) 3) r-ves))))
+              sack-full? (>= @(RigBelt.sack-fill rig) 0.995f)
+              flask-full? (>= @(RigBelt.flask-fill rig) 0.995f)
+              bellows-full? (>= @(RigBelt.bellows-fill rig) 0.995f)
               fc @(EngineState.frame-count state)
-              ;; Pick GPU raycast probe slot (`0..2` for vessels, `3` for Hands & Boot, `4` for Wands/Staff).
-              ;; Note: Solid Sack (0) uses hit_buffer[0]+[3] fallback, so if one hand holds Sack (0) and the other
-              ;; holds Flask (1) or Bellows (2), probing the non-zero vessel feeds BOTH hands every single frame!
-              probe-slot (if (= stance 1)
-                           3
-                           (if (= stance 2)
-                             4
-                             (if (and (= l-kind 0) (= r-kind 0))
-                               (if (= l-ves 0)
-                                 r-ves
-                                 (if (= r-ves 0)
-                                   l-ves
-                                   (if (and right-pressed (not left-pressed))
-                                     r-ves
-                                     (if (and left-pressed (not right-pressed))
-                                       l-ves
-                                       (if (= (Int.mod fc 2) 0) l-ves r-ves)))))
-                               (if (= l-kind 0)
+              tick2 (/ fc 2)
+              ;; When [R] Triple-Succ is held, rotate the GPU raycast across ALL unfilled belt phases (Solid 0 + Liquid 1 + Gas 2)!
+              ;; Note: Solid Sack (0) also gets continuous SDF wall hits every frame via hit_buffer[0]+[3]!
+              r-probe-slot (if (and flask-full? bellows-full?)
+                             0
+                             (if (and sack-full? flask-full?)
+                               2
+                               (if (and sack-full? bellows-full?)
+                                 1
+                                 (if sack-full?
+                                   (if (= (Int.mod tick2 2) 0) 1 2)
+                                   (if flask-full?
+                                     (if (= (Int.mod tick2 2) 0) 0 2)
+                                     (if bellows-full?
+                                       (if (= (Int.mod tick2 2) 0) 0 1)
+                                       (Int.mod tick2 3)))))))
+              ;; Pick GPU raycast probe slot (`0..2` for vessels, `3` for Hands & Boot, `4` for Wands/Coupled/Staff).
+              ;; When clicking LMB or RMB on a Vessel, always give that active Vessel its true GPU ballistic probe!
+              probe-slot (if r-held
+                           r-probe-slot
+                           (if (= stance 1)
+                             3
+                             (if (or (= stance 2) (= stance 3))
+                               4
+                               (if (and (= l-kind 0) (and left-pressed (not right-pressed)))
                                  l-ves
-                                 (if (= r-kind 0) r-ves 4)))))]
+                                 (if (and (= r-kind 0) (and right-pressed (not left-pressed)))
+                                   r-ves
+                                   (if (and (= l-kind 0) (= r-kind 0))
+                                     (if (and left-pressed right-pressed)
+                                       (if (= (Int.mod fc 2) 0) l-ves r-ves)
+                                       (if (= l-ves 0) r-ves l-ves))
+                                     (if (= l-kind 0)
+                                       l-ves
+                                       (if (= r-kind 0) r-ves 4))))))))]
           (do
             (RigBelt.set-slot! rig probe-slot)
             (set-js-rig-slot probe-slot)
@@ -1059,7 +1230,7 @@
                             (EngineState.mark-dirty-sphere! state phx phy phz (Double.to-float radius) 2)
                             (ignore (World.edit-sdf! world &hit-pos radius mat-id carve?))))))))
 
-              ;; 2. Akimbo Rig ([1]/[2] Vessels) & [`] 2H Hands & Boot
+              ;; 2. Akimbo Rig ([1]/[2] Vessels), [`] 2H Hands & Boot, & [R] Universal Triple-Succ (All 3 Belt Vessels!)
               (let [raw-sx (gpu-readback-get-succ-x)
                     raw-sy (gpu-readback-get-succ-y)
                     raw-sz (gpu-readback-get-succ-z)
@@ -1070,11 +1241,21 @@
                     jet-z (gpu-readback-get-jet-z)
                     jet-w (gpu-readback-get-jet-w)
                     fdt (Double.to-float dt)
-                    x-trig (and x-pressed (not @(RigBelt.x-last rig)))
+                    open-phases (+ (if sack-full? 0 1) (+ (if flask-full? 0 1) (if bellows-full? 0 1)))
+                    fluid-fdt (if (>= open-phases 3)
+                                (* fdt 2.75f)
+                                (if (= open-phases 2) (* fdt 1.85f) fdt))
+                    x-trig (and (= js-dump 0) (and x-pressed (not @(RigBelt.x-last rig))))
+                    q-dump (and (= js-dump 0) (and (not @(Player.flying player)) (InputManager.action-pressed? input "down")))
+                    l-dump (or (or (= js-dump 1) (= js-dump 3)) (and x-trig (not shift-held)))
+                    r-dump (or (>= js-dump 2) (or q-dump (and x-trig shift-held)))
+                    dump-l-ves (if (= stance 3) c-drv (if (= stance 0) (if (= l-kind 1) l-wid l-ves) succ-l))
+                    dump-r-ves (if (= stance 3) c-inf (if (= stance 0) (if (= r-kind 1) r-wid r-ves) succ-r))
+                    was-grabbing? (> (Uint64.to-long @(RigBelt.grab-idx rig)) 0l)
                     ui-mode 0.0f
                     probe-out (if (> raw-sw 0.5f) raw-sw (if (and (> hw 0.5f) (< hm-fb 254.5f)) hm-fb 0.0f))
                     stress-out 0.0f
-                    slot-code (+ (* stance 10000) (+ (* l-kind 1000) (+ (* l-ves 100) (+ (* r-kind 10) r-ves))))]
+                    slot-code (+ (* stance 10000) (+ (* l-kind 1000) (+ (* succ-l 100) (+ (* r-kind 10) succ-r))))]
                 (do
                   (Pointer.set (ref-to-ptr (EngineState.hit-active state)) 0.0f)
                   (Pointer.set (ref-to-ptr (EngineState.liquid-spawn state)) 0.0f)
@@ -1082,33 +1263,80 @@
                   (Pointer.set (ref-to-ptr (EngineState.solid-spawn state)) 0.0f)
 
                   (if (= stance 1)
-                    ;; [`] 2H HANDS & BOOT: RMB Tug/Grasp/Wrench + LMB Seismic Boot Kick / Pillar Shatter!
-                    (let [kb-res (EditingSystem.handle-gauntlet-boot! state input world ps ro rd right up hx hy hz hw left-pressed right-pressed x-pressed)]
+                    ;; [`] 2H HANDS & BOOT (+ [R] Triple-Succ Refill & [X]/[Q] Dump while hands free!)
+                    (let [kb-res (EditingSystem.handle-gauntlet-boot! state input world ps ro rd right up hx hy hz hw left-pressed right-pressed (or q-dump (or x-pressed (> js-dump 0))))]
                       (do
                         (set! ui-mode @(Vector3.x &kb-res))
                         (set! probe-out @(Vector3.y &kb-res))
-                        (set! stress-out @(Vector3.z &kb-res))))
+                        (set! stress-out @(Vector3.z &kb-res))
+                        (if r-held
+                          (let [ts-mode (EditingSystem.step-triple-succ! state world ps rig ro rd right up dt fdt fluid-fdt fc
+                                          (not was-grabbing?) dump-l-ves dump-r-ves l-dump r-dump
+                                          sack-full? flask-full? bellows-full?
+                                          raw-sx raw-sy raw-sz raw-sw hx hy hz hw hm-fb jet-x jet-y jet-z jet-w)]
+                            (when (< (Float.abs ui-mode) 0.1f)
+                              (set! ui-mode ts-mode)))
+                          (when (not was-grabbing?)
+                            (do
+                              (when l-dump
+                                (ignore (EditingSystem.step-vessel-hand! state world ps rig ro rd right up dt fdt fc
+                                          dump-l-ves -1.0f false false true
+                                          raw-sx raw-sy raw-sz raw-sw hx hy hz hw hm-fb jet-x jet-y jet-z jet-w)))
+                              (when r-dump
+                                (ignore (EditingSystem.step-vessel-hand! state world ps rig ro rd right up dt fdt fc
+                                          dump-r-ves 1.0f false false true
+                                          raw-sx raw-sy raw-sz raw-sw hx hy hz hw hm-fb jet-x jet-y jet-z jet-w))))))))
 
-                    ;; [1]/[2] AKIMBO VESSEL HANDS (LMB = Deploy Left, Shift+LMB = Suck Left | RMB = Deploy Right, Shift+RMB = Suck Right)
-                    (when (= stance 0)
-                      (let [l-deploy (and left-pressed (not shift-held))
-                            l-gather (and left-pressed shift-held)
-                            r-deploy (and right-pressed (not shift-held))
-                            r-gather (and right-pressed shift-held)
-                            l-dump (and x-trig (not shift-held))
-                            r-dump (and x-trig (or shift-held (/= l-kind 0)))
-                            l-mode (if (= l-kind 0)
-                                     (EditingSystem.step-vessel-hand! state world ps rig ro rd right up dt fdt fc
-                                       l-ves -1.0f l-deploy l-gather l-dump
-                                       raw-sx raw-sy raw-sz raw-sw hx hy hz hw hm-fb jet-x jet-y jet-z jet-w)
-                                     0)
-                            r-mode (if (= r-kind 0)
-                                     (EditingSystem.step-vessel-hand! state world ps rig ro rd right up dt fdt fc
-                                       r-ves 1.0f r-deploy r-gather r-dump
-                                       raw-sx raw-sy raw-sz raw-sw hx hy hz hw hm-fb jet-x jet-y jet-z jet-w)
-                                     0)]
-                        ;; Encode both hands' modes into ui-mode: (l-mode + 2) + (r-mode + 2) * 10
-                        (set! ui-mode (+ (Float.from-int (+ l-mode 2)) (* (Float.from-int (+ r-mode 2)) 10.0f))))))
+                    (if (= stance 0)
+                      ;; [1]/[2]/[3]/[4] AKIMBO HANDS: LMB/RMB unconditionally deploy Vessels (never blocked by Shift!); [R] Triple-Succs all 3; [X]/[Q] dumps Left/Right!
+                      (if r-held
+                        (set! ui-mode
+                          (EditingSystem.step-triple-succ! state world ps rig ro rd right up dt fdt fluid-fdt fc
+                            true dump-l-ves dump-r-ves l-dump r-dump
+                            sack-full? flask-full? bellows-full?
+                            raw-sx raw-sy raw-sz raw-sw hx hy hz hw hm-fb jet-x jet-y jet-z jet-w))
+                        (let [l-deploy left-pressed
+                              l-gather false
+                              r-deploy right-pressed
+                              r-gather false
+                              l-mode (if (= l-kind 0)
+                                       (EditingSystem.step-vessel-hand! state world ps rig ro rd right up dt fdt fc
+                                         l-ves -1.0f l-deploy l-gather l-dump
+                                         raw-sx raw-sy raw-sz raw-sw hx hy hz hw hm-fb jet-x jet-y jet-z jet-w)
+                                       (if l-dump
+                                         (EditingSystem.step-vessel-hand! state world ps rig ro rd right up dt fdt fc
+                                           dump-l-ves -1.0f false false true
+                                           raw-sx raw-sy raw-sz raw-sw hx hy hz hw hm-fb jet-x jet-y jet-z jet-w)
+                                         0))
+                              r-mode (if (= r-kind 0)
+                                       (EditingSystem.step-vessel-hand! state world ps rig ro rd right up dt fdt fc
+                                         r-ves 1.0f r-deploy r-gather r-dump
+                                         raw-sx raw-sy raw-sz raw-sw hx hy hz hw hm-fb jet-x jet-y jet-z jet-w)
+                                       (if r-dump
+                                         (EditingSystem.step-vessel-hand! state world ps rig ro rd right up dt fdt fc
+                                           dump-r-ves 1.0f false false true
+                                           raw-sx raw-sy raw-sz raw-sw hx hy hz hw hm-fb jet-x jet-y jet-z jet-w)
+                                         0))]
+                          (set! ui-mode (+ (Float.from-int (+ l-mode 2)) (* (Float.from-int (+ r-mode 2)) 10.0f)))))
+
+                      ;; [5] Coupled Wands & [6] 2H Staff (+ [R] Triple-Succ refill & [X] Driver / [Shift+X] Infusion dump!)
+                      (if r-held
+                        (set! ui-mode
+                          (EditingSystem.step-triple-succ! state world ps rig ro rd right up dt fdt fluid-fdt fc
+                            true dump-l-ves dump-r-ves l-dump r-dump
+                            sack-full? flask-full? bellows-full?
+                            raw-sx raw-sy raw-sz raw-sw hx hy hz hw hm-fb jet-x jet-y jet-z jet-w))
+                        (do
+                          (when l-dump
+                            (let [dm-l (EditingSystem.step-vessel-hand! state world ps rig ro rd right up dt fdt fc
+                                         dump-l-ves -1.0f false false true
+                                         raw-sx raw-sy raw-sz raw-sw hx hy hz hw hm-fb jet-x jet-y jet-z jet-w)]
+                              (set! ui-mode (+ (Float.from-int (+ dm-l 2)) 20.0f))))
+                          (when r-dump
+                            (let [dm-r (EditingSystem.step-vessel-hand! state world ps rig ro rd right up dt fdt fc
+                                         dump-r-ves 1.0f false false true
+                                         raw-sx raw-sy raw-sz raw-sw hx hy hz hw hm-fb jet-x jet-y jet-z jet-w)]
+                              (set! ui-mode (+ 2.0f (* (Float.from-int (+ dm-r 2)) 10.0f)))))))))
 
                   (js-sync-rig slot-code
                                @(RigBelt.sack-mat rig)
@@ -1122,5 +1350,5 @@
                                probe-out
                                stress-out))))))
 
-        (RigBelt.set-x-last! rig x-pressed))))
+        (RigBelt.set-x-last! rig (or x-pressed (> js-dump 0))))))
 )

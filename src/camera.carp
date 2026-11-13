@@ -11,7 +11,7 @@
                 (Camera.move-forward! cam speed))
               (when (InputManager.action-digital? input "backward")
                 (Camera.move-forward! cam (- 0.0 speed)))
-              (when (InputManager.action-digital? input "up")
+              (when (and (InputManager.action-digital? input "up") (= (get-js-satchel-open) 0))
                 (Camera.move-up! cam speed))
               (when (InputManager.action-digital? input "down")
                 (Camera.move-up! cam (- 0.0 speed))))

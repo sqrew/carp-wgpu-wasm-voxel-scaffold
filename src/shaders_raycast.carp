@@ -42,14 +42,16 @@ struct Uniforms {
     critter_action: vec4<f32>,
     critter_lights: array<vec4<f32>, 16>,
     critter_colors: array<vec4<f32>, 16>,
-    vox_pos: array<vec4<f32>, 12>,
-    vox_act: array<vec4<f32>, 12>,
+    vox_pos: array<vec4<f32>, 64>,
+    vox_act: array<vec4<f32>, 64>,
     hopper_pos: array<vec4<f32>, 16>,
     mancer_pos: array<vec4<f32>, 4>,
     mancer_mat: array<vec4<f32>, 4>,
-    wake_p0: array<vec4<f32>, 16>,
-    wake_p1: array<vec4<f32>, 16>,
-    wake_vel: array<vec4<f32>, 16>,
+    wake_p0: array<vec4<f32>, 32>,
+    wake_p1: array<vec4<f32>, 32>,
+    wake_vel: array<vec4<f32>, 32>,
+    spell_lights: array<vec4<f32>, 32>,
+    spell_colors: array<vec4<f32>, 32>,
 }
 
 @group(0) @binding(0) var<storage, read>       dummy0: array<vec4<f32>>;

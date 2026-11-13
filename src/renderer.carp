@@ -289,7 +289,7 @@
          depth-tex-ptr (WGPURender.create-depth-texture ctx w h)
          depth-tex (Result.Success (M-DepthTexture.init depth-tex-ptr))
          
-         ub-ptr (WGPURender.create-uniform-buffer ctx 2496)
+         ub-ptr (WGPURender.create-uniform-buffer ctx 5952)
          ub (Result.Success (M-UniformBuffer.init ub-ptr))
          
          pipe-ptr (Renderer.create-voxel-pipeline ctx voxel-wgsl &format)

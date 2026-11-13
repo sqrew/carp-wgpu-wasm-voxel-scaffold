@@ -9,8 +9,8 @@
 ;; max_life_type packs (f16 max_life, f16 ptype) into a single 32-bit float
 ;; ---------------------------------------------------------------------------
 (def particle-compute-wgsl
-  "const MAX_PARTICLES: u32 = 131072u;
-const MAX_SPAWN_REQUESTS: u32 = 1024u;
+  "const MAX_PARTICLES: u32 = 262144u;
+const MAX_SPAWN_REQUESTS: u32 = 4096u;
 
 struct Particle {
     pos: vec3<f32>,
@@ -415,7 +415,7 @@ fn solid_visual(sidx: u32) -> vec4<f32> {
     let particle_idx = vi / 6u;
     let corner_idx = vi % 6u;
 
-    if (particle_idx >= 131072u) {
+    if (particle_idx >= 262144u) {
         out.clip_position = vec4<f32>(100.0, 100.0, 100.0, 1.0);
         return out;
     }
@@ -572,3 +572,138 @@ fn solid_visual(sidx: u32) -> vec4<f32> {
     }
 }
 ")
+
+;; ---------------------------------------------------------------------------
+;; 8,192-Bolt Analytical 3D Sphere / Rail-Lance / Gyre Impostor Pass
+;; Zero ECS or per-pixel raymarch overhead; 1 hardware depth-tested draw call!
+;; ---------------------------------------------------------------------------
+(def bolt-render-wgsl
+  "struct BoltGPU {
+    pos_rad:   vec4<f32>,
+    vel_style: vec4<f32>,
+    col_glow:  vec4<f32>,
+}
+
+struct Uniforms {
+    view_proj: mat4x4<f32>,
+    cam_right: vec4<f32>,
+    cam_up:    vec4<f32>,
+}
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var<storage, read> bolts: array<BoltGPU>;
+
+struct BoltVertexOut {
+    @builtin(position) clip_position: vec4<f32>,
+    @location(0) local_xy: vec2<f32>,
+    @location(1) stretch_time: vec2<f32>,
+    @location(2) col_glow: vec4<f32>,
+    @location(3) @interpolate(flat) style: u32,
+}
+
+@vertex fn vs_main(@builtin(vertex_index) vi: u32) -> BoltVertexOut {
+    var out: BoltVertexOut;
+    let bolt_idx = vi / 6u;
+    let corner_idx = vi % 6u;
+
+    if (bolt_idx >= 8192u) {
+        out.clip_position = vec4<f32>(100.0, 100.0, 100.0, 1.0);
+        return out;
+    }
+
+    let b = bolts[bolt_idx];
+    let rad = b.pos_rad.w;
+    if (rad <= 0.005) {
+        out.clip_position = vec4<f32>(100.0, 100.0, 100.0, 1.0);
+        return out;
+    }
+
+    var offset = vec2<f32>(-1.0, -1.0);
+    if (corner_idx == 1u) { offset = vec2<f32>( 1.0, -1.0); }
+    else if (corner_idx == 2u) { offset = vec2<f32>(-1.0,  1.0); }
+    else if (corner_idx == 3u) { offset = vec2<f32>(-1.0,  1.0); }
+    else if (corner_idx == 4u) { offset = vec2<f32>( 1.0, -1.0); }
+    else if (corner_idx == 5u) { offset = vec2<f32>( 1.0,  1.0); }
+
+    let style = u32(max(0.0, round(b.vel_style.w)));
+    let vx_scr = dot(b.vel_style.xyz, u.cam_right.xyz);
+    let vy_scr = dot(b.vel_style.xyz, u.cam_up.xyz);
+    let scr_spd = sqrt(vx_scr * vx_scr + vy_scr * vy_scr);
+
+    var ax1 = u.cam_right.xyz;
+    var ax2 = u.cam_up.xyz;
+    var stretch: f32 = 1.0;
+
+    if (scr_spd > 0.75 && (style == 1u || scr_spd > 68.0)) {
+        let dir2 = vec2<f32>(vx_scr, vy_scr) / scr_spd;
+        ax1 = u.cam_right.xyz * dir2.x + u.cam_up.xyz * dir2.y;
+        ax2 = -u.cam_right.xyz * dir2.y + u.cam_up.xyz * dir2.x;
+        if (style == 1u) {
+            stretch = clamp(2.35 + scr_spd * 0.032, 2.35, 7.20);
+        } else {
+            stretch = clamp(1.0 + (scr_spd - 68.0) * 0.022, 1.0, 2.65);
+        }
+    }
+
+    let halo_scale = select(1.22, 1.55, b.col_glow.w >= 0.5 || style == 3u);
+    let local_xy = vec2<f32>(offset.x * stretch, offset.y) * halo_scale;
+    let world_pos = b.pos_rad.xyz + ax1 * (local_xy.x * rad) + ax2 * (local_xy.y * rad);
+
+    out.clip_position = u.view_proj * vec4<f32>(world_pos, 1.0);
+    out.local_xy = local_xy;
+    out.stretch_time = vec2<f32>(stretch, u.cam_right.w);
+    out.col_glow = b.col_glow;
+    out.style = style;
+    return out;
+}
+
+@fragment fn fs_main(in: BoltVertexOut) -> @location(0) vec4<f32> {
+    let half_seg = max(0.0, in.stretch_time.x - 1.0);
+    let cx = clamp(in.local_xy.x, -half_seg, half_seg);
+    let q = vec2<f32>(in.local_xy.x - cx, in.local_xy.y);
+    let r = length(q);
+    if (r > 1.55) { discard; }
+
+    let base_col = max(in.col_glow.rgb, vec3<f32>(0.02));
+    let glow_amt = in.col_glow.w;
+    let t = in.stretch_time.y;
+
+    // Style 3: Gyre Vortex — swirling cyclone torus + blazing eye-wall!
+    if (in.style == 3u) {
+        let ang = atan2(q.y, q.x);
+        let spiral = 0.5 + 0.5 * sin(ang * 3.0 - t * 18.0 + r * 5.8);
+        let ring = exp(-pow((r - 0.72) * 3.8, 2.0));
+        let core_eye = clamp(1.0 - r * 1.35, 0.0, 1.0);
+        let alpha = clamp(ring * 0.78 + core_eye * 0.65, 0.0, 0.90);
+        let hot = mix(base_col, vec3<f32>(1.0, 0.98, 0.95), core_eye * 0.55 + ring * 0.35);
+        let corona = base_col * (exp(-r * 1.85) * (0.95 + 0.55 * spiral) + ring * 1.15);
+        return vec4<f32>(hot * alpha + corona, alpha);
+    }
+
+    // Matte / Solid Mineral Slug (glow < 0.5): crisp analytical 3D sphere + subtle kinetic rim
+    if (glow_amt < 0.5) {
+        if (r > 1.16) { discard; }
+        if (r > 1.0) {
+            let rim_h = clamp(1.0 - (r - 1.0) / 0.16, 0.0, 1.0);
+            return vec4<f32>(base_col * (rim_h * rim_h * 0.22), 0.0);
+        }
+        let nz = sqrt(max(0.0, 1.0 - r * r));
+        let n3 = normalize(vec3<f32>(q.x, q.y, nz));
+        let ldir = normalize(vec3<f32>(-0.38, 0.62, 0.68));
+        let diff = clamp(dot(n3, ldir), 0.0, 1.0);
+        let spec = pow(clamp(dot(n3, normalize(ldir + vec3<f32>(0.0, 0.0, 1.0))), 0.0, 1.0), 18.0) * 0.32;
+        let shade = 0.34 + 0.72 * diff;
+        let alpha = smoothstep(1.0, 0.90, r);
+        let rgb = base_col * shade + vec3<f32>(spec);
+        return vec4<f32>(rgb * alpha, alpha);
+    }
+
+    // Incandescent Orb / Rail-Lance / Cluster Mortar: analytical white-hot plasma core + HDR corona!
+    let nz = sqrt(max(0.0, 1.0 - min(r * r, 1.0)));
+    let body_a = smoothstep(1.04, 0.78, r) * clamp(0.68 + 0.16 * glow_amt, 0.68, 0.92);
+    let warhead_pulse = select(1.0, 0.85 + 0.30 * sin(t * 22.0 + r * 8.0), in.style == 2u);
+    let hot_core = mix(base_col, vec3<f32>(1.0, 0.99, 0.96), pow(nz, 2.1) * 0.72);
+    let halo = exp(-max(0.0, r - 0.35) * 2.55) * (0.75 + 0.45 * glow_amt) * warhead_pulse;
+    return vec4<f32>(hot_core * body_a + base_col * halo, body_a);
+}
+")
+
