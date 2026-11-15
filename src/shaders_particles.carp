@@ -595,7 +595,7 @@ struct Uniforms {
 struct BoltVertexOut {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) local_xy: vec2<f32>,
-    @location(1) stretch_time: vec2<f32>,
+    @location(1) stretch_time: vec3<f32>,
     @location(2) col_glow: vec4<f32>,
     @location(3) @interpolate(flat) style: u32,
 }
@@ -633,24 +633,88 @@ struct BoltVertexOut {
     var ax2 = u.cam_up.xyz;
     var stretch: f32 = 1.0;
 
-    if (scr_spd > 0.75 && (style == 1u || scr_spd > 68.0)) {
+    if (style == 4u) {
+        let half_vec = b.vel_style.xyz * 0.5;
+        let dir2 = select(vec2<f32>(1.0, 0.0), vec2<f32>(vx_scr, vy_scr) / scr_spd, scr_spd > 0.001);
+        ax2 = -u.cam_right.xyz * dir2.y + u.cam_up.xyz * dir2.x;
+        let span_len = max(0.25, length(half_vec) / max(rad, 0.02));
+        stretch = span_len;
+        let lxy = vec2<f32>(offset.x * stretch, offset.y * 1.50);
+        let wpos = b.pos_rad.xyz + half_vec * offset.x + ax2 * (lxy.y * rad);
+        let clip4 = u.view_proj * vec4<f32>(wpos, 1.0);
+        out.clip_position = clip4;
+        out.local_xy = lxy;
+        out.stretch_time = vec3<f32>(stretch, u.cam_right.w, clip4.w);
+        out.col_glow = b.col_glow;
+        out.style = style;
+        return out;
+    }
+
+    // Style 6: Maelstrom Storm-Eye Seed — compact thrown storm pearl during launch, vanishing into a faint eye once anchored!
+    if (style == 6u) {
+        let spd3 = length(b.vel_style.xyz);
+        let throw_t = clamp(spd3 / 11.0, 0.0, 1.0);
+        let seed_rad = mix(0.26, 0.60, throw_t) * clamp(rad * 1.15, 0.80, 1.65);
+        if (scr_spd > 0.60 && throw_t > 0.12) {
+            let dir2 = vec2<f32>(vx_scr, vy_scr) / scr_spd;
+            ax1 = u.cam_right.xyz * dir2.x + u.cam_up.xyz * dir2.y;
+            ax2 = -u.cam_right.xyz * dir2.y + u.cam_up.xyz * dir2.x;
+            stretch = clamp(1.0 + scr_spd * 0.018, 1.0, 2.25);
+        }
+        let lxy6 = vec2<f32>(offset.x * stretch, offset.y) * 1.48;
+        let wpos6 = b.pos_rad.xyz + ax1 * (lxy6.x * seed_rad) + ax2 * (lxy6.y * seed_rad);
+        let clip6 = u.view_proj * vec4<f32>(wpos6, 1.0);
+        out.clip_position = clip6;
+        out.local_xy = lxy6;
+        out.stretch_time = vec3<f32>(stretch, u.cam_right.w, spd3);
+        out.col_glow = b.col_glow;
+        out.style = style;
+        return out;
+    }
+
+    // Style 7: Starburst Seed — streaking octagram comet during throw, swelling into a collapsing singularity star during THE BIG SUCC!
+    if (style == 7u) {
+        let spd7 = length(b.vel_style.xyz);
+        let succ_t = clamp(1.0 - spd7 / 6.0, 0.0, 1.0);
+        let seed_rad7 = rad * mix(1.05, 2.25, succ_t);
+        if (scr_spd > 0.55 && succ_t < 0.75) {
+            let dir2 = vec2<f32>(vx_scr, vy_scr) / scr_spd;
+            ax1 = u.cam_right.xyz * dir2.x + u.cam_up.xyz * dir2.y;
+            ax2 = -u.cam_right.xyz * dir2.y + u.cam_up.xyz * dir2.x;
+            stretch = clamp(1.0 + scr_spd * 0.024, 1.0, 2.65);
+        }
+        let lxy7 = vec2<f32>(offset.x * stretch, offset.y) * 1.85;
+        let wpos7 = b.pos_rad.xyz + ax1 * (lxy7.x * seed_rad7) + ax2 * (lxy7.y * seed_rad7);
+        let clip7 = u.view_proj * vec4<f32>(wpos7, 1.0);
+        out.clip_position = clip7;
+        out.local_xy = lxy7;
+        out.stretch_time = vec3<f32>(stretch, u.cam_right.w, spd7);
+        out.col_glow = b.col_glow;
+        out.style = style;
+        return out;
+    }
+
+    if (scr_spd > 0.45 && (style == 1u || style == 5u || scr_spd > 68.0)) {
         let dir2 = vec2<f32>(vx_scr, vy_scr) / scr_spd;
         ax1 = u.cam_right.xyz * dir2.x + u.cam_up.xyz * dir2.y;
         ax2 = -u.cam_right.xyz * dir2.y + u.cam_up.xyz * dir2.x;
         if (style == 1u) {
-            stretch = clamp(2.35 + scr_spd * 0.032, 2.35, 7.20);
+            stretch = clamp(2.85 + scr_spd * 0.038, 2.85, 8.60);
+        } else if (style == 5u) {
+            stretch = clamp(1.0 + max(0.0, scr_spd - 4.5) * 0.032, 1.0, 2.05);
         } else {
             stretch = clamp(1.0 + (scr_spd - 68.0) * 0.022, 1.0, 2.65);
         }
     }
 
-    let halo_scale = select(1.22, 1.55, b.col_glow.w >= 0.5 || style == 3u);
+    let halo_scale = select(select(1.22, 1.58, b.col_glow.w >= 0.5 || style == 3u || style == 5u), 2.10, style == 1u);
     let local_xy = vec2<f32>(offset.x * stretch, offset.y) * halo_scale;
     let world_pos = b.pos_rad.xyz + ax1 * (local_xy.x * rad) + ax2 * (local_xy.y * rad);
+    let clip0 = u.view_proj * vec4<f32>(world_pos, 1.0);
 
-    out.clip_position = u.view_proj * vec4<f32>(world_pos, 1.0);
+    out.clip_position = clip0;
     out.local_xy = local_xy;
-    out.stretch_time = vec2<f32>(stretch, u.cam_right.w);
+    out.stretch_time = vec3<f32>(stretch, u.cam_right.w, clip0.w);
     out.col_glow = b.col_glow;
     out.style = style;
     return out;
@@ -661,11 +725,66 @@ struct BoltVertexOut {
     let cx = clamp(in.local_xy.x, -half_seg, half_seg);
     let q = vec2<f32>(in.local_xy.x - cx, in.local_xy.y);
     let r = length(q);
-    if (r > 1.55) { discard; }
+    let max_r = select(1.58, 2.10, in.style == 1u || in.style == 7u);
+    if (r > max_r) { discard; }
 
     let base_col = max(in.col_glow.rgb, vec3<f32>(0.02));
     let glow_amt = in.col_glow.w;
     let t = in.stretch_time.y;
+
+    // Style 6: Maelstrom Storm-Eye Seed — visible compressed storm pearl during throw, vanishing into a faint eye shimmer once anchored!
+    if (in.style == 6u) {
+        let throw_t = clamp(in.stretch_time.z / 11.0, 0.0, 1.0);
+        let ang = atan2(q.y, q.x);
+        let spin = 0.5 + 0.5 * sin(ang * 2.0 + t * 16.0 - r * 5.0);
+        let seed_core = exp(-r * r * 5.5) * throw_t;
+        let eye_ring = exp(-pow((r - 0.72) * 4.2, 2.0)) * (0.11 + 0.70 * throw_t) * (0.65 + 0.35 * spin);
+        let alpha = clamp(seed_core * 0.85 + eye_ring * 0.72, 0.0, 0.88);
+        let hot = mix(base_col, vec3<f32>(1.0, 0.99, 0.96), clamp(seed_core * 0.75 + eye_ring * 0.25, 0.0, 0.90));
+        let corona = base_col * (eye_ring * (0.28 + 0.95 * throw_t) + exp(-r * 2.4) * 0.45 * throw_t);
+        return vec4<f32>(hot * alpha + corona, alpha);
+    }
+
+    // Style 7: Starburst Seed — blazing 8-ray comet during throw, collapsing into an inward-sucking singularity star during THE BIG SUCC!
+    if (in.style == 7u) {
+        let succ_t = clamp(1.0 - in.stretch_time.z / 6.0, 0.0, 1.0);
+        let ang = atan2(q.y, q.x);
+        let swirl_ang = ang + succ_t * (1.35 / (r + 0.22));
+        let rays8 = pow(0.5 + 0.5 * cos(swirl_ang * 8.0 - t * (26.0 + 22.0 * succ_t)), 3.0) * exp(-r * mix(1.15, 0.78, succ_t));
+        let in_wave1 = fract(r * 0.72 + t * 3.8);
+        let in_wave2 = fract(r * 0.72 + t * 3.8 + 0.5);
+        let succ_rings = succ_t * (exp(-pow((r - in_wave1 * 1.75) * 5.5, 2.0)) * (1.0 - in_wave1)
+                                 + exp(-pow((r - in_wave2 * 1.75) * 5.5, 2.0)) * (1.0 - in_wave2));
+        let horizon_rim = succ_t * exp(-pow((r - 0.42) * 7.5, 2.0));
+        let dark_throat = succ_t * smoothstep(0.40, 0.10, r);
+        let star_core = exp(-r * r * 4.8) * (1.0 - 0.88 * dark_throat);
+        let alpha = clamp(star_core * 0.95 + dark_throat * 0.92 + rays8 * 0.76 + succ_rings * 0.78 + horizon_rim * 0.88, 0.0, 0.97);
+        let bright = mix(base_col, vec3<f32>(1.0, 0.99, 0.96), clamp(star_core * 0.90 + horizon_rim * 0.78 + rays8 * 0.42, 0.0, 1.0));
+        let core_rgb = mix(bright, base_col * 0.06, dark_throat * 0.92);
+        let corona = base_col * (rays8 * 1.55 + succ_rings * 1.65 + horizon_rim * 1.85 + exp(-r * 1.55) * 0.85) * (1.0 - 0.75 * dark_throat);
+        return vec4<f32>(core_rgb * alpha + corona, alpha);
+    }
+
+    // Style 1: Rail-Lance — incandescent white-hot sabot core + pulsing supersonic Mach shock-rings!
+    if (in.style == 1u) {
+        let core_spear = exp(-r * r * 3.1);
+        let mach_ring = exp(-pow((r - 1.05) * 3.4, 2.0)) * (0.78 + 0.35 * sin(t * 42.0 - r * 9.0));
+        let outer_flare = exp(-r * 1.45);
+        let alpha = clamp(core_spear * 0.96 + mach_ring * 0.62 + outer_flare * 0.32, 0.0, 0.96);
+        let hot = mix(base_col, vec3<f32>(1.0, 0.99, 0.97), clamp(core_spear * 0.92 + mach_ring * 0.38, 0.0, 1.0));
+        let corona = base_col * (outer_flare * 1.55 + mach_ring * 1.35);
+        return vec4<f32>(hot * alpha + corona, alpha);
+    }
+
+    // Style 4: Luminous Drill — high-frequency humming laser needle + reagent plasma sheath!
+    if (in.style == 4u) {
+        let hum = 0.88 + 0.24 * sin(t * 62.0 + in.local_xy.x * 3.5);
+        let needle = exp(-r * r * 5.2);
+        let sheath = exp(-r * 2.25) * hum;
+        let alpha = clamp(needle * 0.92 + sheath * 0.48, 0.0, 0.95);
+        let hot = mix(base_col, vec3<f32>(1.0, 0.99, 0.97), clamp(needle * 0.85, 0.0, 1.0));
+        return vec4<f32>(hot * alpha + base_col * sheath * 1.15, alpha);
+    }
 
     // Style 3: Gyre Vortex — swirling cyclone torus + blazing eye-wall!
     if (in.style == 3u) {
@@ -676,6 +795,19 @@ struct BoltVertexOut {
         let alpha = clamp(ring * 0.78 + core_eye * 0.65, 0.0, 0.90);
         let hot = mix(base_col, vec3<f32>(1.0, 0.98, 0.95), core_eye * 0.55 + ring * 0.35);
         let corona = base_col * (exp(-r * 1.85) * (0.95 + 0.55 * spiral) + ring * 1.15);
+        return vec4<f32>(hot * alpha + corona, alpha);
+    }
+
+    // Style 5: Nova / Bulwark — incandescent star-core + rotating hexagonal prism shield-ring!
+    if (in.style == 5u) {
+        let ang = atan2(q.y, q.x);
+        let facets = 0.5 + 0.5 * cos(ang * 6.0 + t * 8.5);
+        let star_core = exp(-r * r * 4.2);
+        let prism_ring = exp(-pow((r - 0.78) * 4.8, 2.0)) * (0.68 + 0.48 * facets);
+        let corona_glow = exp(-r * 1.95);
+        let alpha = clamp(star_core * 0.94 + prism_ring * 0.72 + corona_glow * 0.28, 0.0, 0.95);
+        let hot = mix(base_col, vec3<f32>(1.0, 0.99, 0.96), clamp(star_core * 0.88 + prism_ring * 0.35, 0.0, 1.0));
+        let corona = base_col * (corona_glow * 1.20 + prism_ring * 1.15);
         return vec4<f32>(hot * alpha + corona, alpha);
     }
 
@@ -697,7 +829,7 @@ struct BoltVertexOut {
         return vec4<f32>(rgb * alpha, alpha);
     }
 
-    // Incandescent Orb / Rail-Lance / Cluster Mortar: analytical white-hot plasma core + HDR corona!
+    // Incandescent Orb / Cluster Mortar: analytical white-hot plasma core + HDR corona!
     let nz = sqrt(max(0.0, 1.0 - min(r * r, 1.0)));
     let body_a = smoothstep(1.04, 0.78, r) * clamp(0.68 + 0.16 * glow_amt, 0.68, 0.92);
     let warhead_pulse = select(1.0, 0.85 + 0.30 * sin(t * 22.0 + r * 8.0), in.style == 2u);

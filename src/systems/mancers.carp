@@ -1313,22 +1313,26 @@
           p-align (+ (+ (* @(Vector3.x cam-dir) (* @(Vector3.x &to-m) inv-pd))
                         (* @(Vector3.y cam-dir) (* @(Vector3.y &to-m) inv-pd)))
                      (* @(Vector3.z cam-dir) (* @(Vector3.z &to-m) inv-pd)))
-          rslot @(RigBelt.slot rig)
-          rmb? (InputManager.action-digital? input "click-right")
           m (Float.round mmat)
-          phase-match? (or (and (= rslot 0) (< m 256))
-                           (or (and (= rslot 1) (and (>= m 257) (< m 512)))
-                               (and (= rslot 2) (>= m 513))))
-          cur-vmat (if (= rslot 0) @(RigBelt.sack-mat rig)
-                   (if (= rslot 1) @(RigBelt.flask-mat rig) @(RigBelt.bellows-mat rig)))
-          cur-vfill (if (= rslot 0) @(RigBelt.sack-fill rig)
-                    (if (= rslot 1) @(RigBelt.flask-fill rig) @(RigBelt.bellows-fill rig)))
-          can-parry? (and phase-match?
-                          (and rmb?
-                               (and (< p-dist 18.5)
-                                    (and (> p-align 0.62)
-                                         (and (< cur-vfill 0.998f)
-                                              (or (< cur-vmat 0.5f) (< (Float.abs (- cur-vmat mmat)) 0.5f)))))))
+          t0-succ? (RigBelt.succ-active-for-tank? rig 0)
+          t1-succ? (RigBelt.succ-active-for-tank? rig 1)
+          t0-f @(RigBelt.tank0-fill rig)
+          t0-m @(RigBelt.tank0-mat rig)
+          t1-f @(RigBelt.tank1-fill rig)
+          t1-m @(RigBelt.tank1-mat rig)
+          t0-ok? (and t0-succ?
+                      (and (< t0-f 0.998f)
+                           (or (<= t0-f 0.002f) (< (Float.abs (- t0-m mmat)) 0.5f))))
+          t1-ok? (and t1-succ?
+                      (and (< t1-f 0.998f)
+                           (or (<= t1-f 0.002f) (< (Float.abs (- t1-m mmat)) 0.5f))))
+          parry-tank (if (and t0-ok? (and (> t0-f 0.002f) (< (Float.abs (- t0-m mmat)) 0.5f)))
+                       0
+                       (if (and t1-ok? (and (> t1-f 0.002f) (< (Float.abs (- t1-m mmat)) 0.5f)))
+                         1
+                         (if t0-ok? 0 (if t1-ok? 1 -1))))
+          can-parry? (and (>= parry-tank 0)
+                          (and (< p-dist 18.5) (> p-align 0.62)))
           beam-clash? (and (> player-spray-mat 0.5f)
                            (and (< p-dist 18.5) (> p-align 0.64)))
           jpt (Materials.jet-ptype mmat)
@@ -1336,21 +1340,19 @@
       (do
         (Array.aset! (MancerBank.flash mbk) mslot -1.0f)
         (if can-parry?
-          ;; HEROIC BENDER VACUUM PARRY: Drink his entire beam straight out of midair into your vessel!
-          (let [noz-x (Double.to-float (+ (+ @(Vector3.x cam-pos) (* @(Vector3.x right) 0.36)) (- (* @(Vector3.x cam-dir) 0.65) (* @(Vector3.x up) 0.22))))
-                noz-y (Double.to-float (+ (+ @(Vector3.y cam-pos) (* @(Vector3.y right) 0.36)) (- (* @(Vector3.y cam-dir) 0.65) (* @(Vector3.y up) 0.22))))
-                noz-z (Double.to-float (+ (+ @(Vector3.z cam-pos) (* @(Vector3.z right) 0.36)) (- (* @(Vector3.z cam-dir) 0.65) (* @(Vector3.z up) 0.22))))
+          ;; HEROIC BENDER VACUUM PARRY: Drink his entire beam straight out of midair into your Universal Tank!
+          (let [side-s (if (= parry-tank 0) -0.32 0.36)
+                noz-x (Double.to-float (+ (+ @(Vector3.x cam-pos) (* @(Vector3.x right) side-s)) (- (* @(Vector3.x cam-dir) 0.65) (* @(Vector3.x up) 0.22))))
+                noz-y (Double.to-float (+ (+ @(Vector3.y cam-pos) (* @(Vector3.y right) side-s)) (- (* @(Vector3.y cam-dir) 0.65) (* @(Vector3.y up) 0.22))))
+                noz-z (Double.to-float (+ (+ @(Vector3.z cam-pos) (* @(Vector3.z right) side-s)) (- (* @(Vector3.z cam-dir) 0.65) (* @(Vector3.z up) 0.22))))
                 mid-x (* (+ hand-x noz-x) 0.5f)
                 mid-y (* (+ hand-y noz-y) 0.5f)
                 mid-z (* (+ hand-z noz-z) 0.5f)
-                next-f (Float.clamp 0.0f 1.0f (+ cur-vfill (* 0.62f fdt)))]
+                cur-vf (RigBelt.tank-fill rig parry-tank)
+                next-f (Float.clamp 0.0f 1.0f (+ cur-vf (* 0.62f fdt)))]
             (do
-              (if (= rslot 0)
-                (when (/= m 5)
-                  (do (RigBelt.set-sack-mat! rig mmat) (RigBelt.set-sack-fill! rig next-f)))
-                (if (= rslot 1)
-                  (do (RigBelt.set-flask-mat! rig mmat) (RigBelt.set-flask-fill! rig next-f))
-                  (do (RigBelt.set-bellows-mat! rig mmat) (RigBelt.set-bellows-fill! rig next-f))))
+              (when (/= m 5)
+                (RigBelt.set-tank! rig parry-tank mmat next-f))
               (ParticleSystem.emit! ps hand-x hand-y hand-z (* mdx 22.0f) (* mdy 22.0f) (* mdz 22.0f) 0.65f 6 jpt 0.18f 0.1f)
               (ParticleSystem.emit! ps mid-x mid-y mid-z (* (- noz-x mid-x) 4.2f) (* (- noz-y mid-y) 4.2f) (* (- noz-z mid-z) 4.2f) 0.26f 10 spt 0.12f 0.0f)
               (when (= (Int.mod fc 3) 0)
@@ -1911,19 +1913,12 @@
           fc @(EngineState.frame-count state)
           fdt (Double.to-float dt)
           raw-rb (gpu-readback-get-raw)
-          rslot @(RigBelt.slot rig)
-          lmb? (InputManager.action-digital? input "click-left")
+          rmb? (InputManager.action-digital? input "click-right")
           jet-x (gpu-readback-get-jet-x)
           jet-y (gpu-readback-get-jet-y)
           jet-z (gpu-readback-get-jet-z)
           jet-w (gpu-readback-get-jet-w)
-          spray-mat (if (not (and lmb? (and (< rslot 3) (> jet-w 0.5f))))
-                      0.0f
-                      (if (= rslot 0)
-                        (if (> @(RigBelt.sack-fill rig) 0.004f) @(RigBelt.sack-mat rig) 0.0f)
-                        (if (= rslot 1)
-                          (if (> @(RigBelt.flask-fill rig) 0.004f) @(RigBelt.flask-mat rig) 0.0f)
-                          (if (> @(RigBelt.bellows-fill rig) 0.004f) @(RigBelt.bellows-mat rig) 0.0f))))
+          spray-mat (RigBelt.active-spit-mat rig rmb? jet-w)
           p-ent (ECS.Entity.init (Handle.init (Uint64.from-long (Long.from-int @(EngineState.player-ent-id state)))
                                               (Uint32.from-long 1l)))
           p-vel (match (the (Maybe CompBody) (get-component ecs &p-ent))
@@ -1948,7 +1943,7 @@
           m-trap-timer (MancerBank.trap-timer mbk)
           active-count 0]
       (do
-        ;; [U] Key: Summon an Ecomancer attuned to aimed pool/plume/rock or active vessel/palette material!
+        ;; [U] Key: Summon an Ecomancer attuned to aimed pool/plume/rock or active Tank/palette material!
         (when (and (InputManager.action-pressed? input "spawn-mancer")
                    (> (- fc @(MancerBank.last-spawn-frame mbk)) 10))
           (let [succ-w (gpu-readback-get-succ-w)
@@ -1956,15 +1951,17 @@
                 hit-m (gpu-readback-get-hit-mat)
                 h-mod? (InputManager.action-digital? input "edit-remove")
                 g-mod? (InputManager.action-digital? input "edit-paint")
+                at @(RigBelt.active-tank rig)
+                at-m (if (> (RigBelt.tank-fill rig at) 0.002f) (RigBelt.tank-mat rig at) 0.0f)
+                ot (- 1 at)
+                ot-m (if (> (RigBelt.tank-fill rig ot) 0.002f) (RigBelt.tank-mat rig ot) 0.0f)
                 pick-mat (if h-mod? (+ 256.0f @(Player.current-liq player))
                          (if g-mod? (+ 512.0f @(Player.current-gas player))
                          (if (> succ-w 0.5f) succ-w
-                         (if (and (= rslot 1) (> @(RigBelt.flask-mat rig) 0.5f)) @(RigBelt.flask-mat rig)
-                         (if (and (= rslot 2) (> @(RigBelt.bellows-mat rig) 0.5f)) @(RigBelt.bellows-mat rig)
+                         (if (> at-m 0.5f) at-m
+                         (if (> ot-m 0.5f) ot-m
                          (if (and (> hit-w 0.5f) (and (> hit-m 0.5f) (< hit-m 254.5f))) hit-m
-                         (if (= rslot 1) (+ 256.0f @(Player.current-liq player))
-                         (if (= rslot 2) (+ 512.0f @(Player.current-gas player))
-                           @(Player.current-mat player)))))))))
+                           @(Player.current-mat player)))))))
                 spawn-p (MancerSystem.safe-mancer-spawn-pos world cam-pos cam-dir)
                 sx (Double.to-float @(Vector3.x &spawn-p))
                 sy (Double.to-float @(Vector3.y &spawn-p))

@@ -17,6 +17,14 @@
 (register gpu-readback-get-succ-y (Fn [] Float) "gpu_readback_get_succ_y")
 (register gpu-readback-get-succ-z (Fn [] Float) "gpu_readback_get_succ_z")
 (register gpu-readback-get-succ-w (Fn [] Float) "gpu_readback_get_succ_w")
+(register gpu-readback-get-succ0-x (Fn [] Float) "gpu_readback_get_succ0_x")
+(register gpu-readback-get-succ0-y (Fn [] Float) "gpu_readback_get_succ0_y")
+(register gpu-readback-get-succ0-z (Fn [] Float) "gpu_readback_get_succ0_z")
+(register gpu-readback-get-succ0-w (Fn [] Float) "gpu_readback_get_succ0_w")
+(register gpu-readback-get-succ1-x (Fn [] Float) "gpu_readback_get_succ1_x")
+(register gpu-readback-get-succ1-y (Fn [] Float) "gpu_readback_get_succ1_y")
+(register gpu-readback-get-succ1-z (Fn [] Float) "gpu_readback_get_succ1_z")
+(register gpu-readback-get-succ1-w (Fn [] Float) "gpu_readback_get_succ1_w")
 (register gpu-readback-get-jet-x (Fn [] Float) "gpu_readback_get_jet_x")
 (register gpu-readback-get-jet-y (Fn [] Float) "gpu_readback_get_jet_y")
 (register gpu-readback-get-jet-z (Fn [] Float) "gpu_readback_get_jet_z")
@@ -412,7 +420,7 @@
          
          main-ub-raw (Result.Success (WGPURender.uniform-buffer-get-buffer @(M-UniformBuffer.p &ub)))
          
-         hit-buf-ptr (Renderer.create-zeroed-storage-buffer ctx 416)
+         hit-buf-ptr (Renderer.create-zeroed-storage-buffer ctx 424)
          hit-buf (Result.Success (M-VertexBuffer.init hit-buf-ptr))
          hit-raw (Result.Success (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p &hit-buf)))
          map-buf (Result.Success (gpu-readback-create-map-buffer ctx))
@@ -644,7 +652,7 @@
           ()
           (do
             (GPUBatcher.batch-dispatch batch-encoder @(Renderer.raycast-pipeline ren) @(Renderer.raycast-bind-group ren) 1)
-            (GPUBatcher.batch-copy-buffer batch-encoder (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p (Renderer.hit-buffer ren))) @(Renderer.map-buffer ren) 1664l)))
+            (GPUBatcher.batch-copy-buffer batch-encoder (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p (Renderer.hit-buffer ren))) @(Renderer.map-buffer ren) 1696l)))
         (GPUBatcher.end-batch ctx batch-encoder)
         (if (gpu-readback-is-mapping)
           ()

@@ -170,19 +170,31 @@ canvas.emscripten { border: 0px none; background-color: black; }
           <input type="range" id="brush-slider" min="0.5" max="15.0" step="0.5" value="3.0" style="width: 100%; cursor: pointer;" oninput="updateBrushRadius(this.value)">
         </div>
 
-        <!-- Materials HUD -->
-        <div style="display: flex; flex-direction: column; gap: 10px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; margin-bottom: 10px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
+        <!-- Materials HUD + [T1]/[T2] Quick-Fill -->
+        <div style="display: flex; flex-direction: column; gap: 9px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; margin-bottom: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
             <span style="font-size: 12px; color: #ccc;">Solid <span style="color:#777;">(V)</span></span>
-            <span id="solid-lbl" style="font-size: 14px; font-weight: bold; color: #ddd;">Stone</span>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <span id="solid-lbl" style="font-size: 13px; font-weight: bold; color: #ddd;">Stone</span>
+              <button class="mat-btn" style="padding: 2px 5px; font-size: 9.5px;" title="Fill Tank 1 with selected Solid" onclick="quickFillTank(0, 0)">T1</button>
+              <button class="mat-btn" style="padding: 2px 5px; font-size: 9.5px;" title="Fill Tank 2 with selected Solid" onclick="quickFillTank(1, 0)">T2</button>
+            </div>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
             <span style="font-size: 12px; color: #ccc;">Liquid <span style="color:#777;">(N)</span></span>
-            <span id="liq-lbl" style="font-size: 14px; font-weight: bold; color: #55aaff;">Water</span>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <span id="liq-lbl" style="font-size: 13px; font-weight: bold; color: #55aaff;">Water</span>
+              <button class="mat-btn" style="padding: 2px 5px; font-size: 9.5px;" title="Fill Tank 1 with selected Liquid" onclick="quickFillTank(0, 1)">T1</button>
+              <button class="mat-btn" style="padding: 2px 5px; font-size: 9.5px;" title="Fill Tank 2 with selected Liquid" onclick="quickFillTank(1, 1)">T2</button>
+            </div>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
             <span style="font-size: 12px; color: #ccc;">Gas <span style="color:#777;">(B)</span></span>
-            <span id="gas-lbl" style="font-size: 14px; font-weight: bold; color: #ffaa55;">Steam</span>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <span id="gas-lbl" style="font-size: 13px; font-weight: bold; color: #ffaa55;">Steam</span>
+              <button class="mat-btn" style="padding: 2px 5px; font-size: 9.5px;" title="Fill Tank 1 with selected Gas" onclick="quickFillTank(0, 2)">T1</button>
+              <button class="mat-btn" style="padding: 2px 5px; font-size: 9.5px;" title="Fill Tank 2 with selected Gas" onclick="quickFillTank(1, 2)">T2</button>
+            </div>
           </div>
         </div>
 
@@ -198,14 +210,14 @@ canvas.emscripten { border: 0px none; background-color: black; }
         
         <!-- Controls Helper Cheat Sheet -->
         <div style="font-size: 10px; color: #888; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 12px; padding-top: 8px; line-height: 1.45;">
-          <strong style="color:#bbb;">Akimbo Hands, Wands &amp; Tinkering:</strong><br>
-          • <strong>[1] Left / [2] Right Vessel</strong>: <strong>LMB/RMB</strong> Launch / Deploy<br>
-          • <strong>[R] Triple-Succ</strong>: Vacuum <strong>Solid + Liquid + Gas</strong> at once (any stance!)<br>
-          • <strong>X / Q</strong>: Dump <strong>Left</strong> / <strong>Right</strong> Vessel (any stance!)<br>
-          • <strong>[3] Left / [4] Right Wand</strong>: Bullet / Squirt / Expel • <strong>[5] Couple (2H)</strong><br>
-          • <strong>[`] Hands &amp; Boot (2H)</strong>: <strong>LMB</strong> Kick/Shatter • <strong>RMB</strong> Yank/Grab<br>
-          • <strong>[Tab] Workbench</strong>: <strong>Wheel/←→</strong> Gem • <strong>[1–3]</strong> Wand • <strong>Hold E</strong> Weld!<br>
-          • <strong>[K] Raven's Gift</strong> | <strong>Z/MMB</strong>: Match | <strong>T/Y/U</strong>: Critters
+          <strong style="color:#bbb;">Rune-Strip Wands &amp; Twin Lock-on-Fill Tanks:</strong><br>
+          • <strong>[1] Tank 1 / [2] Tank 2</strong>: <strong>Tap</strong> Select • <strong>Hold</strong> Succ<br>
+          • <strong>[3] Wand</strong>: Single-Tank Stance (or cycle carried Wand)<br>
+          • <strong>Single-Tank</strong>: <strong>LMB</strong> Cast Strip • <strong>RMB</strong> Raw Spit<br>
+          • <strong>[4] Combo Mode</strong>: <strong>LMB</strong> Mix / 2x Overcharge • <strong>RMB</strong> Core<br>
+          • <strong>[Tab] Workbench</strong>: Free-Swap Spells, Linkers (💥/⏱/2x) &amp; Mods<br>
+          • <strong>Hold [R]</strong>: 2x Succ | <strong>X / &#8679;X</strong>: Dump Left (T1) / Right (T2)<br>
+          • <strong>[`]/[5]</strong>: Hands &amp; Boot | <strong>[K]</strong>: Gift Wands &amp; Runes | <strong>Z</strong>: Match
         </div>
       </div>
 
@@ -262,28 +274,29 @@ canvas.emscripten { border: 0px none; background-color: black; }
         <div id="bolt-telemetry-pill" style="display: none; background: rgba(12, 14, 22, 0.88); border: 1px solid rgba(66, 242, 255, 0.35); border-radius: 999px; padding: 5px 11px; font-size: 11px; font-weight: 700; color: #80deea; box-shadow: 0 4px 16px rgba(0,0,0,0.55); font-variant-numeric: tabular-nums;"></div>
       </div>
 
-      <!-- Zero-Cursor [Tab] Tinkering Satchel & Wand Workbench (Centered directly above Hands & Belt Rig!) -->
-      <div id="satchel-workbench" style="display: none; position: absolute; bottom: 136px; left: 50%; transform: translateX(-50%); width: 590px; pointer-events: none; z-index: 96; background: rgba(12, 14, 22, 0.95); border: 1.5px solid rgba(79, 195, 247, 0.58); border-radius: 14px; padding: 11px 13px; box-shadow: 0 12px 38px rgba(0,0,0,0.84), 0 0 24px rgba(79, 195, 247, 0.22); font-family: system-ui, -apple-system, sans-serif; color: #eee;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.10); padding-bottom: 6px;">
-          <div style="display: flex; align-items: center; gap: 7px;">
-            <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: #4fc3f7;">[Tab] Wand Workbench</span>
-            <span style="font-size: 9.5px; color: #9aa4b8;">100% Eternal Welds • Dual-Bleed on [5] LMB</span>
+      <!-- Zero-Cursor [Tab] Dual-Strip Rune Workbench -->
+      <div id="satchel-workbench" style="display: none; position: absolute; bottom: 114px; left: 50%; transform: translateX(-50%); width: 708px; pointer-events: none; z-index: 96; background: rgba(11, 13, 21, 0.96); border: 1.5px solid rgba(79, 195, 247, 0.62); border-radius: 14px; padding: 9px 13px; box-shadow: 0 14px 42px rgba(0,0,0,0.88), 0 0 26px rgba(79, 195, 247, 0.24); font-family: system-ui, -apple-system, sans-serif; color: #eee;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; border-bottom: 1px solid rgba(255,255,255,0.10); padding-bottom: 4px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: #4fc3f7;">[Tab] Dual-Strip Workbench</span>
+            <span style="font-size: 9.2px; color: #9aa4b8;">LMB + [4] RMB Strips • 💥/⏱/💀/2x/🔁 Linkers • 10 Modifiers</span>
           </div>
-          <span style="font-size: 9.5px; color: #ffd54f; font-weight: 700;">[K] Gift Gems • [Tab] Close</span>
+          <span style="font-size: 9.2px; color: #ffd54f; font-weight: 700;">[1–3] Wand • [K] Gift All 25 • [Tab] Close</span>
         </div>
-        <!-- 3 Target Phase Wand Socket Cards ([1] Solid, [2] Liquid, [3] Gas) -->
-        <div id="wb-wand-row" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-bottom: 9px;"></div>
-        <!-- 5 Gem Pockets + [4] Backup Chassis Strip -->
-        <div id="wb-gem-row" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 8px;"></div>
-        <!-- Selected Gem Details + Hold [E] Molten Weld Bar -->
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 8px; padding: 6px 9px;">
-          <div id="wb-sel-desc" style="font-size: 10.5px; color: #cfd6e6; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Scroll / ←→ to select Gem • [1–3] Target Wand</div>
-          <div style="display: flex; align-items: center; gap: 7px; min-width: 155px;">
-            <span id="wb-weld-lbl" style="font-size: 9.5px; font-weight: 800; color: #ffca62; white-space: nowrap;">HOLD [E] WELD</span>
-            <div style="flex: 1; height: 7px; border-radius: 4px; background: rgba(255,255,255,0.10); overflow: hidden; border: 1px solid rgba(255,255,255,0.16);">
-              <div id="wb-weld-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #ffb300, #ff5722, #fff59d); box-shadow: 0 0 8px #ff9800;"></div>
-            </div>
-          </div>
+        <!-- 3 Carried Universal Wand Chassis Tabs -->
+        <div id="wb-wand-row" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 6px;"></div>
+        <!-- Active Wand Dual Circuit Strips: Row 0 [LMB Strip] + Row 1 [RMB Strip] -->
+        <div id="wb-active-strip" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(79, 195, 247, 0.26); border-radius: 10px; padding: 6px 8px; margin-bottom: 6px;"></div>
+        <!-- 30-Pocket Satchel Bag (6x5 Grid) -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; padding: 0 2px;">
+          <span style="font-size: 8.5px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: #8c99b0;">Satchel Rune Bag (30 Pockets)</span>
+          <span style="font-size: 8.5px; color: #78849b;">←→↑↓ / Scroll Navigate • [E] Grab / Swap • [&#8679;E / &#9003;] Quick-Move</span>
+        </div>
+        <div id="wb-gem-row" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-bottom: 6px;"></div>
+        <!-- Selected / Grabbed Rune Details + Action Pill -->
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 8px; padding: 5px 10px;">
+          <div id="wb-sel-desc" style="font-size: 10.2px; color: #cfd6e6; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">←→↑↓ / Scroll to inspect • [E] Grab &amp; Swap freely!</div>
+          <span id="wb-action-pill" style="font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: rgba(79, 195, 247, 0.20); border: 1px solid rgba(79, 195, 247, 0.55); color: #b3e5fc; white-space: nowrap;">[E] GRAB • [&#8679;E] MOVE</span>
         </div>
       </div>
 
@@ -295,12 +308,11 @@ canvas.emscripten { border: 0px none; background-color: black; }
         <div id="reticle-hint" style="margin-top: 8px; font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.95); background: rgba(12,12,18,0.68); padding: 2px 7px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); opacity: 0; transition: opacity 0.12s ease; white-space: nowrap;"></div>
       </div>
 
-      <!-- Screen-Centered Spatial Left Hand (LMB) — 3-Vial Alchemist Belt — Right Hand (RMB) Rig -->
+      <!-- Screen-Centered [3] Universal Wand (LMB) — Twin Lock-on-Fill Tanks ([1] & [2]) — Spit / Power Core (RMB) Rig -->
       <div id="hands-belt-rig" style="position: absolute; bottom: 13px; left: 50%; transform: translateX(-50%); display: flex; align-items: flex-end; gap: 10px; pointer-events: none; z-index: 95; font-family: system-ui, -apple-system, sans-serif; color: #eee;">
 
-        <!-- ◀ LEFT HAND DOCK (LMB) -->
-        <div id="left-hand-dock" style="width: 242px; background: linear-gradient(135deg, rgba(14, 22, 34, 0.93) 0%, rgba(12, 14, 22, 0.91) 100%); border: 1.5px solid rgba(79, 195, 247, 0.48); border-left: 4px solid #4fc3f7; border-radius: 14px 10px 10px 14px; padding: 7px 10px 7px 9px; box-shadow: 0 8px 28px rgba(0,0,0,0.74), -3px 0 16px rgba(79, 195, 247, 0.18); transition: transform 0.11s ease, border-color 0.12s ease, box-shadow 0.12s ease;">
-          <!-- Left Header: Lit Left-Click Mouse Icon + ◀ LEFT HAND + LMB + Slot Key -->
+        <!-- ◀ LEFT HAND DOCK (LMB: [3] Universal Wand / [4] Combo Cast / Boot) -->
+        <div id="left-hand-dock" style="width: 248px; background: linear-gradient(135deg, rgba(14, 22, 34, 0.93) 0%, rgba(12, 14, 22, 0.91) 100%); border: 1.5px solid rgba(79, 195, 247, 0.48); border-left: 4px solid #4fc3f7; border-radius: 14px 10px 10px 14px; padding: 7px 10px 7px 9px; box-shadow: 0 8px 28px rgba(0,0,0,0.74), -3px 0 16px rgba(79, 195, 247, 0.18); transition: transform 0.11s ease, border-color 0.12s ease, box-shadow 0.12s ease;">
           <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(79, 195, 247, 0.18); padding-bottom: 4px; margin-bottom: 6px;">
             <div style="display: flex; align-items: center; gap: 5px;">
               <svg width="13" height="17" viewBox="0 0 14 18" style="flex-shrink: 0; overflow: visible;">
@@ -310,117 +322,105 @@ canvas.emscripten { border: 0px none; background-color: black; }
                 <line x1="7" y1="1.5" x2="7" y2="6.8" stroke="rgba(10,14,22,0.95)" stroke-width="1.1"/>
                 <line x1="1.5" y1="6.8" x2="12.5" y2="6.8" stroke="rgba(179,229,252,0.35)" stroke-width="1"/>
               </svg>
-              <span style="font-size: 9.5px; font-weight: 900; letter-spacing: 0.85px; color: #4fc3f7; text-transform: uppercase;">&#9664; LEFT</span>
+              <span style="font-size: 9.5px; font-weight: 900; letter-spacing: 0.85px; color: #4fc3f7; text-transform: uppercase;">&#9664; CAST</span>
               <span id="lh-btn-pill" style="font-size: 8px; font-weight: 800; padding: 1px 4.5px; border-radius: 4px; background: rgba(79, 195, 247, 0.20); border: 1px solid rgba(79, 195, 247, 0.55); color: #e1f5fe; letter-spacing: 0.4px;">LMB</span>
             </div>
-            <span id="lh-slot-tag" style="font-size: 8.5px; font-weight: 800; letter-spacing: 0.5px; color: #b3e5fc; text-transform: uppercase;">[1] SACK</span>
+            <span id="lh-slot-tag" style="font-size: 8.5px; font-weight: 800; letter-spacing: 0.5px; color: #b3e5fc; text-transform: uppercase;">[3] CONDUIT WAND</span>
           </div>
 
-          <!-- Left Body: Outer-Left Gauge + Readout -->
           <div style="display: flex; align-items: center; gap: 9px; min-height: 52px;">
             <div style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0;">
-              <div id="lh-gem" style="display: none; width: 11px; height: 8px; background: #4fc3f7; clip-path: polygon(50% 0%, 100% 45%, 78% 100%, 22% 100%, 0% 45%); box-shadow: 0 0 9px #4fc3f7; margin-bottom: 2px; transition: background 0.14s ease, transform 0.12s ease;"></div>
-              <div id="lh-vessel" style="position: relative; width: 32px; height: 44px; border-radius: 10px 10px 14px 14px; border: 2px solid rgba(79, 195, 247, 0.55); background: rgba(10, 12, 20, 0.86); overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 10px rgba(255,255,255,0.08); transition: border-radius 0.15s ease, border-color 0.14s ease, box-shadow 0.14s ease;">
-                <div id="lh-bar" style="position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: #4fc3f7; opacity: 0.88; transition: height 0.06s linear, background 0.14s ease;">
+              <div id="lh-gem" style="display: block; width: 11px; height: 8px; background: #4fc3f7; clip-path: polygon(50% 0%, 100% 45%, 78% 100%, 22% 100%, 0% 45%); box-shadow: 0 0 9px #4fc3f7; margin-bottom: 2px; transition: background 0.14s ease, transform 0.12s ease;"></div>
+              <div id="lh-vessel" style="position: relative; width: 32px; height: 44px; border-radius: 9px; border: 2px solid rgba(79, 195, 247, 0.55); background: rgba(10, 12, 20, 0.86); overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 10px rgba(255,255,255,0.08); transition: border-radius 0.15s ease, border-color 0.14s ease, box-shadow 0.14s ease;">
+                <div id="lh-bar" style="position: absolute; left: 0; right: 0; bottom: 0; height: 100%; background: #4fc3f7; opacity: 0.88; transition: height 0.06s linear, background 0.14s ease;">
                   <div style="position: absolute; top: 0; left: 0; right: 0; height: 2.5px; background: rgba(255,255,255,0.48);"></div>
                 </div>
-                <div id="lh-icon" style="position: relative; z-index: 2; font-size: 14px; line-height: 1; color: rgba(255,255,255,0.92); filter: drop-shadow(0 1px 3px rgba(0,0,0,0.88));">&#9670;</div>
+                <div id="lh-icon" style="position: relative; z-index: 2; font-size: 14px; line-height: 1; color: rgba(255,255,255,0.92); filter: drop-shadow(0 1px 3px rgba(0,0,0,0.88));">&#10024;</div>
               </div>
             </div>
 
             <div style="flex: 1; min-width: 0; text-align: left;">
-              <div id="lh-name" style="font-size: 13px; font-weight: 800; color: #e2e8f0; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Empty Sack</div>
+              <div id="lh-name" style="font-size: 13px; font-weight: 800; color: #e2e8f0; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Arcane Bolt</div>
               <div style="display: flex; align-items: center; gap: 5px; margin-top: 3px;">
                 <span id="lh-badge" style="font-size: 7.5px; font-weight: 800; padding: 1px 5px; border-radius: 4px; background: rgba(79, 195, 247, 0.18); color: #81d4fa; letter-spacing: 0.3px;">READY</span>
-                <span id="lh-pct" style="font-size: 10.5px; font-weight: 800; font-variant-numeric: tabular-nums; color: #cfd6e6;">0%</span>
+                <span id="lh-pct" style="font-size: 10.5px; font-weight: 800; font-variant-numeric: tabular-nums; color: #cfd6e6;">100%</span>
               </div>
-              <div id="lh-sub" style="font-size: 8.5px; color: #90a4ae; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Solid Sack • [1] Cycle</div>
-              <div id="lh-pips" style="display: none; gap: 3px; margin-top: 3px; align-items: center; flex-wrap: nowrap;"></div>
+              <div id="lh-sub" style="font-size: 8.5px; color: #90a4ae; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Starter Conduit • Dry Mana</div>
+              <div id="lh-pips" style="display: flex; gap: 3px; margin-top: 3px; align-items: center; flex-wrap: nowrap;"></div>
             </div>
           </div>
 
-          <!-- Left Footer: Crisp Keybind Strip -->
           <div id="lh-foot" style="margin-top: 5px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 8px; font-weight: 600; color: #8ea2b8; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            <strong style="color:#b3e5fc;">LMB</strong> Launch • [R] 3xSucc • <strong style="color:#81d4fa;">X Dump</strong>
+            <strong style="color:#b3e5fc;">LMB</strong> Cast • [4] Combo • [Tab] Runes
           </div>
         </div>
 
-        <!-- CENTER 3-VIAL ALCHEMIST BELT + STANCE BRIDGE -->
-        <div id="belt-center-wrap" style="width: 268px; display: flex; flex-direction: column; gap: 5px;">
+        <!-- CENTER TWIN LOCK-ON-FILL TANKS ([1] TANK 1 & [2] TANK 2) + STANCE BRIDGE -->
+        <div id="belt-center-wrap" style="width: 284px; display: flex; flex-direction: column; gap: 5px;">
           <!-- Stance Clasp / Bridge Banner -->
           <div id="stance-bridge-bar" style="background: rgba(14, 16, 25, 0.90); border: 1px solid rgba(255,255,255,0.15); border-radius: 999px; padding: 3px 10px; font-size: 8.5px; font-weight: 800; letter-spacing: 0.55px; color: #b0bec5; text-align: center; text-transform: uppercase; box-shadow: 0 4px 14px rgba(0,0,0,0.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: border-color 0.14s ease, box-shadow 0.14s ease, color 0.14s ease;">
-            AKIMBO HANDS • [3]/[4] Wands • [5] Couple
+            SINGLE-TANK • [1/2] Tap Select / Hold Succ • [4] Combo
           </div>
 
-          <!-- 3 Fixed Phase Belt Vials: [0] Sack | [1] Flask | [2] Bellows -->
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
-            <!-- Vial 0: Solid Sack -->
-            <div id="rig-card-0" style="background: rgba(14, 15, 22, 0.90); border: 1.5px solid rgba(79, 195, 247, 0.65); border-radius: 10px; padding: 5px 6px 6px 6px; box-shadow: 0 5px 18px rgba(0,0,0,0.65); transition: transform 0.11s ease, border-color 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;">
-              <div id="vessel-tether-0" style="font-size: 7.5px; font-weight: 800; text-align: center; padding: 1px 3px; border-radius: 4px; background: rgba(79, 195, 247, 0.20); border: 1px solid rgba(79, 195, 247, 0.50); color: #81d4fa; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">&#9664; LEFT • X</div>
-              <div style="display: flex; align-items: center; justify-content: center; gap: 6px;">
-                <div style="display: flex; flex-direction: column; align-items: center;">
-                  <div style="width: 12px; height: 3px; background: #8d6e63; border-radius: 2px 2px 0 0;"></div>
-                  <div id="rig-vessel-0" style="position: relative; width: 20px; height: 28px; border-radius: 6px 6px 9px 9px; border: 1.5px solid rgba(215, 185, 145, 0.48); background: rgba(18, 14, 12, 0.85); overflow: hidden;">
-                    <div id="rig-bar-0" style="position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: #8d6e63; transition: height 0.06s linear, background 0.15s ease;"></div>
+          <!-- 2 Universal Lock-on-Fill Tanks: [1] Tank 1 | [2] Tank 2 -->
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+            <!-- Tank 0: [1] Tank 1 (Left Tank — [X] Dump) -->
+            <div id="rig-card-0" style="background: rgba(14, 15, 22, 0.92); border: 1.5px solid rgba(79, 195, 247, 0.72); border-radius: 11px; padding: 5px 8px 6px 8px; box-shadow: 0 5px 18px rgba(0,0,0,0.65); transition: transform 0.11s ease, border-color 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;">
+              <div id="vessel-tether-0" style="font-size: 7.5px; font-weight: 800; text-align: center; padding: 1.5px 4px; border-radius: 4px; background: rgba(79, 195, 247, 0.22); border: 1px solid rgba(79, 195, 247, 0.58); color: #81d4fa; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">&#9679; ACTIVE [1] • [X]</div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0;">
+                  <div id="rig-cap-0" style="width: 11px; height: 3.5px; background: rgba(179,229,252,0.45); border-radius: 2px 2px 0 0;"></div>
+                  <div id="rig-vessel-0" style="position: relative; width: 24px; height: 32px; border-radius: 7px 7px 11px 11px; border: 1.5px solid rgba(179, 229, 252, 0.48); background: rgba(10, 12, 18, 0.86); overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                    <div id="rig-bar-0" style="position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: #4fc3f7; transition: height 0.06s linear, background 0.15s ease;"></div>
+                    <span id="rig-lock-0" style="position: relative; z-index: 2; font-size: 9px; opacity: 0.72; filter: drop-shadow(0 1px 2px #000);">&#9675;</span>
                   </div>
                 </div>
-                <div style="text-align: left; min-width: 0;">
-                  <div style="font-size: 7.5px; font-weight: 700; color: #c5a888; text-transform: uppercase; letter-spacing: 0.4px;">Sack</div>
-                  <div id="rig-pct-0" style="font-size: 10.5px; font-weight: 800; font-variant-numeric: tabular-nums; color: #e2e8f0; line-height: 1.1;">0%</div>
-                  <div id="rig-badge-0" style="display: inline-block; font-size: 6.5px; font-weight: 800; padding: 0.5px 3px; border-radius: 3px; background: rgba(255,255,255,0.08); color: #9aa4b8; margin-top: 1px;">READY</div>
+                <div style="text-align: left; min-width: 0; flex: 1;">
+                  <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                    <span style="font-size: 8px; font-weight: 800; color: #b3e5fc; letter-spacing: 0.4px;">[1] TANK 1</span>
+                    <span id="rig-pct-0" style="font-size: 10.5px; font-weight: 800; font-variant-numeric: tabular-nums; color: #e2e8f0; line-height: 1.1;">0%</span>
+                  </div>
+                  <div id="rig-name-0" style="font-size: 10px; font-weight: 800; color: #9aa4b8; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Unlocked</div>
+                  <div style="display: flex; align-items: center; gap: 4px; margin-top: 2px;">
+                    <span id="rig-badge-0" style="display: inline-block; font-size: 6.5px; font-weight: 800; padding: 0.5px 4px; border-radius: 3px; background: rgba(255,255,255,0.08); color: #9aa4b8;">ANY PHASE</span>
+                  </div>
                 </div>
               </div>
-              <div id="rig-name-0" style="font-size: 8.5px; font-weight: 700; color: #9aa4b8; text-align: center; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Empty</div>
             </div>
 
-            <!-- Vial 1: Liquid Flask -->
-            <div id="rig-card-1" style="background: rgba(14, 15, 22, 0.90); border: 1.5px solid rgba(255, 171, 64, 0.65); border-radius: 10px; padding: 5px 6px 6px 6px; box-shadow: 0 5px 18px rgba(0,0,0,0.65); transition: transform 0.11s ease, border-color 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;">
-              <div id="vessel-tether-1" style="font-size: 7.5px; font-weight: 800; text-align: center; padding: 1px 3px; border-radius: 4px; background: rgba(255, 171, 64, 0.20); border: 1px solid rgba(255, 171, 64, 0.50); color: #ffcc80; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Q • RIGHT &#9654;</div>
-              <div style="display: flex; align-items: center; justify-content: center; gap: 6px;">
-                <div style="display: flex; flex-direction: column; align-items: center;">
-                  <div style="width: 9px; height: 4px; background: rgba(210,230,255,0.32); border-radius: 2px 2px 0 0;"></div>
-                  <div id="rig-vessel-1" style="position: relative; width: 19px; height: 28px; border-radius: 5px 5px 10px 10px; border: 1.5px solid rgba(210,230,255,0.44); background: rgba(8, 10, 16, 0.82); overflow: hidden;">
-                    <div id="rig-bar-1" style="position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: #29b6f6; transition: height 0.06s linear, background 0.15s ease;"></div>
+            <!-- Tank 1: [2] Tank 2 (Right Tank — [Shift+X] Dump) -->
+            <div id="rig-card-1" style="background: rgba(14, 15, 22, 0.88); border: 1.5px solid rgba(255,255,255,0.16); border-radius: 11px; padding: 5px 8px 6px 8px; box-shadow: 0 5px 18px rgba(0,0,0,0.65); transition: transform 0.11s ease, border-color 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;">
+              <div id="vessel-tether-1" style="font-size: 7.5px; font-weight: 800; text-align: center; padding: 1.5px 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.15); color: #90a4ae; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">TAP [2] • [&#8679;X]</div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0;">
+                  <div id="rig-cap-1" style="width: 11px; height: 3.5px; background: rgba(255,224,178,0.40); border-radius: 2px 2px 0 0;"></div>
+                  <div id="rig-vessel-1" style="position: relative; width: 24px; height: 32px; border-radius: 7px 7px 11px 11px; border: 1.5px solid rgba(255, 224, 178, 0.38); background: rgba(10, 12, 18, 0.86); overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                    <div id="rig-bar-1" style="position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: #ffab40; transition: height 0.06s linear, background 0.15s ease;"></div>
+                    <span id="rig-lock-1" style="position: relative; z-index: 2; font-size: 9px; opacity: 0.72; filter: drop-shadow(0 1px 2px #000);">&#9675;</span>
                   </div>
                 </div>
-                <div style="text-align: left; min-width: 0;">
-                  <div style="font-size: 7.5px; font-weight: 700; color: #7ec8f8; text-transform: uppercase; letter-spacing: 0.4px;">Flask</div>
-                  <div id="rig-pct-1" style="font-size: 10.5px; font-weight: 800; font-variant-numeric: tabular-nums; color: #e2e8f0; line-height: 1.1;">0%</div>
-                  <div id="rig-badge-1" style="display: inline-block; font-size: 6.5px; font-weight: 800; padding: 0.5px 3px; border-radius: 3px; background: rgba(255,255,255,0.08); color: #9aa4b8; margin-top: 1px;">READY</div>
-                </div>
-              </div>
-              <div id="rig-name-1" style="font-size: 8.5px; font-weight: 700; color: #9aa4b8; text-align: center; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Empty</div>
-            </div>
-
-            <!-- Vial 2: Gas Bellows -->
-            <div id="rig-card-2" style="background: rgba(14, 15, 22, 0.86); border: 1.5px solid rgba(255,255,255,0.14); border-radius: 10px; padding: 5px 6px 6px 6px; box-shadow: 0 5px 18px rgba(0,0,0,0.65); opacity: 0.78; transition: transform 0.11s ease, border-color 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;">
-              <div id="vessel-tether-2" style="font-size: 7.5px; font-weight: 800; text-align: center; padding: 1px 3px; border-radius: 4px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: #6e778a; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">STOWED</div>
-              <div style="display: flex; align-items: center; justify-content: center; gap: 6px;">
-                <div style="display: flex; flex-direction: column; align-items: center;">
-                  <div style="width: 7px; height: 4px; background: #ffd54f; border-radius: 2px 2px 0 0;"></div>
-                  <div id="rig-vessel-2" style="position: relative; width: 20px; height: 28px; border-radius: 9px; border: 1.5px solid rgba(255, 208, 128, 0.44); background: rgba(12, 13, 20, 0.82); overflow: hidden;">
-                    <div id="rig-bar-2" style="position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: #ffab2e; opacity: 0.88; transition: height 0.06s linear, background 0.15s ease;"></div>
+                <div style="text-align: left; min-width: 0; flex: 1;">
+                  <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                    <span style="font-size: 8px; font-weight: 800; color: #ffe0b2; letter-spacing: 0.4px;">[2] TANK 2</span>
+                    <span id="rig-pct-1" style="font-size: 10.5px; font-weight: 800; font-variant-numeric: tabular-nums; color: #e2e8f0; line-height: 1.1;">0%</span>
+                  </div>
+                  <div id="rig-name-1" style="font-size: 10px; font-weight: 800; color: #9aa4b8; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Unlocked</div>
+                  <div style="display: flex; align-items: center; gap: 4px; margin-top: 2px;">
+                    <span id="rig-badge-1" style="display: inline-block; font-size: 6.5px; font-weight: 800; padding: 0.5px 4px; border-radius: 3px; background: rgba(255,255,255,0.08); color: #9aa4b8;">ANY PHASE</span>
                   </div>
                 </div>
-                <div style="text-align: left; min-width: 0;">
-                  <div style="font-size: 7.5px; font-weight: 700; color: #ffca7a; text-transform: uppercase; letter-spacing: 0.4px;">Bellows</div>
-                  <div id="rig-pct-2" style="font-size: 10.5px; font-weight: 800; font-variant-numeric: tabular-nums; color: #e2e8f0; line-height: 1.1;">0%</div>
-                  <div id="rig-badge-2" style="display: inline-block; font-size: 6.5px; font-weight: 800; padding: 0.5px 3px; border-radius: 3px; background: rgba(255,255,255,0.08); color: #9aa4b8; margin-top: 1px;">STOWED</div>
-                </div>
               </div>
-              <div id="rig-name-2" style="font-size: 8.5px; font-weight: 700; color: #9aa4b8; text-align: center; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Empty</div>
             </div>
           </div>
         </div>
 
-        <!-- RIGHT HAND DOCK (RMB) ▶ -->
-        <div id="right-hand-dock" style="width: 242px; background: linear-gradient(225deg, rgba(34, 23, 14, 0.93) 0%, rgba(12, 14, 22, 0.91) 100%); border: 1.5px solid rgba(255, 171, 64, 0.48); border-right: 4px solid #ffab40; border-radius: 10px 14px 14px 10px; padding: 7px 9px 7px 10px; box-shadow: 0 8px 28px rgba(0,0,0,0.74), 3px 0 16px rgba(255, 171, 64, 0.18); transition: transform 0.11s ease, border-color 0.12s ease, box-shadow 0.12s ease;">
-          <!-- Right Header: Mirrored Slot Key + RMB + RIGHT ▶ + Lit Right-Click Mouse Icon -->
+        <!-- RIGHT HAND DOCK (RMB: Raw Spit / Power Core / Gauntlet) ▶ -->
+        <div id="right-hand-dock" style="width: 248px; background: linear-gradient(225deg, rgba(34, 23, 14, 0.93) 0%, rgba(12, 14, 22, 0.91) 100%); border: 1.5px solid rgba(255, 171, 64, 0.48); border-right: 4px solid #ffab40; border-radius: 10px 14px 14px 10px; padding: 7px 9px 7px 10px; box-shadow: 0 8px 28px rgba(0,0,0,0.74), 3px 0 16px rgba(255, 171, 64, 0.18); transition: transform 0.11s ease, border-color 0.12s ease, box-shadow 0.12s ease;">
           <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255, 171, 64, 0.18); padding-bottom: 4px; margin-bottom: 6px;">
-            <span id="rh-slot-tag" style="font-size: 8.5px; font-weight: 800; letter-spacing: 0.5px; color: #ffe0b2; text-transform: uppercase;">[2] FLASK</span>
+            <span id="rh-slot-tag" style="font-size: 8.5px; font-weight: 800; letter-spacing: 0.5px; color: #ffe0b2; text-transform: uppercase;">[1] TANK 1 SPIT</span>
             <div style="display: flex; align-items: center; gap: 5px;">
               <span id="rh-btn-pill" style="font-size: 8px; font-weight: 800; padding: 1px 4.5px; border-radius: 4px; background: rgba(255, 171, 64, 0.20); border: 1px solid rgba(255, 171, 64, 0.55); color: #fff3e0; letter-spacing: 0.4px;">RMB</span>
-              <span style="font-size: 9.5px; font-weight: 900; letter-spacing: 0.85px; color: #ffab40; text-transform: uppercase;">RIGHT &#9654;</span>
+              <span style="font-size: 9.5px; font-weight: 900; letter-spacing: 0.85px; color: #ffab40; text-transform: uppercase;">ALT &#9654;</span>
               <svg width="13" height="17" viewBox="0 0 14 18" style="flex-shrink: 0; overflow: visible;">
                 <rect x="1" y="1" width="12" height="16" rx="5.5" fill="rgba(10,14,22,0.9)" stroke="rgba(255,224,178,0.65)" stroke-width="1.2"/>
                 <path id="rh-mouse-l" d="M 1.6 6.5 L 1.6 5.8 C 1.6 3.1 3.7 1.6 6.4 1.6 L 6.4 6.5 Z" fill="rgba(255,255,255,0.12)"/>
@@ -431,15 +431,14 @@ canvas.emscripten { border: 0px none; background-color: black; }
             </div>
           </div>
 
-          <!-- Right Body: Mirrored Readout on Left + Outer-Right Gauge against Right Spine! -->
           <div style="display: flex; align-items: center; gap: 9px; min-height: 52px;">
             <div style="flex: 1; min-width: 0; text-align: right;">
-              <div id="rh-name" style="font-size: 13px; font-weight: 800; color: #e2e8f0; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Empty Flask</div>
+              <div id="rh-name" style="font-size: 13px; font-weight: 800; color: #e2e8f0; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Air Gust</div>
               <div style="display: flex; align-items: center; justify-content: flex-end; gap: 5px; margin-top: 3px;">
                 <span id="rh-pct" style="font-size: 10.5px; font-weight: 800; font-variant-numeric: tabular-nums; color: #cfd6e6;">0%</span>
-                <span id="rh-badge" style="font-size: 7.5px; font-weight: 800; padding: 1px 5px; border-radius: 4px; background: rgba(255, 171, 64, 0.18); color: #ffcc80; letter-spacing: 0.3px;">READY</span>
+                <span id="rh-badge" style="font-size: 7.5px; font-weight: 800; padding: 1px 5px; border-radius: 4px; background: rgba(255, 171, 64, 0.18); color: #ffcc80; letter-spacing: 0.3px;">OPEN</span>
               </div>
-              <div id="rh-sub" style="font-size: 8.5px; color: #90a4ae; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Liquid Flask • [2] Cycle</div>
+              <div id="rh-sub" style="font-size: 8.5px; color: #90a4ae; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Hold [1] or [R] to Succ</div>
               <div id="rh-pips" style="display: none; justify-content: flex-end; gap: 3px; margin-top: 3px; align-items: center; flex-wrap: nowrap;"></div>
             </div>
 
@@ -449,14 +448,13 @@ canvas.emscripten { border: 0px none; background-color: black; }
                 <div id="rh-bar" style="position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: #ffab40; opacity: 0.88; transition: height 0.06s linear, background 0.14s ease;">
                   <div style="position: absolute; top: 0; left: 0; right: 0; height: 2.5px; background: rgba(255,255,255,0.48);"></div>
                 </div>
-                <div id="rh-icon" style="position: relative; z-index: 2; font-size: 14px; line-height: 1; color: rgba(255,255,255,0.92); filter: drop-shadow(0 1px 3px rgba(0,0,0,0.88));">&#9672;</div>
+                <div id="rh-icon" style="position: relative; z-index: 2; font-size: 14px; line-height: 1; color: rgba(255,255,255,0.92); filter: drop-shadow(0 1px 3px rgba(0,0,0,0.88));">&#8779;</div>
               </div>
             </div>
           </div>
 
-          <!-- Right Footer: Mirrored Keybind Strip -->
           <div id="rh-foot" style="margin-top: 5px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 8px; font-weight: 600; color: #8ea2b8; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            <strong style="color:#ffcc80;">Q Dump</strong> • [R] 3xSucc • <strong style="color:#ffe0b2;">RMB</strong> Squirt
+            <strong style="color:#ffcc80;">X Dump T1</strong> • Hold [1]/[R] Succ • <strong style="color:#ffe0b2;">RMB</strong> Spit
           </div>
         </div>
       </div>
@@ -660,7 +658,17 @@ canvas.emscripten { border: 0px none; background-color: black; }
          }
       });
       
-      // Shift + Wheel cycles the sandbox reagent for the currently active vessel; plain Wheel scrolls [Tab] Satchel!
+      function quickFillTank(tIdx, phase) {
+         if (typeof Module === 'undefined' || !Module._load_rig_vessel) return;
+         let matId = 0;
+         if (phase === 0) matId = window.player_solid_mat || 2;
+         else if (phase === 1) matId = 256 + (window.player_liq_mat || 1);
+         else matId = 512 + (window.player_gas_mat || 1);
+         Module._load_rig_vessel(tIdx | 0, matId);
+         if (canvasElement) canvasElement.focus();
+      }
+
+      // Shift + Wheel cycles the sandbox reagent for the active tank's phase; plain Wheel scrolls [Tab] Satchel!
       window.addEventListener('wheel', (e) => {
          e.preventDefault();
          const rawDelta = (Math.abs(e.deltaY) >= Math.abs(e.deltaX)) ? e.deltaY : e.deltaX;
@@ -712,11 +720,11 @@ canvas.emscripten { border: 0px none; background-color: black; }
         document.getElementById('light-chk').checked = window.player_flashlight;
       };
 
-      const WAND_RACK = [
-        { phase: 'Solid',  vessel: 'Sack',    spell: 'Bullet', col: '#d7b377' },
-        { phase: 'Liquid', vessel: 'Flask',   spell: 'Squirt', col: '#4fc3f7' },
-        { phase: 'Gas',    vessel: 'Bellows', spell: 'Expel',  col: '#ffca7a' }
-      ];
+      const CHASSIS_ARCHS = {
+        0: { name: 'Conduit Frame',   short: 'CONDUIT',   col: '#4fc3f7', tag: '4L / 3R • 110m (32/s)' },
+        1: { name: 'Stinger Frame',   short: 'STINGER',   col: '#69f0ae', tag: '5L / 2R • 75m (52/s)'  },
+        2: { name: 'Artillery Frame', short: 'ARTILLERY', col: '#ffab40', tag: '3L / 5R • 180m (22/s)' }
+      };
 
       const STAFF_RACK = [
         { name: 'Void Singularity', col: '#ea80fc', trait: 'RMB: Supernova Detonate' },
@@ -725,50 +733,66 @@ canvas.emscripten { border: 0px none; background-color: black; }
         { name: 'Astral Tempest',   col: '#ffd740', trait: 'RMB: Astral Blink Dash' }
       ];
 
-      const VESSEL_SHORT   = ['Sack', 'Flask', 'Bellows'];
-      const VESSEL_FULL    = ['Solid Sack', 'Liquid Flask', 'Gas Bellows'];
-      const VESSEL_OUT_ACT = ['Pack', 'Squirt', 'Gust'];
-      const VESSEL_IN_ACT  = ['Scoop', 'Succ', 'Inhale'];
+      const PHASE_DELIVERY = ['Slug', 'Jet', 'Blast'];
+      const PHASE_SPIT     = ['Pack', 'Stream', 'Vent'];
+      const PHASE_LOCK_TAG = ['SOLID', 'LIQUID', 'GAS'];
       const VESSEL_SHAPES  = ['10px 10px 14px 14px', '7px 7px 15px 15px', '13px'];
       const VESSEL_ICONS   = ['&#9670;', '&#9672;', '&#8779;'];
       const RIG_ACCENTS    = ['#d7b377', '#4fc3f7', '#ffca7a', '#ff8a65', '#42f2ff'];
-      const RIG_IN_BADGE   = ['SCOOPING', 'BIG SUCC', 'INHALING'];
-      const RIG_OUT_BADGE  = ['PACKING!', 'SQUIRT!',  'BLAST!'];
-      const RIG_IN_HINT    = ['Scooping ', 'Siphoning ', 'Inhaling '];
+
+      function phaseOfMat(mId) {
+        if (mId < 255.5) return 0;
+        if (mId < 511.5) return 1;
+        return 2;
+      }
 
       const POWER_CORES = {
-        101: { name: 'Rail-Lance',     short: 'RAIL', col: '#40c4ff', desc: 'Power Core • Hyper-velocity piercing beam-lance (RMB on [5], 2x Dry Overdraw)' },
-        102: { name: 'Cluster Mortar', short: 'MORT', col: '#ff7043', desc: 'Power Core • Heavy lobbed shell bursting into 6 radial sub-bombs (RMB on [5], 2x Dry Overdraw)' },
-        103: { name: 'Gyre Vortex',    short: 'GYRE', col: '#ea80fc', desc: 'Power Core • Swirling vacuum singularity pulling fluids & critters inward (RMB on [5], 2x Dry Overdraw)' }
+        101: { name: 'Rail-Lance',  short: 'RAIL', kind: 'core', col: '#40c4ff', stats: '30m • 0.62s', desc: '◆ RMB Primary Power Spell • Mach-ring plasma sabot! Bores rock (or banks with Ricochet) & rail-jumps mid-air!' },
+        102: { name: 'Nova',        short: 'NOVA', kind: 'core', col: '#ffd54f', stats: '42m • 0.96s', desc: '◆ RMB Primary Power Spell • Erupts 100 star-orbs in a 3D sphere! Pair Heavy + Hover + Boomerang for a Bulwark shield!' },
+        103: { name: 'Bolt Gyre',   short: 'GYRE', kind: 'core', col: '#ea80fc', stats: '38m • 0.92s', desc: '◆ RMB Primary Power Spell • Spinning sub-bolt sprinkler orb! Pair with Mods, Echo, or Expire Trigger!' },
+        104: { name: 'Maelstrom',   short: 'MAEL', kind: 'core', col: '#18ffff', stats: '46m • 1.05s', desc: '◆ RMB Primary Power Spell • Throw & anchor a Category-5 physics hurricane! Whips fluids/fire, rips boulders & bends LMB spells!' },
+        105: { name: 'Starburst',   short: 'STAR', kind: 'core', col: '#ff6d00', stats: '34m • 0.72s', desc: '◆ RMB Primary Power Spell • Long-thrown star-seed collapses in a huge vacuum implosion, then blasts a radial reagent patooey + 8 heavy Point-Nova orbs!' }
       };
 
       const RUNE_DEFS = {
-        1:  { name: 'Seeker',       short: 'HOM', col: '#69f0ae', desc: 'Modifier Rune • Curves bolt trajectories toward nearby Slimes, Hoppers & Mancers' },
-        2:  { name: 'Fracture',     short: 'SPL', col: '#ffd740', desc: 'Modifier Rune • Splits into +2 child shards on impact (fractal chains with stacks!)' },
-        3:  { name: 'Ricochet',     short: 'RIC', col: '#40c4ff', desc: 'Modifier Rune • +2 elastic wall bounces per stack with reactive spark wakes' },
-        4:  { name: 'Overpressure', short: 'OVR', col: '#ff6e40', desc: 'Modifier Rune • Detonates a high-impulse shockwave & carve crater on impact' },
-        5:  { name: 'Drill',        short: 'DRL', col: '#b0bec5', desc: 'Modifier Rune • Pierces straight through rock & critters (+3 bore steps/stack)' },
-        6:  { name: 'Double-Shot',  short: '2xS', col: '#80d8ff', desc: 'Modifier Rune • +1 extra projectile per cast in a tight spread fan' },
-        7:  { name: 'Triple-Shot',  short: '3xS', col: '#448aff', desc: 'Modifier Rune • +2 extra projectiles per cast in an arc fan' },
-        8:  { name: 'Quad-Shot',    short: '4xS', col: '#7c4dff', desc: 'Modifier Rune • +3 extra projectiles per cast in a wide barrage fan' },
-        9:  { name: 'Light',        short: 'SUN', col: '#fff59d', desc: 'Modifier Rune • Turns bolts into blazing 3D cave GI sun-flares!' },
-        10: { name: 'Double-Dmg',   short: '2xD', col: '#ff5252', desc: 'Modifier Rune • +100% linear damage multiplier per stack' },
-        11: { name: 'Double-Spd',   short: '2xV', col: '#18ffff', desc: 'Modifier Rune • +85% projectile velocity & extended range per stack' },
-        12: { name: 'Double-Size',  short: '2xR', col: '#ffab40', desc: 'Modifier Rune • +65% bolt radius, crater & splash per stack (4.25x at 5 stacks!)' }
+        // 6 Starter Spell Runes (1..6)
+        1:  { name: 'Sparkbolt',      short: 'SPK',   kind: 'spell',  col: '#4fc3f7', stats: '6.5m • 0.14s',  desc: 'Spell Rune • Crisp 64 m/s dart (+1 bounce). Reliable Trigger/Timer carrier!' },
+        2:  { name: 'Bullet',         short: 'BLT',   kind: 'spell',  col: '#cfd8dc', stats: '11.5m • 0.24s', desc: 'Spell Rune • Heavy 92 m/s kinetic slug that chips rock & slams foes back' },
+        3:  { name: 'Minimortar',     short: 'MRT',   kind: 'spell',  col: '#ff8a65', stats: '18m • 0.46s',   desc: 'Spell Rune • Lobbed parabolic shell bursting into wide AoE + 3 shrapnel drops' },
+        4:  { name: 'Luminous Drill', short: 'DRL',   kind: 'spell',  col: '#69f0ae', stats: '5m • -0.18s!',  desc: 'Spell Rune • 4.2m melee/dig plasma laser! Shaves -0.18s cast delay off the strip!' },
+        5:  { name: 'Buckshot',       short: 'BCK',   kind: 'spell',  col: '#ffd54f', stats: '15m • 0.38s',   desc: 'Spell Rune • 5-pellet shotgun blast (with Trigger/Timer/Expire, ALL 5 pellets carry the payload!)' },
+        6:  { name: 'Spitter',        short: 'SPT',   kind: 'spell',  col: '#ff80ab', stats: '4m • 0.06s',    desc: 'Spell Rune • Wild rapid-fire minigun hose for saturating rooms in Tank reagents' },
+        // 5 Inline Linker Runes (21..25)
+        21: { name: 'Impact Trigger', short: '💥TRG', kind: 'linker', col: '#ff6e40', stats: '+3m • Hit',     desc: 'Linker • [Carrier] [💥] [Payload]: unleashes Payload block on first wall or creature hit!' },
+        22: { name: 'Airburst Timer', short: '⏱TMR', kind: 'linker', col: '#ffd740', stats: '+3m • 0.28s',   desc: 'Linker • [Carrier] [⏱] [Payload]: unleashes Payload mid-flight after 0.28s (or at Lumi-Drill tip)!' },
+        23: { name: '2x Twin',        short: '⁅2x⁆',  kind: 'linker', col: '#80d8ff', stats: '+2m • Multi',   desc: 'Linker • [⁅2x⁆] [Spell A] [Spell B]: fires the next 2 spells simultaneously, sharing prefix Mods!' },
+        24: { name: 'Expire Trigger', short: '💀EXP', kind: 'linker', col: '#ff9100', stats: '+3.5m • Death', desc: 'Linker • [Carrier] [💀] [Payload]: unleashes Payload ONLY when Carrier finally dies (after Bounces/Gyre)!' },
+        25: { name: 'Echo Burst',     short: '🔁ECH', kind: 'linker', col: '#84ffff', stats: '+3m • 2-Tap',   desc: 'Linker • [🔁] [Spell]: fires the single Spell right after it twice in a tight axial 2-round burst!' },
+        // 13 Modifier Runes (31..43)
+        31: { name: 'Ricochet',       short: 'RIC',   kind: 'mod',    col: '#40c4ff', stats: '+2m • +3 Bnc',  desc: 'Modifier • +3 high-energy wall bounces (turns Rail-Lance & Gyre into room-clearing pinballs!)' },
+        32: { name: 'Homing',         short: 'HOM',   kind: 'mod',    col: '#b9f6ca', stats: '+3m • Seek',    desc: 'Modifier • Curves toward Slimes, Hoppers & Mancers (stack 2x Homing for 360° lock-on!)' },
+        33: { name: 'Pierce',         short: 'PRC',   kind: 'mod',    col: '#ea80fc', stats: '+3.5m • Bore',  desc: 'Modifier • Bores through +3 rock/creature layers & extends Lumi-Drill beam reach!' },
+        34: { name: 'Accelerate',     short: 'ACC',   kind: 'mod',    col: '#64ffda', stats: '+2.5m • +Spd',  desc: 'Modifier • +75% projectile speed, flatter arc, +15% kinetic hit, -0.03s delay & +2.6m Drill reach!' },
+        35: { name: 'Heavy Bore',     short: 'HVY',   kind: 'mod',    col: '#ffab40', stats: '+3.5m • +Bore', desc: 'Modifier • +65% damage & rock carve, +32% caliber, +45% tank sip, -35% speed (+rips Maelstrom boulders!)' },
+        36: { name: 'Trail',          short: '💧TRL', kind: 'mod',    col: '#26c6da', stats: '+2.5m • Wake',  desc: 'Modifier • Paints continuous Tank reagent skywriting wake in flight, along Rail-Lance & up Maelstrom!' },
+        37: { name: 'Hover',          short: '⚓HVR', kind: 'mod',    col: '#b39ddb', stats: '+2.5m • Brake', desc: 'Modifier • Air-brakes bolts into floating mines, lingers Lumi-Drill & anchors Maelstrom/Gyre in place!' },
+        38: { name: 'Boomerang',      short: '🪃BMG', kind: 'mod',    col: '#ffca28', stats: '+3m • Return',  desc: 'Modifier • Whips spells back! Pair Hover + Boomerang for Nova Bulwark shield or wearable Maelstrom cloak!' },
+        39: { name: 'Blink',          short: '⚡BLK', kind: 'mod',    col: '#e040fb', stats: '+4.5m • Warp',  desc: 'Modifier • Teleports YOU to every projectile hit/bounce & surfs inside Gyre/Maelstrom eyes!' },
+        40: { name: 'Glitch',         short: '🎲GLT', kind: 'mod',    col: '#ff5252', stats: '+2m • Chaos',   desc: 'Modifier • Quantum phase-jumps mid-flight across thin cover & fractures Lumi-Drill into jagged arcs!' },
+        41: { name: 'Explosive',      short: '💣DET', kind: 'mod',    col: '#ff3d00', stats: '+5m • +0.04s',  desc: 'Modifier (Stacks!) • Every hit, bounce & drill-tip detonates a fiery crater-carving HE blast + Rocket-Jumps! Busted on Spitter, Buckshot & Nova!' },
+        42: { name: 'Invert',         short: '🔄INV', kind: 'mod',    col: '#b388ff', stats: '+3m • Flip!',   desc: 'Modifier (Stacks!) • Reverses ALL spell forces! Maelstrom = Gravity Anvil smashing foes into the floor; +Explosive = Dark-Matter Implosion; +Blink = Abduct-Warp; +Drill = Rock Extruder; +Rail = Forward Lunge; +Nova = 100-Orb Iron Maiden!' },
+        43: { name: 'Impart',         short: '⏩IMP', kind: 'mod',    col: '#ffd740', stats: '+3.5m • Punt!', desc: 'Modifier (Stacks!) • Transfers live 3D bolt velocity straight into hit creatures/boulders + mid-air Jetpack recoil! Spitter/Drill = Hover-Jetpack; Accel+Bullet = Mach Punt; +Invert = Scorpion Harpoon Yank!' }
       };
 
       window.wand_chassis_state = {
         chassis: [
-          { pcore: 0, isGraphene: false, mods: [0, 0, 0] },
-          { pcore: 0, isGraphene: false, mods: [0, 0, 0] },
-          { pcore: 0, isGraphene: false, mods: [0, 0, 0] },
-          { pcore: 0, isGraphene: true,  mods: [0, 0, 0] }
+          { lcap: 4, rcap: 3, lexec: 0, rexec: 0, lmods: [1, 4, 0, 0, 0],   rmods: [104, 0, 0, 0, 0]   },
+          { lcap: 5, rcap: 2, lexec: 0, rexec: 0, lmods: [34, 6, 6, 4, 0],  rmods: [101, 0, 0, 0, 0]  },
+          { lcap: 3, rcap: 5, lexec: 0, rexec: 0, lmods: [5, 21, 3, 0, 0],  rmods: [35, 37, 38, 102, 0] }
         ],
-        gems: [0, 0, 0, 0, 0],
-        hasBackup: false,
+        gems: [105, 104, 102, 103, 101, 42, 43, 41, 3, 5, 21, 22, 23, 24, 25, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 6, 4, 2, 0, 0],
+        wandCount: 1,
         relicCharges: 0,
-        leftWid: 0,
-        rightWid: 1,
         lastWbSig: '',
         lastLhPipsSig: '',
         lastRhPipsSig: ''
@@ -776,27 +800,23 @@ canvas.emscripten { border: 0px none; background-color: black; }
 
       window.hud_state = {
         stance: 0,
-        lKind: 0,
-        lVes: 0,
-        rKind: 0,
-        rVes: 1,
-        lMode: 0,
-        rMode: 0,
+        wandCount: 1,
+        activeTank: 0,
+        activeWand: 0,
+        succMask: 0,
+        tModes: [0, 0],
         bootMode: 0,
-        isTripleSucc: false,
-        vModes: [0, 0, 0],
-        succHoldUntil: [0, 0, 0],
-        mats: [0, 0, 0],
-        fills: [0, 0, 0],
+        mats: [0, 0],
+        fills: [0, 0],
         pId: 0,
+        p1Id: 0,
         gId: 0,
         stress: 0,
-        li: 0,
-        lMf: 1.0,
-        lCs: 0,
-        ri: 1,
-        rMf: 1.0,
-        rCs: 0,
+        wMf: 1.0,
+        wCs: 0,
+        pCoreId: 0,
+        pCoreReady: 0.0,
+        pCoreCs: 0,
         si: 0,
         sMf: 1.0,
         sCs: 0,
@@ -804,53 +824,104 @@ canvas.emscripten { border: 0px none; background-color: black; }
         rClick: false
       };
 
-      function renderWandSocketPipsHTML(wi) {
+      function getChassisMeta(wi) {
+        return CHASSIS_ARCHS[wi] || CHASSIS_ARCHS[0];
+      }
+
+      function findActiveStripExecSocket(mods, cap, execVal) {
+        if (!mods) return -1;
+        const c    = Math.max(1, Math.min(5, cap || 4));
+        const base = ((execVal | 0) % c + c) % c;
+        for (let step = 0; step < c; step++) {
+          const s = (base + step) % c;
+          if ((mods[s] | 0) > 0) return s;
+        }
+        return -1;
+      }
+
+      function getNextWandSpellInfo(wi, isRmb) {
         const ch = window.wand_chassis_state.chassis[wi];
-        if (!ch) return '';
-        const pc = POWER_CORES[ch.pcore];
+        if (!ch) return { name: isRmb ? 'Empty RMB' : 'Sparkbolt', short: 'SPK', col: '#4fc3f7', isCore: false, hasSpell: false };
+        const mods  = isRmb ? ch.rmods : ch.lmods;
+        const cap   = Math.max(1, Math.min(5, (isRmb ? ch.rcap : ch.lcap) || 3));
+        const execV = isRmb ? ch.rexec : ch.lexec;
+        const start = findActiveStripExecSocket(mods, cap, execV);
+        if (start < 0) {
+          return { name: isRmb ? 'Empty RMB Strip' : 'Dry Spark', short: isRmb ? '—' : 'SPK', col: '#78849b', isCore: false, hasSpell: false };
+        }
+        let forked = false;
+        let echoed = false;
+        for (let step = 0; step < cap; step++) {
+          const r = mods[(start + step) % cap] | 0;
+          if (r === 23) forked = true;
+          if (r === 25) echoed = true;
+          if (isRmb && POWER_CORES[r]) {
+            const pc  = POWER_CORES[r];
+            const pfx = (forked ? '2x ' : '') + (echoed ? 'Echo ' : '');
+            return { name: pfx + pc.name, short: pc.short, col: pc.col, isCore: true, hasSpell: true };
+          }
+          if (r >= 1 && r <= 6 && RUNE_DEFS[r]) {
+            const def = RUNE_DEFS[r];
+            const pfx = (forked ? '2x ' : '') + (echoed ? 'Echo ' : '');
+            return {
+              name: pfx + (r === 4 ? 'Lumi-Drill' : def.name),
+              short: def.short,
+              col: def.col,
+              isCore: false,
+              hasSpell: true
+            };
+          }
+        }
+        return { name: isRmb ? 'Empty RMB Strip' : 'Dry Spark', short: isRmb ? '—' : 'SPK', col: '#78849b', isCore: false, hasSpell: false };
+      }
+
+      function renderStripPipsHTML(mods, cap, nextS) {
         let html = '';
-        if (ch.isGraphene) {
-          html += '<span style="font-size:7px;font-weight:800;padding:1px 3px;border-radius:3px;background:rgba(207,216,220,0.22);border:1px solid #cfd8dc;color:#eceff1;">GRPH</span>';
-        }
-        if (pc) {
-          html += '<span style="font-size:7px;font-weight:800;padding:1px 3.5px;border-radius:3px;background:' + pc.col + '2b;border:1px solid ' + pc.col + ';color:' + pc.col + ';">&#9670;' + pc.short + '</span>';
-        } else {
-          html += '<span style="width:8px;height:8px;display:inline-block;border-radius:2px;transform:rotate(45deg);border:1px dashed rgba(255,255,255,0.28);margin:2px 2px 0 1px;"></span>';
-        }
-        for (let k = 0; k < 3; k++) {
-          const r = RUNE_DEFS[ch.mods[k]];
+        for (let k = 0; k < cap; k++) {
+          const rid   = mods[k] | 0;
+          const pc    = POWER_CORES[rid] || null;
+          const r     = pc || RUNE_DEFS[rid] || null;
+          const isNxt = (k === nextS);
           if (r) {
-            html += '<span style="font-size:7px;font-weight:800;padding:1px 3px;border-radius:3px;background:' + r.col + '26;border:1px solid ' + r.col + 'aa;color:' + r.col + ';">' + r.short + '</span>';
+            const bdr = isNxt ? '#ffffff' : (r.col + 'aa');
+            const shd = isNxt ? ('box-shadow:0 0 6px ' + r.col + ';') : '';
+            const lbl = pc ? ('&#9670;' + pc.short) : r.short;
+            html += '<span style="font-size:6.6px;font-weight:800;padding:1px 2.5px;border-radius:3px;background:' + r.col + (isNxt ? '42' : '22') + ';border:1px solid ' + bdr + ';color:' + (isNxt ? '#fff' : r.col) + ';' + shd + '">' + lbl + '</span>';
           } else {
-            html += '<span style="width:7px;height:7px;display:inline-block;border-radius:50%;border:1px solid rgba(255,255,255,0.22);margin-top:2.5px;"></span>';
+            html += '<span style="width:5.5px;height:5.5px;display:inline-block;border-radius:50%;border:1px solid rgba(255,255,255,0.20);margin-top:2.5px;"></span>';
           }
         }
         return html;
       }
 
-      function resolvePhaseWandDisplay(wi) {
-        const base  = WAND_RACK[wi];
-        const ch    = window.wand_chassis_state.chassis[wi];
-        const gTag  = (ch && ch.isGraphene) ? 'Graphene 150m' : base.phase;
-        const vMats = window.hud_state.mats;
-        const vFill = window.hud_state.fills;
-        const mId   = vMats[wi] || 0;
-        const fill  = vFill[wi] || 0;
-        const info  = (fill > 0.002 && mId > 0) ? RIG_REAGENTS[mId] : null;
-        if (info) {
-          return {
-            name:  info.name + ' ' + base.spell,
-            col:   info.col,
-            trait: gTag + ' • ' + Math.round(fill * 100) + '% ' + base.vessel,
-            feedShort: Math.round(fill * 100) + '% ' + info.name
-          };
+      function renderWandSocketPipsHTML(wi, mode) {
+        const ch = window.wand_chassis_state.chassis[wi];
+        if (!ch) return '';
+        const lcap  = Math.max(1, Math.min(5, ch.lcap || 4));
+        const rcap  = Math.max(1, Math.min(5, ch.rcap || 3));
+        const lNext = findActiveStripExecSocket(ch.lmods, lcap, ch.lexec);
+        const rNext = findActiveStripExecSocket(ch.rmods, rcap, ch.rexec);
+        if (mode === 'rmb') {
+          return renderStripPipsHTML(ch.rmods, rcap, rNext);
         }
-        return {
-          name:  base.spell + ' (Dry)',
-          col:   (ch && ch.isGraphene) ? '#cfd8dc' : base.col,
-          trait: gTag + ' • Dry Mana',
-          feedShort: 'Dry Mana'
-        };
+        if (mode === 'lmb') {
+          return renderStripPipsHTML(ch.lmods, lcap, lNext);
+        }
+        // 'both' (for Wand Tabs inside [Tab] Workbench)
+        return '<span style="font-size:6.5px;font-weight:800;color:#81d4fa;margin-right:1px;">L</span>'
+             + renderStripPipsHTML(ch.lmods, lcap, lNext)
+             + '<span style="width:1px;height:9px;background:rgba(255,255,255,0.22);margin:0 2px;display:inline-block;"></span>'
+             + '<span style="font-size:6.5px;font-weight:800;color:#ffcc80;margin-right:1px;">R</span>'
+             + renderStripPipsHTML(ch.rmods, rcap, rNext);
+      }
+
+      function resolveTankFeed(tIdx) {
+        const hs   = window.hud_state;
+        const mId  = hs.mats[tIdx] || 0;
+        const fill = hs.fills[tIdx] || 0;
+        const info = (fill > 0.002 && mId > 0) ? RIG_REAGENTS[mId] : null;
+        const ph   = info ? phaseOfMat(mId) : -1;
+        return { mId, fill, pct: Math.round(fill * 100), info, ph };
       }
 
       function applyHandDockSpec(isRight, spec) {
@@ -922,27 +993,27 @@ canvas.emscripten { border: 0px none; background-color: black; }
         barEl.style.background = spec.barCol || spec.accentCol || baseAnchor;
         iconEl.innerHTML       = spec.iconHtml || '';
 
-        nameEl.innerText        = spec.name;
-        nameEl.style.color      = spec.nameCol || '#e2e8f0';
-        badgeEl.innerText       = spec.badgeText;
+        nameEl.innerText         = spec.name;
+        nameEl.style.color       = spec.nameCol || '#e2e8f0';
+        badgeEl.innerText        = spec.badgeText;
         badgeEl.style.background = spec.badgeBg;
-        badgeEl.style.color     = spec.badgeCol;
-        pctEl.innerText         = spec.pctText;
-        subEl.innerText         = spec.subText;
+        badgeEl.style.color      = spec.badgeCol;
+        pctEl.innerText          = spec.pctText;
+        subEl.innerText          = spec.subText;
 
         if (spec.pipsWandIdx >= 0) {
           pipsEl.style.display = 'flex';
           const wcs = window.wand_chassis_state;
-          const sig = spec.pipsWandIdx + ':' + JSON.stringify(wcs.chassis[spec.pipsWandIdx]);
+          const sig = (isRight ? 'R:' : 'L:') + spec.pipsWandIdx + ':' + JSON.stringify(wcs.chassis[spec.pipsWandIdx]);
           if (isRight) {
             if (sig !== wcs.lastRhPipsSig) {
               wcs.lastRhPipsSig = sig;
-              pipsEl.innerHTML = renderWandSocketPipsHTML(spec.pipsWandIdx);
+              pipsEl.innerHTML = renderWandSocketPipsHTML(spec.pipsWandIdx, 'rmb');
             }
           } else {
             if (sig !== wcs.lastLhPipsSig) {
               wcs.lastLhPipsSig = sig;
-              pipsEl.innerHTML = renderWandSocketPipsHTML(spec.pipsWandIdx);
+              pipsEl.innerHTML = renderWandSocketPipsHTML(spec.pipsWandIdx, 'lmb');
             }
           }
         } else {
@@ -952,125 +1023,6 @@ canvas.emscripten { border: 0px none; background-color: black; }
         if (footEl.innerHTML !== spec.footHtml) {
           footEl.innerHTML = spec.footHtml;
         }
-      }
-
-      function buildVesselHandSpec(vIdx, isRight, hMode) {
-        const hs       = window.hud_state;
-        const fill     = hs.fills[vIdx] || 0;
-        const pct      = Math.round(fill * 100);
-        const rawInfo  = RIG_REAGENTS[hs.mats[vIdx]] || null;
-        const info     = (rawInfo && fill > 0.002) ? rawInfo : null;
-        const phaseCol = RIG_ACCENTS[vIdx];
-        const col      = info ? info.col : phaseCol;
-        const isSucc   = (hMode < -0.5);
-        const isOut    = (hMode > 0.5 && hMode < 1.5);
-        const isDump   = (hMode > 1.5);
-
-        let badgeText = 'READY';
-        let badgeBg   = 'rgba(255,255,255,0.09)';
-        let badgeCol  = '#b0bec5';
-        if (isSucc) {
-          badgeText = RIG_IN_BADGE[vIdx];
-          badgeBg   = 'rgba(79, 195, 247, 0.28)';
-          badgeCol  = '#81d4fa';
-        } else if (isOut) {
-          badgeText = RIG_OUT_BADGE[vIdx];
-          badgeBg   = 'rgba(255, 138, 101, 0.30)';
-          badgeCol  = '#ffab91';
-        } else if (isDump) {
-          badgeText = 'DUMPED!';
-          badgeBg   = 'rgba(255,255,255,0.20)';
-          badgeCol  = '#ffffff';
-        } else if (info && fill >= 0.995) {
-          badgeText = 'FULL';
-          badgeBg   = 'rgba(129, 199, 132, 0.24)';
-          badgeCol  = '#a5d6a7';
-        } else if (info) {
-          badgeText = 'LOCKED';
-          badgeBg   = 'rgba(255, 213, 79, 0.18)';
-          badgeCol  = '#ffe082';
-        }
-
-        const footHtml = isRight
-          ? ('<strong style="color:#ffe0b2;">RMB</strong> ' + VESSEL_OUT_ACT[vIdx] + ' • [R] 3xSucc • <strong style="color:#ffcc80;">Q Dump</strong>')
-          : ('<strong style="color:#b3e5fc;">LMB</strong> ' + VESSEL_OUT_ACT[vIdx] + ' • [R] 3xSucc • <strong style="color:#81d4fa;">X Dump</strong>');
-
-        return {
-          slotTag:     '[' + (isRight ? '2' : '1') + '] ' + VESSEL_SHORT[vIdx].toUpperCase(),
-          slotCol:     phaseCol,
-          accentCol:   col,
-          isFiring:    (isSucc || isOut || isDump),
-          showGem:     false,
-          vesselShape: VESSEL_SHAPES[vIdx],
-          iconHtml:    VESSEL_ICONS[vIdx],
-          barPct:      info ? (fill * 100) : 0,
-          barCol:      col,
-          glow:        !!(info && info.glow),
-          name:        info ? info.name : ('Empty ' + VESSEL_SHORT[vIdx]),
-          nameCol:     info ? info.col : '#cfd6e6',
-          badgeText:   badgeText,
-          badgeBg:     badgeBg,
-          badgeCol:    badgeCol,
-          pctText:     pct + '%',
-          subText:     VESSEL_FULL[vIdx] + ' • [' + (isRight ? '2' : '1') + '] Cycle • [R] 3xSucc',
-          pipsWandIdx: -1,
-          footHtml:    footHtml
-        };
-      }
-
-      function buildWandHandSpec(wIdx, mf, cs, isRight, hMode) {
-        const wd       = resolvePhaseWandDisplay(wIdx);
-        const isCast   = (cs > 0);
-        const isLow    = (cs < 0 || mf < 0.14);
-        const isDump   = (hMode > 1.5);
-        const isRefill = (hMode < -0.5);
-
-        let badgeText = 'READY';
-        let badgeBg   = wd.col + '2b';
-        let badgeCol  = wd.col;
-        if (isCast) {
-          badgeText = 'CAST!';
-          badgeBg   = 'rgba(255,255,255,0.26)';
-          badgeCol  = '#ffffff';
-        } else if (isDump) {
-          badgeText = 'DUMPED!';
-          badgeBg   = 'rgba(255,255,255,0.20)';
-          badgeCol  = '#ffffff';
-        } else if (isRefill) {
-          badgeText = 'REFILL!';
-          badgeBg   = 'rgba(79, 195, 247, 0.28)';
-          badgeCol  = '#81d4fa';
-        } else if (isLow) {
-          badgeText = 'LOW MANA';
-          badgeBg   = 'rgba(255, 82, 82, 0.28)';
-          badgeCol  = '#ff8a80';
-        }
-
-        const footHtml = isRight
-          ? ('<strong style="color:#ffe0b2;">RMB</strong> Cast • [R] 3xSucc • <strong style="color:#ffcc80;">Q Dump</strong>')
-          : ('<strong style="color:#b3e5fc;">LMB</strong> Cast • [R] 3xSucc • <strong style="color:#81d4fa;">X Dump</strong>');
-
-        return {
-          slotTag:     '[' + (isRight ? '4' : '3') + '] WAND ' + (wIdx + 1) + '/3',
-          slotCol:     wd.col,
-          accentCol:   wd.col,
-          isFiring:    isCast,
-          showGem:     true,
-          vesselShape: '9px',
-          iconHtml:    '&#10024;',
-          barPct:      mf * 100,
-          barCol:      wd.col,
-          glow:        true,
-          name:        wd.name,
-          nameCol:     wd.col,
-          badgeText:   badgeText,
-          badgeBg:     badgeBg,
-          badgeCol:    badgeCol,
-          pctText:     Math.round(mf * 100) + '%',
-          subText:     wd.trait,
-          pipsWandIdx: wIdx,
-          footHtml:    footHtml
-        };
       }
 
       function buildGauntletTargetInfo(hs) {
@@ -1129,31 +1081,40 @@ canvas.emscripten { border: 0px none; background-color: black; }
       }
 
       function renderHandsAndBeltHUD() {
-        const hs  = window.hud_state;
-        const wcs = window.wand_chassis_state;
-
-        const dumpLVes = (hs.stance === 3)
-          ? hs.li
-          : ((hs.stance === 0) ? ((hs.lKind === 1) ? hs.li : hs.lVes) : hs.lVes);
-        const dumpRVes = (hs.stance === 3)
-          ? hs.ri
-          : ((hs.stance === 0) ? ((hs.rKind === 1) ? hs.ri : hs.rVes) : hs.rVes);
+        const hs   = window.hud_state;
+        const wcs  = window.wand_chassis_state;
+        const wIdx = Math.max(0, Math.min(2, hs.activeWand || 0));
+        const wCnt = Math.max(1, Math.min(3, hs.wandCount || wcs.wandCount || 1));
+        const arch = getChassisMeta(wIdx);
+        const t0   = resolveTankFeed(0);
+        const t1   = resolveTankFeed(1);
+        const actT = hs.activeTank ? 1 : 0;
+        const rSucc  = (hs.succMask & 4) !== 0;
+        const s0Hold = (hs.succMask & 1) !== 0;
+        const s1Hold = (hs.succMask & 2) !== 0;
 
         // 1. Update Center Stance Bridge Banner
         const bridgeEl = document.getElementById('stance-bridge-bar');
+        const relicHint = (wcs.relicCharges > 0) ? (' • [6] Relic x' + wcs.relicCharges) : '';
         if (bridgeEl) {
-          if (hs.isTripleSucc) {
-            bridgeEl.innerText         = '⚡ [R] TRIPLE-SUCC • Vacuuming Solid + Liquid + Gas!';
+          if (rSucc) {
+            bridgeEl.innerText         = '⚡ [R] DOUBLE-SUCC • Parallel Intake → Tank 1 + Tank 2!';
             bridgeEl.style.color       = '#81d4fa';
-            bridgeEl.style.borderColor = 'rgba(79, 195, 247, 0.78)';
-            bridgeEl.style.boxShadow   = '0 4px 16px rgba(0,0,0,0.6), 0 0 14px rgba(79, 195, 247, 0.38)';
+            bridgeEl.style.borderColor = 'rgba(79, 195, 247, 0.82)';
+            bridgeEl.style.boxShadow   = '0 4px 16px rgba(0,0,0,0.6), 0 0 14px rgba(79, 195, 247, 0.40)';
+          } else if (s0Hold || s1Hold) {
+            const sKey = s0Hold ? '[1] TANK 1' : '[2] TANK 2';
+            bridgeEl.innerText         = '⚡ HOLD ' + sKey + ' SUCC • Locks to Sampled Phase!';
+            bridgeEl.style.color       = '#80deea';
+            bridgeEl.style.borderColor = 'rgba(79, 195, 247, 0.72)';
+            bridgeEl.style.boxShadow   = '0 4px 16px rgba(0,0,0,0.6), 0 0 12px rgba(79, 195, 247, 0.32)';
           } else if (hs.stance === 3) {
-            bridgeEl.innerText         = '⚡ [5] COUPLED 2H: DRIVER ⟵ INFUSION ([5] Flip)';
+            bridgeEl.innerText         = '⚡ [4] COMBO (Tap [4] Swap Lead: T' + (actT + 1) + ' → T' + (2 - actT) + ') • LMB + RMB Strips';
             bridgeEl.style.color       = '#ffe082';
-            bridgeEl.style.borderColor = 'rgba(255, 213, 79, 0.68)';
+            bridgeEl.style.borderColor = 'rgba(255, 213, 79, 0.72)';
             bridgeEl.style.boxShadow   = '0 4px 16px rgba(0,0,0,0.6), 0 0 14px rgba(255, 213, 79, 0.30)';
           } else if (hs.stance === 1) {
-            bridgeEl.innerText         = '[`] 2H HANDS & BOOT • [1–4] Return to Gear';
+            bridgeEl.innerText         = '[`]/[5] 2H HANDS & BOOT • [1/2/3] Single • [4] Combo';
             bridgeEl.style.color       = '#ffab91';
             bridgeEl.style.borderColor = 'rgba(255, 138, 101, 0.58)';
             bridgeEl.style.boxShadow   = '0 4px 14px rgba(0,0,0,0.55)';
@@ -1163,234 +1124,235 @@ canvas.emscripten { border: 0px none; background-color: black; }
             bridgeEl.style.borderColor = 'rgba(234, 128, 252, 0.68)';
             bridgeEl.style.boxShadow   = '0 4px 16px rgba(0,0,0,0.6), 0 0 14px rgba(213, 0, 249, 0.32)';
           } else {
-            bridgeEl.innerText         = 'AKIMBO HANDS • [1/2] Vessels • [3/4] Wands • [R] 3xSucc';
+            bridgeEl.innerText         = 'SINGLE-TANK • [1/2] Select or Hold Succ • [3] Wand • [4] Combo' + relicHint;
             bridgeEl.style.color       = '#b0bec5';
-            bridgeEl.style.borderColor = 'rgba(255,255,255,0.15)';
+            bridgeEl.style.borderColor = 'rgba(255,255,255,0.16)';
             bridgeEl.style.boxShadow   = '0 4px 14px rgba(0,0,0,0.55)';
           }
         }
 
-        // 2. Update the 3 Fixed Belt Vial Cards (#rig-card-0..2) + Left/Right Tether Pills
-        for (let i = 0; i < 3; i++) {
-          const rawInfo        = RIG_REAGENTS[hs.mats[i]] || null;
-          const fill           = hs.fills[i] || 0;
-          const info           = (rawInfo && fill > 0.002) ? rawInfo : null;
-          const pct            = Math.round(fill * 100);
-          const inLeftHand     = (hs.stance === 0 && hs.lKind === 0 && hs.lVes === i);
-          const inRightHand    = (hs.stance === 0 && hs.rKind === 0 && hs.rVes === i);
-          const feedsLeftWand  = (hs.stance === 0 && hs.lKind === 1 && hs.li === i) || (hs.stance === 3 && hs.li === i);
-          const feedsRightWand = (hs.stance === 0 && hs.rKind === 1 && hs.ri === i) || (hs.stance === 3 && hs.ri === i);
-          const boundL         = (dumpLVes === i);
-          const boundR         = (dumpRVes === i);
-
-          const vMode = hs.isTripleSucc
-            ? (hs.vModes[i] || 0)
-            : ((hs.lMode > 1.5 && i === dumpLVes)
-                ? hs.lMode
-                : ((hs.rMode > 1.5 && i === dumpRVes)
-                    ? hs.rMode
-                    : (inLeftHand ? hs.lMode : (inRightHand ? hs.rMode : 0))));
-          const isSuccing = (vMode < -0.5);
-          const isIntake  = (hs.isTripleSucc && !isSuccing && fill < 0.995);
+        // 2. Update the 2 Universal Lock-on-Fill Tank Cards (#rig-card-0 & #rig-card-1)
+        const feeds = [t0, t1];
+        for (let i = 0; i < 2; i++) {
+          const tf        = feeds[i];
+          const info      = tf.info;
+          const tMode     = hs.tModes[i] || 0;
+          const isHolding = (i === 0) ? s0Hold : s1Hold;
+          const isSuccing = (tMode < -0.5) || (isHolding && tf.fill < 0.998);
+          const isSpit    = (tMode > 0.5 && tMode < 1.5);
+          const isDump    = (tMode > 1.5);
+          const isActive  = (hs.stance === 0 && actT === i);
+          const isCombo   = (hs.stance === 3);
+          const isLead    = (isCombo && actT === i);
+          const keyNum    = (i === 0) ? '1' : '2';
+          const dumpKey   = (i === 0) ? 'X' : '⇧X';
 
           const cardEl   = document.getElementById('rig-card-' + i);
           const tetherEl = document.getElementById('vessel-tether-' + i);
+          const capEl    = document.getElementById('rig-cap-' + i);
           const vesselEl = document.getElementById('rig-vessel-' + i);
           const barEl    = document.getElementById('rig-bar-' + i);
+          const lockEl   = document.getElementById('rig-lock-' + i);
           const nameEl   = document.getElementById('rig-name-' + i);
           const badgeEl  = document.getElementById('rig-badge-' + i);
           const pctEl    = document.getElementById('rig-pct-' + i);
           if (!cardEl) continue;
 
           if (tetherEl) {
-            if (hs.isTripleSucc && isSuccing) {
-              tetherEl.innerText         = '⚡ [R] SUCC!';
+            if (isSuccing) {
+              tetherEl.innerText         = rSucc ? ('⚡ [R] SUCC → T' + (i + 1)) : ('⚡ HOLD [' + keyNum + '] SUCC');
               tetherEl.style.background  = 'rgba(79, 195, 247, 0.30)';
               tetherEl.style.borderColor = 'rgba(129, 212, 250, 0.85)';
               tetherEl.style.color       = '#e1f5fe';
-            } else if (boundL && boundR) {
-              tetherEl.innerText         = '◀ L [X] • [Q] R ▶';
-              tetherEl.style.background  = 'linear-gradient(90deg, rgba(79,195,247,0.25), rgba(255,171,64,0.25))';
-              tetherEl.style.borderColor = 'rgba(255, 224, 130, 0.65)';
-              tetherEl.style.color       = '#fff59d';
-            } else if (inLeftHand) {
-              tetherEl.innerText         = '◀ LEFT • X';
+            } else if (isLead) {
+              tetherEl.innerText         = '★ LEAD [4] • [' + dumpKey + ']';
+              tetherEl.style.background  = 'linear-gradient(90deg, rgba(255,213,79,0.34), rgba(79,195,247,0.24))';
+              tetherEl.style.borderColor = 'rgba(255, 224, 130, 0.92)';
+              tetherEl.style.color       = '#ffffff';
+            } else if (isCombo) {
+              tetherEl.innerText         = '+ MIX [4] • [' + dumpKey + ']';
+              tetherEl.style.background  = 'rgba(255, 213, 79, 0.10)';
+              tetherEl.style.borderColor = 'rgba(255, 224, 130, 0.42)';
+              tetherEl.style.color       = '#ffe082';
+            } else if (isActive) {
+              tetherEl.innerText         = '● ACTIVE [' + keyNum + '] • [' + dumpKey + ']';
               tetherEl.style.background  = 'rgba(79, 195, 247, 0.24)';
-              tetherEl.style.borderColor = 'rgba(79, 195, 247, 0.62)';
-              tetherEl.style.color       = '#81d4fa';
-            } else if (feedsLeftWand) {
-              tetherEl.innerText         = (hs.stance === 3) ? '◀ DRV • X' : '◀ L-WAND • X';
-              tetherEl.style.background  = 'rgba(79, 195, 247, 0.14)';
-              tetherEl.style.borderColor = 'rgba(79, 195, 247, 0.44)';
-              tetherEl.style.color       = '#80deea';
-            } else if (inRightHand) {
-              tetherEl.innerText         = 'Q • RIGHT ▶';
-              tetherEl.style.background  = 'rgba(255, 171, 64, 0.24)';
-              tetherEl.style.borderColor = 'rgba(255, 171, 64, 0.62)';
-              tetherEl.style.color       = '#ffcc80';
-            } else if (feedsRightWand) {
-              tetherEl.innerText         = (hs.stance === 3) ? 'Q • INF ▶' : 'Q • R-WAND ▶';
-              tetherEl.style.background  = 'rgba(255, 171, 64, 0.14)';
-              tetherEl.style.borderColor = 'rgba(255, 171, 64, 0.44)';
-              tetherEl.style.color       = '#ffd180';
-            } else if (hs.isTripleSucc && isIntake) {
-              tetherEl.innerText         = '⚡ [R] OPEN';
-              tetherEl.style.background  = 'rgba(79, 195, 247, 0.16)';
-              tetherEl.style.borderColor = 'rgba(79, 195, 247, 0.55)';
-              tetherEl.style.color       = '#81d4fa';
-            } else if (boundL) {
-              tetherEl.innerText         = '◀ [R] • X';
-              tetherEl.style.background  = 'rgba(79, 195, 247, 0.10)';
-              tetherEl.style.borderColor = 'rgba(79, 195, 247, 0.30)';
-              tetherEl.style.color       = '#81d4fa';
-            } else if (boundR) {
-              tetherEl.innerText         = 'Q • [R] ▶';
-              tetherEl.style.background  = 'rgba(255, 171, 64, 0.10)';
-              tetherEl.style.borderColor = 'rgba(255, 171, 64, 0.30)';
-              tetherEl.style.color       = '#ffcc80';
+              tetherEl.style.borderColor = 'rgba(79, 195, 247, 0.68)';
+              tetherEl.style.color       = '#b3e5fc';
             } else {
-              tetherEl.innerText         = '[R] BELT';
-              tetherEl.style.background  = 'rgba(255,255,255,0.04)';
-              tetherEl.style.borderColor = 'rgba(255,255,255,0.10)';
-              tetherEl.style.color       = '#6e778a';
+              tetherEl.innerText         = 'TAP [' + keyNum + '] • [' + dumpKey + ']';
+              tetherEl.style.background  = 'rgba(255,255,255,0.05)';
+              tetherEl.style.borderColor = 'rgba(255,255,255,0.14)';
+              tetherEl.style.color       = '#8c96ab';
             }
           }
 
-          pctEl.innerText = pct + '%';
+          pctEl.innerText = tf.pct + '%';
           if (info) {
+            const pCol               = RIG_ACCENTS[tf.ph];
             nameEl.innerText         = info.name;
             nameEl.style.color       = info.col;
-            barEl.style.height       = (fill * 100).toFixed(1) + '%';
+            barEl.style.height       = (tf.fill * 100).toFixed(1) + '%';
             barEl.style.background   = info.col;
-            vesselEl.style.boxShadow = info.glow ? ('0 0 10px ' + info.col) : 'none';
+            vesselEl.style.borderRadius = VESSEL_SHAPES[tf.ph];
+            vesselEl.style.borderColor  = info.col + 'aa';
+            vesselEl.style.boxShadow    = info.glow ? ('0 0 10px ' + info.col) : 'none';
+            if (capEl) capEl.style.background = pCol;
+            if (lockEl) lockEl.innerHTML = '&#128274;';
           } else {
-            nameEl.innerText         = 'Empty';
-            nameEl.style.color       = '#7f8c9f';
-            barEl.style.height       = '0%';
-            vesselEl.style.boxShadow = 'none';
+            nameEl.innerText            = 'Unlocked';
+            nameEl.style.color          = '#8c96ab';
+            barEl.style.height          = '0%';
+            vesselEl.style.borderRadius = '8px 8px 12px 12px';
+            vesselEl.style.borderColor  = 'rgba(179, 229, 252, 0.35)';
+            vesselEl.style.boxShadow    = 'none';
+            if (capEl) capEl.style.background = 'rgba(179,229,252,0.35)';
+            if (lockEl) lockEl.innerHTML = '&#9675;';
           }
 
-          if (inLeftHand || inRightHand || isSuccing) {
-            const sideCol            = isSuccing
-              ? (info ? info.col : RIG_ACCENTS[i])
-              : (inLeftHand ? '#4fc3f7' : '#ffab40');
-            cardEl.style.transform   = 'translateY(-3px)';
-            cardEl.style.opacity     = '1.0';
-            cardEl.style.borderColor = sideCol;
-            cardEl.style.boxShadow   = '0 6px 20px rgba(0,0,0,0.72), 0 0 12px ' + sideCol + '44';
-          } else if (isIntake) {
-            cardEl.style.transform   = 'translateY(-1.5px)';
-            cardEl.style.opacity     = '0.96';
-            cardEl.style.borderColor = 'rgba(79, 195, 247, 0.52)';
-            cardEl.style.boxShadow   = '0 5px 18px rgba(0,0,0,0.68), 0 0 8px rgba(79, 195, 247, 0.22)';
-          } else if (feedsLeftWand || feedsRightWand) {
-            const feedCol            = feedsLeftWand ? 'rgba(79, 195, 247, 0.45)' : 'rgba(255, 171, 64, 0.45)';
-            cardEl.style.transform   = 'translateY(-1px)';
-            cardEl.style.opacity     = '0.94';
-            cardEl.style.borderColor = feedCol;
-            cardEl.style.boxShadow   = '0 5px 18px rgba(0,0,0,0.65)';
+          if (isSuccing || isActive || isCombo) {
+            const cCol = isSuccing
+              ? (info ? info.col : '#4fc3f7')
+              : (isLead ? (info ? info.col : '#ffd54f') : (isCombo ? 'rgba(255, 213, 79, 0.52)' : (info ? info.col : '#4fc3f7')));
+            cardEl.style.transform   = (isSuccing || isActive || isLead) ? 'translateY(-4px)' : 'translateY(-1px)';
+            cardEl.style.opacity     = isLead || isSuccing || isActive ? '1.0' : '0.90';
+            cardEl.style.borderColor = cCol;
+            cardEl.style.boxShadow   = isLead
+              ? ('0 7px 22px rgba(0,0,0,0.78), 0 0 14px ' + (info ? info.col : '#ffd54f') + '55')
+              : ('0 6px 20px rgba(0,0,0,0.72), 0 0 10px rgba(255,213,79,0.20)');
           } else {
             cardEl.style.transform   = 'translateY(0px)';
-            cardEl.style.opacity     = (boundL || boundR) ? '0.84' : '0.74';
-            cardEl.style.borderColor = 'rgba(255,255,255,0.13)';
+            cardEl.style.opacity     = '0.80';
+            cardEl.style.borderColor = 'rgba(255,255,255,0.14)';
             cardEl.style.boxShadow   = '0 5px 18px rgba(0,0,0,0.65)';
           }
 
           if (isSuccing) {
-            badgeEl.innerText        = 'SUCC!';
+            badgeEl.innerText        = 'SUCCING!';
             badgeEl.style.background = 'rgba(79, 195, 247, 0.30)';
             badgeEl.style.color      = '#81d4fa';
-          } else if ((inLeftHand || inRightHand) && vMode > 0.5 && vMode < 1.5) {
-            badgeEl.innerText        = 'OUT!';
-            badgeEl.style.background = 'rgba(255, 138, 101, 0.28)';
+          } else if (isSpit) {
+            badgeEl.innerText        = info ? (PHASE_SPIT[tf.ph].toUpperCase() + '!') : 'GUST!';
+            badgeEl.style.background = 'rgba(255, 138, 101, 0.30)';
             badgeEl.style.color      = '#ffab91';
-          } else if (vMode > 1.5) {
-            badgeEl.innerText        = 'DUMP';
-            badgeEl.style.background = 'rgba(255,255,255,0.18)';
+          } else if (isDump) {
+            badgeEl.innerText        = 'DUMPED!';
+            badgeEl.style.background = 'rgba(255,255,255,0.20)';
             badgeEl.style.color      = '#ffffff';
-          } else if (info && fill >= 0.995) {
-            badgeEl.innerText        = 'FULL';
-            badgeEl.style.background = 'rgba(129, 199, 132, 0.22)';
+          } else if (info && tf.fill >= 0.995) {
+            badgeEl.innerText        = 'FULL • ' + PHASE_LOCK_TAG[tf.ph];
+            badgeEl.style.background = 'rgba(129, 199, 132, 0.24)';
             badgeEl.style.color      = '#a5d6a7';
-          } else if (isIntake) {
-            badgeEl.innerText        = 'INTAKE';
-            badgeEl.style.background = 'rgba(79, 195, 247, 0.18)';
-            badgeEl.style.color      = '#81d4fa';
           } else if (info) {
-            badgeEl.innerText        = (inLeftHand || inRightHand || feedsLeftWand || feedsRightWand) ? 'FEED' : 'HELD';
-            badgeEl.style.background = 'rgba(255, 213, 79, 0.16)';
+            badgeEl.innerText        = 'LOCKED • ' + PHASE_LOCK_TAG[tf.ph];
+            badgeEl.style.background = 'rgba(255, 213, 79, 0.18)';
             badgeEl.style.color      = '#ffe082';
           } else {
-            badgeEl.innerText        = (inLeftHand || inRightHand) ? 'RDY' : 'DRY';
-            badgeEl.style.background = 'rgba(255,255,255,0.07)';
-            badgeEl.style.color      = '#8c96ab';
+            badgeEl.innerText        = 'ANY PHASE';
+            badgeEl.style.background = 'rgba(255,255,255,0.08)';
+            badgeEl.style.color      = '#9aa4b8';
           }
         }
 
-        // 3. Update Spatial Left Hand Dock (LMB) & Right Hand Dock (RMB)
+        // 3. Update Left Hand Dock (LMB) & Right Hand Dock (RMB)
         let leftSpec, rightSpec;
+        const wandSlotLbl = (wCnt > 1)
+          ? ('[3] WAND ' + (wIdx + 1) + '/' + wCnt + ' • ' + arch.short)
+          : ('[3] ' + arch.short + ' WAND');
 
         if (hs.stance === 3) {
-          // [5] COUPLED 2H: Left = Driver (LMB Dual-Bleed), Right = Power Core (RMB) + Infusion Feed!
-          const lw      = resolvePhaseWandDisplay(hs.li);
-          const rw      = resolvePhaseWandDisplay(hs.ri);
-          const drvCh   = wcs.chassis[hs.li];
-          const drvCore = drvCh ? POWER_CORES[drvCh.pcore] : null;
-          const lCast   = (hs.lCs > 0);
-          const lLow    = (hs.lCs < 0 || hs.lMf < 0.14);
-          const lRefill = (hs.lMode < -0.5);
+          // [4] COMBO MODE: `actT` = Lead/Driver Tank, `1 - actT` = Secondary Infused Tank!
+          const leadF      = feeds[actT];
+          const secF       = feeds[1 - actT];
+          const bothFilled = !!(leadF.info && secF.info);
+          const isSuper    = !!(bothFilled && leadF.mId === secF.mId);
+          const oneFeed    = leadF.info ? leadF : (secF.info ? secF : null);
+          const lCast      = (hs.wCs > 0);
+          const lLow       = (hs.wCs < 0 || hs.wMf < 0.14);
+          const nxtSp      = getNextWandSpellInfo(wIdx, false);
+
+          let cName = nxtSp.name + ' (Dry)';
+          let cCol  = arch.col;
+          let cSub  = arch.name + ' • Both Tanks Dry';
+          if (isSuper) {
+            cName = '2x ' + leadF.info.name + ' ' + nxtSp.name + '!';
+            cCol  = leadF.info.col;
+            cSub  = '⚡ Super-Fill Overcharge (1.42x Dmg • 1.32x Size)';
+          } else if (bothFilled) {
+            cName = leadF.info.name + '+' + secF.info.name + ' ' + nxtSp.short;
+            cCol  = leadF.info.col;
+            const mixKind = (leadF.ph === secF.ph) ? ('Same-Phase ' + PHASE_LOCK_TAG[leadF.ph] + ' Mix') : (PHASE_DELIVERY[leadF.ph] + ' + ' + PHASE_LOCK_TAG[secF.ph] + ' Mix');
+            cSub  = '★ T' + (actT + 1) + ' Lead (' + mixKind + ') • [4] Swap';
+          } else if (oneFeed) {
+            cName = oneFeed.info.name + ' ' + nxtSp.name;
+            cCol  = oneFeed.info.col;
+            cSub  = 'Single-Tank Fallback • Fill Both for Combo!';
+          }
 
           leftSpec = {
-            slotTag:     '[5] DRIVER ' + (hs.li + 1) + '/3',
-            slotTagCol:  lw.col,
-            slotCol:     lw.col,
-            accentCol:   lw.col,
+            slotTag:     '[4] COMBO (T' + (actT + 1) + ' LEAD) • ' + arch.short,
+            slotCol:     cCol,
+            accentCol:   cCol,
             isFiring:    lCast,
             showGem:     true,
             vesselShape: '9px',
             iconHtml:    '&#10024;',
-            barPct:      hs.lMf * 100,
-            barCol:      lw.col,
+            barPct:      hs.wMf * 100,
+            barCol:      cCol,
             glow:        true,
-            name:        lw.name,
-            nameCol:     lw.col,
-            badgeText:   lCast ? 'COUPLED!' : ((hs.lMode > 1.5) ? 'DUMPED!' : (lRefill ? 'REFILL!' : (lLow ? 'LOW MANA' : 'DRIVER'))),
-            badgeBg:     lCast ? 'rgba(255,255,255,0.28)' : (lRefill ? 'rgba(79,195,247,0.28)' : (lLow ? 'rgba(255,82,82,0.28)' : (lw.col + '2b'))),
-            badgeCol:    lCast ? '#ffffff' : (lRefill ? '#81d4fa' : (lLow ? '#ff8a80' : lw.col)),
-            pctText:     Math.round(hs.lMf * 100) + '%',
-            subText:     'Dual-Bleed ⟵ ' + rw.name,
-            pipsWandIdx: hs.li,
-            footHtml:    '<strong style="color:#b3e5fc;">LMB</strong> Dual-Bleed • [5] Flip • <strong style="color:#81d4fa;">X Dump</strong>'
+            name:        cName,
+            nameCol:     cCol,
+            badgeText:   lCast ? (isSuper ? 'OVERCHARGE!' : 'COMBO!') : (lLow ? 'LOW MANA' : (isSuper ? '2x SUPER' : (bothFilled ? 'SYNTHESIS' : nxtSp.short))),
+            badgeBg:     lCast ? 'rgba(255,255,255,0.28)' : (lLow ? 'rgba(255,82,82,0.28)' : (cCol + '2b')),
+            badgeCol:    lCast ? '#ffffff' : (lLow ? '#ff8a80' : cCol),
+            pctText:     Math.round(hs.wMf * 100) + '%',
+            subText:     cSub,
+            pipsWandIdx: wIdx,
+            footHtml:    '<strong style="color:#b3e5fc;">LMB</strong> Cast • [4] Swap Lead • [Tab] Runes'
           };
 
-          const rCol    = drvCore ? drvCore.col : rw.col;
-          const rCast   = (hs.rCs > 0);
-          const rRefill = (hs.rMode < -0.5);
+          const nxtRmb  = getNextWandSpellInfo(wIdx, true);
+          const pCore   = POWER_CORES[hs.pCoreId] || (nxtRmb.isCore ? POWER_CORES[101] : null);
+          const rDef    = (!pCore && hs.pCoreId > 0) ? (RUNE_DEFS[hs.pCoreId] || null) : null;
+          const hasRmb  = !!(pCore || rDef || nxtRmb.hasSpell);
+          const pFire   = (hs.pCoreCs > 0);
+          const pFail   = (hs.pCoreCs < 0);
+          const pRdy    = (hs.pCoreReady >= 0.995);
+          const pCol    = pCore ? pCore.col : (nxtRmb.hasSpell ? nxtRmb.col : (rDef ? rDef.col : '#78849b'));
+          const feedPreview = isSuper
+            ? ('2x ' + leadF.info.name + ' Overcharge')
+            : (bothFilled
+                ? ('★ ' + leadF.info.name + ' + ' + secF.info.name)
+                : (oneFeed ? oneFeed.info.name : (pCore ? '2x Mana Dry Overdraw' : 'Dry Mana')));
+          const rmbTitle = pCore
+            ? ('◆ ' + (nxtRmb.hasSpell ? nxtRmb.name : pCore.name))
+            : (nxtRmb.hasSpell ? nxtRmb.name : (rDef ? rDef.name : 'Empty RMB Strip'));
+
           rightSpec = {
-            slotTag:     drvCore ? '[5] CORE + INF' : ('[5] INFUSE ' + (hs.ri + 1) + '/3'),
-            slotCol:     rCol,
-            accentCol:   rCol,
-            isFiring:    rCast,
-            showGem:     true,
+            slotTag:     pCore ? ('[4] RMB POWER • ' + arch.short) : (hasRmb ? ('[4] RMB STRIP • ' + arch.short) : '[4] RMB STRIP EMPTY'),
+            slotCol:     pCol,
+            accentCol:   pCol,
+            isFiring:    pFire,
+            showGem:     hasRmb,
             vesselShape: '9px',
-            iconHtml:    drvCore ? '&#9670;' : '&#10024;',
-            barPct:      hs.rMf * 100,
-            barCol:      rw.col,
-            glow:        true,
-            name:        drvCore ? ('◆ ' + drvCore.name) : ('Infuse: ' + rw.name),
-            nameCol:     rCol,
-            badgeText:   (rCast && drvCore) ? 'OVERDRAW!' : ((hs.rMode > 1.5) ? 'DUMPED!' : (rRefill ? 'REFILL!' : (drvCore ? 'CORE RDY' : 'NO CORE'))),
-            badgeBg:     rCast ? 'rgba(255,255,255,0.26)' : (rRefill ? 'rgba(79,195,247,0.28)' : (drvCore ? (drvCore.col + '2b') : 'rgba(255,255,255,0.10)')),
-            badgeCol:    rCast ? '#ffffff' : (rRefill ? '#81d4fa' : (drvCore ? drvCore.col : '#b0bec5')),
-            pctText:     Math.round(hs.rMf * 100) + '%',
-            subText:     drvCore ? ('Infuses: ' + rw.name + ' (' + rw.feedShort + ')') : ('Infuses Driver • [Tab] Weld Core for RMB'),
-            pipsWandIdx: hs.ri,
-            footHtml:    drvCore
-              ? '<strong style="color:#ffe0b2;">RMB</strong> Fire Core • [R] 3xSucc • <strong style="color:#ffcc80;">Q Dump</strong>'
-              : '[Tab] Weld Core • [R] 3xSucc • <strong style="color:#ffcc80;">Q Dump</strong>'
+            iconHtml:    pCore ? '&#9670;' : (hasRmb ? '&#10022;' : '&#9671;'),
+            barPct:      hasRmb ? ((pCore ? hs.pCoreReady : hs.wMf) * 100) : 0,
+            barCol:      pCol,
+            glow:        !!(hasRmb && (pCore ? pRdy : hs.wMf >= 0.15)),
+            name:        rmbTitle,
+            nameCol:     hasRmb ? pCol : '#9aa4b8',
+            badgeText:   pFire ? (pCore ? 'UNLEASHED!' : 'ALT CAST!') : (pFail ? (hasRmb ? 'LOW MANA' : 'EMPTY') : (pCore ? (pRdy ? 'CORE RDY' : 'COOLING') : (hasRmb ? nxtRmb.short : 'PRESS [TAB]'))),
+            badgeBg:     pFire ? 'rgba(255,255,255,0.28)' : (pFail ? 'rgba(255,82,82,0.28)' : (hasRmb ? (pCol + '2b') : 'rgba(255,255,255,0.08)')),
+            badgeCol:    pFire ? '#ffffff' : (pFail ? '#ff8a80' : (hasRmb ? pCol : '#9aa4b8')),
+            pctText:     hasRmb ? (Math.round((pCore ? hs.pCoreReady : hs.wMf) * 100) + '%') : '—',
+            subText:     hasRmb ? ('Feeds: ' + feedPreview) : 'Open [Tab] to Build RMB Strip or ◆ Core!',
+            pipsWandIdx: wIdx,
+            footHtml:    hasRmb
+              ? '<strong style="color:#ffe0b2;">RMB</strong> Cast Strip • [X/⇧X] Dump • [R] 2xSucc'
+              : '[Tab] Build RMB Strip • [X/⇧X] Dump'
           };
         } else if (hs.stance === 1) {
-          // [`] 2H HANDS & BOOT: Left = Seismic Boot (LMB), Right = Grapple Gauntlet (RMB)
+          // [`]/[5] 2H HANDS & BOOT: Left = Seismic Boot (LMB), Right = Grapple Gauntlet (RMB)
           const pInfo   = (hs.pId >= 1 && hs.pId < 255) ? RIG_REAGENTS[hs.pId] : null;
           const loadPct = Math.round(hs.stress * 100);
           const isCrit  = !!(pInfo && (hs.stress >= 0.22 || BRITTLE_SOLIDS.includes(hs.pId)));
@@ -1416,7 +1378,7 @@ canvas.emscripten { border: 0px none; background-color: black; }
           }
 
           leftSpec = {
-            slotTag:     '[`] 2H BOOT',
+            slotTag:     '[`]/[5] 2H BOOT',
             slotCol:     '#ff9e80',
             accentCol:   bootCol,
             isFiring:    isKick,
@@ -1434,14 +1396,14 @@ canvas.emscripten { border: 0px none; background-color: black; }
             pctText:     bootPct,
             subText:     bootSub,
             pipsWandIdx: -1,
-            footHtml:    '<strong style="color:#b3e5fc;">LMB</strong> Kick / Shatter • [R] Succ • <strong style="color:#81d4fa;">X Dump</strong>'
+            footHtml:    '<strong style="color:#b3e5fc;">LMB</strong> Kick / Shatter • [R] 2xSucc • [X] Dump T1'
           };
 
           const gt     = buildGauntletTargetInfo(hs);
           const isYank = (hs.bootMode < -1.5);
           const isHold = (hs.bootMode < -0.5 || hs.gId > 0);
           rightSpec = {
-            slotTag:     '[`] GAUNTLET',
+            slotTag:     '[`]/[5] GAUNTLET',
             slotCol:     '#ffcc80',
             accentCol:   gt.col,
             isFiring:    (isYank || isHold),
@@ -1460,8 +1422,8 @@ canvas.emscripten { border: 0px none; background-color: black; }
             subText:     gt.sub,
             pipsWandIdx: -1,
             footHtml:    (hs.gId > 0)
-              ? '<strong style="color:#ffe0b2;">Release RMB</strong> Drop • <strong style="color:#ffcc80;">Q / X Release</strong>'
-              : '<strong style="color:#ffe0b2;">RMB</strong> Yank / Grab • <strong style="color:#ffcc80;">Q Dump</strong>'
+              ? '<strong style="color:#ffe0b2;">Release RMB</strong> Drop • <strong style="color:#ffcc80;">X / Q Release</strong>'
+              : '<strong style="color:#ffe0b2;">RMB</strong> Yank / Grab • <strong style="color:#ffcc80;">⇧X Dump T2</strong>'
           };
         } else if (hs.stance === 2) {
           // [6] 2H RELIC STAFF: Left = Primary Cataclysm (LMB), Right = Secondary Rite (RMB)
@@ -1489,7 +1451,7 @@ canvas.emscripten { border: 0px none; background-color: black; }
             pctText:     Math.round(hs.sMf * 100) + '%',
             subText:     '2H Relic Primary • [6] Cycle Staff',
             pipsWandIdx: -1,
-            footHtml:    '<strong style="color:#b3e5fc;">LMB</strong> Cataclysm • [R] Succ • <strong style="color:#81d4fa;">X Dump</strong>'
+            footHtml:    '<strong style="color:#b3e5fc;">LMB</strong> Cataclysm • [R] 2xSucc • [X] Dump T1'
           };
 
           rightSpec = {
@@ -1511,17 +1473,78 @@ canvas.emscripten { border: 0px none; background-color: black; }
             pctText:     Math.round(hs.sMf * 100) + '%',
             subText:     stw.name + ' Secondary Rite',
             pipsWandIdx: -1,
-            footHtml:    '<strong style="color:#ffe0b2;">RMB</strong> ' + riteName + ' • <strong style="color:#ffcc80;">Q Dump</strong>'
+            footHtml:    '<strong style="color:#ffe0b2;">RMB</strong> ' + riteName + ' • <strong style="color:#ffcc80;">⇧X Dump T2</strong>'
           };
         } else {
-          // Stance 0 (Akimbo Hands): Each dock independently shows its Vessel ([1]/[2]) or Phase Wand ([3]/[4])!
-          leftSpec = (hs.lKind === 1)
-            ? buildWandHandSpec(hs.li, hs.lMf, hs.lCs, false, hs.lMode)
-            : buildVesselHandSpec(hs.lVes, false, hs.lMode);
+          // Stance 0 (Single-Tank): Left = Active Universal Wand Rune Strip (LMB), Right = Raw Spit from Active Tank (RMB)!
+          const af     = feeds[actT];
+          const tKey   = actT === 0 ? '1' : '2';
+          const tDump  = actT === 0 ? 'X' : '⇧X';
+          const wCast  = (hs.wCs > 0);
+          const wLow   = (hs.wCs < 0 || hs.wMf < 0.14);
+          const nxtSp  = getNextWandSpellInfo(wIdx);
+          const wCol   = af.info ? af.info.col : arch.col;
+          const wSpell = af.info ? (af.info.name + ' ' + nxtSp.name) : (nxtSp.name + ' (Dry)');
+          const wSub   = af.info
+            ? (arch.name + ' • Tank ' + (actT + 1) + ' (' + af.pct + '%)')
+            : (arch.name + ' • Dry Mana (Hold [' + tKey + ']/[R] Succ)');
 
-          rightSpec = (hs.rKind === 1)
-            ? buildWandHandSpec(hs.ri, hs.rMf, hs.rCs, true, hs.rMode)
-            : buildVesselHandSpec(hs.rVes, true, hs.rMode);
+          leftSpec = {
+            slotTag:     wandSlotLbl,
+            slotCol:     wCol,
+            accentCol:   wCol,
+            isFiring:    wCast,
+            showGem:     true,
+            vesselShape: '9px',
+            iconHtml:    '&#10024;',
+            barPct:      hs.wMf * 100,
+            barCol:      wCol,
+            glow:        true,
+            name:        wSpell,
+            nameCol:     wCol,
+            badgeText:   wCast ? 'CAST!' : (wLow ? 'LOW MANA' : nxtSp.short),
+            badgeBg:     wCast ? 'rgba(255,255,255,0.28)' : (wLow ? 'rgba(255,82,82,0.28)' : (wCol + '2b')),
+            badgeCol:    wCast ? '#ffffff' : (wLow ? '#ff8a80' : wCol),
+            pctText:     Math.round(hs.wMf * 100) + '%',
+            subText:     wSub,
+            pipsWandIdx: wIdx,
+            footHtml:    (wCnt > 1)
+              ? '<strong style="color:#b3e5fc;">LMB</strong> Cast • [3] Cycle Wand • [Tab] Runes'
+              : '<strong style="color:#b3e5fc;">LMB</strong> Cast • [4] Combo • [Tab] Runes'
+          };
+
+          const aMode  = hs.tModes[actT] || 0;
+          const isSucc = (aMode < -0.5) || ((actT === 0 ? s0Hold : s1Hold) && af.fill < 0.998);
+          const isSpit = (aMode > 0.5 && aMode < 1.5);
+          const isDump = (aMode > 1.5);
+          const sCol   = af.info ? af.info.col : '#80deea';
+          const sName  = af.info ? (PHASE_SPIT[af.ph] + ' ' + af.info.name) : 'Air Gust (Empty)';
+          const sShape = af.info ? VESSEL_SHAPES[af.ph] : '11px';
+          const sIcon  = af.info ? VESSEL_ICONS[af.ph] : '&#8779;';
+
+          rightSpec = {
+            slotTag:     '[' + tKey + '] TANK ' + (actT + 1) + ' SPIT',
+            slotCol:     sCol,
+            accentCol:   sCol,
+            isFiring:    (isSpit || isSucc || isDump),
+            showGem:     false,
+            vesselShape: sShape,
+            iconHtml:    sIcon,
+            barPct:      af.info ? (af.fill * 100) : 0,
+            barCol:      sCol,
+            glow:        !!(af.info && af.info.glow),
+            name:        sName,
+            nameCol:     af.info ? af.info.col : '#cfd6e6',
+            badgeText:   isSucc ? 'SUCCING!' : (isSpit ? (af.info ? (PHASE_SPIT[af.ph].toUpperCase() + '!') : 'GUST!') : (isDump ? 'DUMPED!' : (af.info ? 'LOCKED' : 'UNLOCKED'))),
+            badgeBg:     isSucc ? 'rgba(79,195,247,0.30)' : (isSpit ? 'rgba(255,138,101,0.30)' : (af.info ? 'rgba(255,213,79,0.18)' : 'rgba(255,255,255,0.08)')),
+            badgeCol:    isSucc ? '#81d4fa' : (isSpit ? '#ffab91' : (af.info ? '#ffe082' : '#9aa4b8')),
+            pctText:     af.pct + '%',
+            subText:     af.info
+              ? ('Locked ' + PHASE_LOCK_TAG[af.ph] + ' • Hold [' + tKey + '] Succ • [' + tDump + '] Dump')
+              : ('Hold [' + tKey + '] or [R] to Succ Any Phase!'),
+            pipsWandIdx: -1,
+            footHtml:    '<strong style="color:#ffcc80;">' + tDump + ' Dump T' + (actT + 1) + '</strong> • Hold [' + tKey + ']/[R] Succ • <strong style="color:#ffe0b2;">RMB</strong> Spit'
+          };
         }
 
         applyHandDockSpec(false, leftSpec);
@@ -1535,27 +1558,45 @@ canvas.emscripten { border: 0px none; background-color: black; }
         const hintEl = document.getElementById('reticle-hint');
         if (!ringEl || !hintEl) return;
 
-        const pId   = hs.pId;
-        const pInfo = RIG_REAGENTS[pId] || null;
-        const gId   = hs.gId;
+        const pId    = hs.pId;
+        const pInfo  = RIG_REAGENTS[pId] || null;
+        const p1Info = RIG_REAGENTS[hs.p1Id] || null;
+        const gId    = hs.gId;
+        const rSucc  = (hs.succMask & 4) !== 0;
+        const s0Hold = (hs.succMask & 1) !== 0;
+        const s1Hold = (hs.succMask & 2) !== 0;
 
-        if (hs.isTripleSucc) {
-          const parts = [];
-          let tsCol   = pInfo ? pInfo.col : '#4fc3f7';
-          for (let i = 0; i < 3; i++) {
-            if ((hs.vModes[i] || 0) < -0.5) {
-              const vInfo = (hs.fills[i] > 0.002) ? RIG_REAGENTS[hs.mats[i]] : null;
-              if (vInfo) tsCol = vInfo.col;
-              parts.push((vInfo ? vInfo.name : VESSEL_SHORT[i]) + ' (' + Math.round(hs.fills[i] * 100) + '%)');
+        if (rSucc || s0Hold || s1Hold) {
+          const t0 = resolveTankFeed(0);
+          const t1 = resolveTankFeed(1);
+          let col  = (pInfo && pInfo.col) || (t0.info && t0.info.col) || (t1.info && t1.info.col) || '#4fc3f7';
+          let txt  = '';
+          if (rSucc) {
+            const l0 = t0.info ? (t0.info.name + ' ' + t0.pct + '%') : (pInfo ? ('→ ' + pInfo.name) : 'Open');
+            const l1 = t1.info ? (t1.info.name + ' ' + t1.pct + '%') : (p1Info ? ('→ ' + p1Info.name) : 'Open');
+            txt = '[R] Double-Succ: T1 [' + l0 + '] + T2 [' + l1 + ']';
+          } else {
+            const ti  = s0Hold ? 0 : 1;
+            const tf  = s0Hold ? t0 : t1;
+            const key = s0Hold ? '[1]' : '[2]';
+            if (pId === 5) {
+              col = '#ffd54f';
+              txt = 'Hold ' + key + ': Mining 24k Gold Nuggets!';
+            } else if (tf.info) {
+              col = tf.info.col;
+              txt = 'Hold ' + key + ' Succ → Tank ' + (ti + 1) + ': ' + tf.info.name + ' (' + tf.pct + '%)';
+            } else if (pInfo) {
+              col = pInfo.col;
+              txt = 'Hold ' + key + ' Succ → Locking Tank ' + (ti + 1) + ' to ' + pInfo.name + '!';
+            } else {
+              txt = 'Hold ' + key + ' Succ → Aim at Solid, Liquid, or Gas!';
             }
           }
-          ringEl.style.transform   = (parts.length > 0) ? 'scale(0.74)' : 'scale(0.86)';
-          ringEl.style.borderColor = tsCol;
-          ringEl.style.boxShadow   = '0 0 11px ' + tsCol;
-          hintEl.innerText         = (parts.length > 0)
-            ? ('[R] Triple-Succ: ' + parts.join(' + '))
-            : '[R] Triple-Succ (Sack + Flask + Bellows)';
-          hintEl.style.color       = tsCol;
+          ringEl.style.transform   = 'scale(0.76)';
+          ringEl.style.borderColor = col;
+          ringEl.style.boxShadow   = '0 0 11px ' + col;
+          hintEl.innerText         = txt;
+          hintEl.style.color       = col;
           hintEl.style.opacity     = '1';
           return;
         }
@@ -1710,15 +1751,25 @@ canvas.emscripten { border: 0px none; background-color: black; }
         }
 
         if (hs.stance === 3) {
-          const lw      = resolvePhaseWandDisplay(hs.li);
-          const rw      = resolvePhaseWandDisplay(hs.ri);
-          const drvCore = POWER_CORES[wcs.chassis[hs.li] ? wcs.chassis[hs.li].pcore : 0];
-          const rmbTxt  = drvCore ? ('RMB: ' + drvCore.name + '!') : 'RMB: [Tab] Weld Core';
-          ringEl.style.borderColor = lw.col;
-          ringEl.style.boxShadow   = '0 0 11px ' + lw.col + ', inset 0 0 8px ' + rw.col;
-          ringEl.style.transform   = (hs.lCs > 0) ? 'scale(1.38)' : ((hs.lCs < 0) ? 'scale(0.80)' : 'scale(1.10)');
-          hintEl.innerText         = '[5] ' + lw.name + ' ⟵ ' + rw.name + '  •  LMB: Dual-Bleed  •  ' + rmbTxt;
-          hintEl.style.color       = lw.col;
+          const leadT   = hs.activeTank ? 1 : 0;
+          const leadF   = resolveTankFeed(leadT);
+          const secF    = resolveTankFeed(1 - leadT);
+          const rmbNxt  = getNextWandSpellInfo(hs.activeWand || 0, true);
+          const pCore   = POWER_CORES[hs.pCoreId];
+          const isSuper = !!(leadF.info && secF.info && leadF.mId === secF.mId);
+          const lCol    = leadF.info ? leadF.info.col : (secF.info ? secF.info.col : '#4fc3f7');
+          const rCol    = secF.info ? secF.info.col : lCol;
+          const comboLbl = isSuper
+            ? ('2x ' + leadF.info.name + ' Overcharge!')
+            : ((leadF.info && secF.info) ? ('★' + leadF.info.name + ' + ' + secF.info.name) : (leadF.info ? leadF.info.name : (secF.info ? secF.info.name : 'Arcane Dry')));
+          const rmbLbl  = pCore
+            ? ('RMB: ◆ ' + (rmbNxt.hasSpell ? rmbNxt.name : pCore.name) + '!')
+            : (rmbNxt.hasSpell ? ('RMB: ' + rmbNxt.name) : 'RMB: [Tab] Build Strip');
+          ringEl.style.borderColor = lCol;
+          ringEl.style.boxShadow   = '0 0 11px ' + lCol + ', inset 0 0 8px ' + rCol;
+          ringEl.style.transform   = (hs.wCs > 0 || hs.pCoreCs > 0) ? 'scale(1.36)' : 'scale(1.10)';
+          hintEl.innerText         = '[4] Combo (T' + (leadT + 1) + ' Lead): ' + comboLbl + '  •  ' + rmbLbl;
+          hintEl.style.color       = lCol;
           hintEl.style.opacity     = '0.94';
           return;
         }
@@ -1734,169 +1785,128 @@ canvas.emscripten { border: 0px none; background-color: black; }
           return;
         }
 
-        // Stance 0 (Akimbo): Check Dual-Wands vs Mixed vs Vessels
-        if (hs.lKind === 1 && hs.rKind === 1) {
-          const lw     = resolvePhaseWandDisplay(hs.li);
-          const rw     = resolvePhaseWandDisplay(hs.ri);
-          const domCol = (hs.rCs > 0) ? rw.col : lw.col;
-          ringEl.style.borderColor = domCol;
-          ringEl.style.boxShadow   = (hs.lCs > 0 || hs.rCs > 0) ? ('0 0 10px ' + domCol) : 'none';
-          ringEl.style.transform   = (hs.lCs > 0 || hs.rCs > 0) ? 'scale(1.32)' : 'scale(1.0)';
-          hintEl.style.opacity     = '0';
-          return;
-        }
+        // Stance 0 (Single-Tank): Show subtle succ prompt when aiming at valid target for active tank!
+        const actT    = hs.activeTank ? 1 : 0;
+        const af      = resolveTankFeed(actT);
+        const aMode   = hs.tModes[actT] || 0;
+        const anyOut  = (aMode > 0.5 && aMode < 1.5);
+        const holdKey = actT === 0 ? 'Hold [1]' : 'Hold [2]';
 
-        const probeVessel = (hs.lKind === 0 && hs.lVes !== 0)
-          ? hs.lVes
-          : ((hs.rKind === 0 && hs.rVes !== 0) ? hs.rVes : ((hs.lKind === 0) ? hs.lVes : hs.rVes));
-        const actFill = hs.fills[probeVessel] || 0;
-        const actInfo = RIG_REAGENTS[hs.mats[probeVessel]] || null;
-        const anyIn   = (hs.lMode < -0.5 || hs.rMode < -0.5);
-        const anyOut  = ((hs.lMode > 0.5 && hs.lMode < 1.5) || (hs.rMode > 0.5 && hs.rMode < 1.5));
-        const wCs     = (hs.lKind === 1) ? hs.lCs : ((hs.rKind === 1) ? hs.rCs : 0);
+        ringEl.style.transform = (anyOut || hs.wCs > 0) ? 'scale(1.28)' : 'scale(1.0)';
 
-        ringEl.style.transform = anyIn ? 'scale(0.78)' : ((anyOut || wCs > 0) ? 'scale(1.26)' : 'scale(1.0)');
-
-        if (pId === 5 && ((hs.lKind === 0 && hs.lVes === 0) || (hs.rKind === 0 && hs.rVes === 0))) {
-          const goldHand = (hs.lKind === 0 && hs.lVes === 0) ? 'Shift+LMB' : 'Shift+RMB';
+        if (pId === 5) {
           ringEl.style.borderColor = '#ffd54f';
           ringEl.style.boxShadow   = '0 0 10px #ffd54f';
-          hintEl.innerText         = anyIn ? 'Mining Gold Nuggets!' : (goldHand + ': Mine Gold Vein!');
+          hintEl.innerText         = holdKey + ' / [R]: Mine 24k Gold Vein!';
           hintEl.style.color       = '#ffd54f';
           hintEl.style.opacity     = '1';
-        } else if (pInfo && actFill < 0.995 && (actFill < 0.002 || hs.mats[probeVessel] === pId)) {
-          const handKey = (hs.lKind === 0 && hs.lVes === probeVessel) ? 'Shift+LMB: ' : 'Shift+RMB: ';
+        } else if (pInfo && af.fill < 0.995 && (!af.info || af.mId === pId)) {
           ringEl.style.borderColor = pInfo.col;
           ringEl.style.boxShadow   = '0 0 8px ' + pInfo.col;
-          hintEl.innerText         = (anyIn ? RIG_IN_HINT[probeVessel] : (handKey + VESSEL_IN_ACT[probeVessel] + ' ')) + pInfo.name;
+          hintEl.innerText         = holdKey + ': Succ ' + pInfo.name + (af.info ? (' (' + af.pct + '%)') : ' (Locks Tank ' + (actT + 1) + ')');
           hintEl.style.color       = pInfo.col;
           hintEl.style.opacity     = '1';
         } else {
-          ringEl.style.borderColor = (actInfo && anyOut) ? actInfo.col : RIG_ACCENTS[probeVessel];
-          ringEl.style.boxShadow   = 'none';
+          const domCol = af.info ? af.info.col : '#4fc3f7';
+          ringEl.style.borderColor = domCol;
+          ringEl.style.boxShadow   = (hs.wCs > 0 || anyOut) ? ('0 0 9px ' + domCol) : 'none';
           hintEl.style.opacity     = '0';
         }
       }
 
-      window.sync_rig = function(slotCode, sm, sf, lm, lf, gm, gf, gmat, modeCode, probe, pstress) {
-        const hs     = window.hud_state;
-        const sc     = slotCode | 0;
-        hs.stance    = Math.floor(sc / 10000);
-        hs.lKind     = Math.floor((sc % 10000) / 1000);
-        hs.lVes      = Math.floor((sc % 1000) / 100);
-        hs.rKind     = Math.floor((sc % 100) / 10);
-        hs.rVes      = sc % 10;
+      window.sync_rig = function(slotCode, t0Mat, t0Fill, t1Mat, t1Fill, succMask, probe1, gmat, modeCode, probe0, pstress) {
+        const hs      = window.hud_state;
+        const sc      = slotCode | 0;
+        hs.stance     = Math.floor(sc / 1000);
+        hs.wandCount  = Math.max(1, Math.min(3, Math.floor((sc % 1000) / 100)));
+        hs.activeTank = Math.floor((sc % 100) / 10) ? 1 : 0;
+        hs.activeWand = sc % 10;
 
-        window.rig_slot = (hs.stance === 0 && hs.lKind === 0)
-          ? hs.lVes
-          : ((hs.stance === 0 && hs.rKind === 0) ? hs.rVes : 0);
-
-        hs.mats   = [Math.round(sm), Math.round(lm), Math.round(gm)];
-        hs.fills  = [Math.max(0, Math.min(1, sf)), Math.max(0, Math.min(1, lf)), Math.max(0, Math.min(1, gf))];
+        hs.mats   = [Math.round(t0Mat || 0), Math.round(t1Mat || 0)];
+        hs.fills  = [Math.max(0, Math.min(1, t0Fill || 0)), Math.max(0, Math.min(1, t1Fill || 0))];
         window.rig_vessel_mats  = hs.mats;
         window.rig_vessel_fills = hs.fills;
-        hs.pId    = Math.round(probe || 0);
+
+        const actMat = hs.mats[hs.activeTank] || 0;
+        const actFill = hs.fills[hs.activeTank] || 0;
+        window.rig_slot = (actFill > 0.002 && actMat > 0) ? phaseOfMat(actMat) : 0;
+
+        hs.succMask = Math.round(succMask || 0);
+        window.double_succ_active = (hs.succMask & 4) !== 0;
+
+        hs.pId    = Math.round(probe0 || 0);
+        hs.p1Id   = Math.round(probe1 || 0);
         hs.gId    = Math.round(gmat || 0);
         hs.stress = Math.max(0, Math.min(1, pstress || 0));
 
-        const mc        = Math.round(modeCode || 0);
-        hs.isTripleSucc = (mc >= 1000);
-        window.double_succ_active = hs.isTripleSucc;
-        if (hs.isTripleSucc) {
-          const tmc = mc - 1000;
-          const now = performance.now();
-          const rawModes = [
-            (tmc % 10) - 2,
-            (Math.floor(tmc / 10) % 10) - 2,
-            (Math.floor(tmc / 100) % 10) - 2
-          ];
-          for (let i = 0; i < 3; i++) {
-            const rm      = rawModes[i];
-            const canHold = (hs.fills[i] < 0.995 || (i === 0 && hs.pId === 5));
-            if (rm < -0.5 && canHold) {
-              hs.succHoldUntil[i] = now + 220;
-              hs.vModes[i]        = -1;
-            } else if (rm > 1.5) {
-              hs.succHoldUntil[i] = 0;
-              hs.vModes[i]        = rm;
-            } else if (canHold && now < hs.succHoldUntil[i]) {
-              hs.vModes[i]        = -1;
-            } else {
-              hs.succHoldUntil[i] = 0;
-              hs.vModes[i]        = rm;
-            }
-          }
-          const dlv = (hs.stance === 3) ? hs.li : ((hs.stance === 0) ? ((hs.lKind === 1) ? hs.li : hs.lVes) : hs.lVes);
-          const drv = (hs.stance === 3) ? hs.ri : ((hs.stance === 0) ? ((hs.rKind === 1) ? hs.ri : hs.rVes) : hs.rVes);
-          hs.lMode    = hs.vModes[dlv] || 0;
-          hs.rMode    = hs.vModes[drv] || 0;
-          hs.bootMode = 0;
+        const mc = Math.round(modeCode || 0);
+        if (hs.stance === 1 && Math.abs(modeCode || 0) < 9.5) {
+          hs.bootMode  = modeCode || 0;
+          hs.tModes[0] = 0;
+          hs.tModes[1] = 0;
+        } else if (mc >= 10) {
+          hs.tModes[0] = (mc % 10) - 2;
+          hs.tModes[1] = Math.floor(mc / 10) - 2;
+          hs.bootMode  = 0;
         } else {
-          hs.succHoldUntil[0] = 0;
-          hs.succHoldUntil[1] = 0;
-          hs.succHoldUntil[2] = 0;
-          hs.vModes[0] = 0;
-          hs.vModes[1] = 0;
-          hs.vModes[2] = 0;
-          const hasHandMode = (hs.stance === 0 || (hs.stance !== 1 && mc >= 20));
-          hs.lMode    = hasHandMode ? ((mc % 10) - 2) : 0;
-          hs.rMode    = hasHandMode ? (Math.floor(mc / 10) - 2) : 0;
-          hs.bootMode = (hs.stance === 1) ? (modeCode || 0) : 0;
+          hs.tModes[0] = 0;
+          hs.tModes[1] = 0;
+          hs.bootMode  = 0;
         }
 
         renderHandsAndBeltHUD();
         renderReticleHUD();
       };
 
-      window.sync_wand = function(wSlotCode, lWid, lMf, lCs, rWid, rMf, rCs, sIdx, sMf, sCs) {
-        const hs     = window.hud_state;
-        const sc     = wSlotCode | 0;
-        hs.stance    = Math.floor(sc / 100);
-        hs.lKind     = Math.floor((sc % 100) / 10);
-        hs.rKind     = sc % 10;
+      window.sync_wand = function(wSlotCode, wIdx, wMf, wCs, pCoreId, pCoreReady, pCoreCs, sIdx, sMf, sCs) {
+        const hs      = window.hud_state;
+        const sc      = wSlotCode | 0;
+        hs.stance     = Math.floor(sc / 1000);
+        hs.wandCount  = Math.max(1, Math.min(3, Math.floor((sc % 1000) / 100)));
+        hs.activeTank = Math.floor((sc % 100) / 10) ? 1 : 0;
+        hs.activeWand = Math.max(0, Math.min(2, wIdx | 0));
 
-        const li   = ((lWid | 0) % WAND_RACK.length + WAND_RACK.length) % WAND_RACK.length;
-        const rawR = ((rWid | 0) % WAND_RACK.length + WAND_RACK.length) % WAND_RACK.length;
-        const ri   = (rawR === li) ? ((li + 1) % WAND_RACK.length) : rawR;
-        const si   = ((sIdx | 0) % STAFF_RACK.length + STAFF_RACK.length) % STAFF_RACK.length;
-
-        hs.li  = li;
-        hs.lMf = Math.max(0, Math.min(1, lMf || 0));
-        hs.lCs = lCs | 0;
-        hs.ri  = ri;
-        hs.rMf = Math.max(0, Math.min(1, rMf || 0));
-        hs.rCs = rCs | 0;
-        hs.si  = si;
-        hs.sMf = Math.max(0, Math.min(1, sMf || 0));
-        hs.sCs = sCs | 0;
-
-        window.wand_chassis_state.leftWid  = li;
-        window.wand_chassis_state.rightWid = ri;
+        hs.wMf        = Math.max(0, Math.min(1, wMf || 0));
+        hs.wCs        = wCs | 0;
+        hs.pCoreId    = pCoreId | 0;
+        hs.pCoreReady = Math.max(0, Math.min(1, pCoreReady || 0));
+        hs.pCoreCs    = pCoreCs | 0;
+        hs.si         = ((sIdx | 0) % STAFF_RACK.length + STAFF_RACK.length) % STAFF_RACK.length;
+        hs.sMf        = Math.max(0, Math.min(1, sMf || 0));
+        hs.sCs        = sCs | 0;
 
         renderHandsAndBeltHUD();
         renderReticleHUD();
       };
 
-      window.sync_satchel = function(openI, cursor, target, weldProg, pg0, pg1, pg2, pg3, pg4, bkpPack, pcorePack, boltCount) {
+      function lookupWorkbenchItem(id) {
+        if (!id || id <= 0) return null;
+        return (id >= 101) ? (POWER_CORES[id] || null) : (RUNE_DEFS[id] || null);
+      }
+
+      window.sync_satchel = function(openI, cursor, grabIdx, target, wcnt, rel, boltCount, lcaps, rcaps, lexecs, rexecs, lmods15, rmods15, gems30) {
         const isOpen = (openI | 0) !== 0;
         window.satchel_open = isOpen;
 
         const wcs = window.wand_chassis_state;
-        const pgs = [pg0 | 0, pg1 | 0, pg2 | 0, pg3 | 0];
-        for (let c = 0; c < 4; c++) {
-          const pk  = pgs[c];
-          const nib = ((pcorePack | 0) >> (c * 4)) & 15;
-          const pci = nib & 3;
-          wcs.gems[c]               = pk & 255;
-          wcs.chassis[c].mods[0]    = (pk >> 8) & 15;
-          wcs.chassis[c].mods[1]    = (pk >> 12) & 15;
-          wcs.chassis[c].mods[2]    = (pk >> 16) & 15;
-          wcs.chassis[c].pcore      = (pci > 0) ? (100 + pci) : 0;
-          wcs.chassis[c].isGraphene = (nib & 4) !== 0;
+        wcs.wandCount    = Math.max(1, Math.min(3, wcnt | 0));
+        wcs.relicCharges = Math.max(0, rel | 0);
+
+        for (let w = 0; w < 3; w++) {
+          const ch   = wcs.chassis[w];
+          ch.lcap    = (lcaps && lcaps[w]) ? Math.max(1, Math.min(5, lcaps[w] | 0)) : ch.lcap;
+          ch.rcap    = (rcaps && rcaps[w]) ? Math.max(1, Math.min(5, rcaps[w] | 0)) : ch.rcap;
+          ch.lexec   = (lexecs && lexecs[w] !== undefined) ? (lexecs[w] | 0) : 0;
+          ch.rexec   = (rexecs && rexecs[w] !== undefined) ? (rexecs[w] | 0) : 0;
+          const b5   = w * 5;
+          for (let k = 0; k < 5; k++) {
+            ch.lmods[k] = (lmods15 && lmods15[b5 + k]) ? (lmods15[b5 + k] | 0) : 0;
+            ch.rmods[k] = (rmods15 && rmods15[b5 + k]) ? (rmods15[b5 + k] | 0) : 0;
+          }
         }
-        wcs.gems[4]      = (pg4 | 0) & 255;
-        wcs.hasBackup    = ((bkpPack | 0) & 1) !== 0;
-        wcs.relicCharges = (bkpPack | 0) >> 1;
+        for (let g = 0; g < 30; g++) {
+          wcs.gems[g] = (gems30 && gems30[g]) ? (gems30[g] | 0) : 0;
+        }
 
         renderHandsAndBeltHUD();
 
@@ -1904,8 +1914,8 @@ canvas.emscripten { border: 0px none; background-color: black; }
         if (pillEl) {
           const bc = boltCount | 0;
           if (bc > 0) {
-            pillEl.style.display = 'block';
-            pillEl.innerText     = '⚡ ' + bc + ' / 8192 Bolts';
+            pillEl.style.display     = 'block';
+            pillEl.innerText         = '⚡ ' + bc + ' / 8192 Bolts';
             pillEl.style.borderColor = (bc > 512) ? 'rgba(255, 171, 64, 0.78)' : 'rgba(66, 242, 255, 0.38)';
             pillEl.style.color       = (bc > 512) ? '#ffd54f' : '#80deea';
           } else {
@@ -1918,121 +1928,250 @@ canvas.emscripten { border: 0px none; background-color: black; }
         wbEl.style.display = isOpen ? 'block' : 'none';
         if (!isOpen) return;
 
-        const weldBarEl = document.getElementById('wb-weld-bar');
-        if (weldBarEl) {
-          weldBarEl.style.width = Math.max(0, Math.min(100, (weldProg || 0) * 100)).toFixed(1) + '%';
-        }
+        const maxTgt    = Math.max(0, wcs.wandCount - 1);
+        const tgt       = Math.max(0, Math.min(maxTgt, target | 0));
+        const actCh     = wcs.chassis[tgt];
+        const actArch   = getChassisMeta(tgt);
+        const lcap      = Math.max(1, Math.min(5, actCh.lcap || 4));
+        const rcap      = Math.max(1, Math.min(5, actCh.rcap || 3));
+        const wandSlots = lcap + rcap;
+        const totSlots  = wandSlots + 30;
+        const cur       = Math.max(0, Math.min(totSlots - 1, cursor | 0));
+        const grab      = (grabIdx !== undefined && (grabIdx | 0) >= 0) ? Math.min(totSlots - 1, grabIdx | 0) : -1;
 
-        const cur = Math.max(0, Math.min(5, cursor | 0));
-        const tgt = Math.max(0, Math.min(2, target | 0));
-        const sig = cur + ':' + tgt + ':' + pg0 + ':' + pg1 + ':' + pg2 + ':' + pg3 + ':' + pg4 + ':' + bkpPack + ':' + pcorePack;
+        const sig = cur + ':' + grab + ':' + tgt + ':' + wcs.wandCount + ':' + JSON.stringify(wcs.chassis) + ':' + JSON.stringify(wcs.gems);
         if (sig === wcs.lastWbSig) return;
         wcs.lastWbSig = sig;
 
-        // 1. Render 3 Target Phase Wand Socket Cards ([1] Solid, [2] Liquid, [3] Gas)
+        function readSlotVal(sl) {
+          if (sl < lcap) return actCh.lmods[sl] | 0;
+          if (sl < wandSlots) return actCh.rmods[sl - lcap] | 0;
+          return wcs.gems[sl - wandSlots] | 0;
+        }
+
+        function isInfixLinker(id) {
+          return id === 21 || id === 22 || id === 24;
+        }
+
+        function checkSwapValidity(srcSl, rawDstSl) {
+          const valA = readSlotVal(srcSl);
+          let existingPcSlot = -1;
+          for (let ri = 0; ri < rcap; ri++) {
+            if (POWER_CORES[actCh.rmods[ri] | 0]) existingPcSlot = lcap + ri;
+          }
+          const autoRmb = !!(POWER_CORES[valA] && rawDstSl < lcap);
+          const dstSl   = autoRmb ? (existingPcSlot >= 0 ? existingPcSlot : lcap) : rawDstSl;
+          const valB    = readSlotVal(dstSl);
+
+          const lTest = actCh.lmods.slice(0, lcap);
+          const rTest = actCh.rmods.slice(0, rcap);
+          if (srcSl < lcap) lTest[srcSl] = valB;
+          else if (srcSl < wandSlots) rTest[srcSl - lcap] = valB;
+          if (dstSl < lcap) lTest[dstSl] = valA;
+          else if (dstSl < wandSlots) rTest[dstSl - lcap] = valA;
+
+          for (let i = 0; i < lcap; i++) {
+            if (POWER_CORES[lTest[i] | 0]) return { ok: false, autoRmb, reason: '◆ Power Spells only fit in the RMB Strip!' };
+          }
+          let pcCnt = 0;
+          let seenInfix = false;
+          for (let i = 0; i < rcap; i++) {
+            const rv = rTest[i] | 0;
+            if (POWER_CORES[rv]) {
+              pcCnt++;
+              if (seenInfix) return { ok: false, autoRmb, reason: '◆ Power Spells must sit ahead of Trigger Linkers (💥/⏱/💀)!' };
+            }
+            if (isInfixLinker(rv)) seenInfix = true;
+          }
+          if (pcCnt > 1) return { ok: false, autoRmb, reason: 'Max 1 ◆ Power Spell per RMB Strip!' };
+          return { ok: true, autoRmb, dstSl, reason: '' };
+        }
+
+        // 1. Render Top Row: 3 Carried Asymmetric Wand Chassis Tabs ([1] Conduit, [2] Stinger, [3] Artillery)
         const wandRowEl = document.getElementById('wb-wand-row');
         if (wandRowEl) {
           let wHtml = '';
           for (let w = 0; w < 3; w++) {
-            const base  = WAND_RACK[w];
-            const ch    = wcs.chassis[w];
-            const isTgt = (w === tgt);
-            const pc    = POWER_CORES[ch.pcore];
-            const bCol  = isTgt ? base.col : 'rgba(255,255,255,0.14)';
-            const bgCol = isTgt ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)';
-            const gBadge = ch.isGraphene
-              ? '<span style="font-size:7.5px;font-weight:800;padding:1px 4px;border-radius:4px;background:rgba(207,216,220,0.22);color:#eceff1;border:1px solid #cfd8dc;">GRAPHENE 150m</span>'
-              : '<span style="font-size:7.5px;color:#8c99b0;">Std Chassis</span>';
-            const pcHtml = pc
-              ? '<div style="font-size:9px;font-weight:800;padding:2px 5px;border-radius:4px;background:' + pc.col + '28;border:1px solid ' + pc.col + ';color:' + pc.col + ';margin-top:4px;">&#9670; ' + pc.name + '</div>'
-              : '<div style="font-size:8.5px;padding:2px 5px;border-radius:4px;background:rgba(255,255,255,0.03);border:1px dashed rgba(255,255,255,0.20);color:#78849b;margin-top:4px;">&#9671; Empty Power Core</div>';
-            let mHtml = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-top:4px;">';
-            for (let k = 0; k < 3; k++) {
-              const r = RUNE_DEFS[ch.mods[k]];
-              if (r) {
-                mHtml += '<div style="font-size:8px;font-weight:800;text-align:center;padding:2px 2px;border-radius:4px;background:' + r.col + '24;border:1px solid ' + r.col + 'aa;color:' + r.col + ';">' + r.short + '</div>';
-              } else {
-                mHtml += '<div style="font-size:8px;text-align:center;padding:2px 2px;border-radius:4px;background:rgba(255,255,255,0.03);border:1px dashed rgba(255,255,255,0.18);color:#606b80;">○</div>';
-              }
+            const unlocked = (w < wcs.wandCount);
+            const arch     = getChassisMeta(w);
+            const isTgt    = unlocked && (w === tgt);
+            const bCol     = isTgt ? arch.col : (unlocked ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)');
+            const bgCol    = isTgt ? 'rgba(255,255,255,0.09)' : (unlocked ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.28)');
+            if (!unlocked) {
+              wHtml += '<div style="padding:5px 8px;border-radius:9px;border:1.5px dashed ' + bCol + ';background:' + bgCol + ';opacity:0.55;display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:48px;text-align:center;">'
+                    +    '<div style="font-size:8.5px;font-weight:800;color:#78849b;">LOCKED WAND [' + (w + 1) + ']</div>'
+                    +    '<div style="font-size:7.8px;color:#606b80;margin-top:1px;">' + arch.name + ' (' + arch.tag + ')</div>'
+                    +    '<div style="font-size:7.2px;color:#ffd54f;margin-top:1px;">Press [K] to Unlock</div>'
+                    +  '</div>';
+              continue;
             }
-            mHtml += '</div>';
-            wHtml += '<div style="padding:7px 8px;border-radius:9px;border:1.5px solid ' + bCol + ';background:' + bgCol + ';box-shadow:' + (isTgt ? ('0 0 12px ' + base.col + '33') : 'none') + ';">'
+            wHtml += '<div style="padding:5px 8px;border-radius:9px;border:1.5px solid ' + bCol + ';background:' + bgCol + ';box-shadow:' + (isTgt ? ('0 0 12px ' + arch.col + '33') : 'none') + ';">'
                   +    '<div style="display:flex;justify-content:space-between;align-items:center;">'
-                  +      '<span style="font-size:9.5px;font-weight:800;color:' + base.col + ';">[' + (w + 1) + '] ' + base.phase + '</span>'
-                  +      gBadge
+                  +      '<span style="font-size:9.2px;font-weight:800;color:' + arch.col + ';">' + (isTgt ? '● ' : '') + '[' + (w + 1) + '] ' + arch.short + '</span>'
+                  +      '<span style="font-size:7.4px;color:#9aa4b8;">' + arch.tag + '</span>'
                   +    '</div>'
-                  +    pcHtml
-                  +    mHtml
+                  +    '<div style="display:flex;align-items:center;gap:2.5px;flex-wrap:wrap;margin-top:4px;">'
+                  +      renderWandSocketPipsHTML(w, 'both')
+                  +    '</div>'
                   +  '</div>';
           }
           wandRowEl.innerHTML = wHtml;
         }
 
-        // 2. Render 5 Gem Pockets + [4] Backup Chassis Pocket
+        // Helper to render one circuit strip row (Row 0 = LMB Strip, Row 1 = RMB Strip)
+        function renderCircuitRowHTML(isRmbRow, modsArr, capCnt, baseOffset, nextExecIdx) {
+          const rowTag   = isRmbRow ? '[4] RMB STRIP' : 'LMB STRIP';
+          const rowSub   = isRmbRow ? ('Power ◆ / Alt (' + capCnt + ')') : ('Primary Cast (' + capCnt + ')');
+          const rowCol   = isRmbRow ? '#ffab40' : '#4fc3f7';
+          const rowBg    = isRmbRow ? 'rgba(255, 171, 64, 0.08)' : 'rgba(79, 195, 247, 0.08)';
+          let rHtml = '<div style="display:flex;align-items:stretch;gap:6px;' + (isRmbRow ? 'margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.08);' : '') + '">'
+                    +   '<div style="width:94px;flex-shrink:0;padding:4px 6px;border-radius:7px;background:' + rowBg + ';border:1px solid ' + rowCol + '55;display:flex;flex-direction:column;justify-content:center;">'
+                    +     '<div style="font-size:8px;font-weight:900;color:' + rowCol + ';letter-spacing:0.5px;">' + rowTag + '</div>'
+                    +     '<div style="font-size:7.2px;color:#9aa4b8;margin-top:1px;">' + rowSub + '</div>'
+                    +   '</div>'
+                    +   '<div style="flex:1;display:flex;align-items:center;gap:4px;">';
+
+          for (let k = 0; k < capCnt; k++) {
+            const sl     = baseOffset + k;
+            const rid    = modsArr[k] | 0;
+            const pc     = POWER_CORES[rid] || null;
+            const r      = pc || RUNE_DEFS[rid] || null;
+            const isSel  = (cur === sl);
+            const isGrab = (grab === sl);
+            const isNext = (k === nextExecIdx);
+            const rCol   = r ? r.col : '#606b80';
+            const bdr    = isGrab ? '#ffd54f' : (isSel ? '#ffffff' : (r ? (isNext ? '#80deea' : (pc ? rCol : rCol + 'aa')) : 'rgba(255,255,255,0.18)'));
+            const bg     = isGrab ? 'rgba(255, 213, 79, 0.20)' : (isSel ? 'rgba(255,255,255,0.14)' : (r ? (pc ? rCol + '28' : rCol + '1c') : 'rgba(255,255,255,0.02)'));
+            const kindBadge = isGrab
+              ? '<span style="color:#ffd54f;">✋ GRAB</span>'
+              : (isNext
+                  ? '<span style="color:#80deea;">● NEXT</span>'
+                  : (pc ? '<span style="color:' + pc.col + ';">◆ POWER</span>' : (r ? (r.kind === 'linker' ? 'LINKER' : (r.kind === 'mod' ? '+MOD' : 'SPELL')) : ((isRmbRow ? 'R' : 'L') + (k + 1)))));
+
+            rHtml += '<div style="flex:1;min-width:0;padding:5px 4px;border-radius:8px;border:' + (r || isSel || isGrab ? '1.5px solid ' : '1.5px dashed ') + bdr + ';background:' + bg + ';text-align:center;transform:' + (isGrab ? 'translateY(-2px)' : 'none') + ';box-shadow:' + (isSel ? ('0 0 11px ' + rCol + '66') : (pc ? ('0 0 9px ' + rCol + '33') : (isNext ? '0 0 8px rgba(128,222,234,0.28)' : 'none'))) + ';">'
+                  +    '<div style="font-size:6.8px;font-weight:800;color:#8c99b0;letter-spacing:0.35px;">' + kindBadge + '</div>'
+                  +    '<div style="font-size:10.5px;font-weight:800;color:' + (r ? rCol : '#556075') + ';margin-top:1.5px;">' + (pc ? ('&#9670; ' + pc.short) : (r ? r.short : '○')) + '</div>'
+                  +    '<div style="font-size:7.2px;color:' + (r ? '#cfd6e6' : '#556075') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;">' + (r ? r.name : (isRmbRow ? 'Drop ◆ / Rune' : 'Empty')) + '</div>'
+                  +  '</div>';
+
+            if (k < capCnt - 1) {
+              const nextRid = modsArr[k + 1] | 0;
+              let connTxt = '→';
+              let connCol = 'rgba(255,255,255,0.22)';
+              if (rid === 21 || nextRid === 21) {
+                connTxt = '💥▶';
+                connCol = '#ff6e40';
+              } else if (rid === 22 || nextRid === 22) {
+                connTxt = '⏱▶';
+                connCol = '#ffd740';
+              } else if (rid === 24 || nextRid === 24) {
+                connTxt = '💀▶';
+                connCol = '#ff9100';
+              } else if (rid === 23) {
+                connTxt = '⇉';
+                connCol = '#80d8ff';
+              } else if (rid === 25) {
+                connTxt = '🔁▸';
+                connCol = '#84ffff';
+              } else if (r && r.kind === 'mod') {
+                connTxt = '+▸';
+                connCol = r.col;
+              }
+              rHtml += '<div style="font-size:8.8px;font-weight:800;color:' + connCol + ';flex-shrink:0;user-select:none;">' + connTxt + '</div>';
+            }
+          }
+          rHtml += '</div></div>';
+          return rHtml;
+        }
+
+        // 2. Render Active Wand Dual Circuit Strips (LMB Row + RMB Row)
+        const stripEl = document.getElementById('wb-active-strip');
+        if (stripEl) {
+          const lNext = findActiveStripExecSocket(actCh.lmods, lcap, actCh.lexec);
+          const rNext = findActiveStripExecSocket(actCh.rmods, rcap, actCh.rexec);
+          let sHtml = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">'
+                    +   '<span style="font-size:8.8px;font-weight:800;color:' + actArch.col + ';text-transform:uppercase;letter-spacing:0.6px;">Editing [' + (tgt + 1) + '] ' + actArch.name + ' — Dual Left-to-Right Circuit Strips</span>'
+                    +   '<span style="font-size:7.8px;color:#9aa4b8;">◆ Power Spells fit in RMB Strip (ahead of 💥/⏱/💀) • Zero Rune Loss</span>'
+                    + '</div>';
+          sHtml += renderCircuitRowHTML(false, actCh.lmods, lcap, 0, lNext);
+          sHtml += renderCircuitRowHTML(true,  actCh.rmods, rcap, lcap, rNext);
+          stripEl.innerHTML = sHtml;
+        }
+
+        // 3. Render 30-Pocket Satchel Bag (6x5 Grid, Slots `wandSlots .. wandSlots + 29`)
         const gemRowEl = document.getElementById('wb-gem-row');
         if (gemRowEl) {
           let gHtml = '';
-          for (let i = 0; i < 5; i++) {
-            const gid   = wcs.gems[i];
-            const isSel = (cur === i);
-            const item  = (gid >= 101) ? POWER_CORES[gid] : RUNE_DEFS[gid];
-            const isCore = (gid >= 101);
-            const col   = item ? item.col : '#5c667a';
-            const bdr   = isSel ? '#ffffff' : (item ? col + '88' : 'rgba(255,255,255,0.12)');
-            const bg    = isSel ? 'rgba(255,255,255,0.12)' : (item ? col + '16' : 'rgba(255,255,255,0.02)');
-            gHtml += '<div style="padding:6px 5px;border-radius:8px;border:1.5px solid ' + bdr + ';background:' + bg + ';text-align:center;box-shadow:' + (isSel ? ('0 0 10px ' + col + '55') : 'none') + ';">'
-                  +    '<div style="font-size:7.5px;color:#8c99b0;margin-bottom:2px;">' + (isCore ? '&#9670; CORE' : (item ? '● RUNE' : 'POCKET ' + (i + 1))) + '</div>'
-                  +    '<div style="font-size:10px;font-weight:800;color:' + (item ? col : '#606b80') + ';">' + (item ? item.short : 'Empty') + '</div>'
-                  +    '<div style="font-size:7.5px;color:#b8c2d6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;">' + (item ? item.name : '—') + '</div>'
+          for (let i = 0; i < 30; i++) {
+            const sl     = wandSlots + i;
+            const gid    = wcs.gems[i] | 0;
+            const isSel  = (cur === sl);
+            const isGrab = (grab === sl);
+            const item   = lookupWorkbenchItem(gid);
+            const col    = item ? item.col : '#5c667a';
+            const bdr    = isGrab ? '#ffd54f' : (isSel ? '#ffffff' : (item ? col + '88' : 'rgba(255,255,255,0.11)'));
+            const bg     = isGrab ? 'rgba(255, 213, 79, 0.20)' : (isSel ? 'rgba(255,255,255,0.13)' : (item ? col + '16' : 'rgba(255,255,255,0.02)'));
+            const tagLbl = isGrab
+              ? '<span style="color:#ffd54f;">✋ GRABBED</span>'
+              : (item
+                  ? (item.kind === 'core' ? '&#9670; POWER' : (item.kind === 'linker' ? '⚡ LINK' : (item.kind === 'mod' ? '+ MOD' : '● SPELL')))
+                  : ('BAG ' + (i + 1)));
+
+            gHtml += '<div style="padding:3px 3.5px;border-radius:6px;border:1.5px solid ' + bdr + ';background:' + bg + ';text-align:center;transform:' + (isGrab ? 'translateY(-2px)' : 'none') + ';box-shadow:' + (isSel ? ('0 0 9px ' + col + '55') : 'none') + ';">'
+                  +    '<div style="font-size:6.2px;font-weight:700;color:#8c99b0;line-height:1.1;">' + tagLbl + '</div>'
+                  +    '<div style="font-size:9px;font-weight:800;color:' + (item ? col : '#556075') + ';line-height:1.15;margin-top:0.5px;">' + (item ? (item.kind === 'core' ? ('&#9670;' + item.short) : item.short) : 'Empty') + '</div>'
+                  +    '<div style="font-size:6.5px;color:' + (item ? '#b8c2d6' : '#556075') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.1;">' + (item ? item.name : '—') + '</div>'
                   +  '</div>';
           }
-          const bSel  = (cur === 5);
-          const bCh   = wcs.chassis[3];
-          const bHas  = wcs.hasBackup;
-          const bCol  = bHas ? (bCh.isGraphene ? '#cfd8dc' : '#ffd54f') : '#5c667a';
-          const bBdr  = bSel ? '#ffffff' : (bHas ? bCol + '99' : 'rgba(255,255,255,0.12)');
-          const bBg   = bSel ? 'rgba(255,255,255,0.13)' : (bHas ? 'rgba(207,216,220,0.10)' : 'rgba(255,255,255,0.02)');
-          const bLbl  = bHas ? (bCh.isGraphene ? 'Graphene' : 'Std Spare') : 'Locked';
-          gHtml += '<div style="padding:6px 5px;border-radius:8px;border:1.5px solid ' + bBdr + ';background:' + bBg + ';text-align:center;">'
-                +    '<div style="font-size:7.5px;color:#ffd54f;font-weight:700;margin-bottom:2px;">[4] BACKUP</div>'
-                +    '<div style="font-size:9.5px;font-weight:800;color:' + bCol + ';">' + bLbl + '</div>'
-                +    '<div style="font-size:7.5px;color:#9aa4b8;margin-top:1px;">' + (bHas ? (bCh.isGraphene ? '150m • 1.5x Spd' : 'Swap Chassis') : 'Press [K]') + '</div>'
-                +  '</div>';
           gemRowEl.innerHTML = gHtml;
         }
 
-        // 3. Selected Item Description & Weld Prompt
-        const descEl    = document.getElementById('wb-sel-desc');
-        const weldLblEl = document.getElementById('wb-weld-lbl');
-        const tgtName   = WAND_RACK[tgt].phase + ' Wand';
-        if (descEl && weldLblEl) {
-          if (cur === 5) {
-            if (wcs.hasBackup) {
-              const bCh = wcs.chassis[3];
-              descEl.innerText    = bCh.isGraphene
-                ? ('Graphene Prism Chassis: 150 Mana, 1.5x Bolt Speed, +1 Bounce • Swap onto [' + (tgt + 1) + '] ' + tgtName)
-                : ('Spare Standard Chassis • Swap sockets & stats with [' + (tgt + 1) + '] ' + tgtName);
-              weldLblEl.innerText = 'HOLD [E] SWAP';
-            } else {
-              descEl.innerText    = 'Backup Chassis Slot Empty • Press [K] to claim Graphene Prism Backup!';
-              weldLblEl.innerText = 'EMPTY SLOT';
+        // 4. Footer Item Details & Contextual Dual-Strip Prompt
+        const descEl = document.getElementById('wb-sel-desc');
+        const actEl  = document.getElementById('wb-action-pill');
+        if (descEl && actEl) {
+          const curVal  = readSlotVal(cur);
+          const curItem = lookupWorkbenchItem(curVal);
+          if (grab >= 0) {
+            const gVal  = readSlotVal(grab);
+            const gItem = lookupWorkbenchItem(gVal);
+            if (gItem) {
+              const chk = (grab === cur) ? { ok: true, autoRmb: false } : checkSwapValidity(grab, cur);
+              const dstLbl = (cur < lcap)
+                ? ('LMB Slot ' + (cur + 1))
+                : ((cur < wandSlots) ? ('RMB Slot ' + (cur - lcap + 1)) : ('Bag Pocket ' + (cur - wandSlots + 1)));
+              if (!chk.ok) {
+                descEl.innerText        = '⚠ ' + chk.reason;
+                actEl.innerText         = 'BLOCKED';
+                actEl.style.borderColor = '#ff5252';
+                actEl.style.color       = '#ff8a80';
+                actEl.style.background  = 'rgba(255, 82, 82, 0.22)';
+              } else {
+                const routeNote = chk.autoRmb ? ' (Auto-equips ◆ into RMB Strip!)' : '';
+                descEl.innerText        = '✋ Holding ' + gItem.name + ' (' + gItem.stats + ') → ' + dstLbl + routeNote;
+                actEl.innerText         = (grab === cur) ? '[E] CANCEL' : (chk.autoRmb ? '[E] EQUIP ◆ RMB' : (curItem ? ('[E] SWAP ' + curItem.short) : '[E] PLACE HERE'));
+                actEl.style.borderColor = '#ffd54f';
+                actEl.style.color       = '#fff59d';
+                actEl.style.background  = 'rgba(255, 213, 79, 0.24)';
+              }
             }
+          } else if (curItem) {
+            descEl.innerText        = curItem.name + ' [' + curItem.stats + '] • ' + curItem.desc;
+            actEl.innerText         = (cur < wandSlots) ? '[E] GRAB • [⇧E/⌫] UNEQUIP' : '[E] GRAB • [⇧E] EQUIP';
+            actEl.style.borderColor = curItem.col;
+            actEl.style.color       = '#ffffff';
+            actEl.style.background  = curItem.col + '33';
           } else {
-            const gid  = wcs.gems[cur];
-            const item = (gid >= 101) ? POWER_CORES[gid] : RUNE_DEFS[gid];
-            const tCh  = wcs.chassis[tgt];
-            if (!item) {
-              descEl.innerText    = 'Empty Gem Pocket • Slay Ecomancers or press [K] for Runes & Power Cores!';
-              weldLblEl.innerText = 'EMPTY POCKET';
-            } else if (gid >= 101) {
-              const canWeld = (tCh.pcore === 0);
-              descEl.innerText    = item.name + ' → [' + (tgt + 1) + '] ' + tgtName + ' • ' + item.desc;
-              weldLblEl.innerText = canWeld ? 'HOLD [E] WELD' : 'CORE SEALED!';
-            } else {
-              const hasFree = (tCh.mods[0] === 0 || tCh.mods[1] === 0 || tCh.mods[2] === 0);
-              descEl.innerText    = item.name + ' → [' + (tgt + 1) + '] ' + tgtName + ' • ' + item.desc;
-              weldLblEl.innerText = hasFree ? 'HOLD [E] WELD' : '3/3 FULL!';
-            }
+            const emptyHint = (cur < lcap)
+              ? ('Empty LMB Socket ' + (cur + 1) + '/' + lcap + ' • Drop Basic Spells, Linkers (💥/⏱/💀/2x/🔁), or Modifiers!')
+              : ((cur < wandSlots)
+                  ? ('Empty [4] RMB Socket ' + (cur - lcap + 1) + '/' + rcap + ' • Drop ◆ Rail-Lance / ◆ Gyre OR custom RMB Spells + Runes!')
+                  : 'Empty Satchel Pocket • Press [K] for all 18 Runes & 3 Wands, or slay Ecomancers!');
+            descEl.innerText        = emptyHint;
+            actEl.innerText         = '←→↑↓ NAVIGATE';
+            actEl.style.borderColor = 'rgba(255,255,255,0.22)';
+            actEl.style.color       = '#9aa4b8';
+            actEl.style.background  = 'rgba(255,255,255,0.06)';
           }
         }
       };
@@ -2237,10 +2376,12 @@ canvas.emscripten { border: 0px none; background-color: black; }
         }
       });
       window.addEventListener('keydown', (e) => {
-        if (document.pointerLockElement === canvasElement && (e.key === 'Shift' || e.key === 'Alt')) {
+        if ((document.pointerLockElement === canvasElement || window.satchel_open) &&
+            (e.key === 'Shift' || e.key === 'Alt' || e.key === 'Tab' || e.key === 'Backspace' ||
+             e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
           e.preventDefault();
         }
-        if (!e.repeat && (e.code === 'KeyX' || e.key === 'x' || e.key === 'X')) {
+        if (!e.repeat && !window.satchel_open && (e.code === 'KeyX' || e.key === 'x' || e.key === 'X')) {
           if (window.Module && Module._queue_vessel_dump) {
             Module._queue_vessel_dump((e.shiftKey || e.altKey) ? 2 : 1);
           }

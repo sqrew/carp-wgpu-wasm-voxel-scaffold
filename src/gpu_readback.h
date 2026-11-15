@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdbool.h>
 
-#define RAYCAST_READBACK_FLOATS 416
+#define RAYCAST_READBACK_FLOATS 424
 #define RAYCAST_READBACK_BYTES (RAYCAST_READBACK_FLOATS * sizeof(float))
 
 static float latest_hit_pos[RAYCAST_READBACK_FLOATS] = {0.0f};
@@ -47,6 +47,16 @@ static float gpu_readback_get_succ_x() { return latest_hit_pos[4]; }
 static float gpu_readback_get_succ_y() { return latest_hit_pos[5]; }
 static float gpu_readback_get_succ_z() { return latest_hit_pos[6]; }
 static float gpu_readback_get_succ_w() { return latest_hit_pos[7]; }
+
+static float gpu_readback_get_succ0_x() { return latest_hit_pos[416]; }
+static float gpu_readback_get_succ0_y() { return latest_hit_pos[417]; }
+static float gpu_readback_get_succ0_z() { return latest_hit_pos[418]; }
+static float gpu_readback_get_succ0_w() { return latest_hit_pos[419]; }
+
+static float gpu_readback_get_succ1_x() { return latest_hit_pos[420]; }
+static float gpu_readback_get_succ1_y() { return latest_hit_pos[421]; }
+static float gpu_readback_get_succ1_z() { return latest_hit_pos[422]; }
+static float gpu_readback_get_succ1_w() { return latest_hit_pos[423]; }
 
 static float gpu_readback_get_jet_x() { return latest_hit_pos[8]; }
 static float gpu_readback_get_jet_y() { return latest_hit_pos[9]; }

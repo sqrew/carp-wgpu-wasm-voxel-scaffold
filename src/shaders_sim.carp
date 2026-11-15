@@ -3400,7 +3400,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let wp0 = u.wake_p0[wi];
         let wp1 = u.wake_p1[wi];
         let wv  = u.wake_vel[wi];
-        let rad = wp0.w;
+        let raw_rad = wp0.w;
+        let is_vortex = raw_rad < -0.05;
+        let rad = abs(raw_rad);
         if (rad > 0.05) {
             let seg = wp1.xyz - wp0.xyz;
             let seg_len2 = dot(seg, seg);
@@ -3411,21 +3413,36 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             if (d < rad) {
                 let u_fall = 1.0 - d / rad;
                 let core_fall = u_fall * u_fall;
-                let axis_dir = select(vec3<f32>(0.0), seg * inverseSqrt(max(seg_len2, 0.0001)), seg_len2 > 0.0001);
+                let axis_dir = select(vec3<f32>(0.0, 1.0, 0.0), seg * inverseSqrt(max(seg_len2, 0.0001)), seg_len2 > 0.0001);
                 let perp = rel - axis_dir * dot(rel, axis_dir);
                 let perp_len = length(perp);
                 let sph_dir = select(vec3<f32>(0.0, 1.0, 0.0), rel / max(d, 0.001), d > 0.001);
                 let rad_dir = select(sph_dir, perp / max(perp_len, 0.001), perp_len > 0.001 && seg_len2 > 0.02);
                 let sheath = smoothstep(0.0, 0.38, u_fall);
-                let jet_v = rad_dir * (wp1.w * sheath) + wv.xyz * core_fall;
-                let jet_p = wv.w * u_fall;
-                if (abs(wv.w) > 1.65 || abs(wp1.w) > 2.10) {
-                    next_v += jet_v;
-                    next_p += jet_p;
+                if (is_vortex) {
+                    let r_eye = mix(1.15, 3.25, t_seg);
+                    let tang_dir = cross(axis_dir, rad_dir);
+                    let rankine = clamp(perp_len / max(r_eye, 0.35), 0.0, 1.0) * smoothstep(0.0, 0.32, u_fall);
+                    let in_band = smoothstep(0.22, 0.90, perp_len / max(r_eye, 0.35));
+                    let crown_out = smoothstep(0.76, 1.0, t_seg);
+                    let rad_flow = mix(wp1.w * in_band * sheath, 2.25 * sheath, crown_out);
+                    let swirl_spd = (6.8 + abs(wp1.w) * 0.85) * rankine;
+                    let vort_v = tang_dir * swirl_spd + rad_dir * rad_flow + wv.xyz * ((0.42 + 0.68 * rankine) * u_fall);
+                    let vort_p = wv.w * u_fall;
+                    let k_vort = clamp(0.48 * u_fall + 0.14, 0.0, 0.62);
+                    next_v = mix(next_v, vort_v, k_vort);
+                    next_p = mix(next_p, vort_p, 0.34 * u_fall);
                 } else {
-                    let k_jet = clamp(0.28 * u_fall + 0.08, 0.0, 0.42);
-                    next_v = mix(next_v, jet_v, k_jet);
-                    next_p = mix(next_p, jet_p, 0.26 * u_fall);
+                    let jet_v = rad_dir * (wp1.w * sheath) + wv.xyz * core_fall;
+                    let jet_p = wv.w * u_fall;
+                    if (abs(wv.w) > 1.65 || abs(wp1.w) > 2.10) {
+                        next_v += jet_v;
+                        next_p += jet_p;
+                    } else {
+                        let k_jet = clamp(0.28 * u_fall + 0.08, 0.0, 0.42);
+                        next_v = mix(next_v, jet_v, k_jet);
+                        next_p = mix(next_p, jet_p, 0.26 * u_fall);
+                    }
                 }
             }
         }

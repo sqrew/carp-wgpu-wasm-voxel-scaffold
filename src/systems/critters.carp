@@ -329,20 +329,13 @@
           fc @(EngineState.frame-count state)
           fdt (Double.to-float dt)
           raw-rb (gpu-readback-get-raw)
-          ;; Direct Rig spray check so squirting [1]/[2]/[3] at an Amoeba feeds/reacts immediately!
-          rslot @(RigBelt.slot rig)
-          lmb? (InputManager.action-digital? input "click-left")
+          ;; Direct Rig spray check so spitting RMB from active Tank [2]/[3] at an Amoeba feeds/reacts immediately!
+          rmb? (InputManager.action-digital? input "click-right")
           jet-x (gpu-readback-get-jet-x)
           jet-y (gpu-readback-get-jet-y)
           jet-z (gpu-readback-get-jet-z)
           jet-w (gpu-readback-get-jet-w)
-          spray-mat (if (not (and lmb? (and (< rslot 3) (> jet-w 0.5f))))
-                      0.0f
-                      (if (= rslot 0)
-                        (if (> @(RigBelt.sack-fill rig) 0.004f) @(RigBelt.sack-mat rig) 0.0f)
-                        (if (= rslot 1)
-                          (if (> @(RigBelt.flask-fill rig) 0.004f) @(RigBelt.flask-mat rig) 0.0f)
-                          (if (> @(RigBelt.bellows-fill rig) 0.004f) @(RigBelt.bellows-mat rig) 0.0f))))
+          spray-mat (RigBelt.active-spit-mat rig rmb? jet-w)
           p-ent (ECS.Entity.init (Handle.init (Uint64.from-long (the Long (Long.from-int @(EngineState.player-ent-id state)))) (Uint32.from-long 1l)))
           flying? @(Player.flying player)
           a-alive (CritterBank.alive cbank)

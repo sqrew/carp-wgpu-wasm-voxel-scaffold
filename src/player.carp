@@ -8,6 +8,9 @@
     (register LEFT_SHIFT Int "GLFW_KEY_LEFT_SHIFT")
     (register RIGHT_SHIFT Int "GLFW_KEY_RIGHT_SHIFT")
     (register GRAVE_ACCENT Int "GLFW_KEY_GRAVE_ACCENT")
+    (register SATCHEL_UP Int "GLFW_KEY_UP")
+    (register SATCHEL_DOWN Int "GLFW_KEY_DOWN")
+    (register SATCHEL_BACKSPACE Int "GLFW_KEY_BACKSPACE")
   )
 )
 
