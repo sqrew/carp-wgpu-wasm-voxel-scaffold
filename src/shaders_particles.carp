@@ -713,6 +713,35 @@ struct BoltVertexOut {
         return out;
     }
 
+    // Style 10 & 11: Supernova Solar Star (10) & Gargantua Black Hole Singularity (11)!
+    if (style == 10u || style == 11u) {
+        let lxy10 = offset * 2.52;
+        let wpos10 = b.pos_rad.xyz + ax1 * (lxy10.x * rad) + ax2 * (lxy10.y * rad);
+        let clip10 = u.view_proj * vec4<f32>(wpos10, 1.0);
+        out.clip_position = clip10;
+        out.local_xy = lxy10;
+        out.stretch_time = vec3<f32>(1.0, u.cam_right.w, rad);
+        out.col_glow = b.col_glow;
+        out.style = style;
+        return out;
+    }
+
+    // Style 9: Ophanim Gyro-Mill — two massive interlocking +/-45 deg counter-rotating saw-wheels around an all-seeing shear eye!
+    if (style == 9u) {
+        let spd9 = length(b.vel_style.xyz);
+        let throw9 = clamp((spd9 - 4.0) / 20.0, 0.0, 1.0);
+        let open_scale = mix(3.95, 1.95, throw9);
+        let lxy9 = offset * 2.48;
+        let wpos9 = b.pos_rad.xyz + ax1 * (lxy9.x * rad * open_scale * 0.48) + ax2 * (lxy9.y * rad * open_scale * 0.48);
+        let clip9 = u.view_proj * vec4<f32>(wpos9, 1.0);
+        out.clip_position = clip9;
+        out.local_xy = lxy9;
+        out.stretch_time = vec3<f32>(1.0, u.cam_right.w, spd9);
+        out.col_glow = b.col_glow;
+        out.style = style;
+        return out;
+    }
+
     if (scr_spd > 0.45 && (style == 1u || style == 5u || scr_spd > 68.0)) {
         let dir2 = vec2<f32>(vx_scr, vy_scr) / scr_spd;
         ax1 = u.cam_right.xyz * dir2.x + u.cam_up.xyz * dir2.y;
@@ -744,12 +773,83 @@ struct BoltVertexOut {
     let cx = clamp(in.local_xy.x, -half_seg, half_seg);
     let q = vec2<f32>(in.local_xy.x - cx, in.local_xy.y);
     let r = length(q);
-    let max_r = select(1.58, 2.55, in.style == 1u || in.style == 7u || in.style == 8u);
+    let max_r = select(1.58, 2.55, in.style == 1u || in.style >= 7u);
     if (r > max_r) { discard; }
 
     let base_col = max(in.col_glow.rgb, vec3<f32>(0.02));
     let glow_amt = in.col_glow.w;
     let t = in.stretch_time.y;
+
+    // Style 10: Supernova Solar Star — roiling convective photosphere + whipping prominence loops + blue-white core-collapse flash!
+    if (in.style == 10u) {
+        let ang = atan2(q.y, q.x);
+        let pinch = clamp((0.88 - in.stretch_time.z) * 2.2, 0.0, 1.0);
+        let cell1 = sin(q.x * 7.2 + t * 4.8) * cos(q.y * 7.2 - t * 4.3);
+        let cell2 = sin((q.x * 0.8 - q.y * 0.6) * 12.5 - t * 8.2) * cos((q.x * 0.6 + q.y * 0.8) * 11.5 + t * 7.4);
+        let gran = 0.55 + 0.30 * cell1 + 0.22 * cell2;
+        let sphere_mask = smoothstep(1.06, 0.86, r);
+        let limb = exp(-pow((r - 0.95) * 7.2, 2.0));
+        let prom_wave = sin(ang * 7.0 + t * 5.6 + sin(r * 4.8 - t * 9.5) * 1.4);
+        let prom = pow(max(0.0, prom_wave), 3.0) * exp(-max(0.0, r - 0.88) * 2.15) * smoothstep(0.55, 0.96, r);
+        let rays = (0.55 + 0.45 * sin(ang * 13.0 - t * 3.8)) * exp(-max(0.0, r - 0.85) * 1.65);
+        let alpha = clamp(sphere_mask * 0.97 + limb * 0.65 + prom * 0.78 + rays * 0.32, 0.0, 0.99);
+        if (alpha < 0.012) { discard; }
+        let sun_base = mix(base_col, vec3<f32>(1.0, 0.66, 0.16), 0.42);
+        let pinch_col = mix(sun_base, vec3<f32>(0.68, 0.90, 1.0), pinch * 0.85);
+        let surf_hot = clamp(gran * 0.75 + (1.0 - min(r, 1.0)) * 0.62 + limb * 0.55 + pinch * 0.75, 0.0, 1.0);
+        let surf_rgb = mix(pinch_col * 0.82, vec3<f32>(1.0, 0.99, 0.94), surf_hot);
+        let corona = pinch_col * (limb * 1.65 + prom * 2.10 + rays * 0.95 + exp(-r * 1.15) * (0.72 + pinch * 1.25));
+        return vec4<f32>(surf_rgb * sphere_mask + corona, alpha);
+    }
+
+    // Style 11: Gargantua Black Hole (`Invert` + `Supernova`) — opaque pitch-black Event Horizon + Einstein ring + Doppler accretion disk!
+    if (in.style == 11u) {
+        let horizon = smoothstep(0.82, 0.72, r);
+        let einstein = exp(-pow((r - 0.80) * 14.5, 2.0));
+        let dq = vec2<f32>(q.x * 0.948 - q.y * 0.318, q.x * 0.318 + q.y * 0.948);
+        let r_disk = length(vec2<f32>(dq.x, dq.y * 3.65));
+        let disk_ang = atan2(dq.y * 3.65, dq.x);
+        let swirl = 0.62 + 0.38 * sin(disk_ang * 5.0 - t * 18.0 + r_disk * 7.5);
+        let disk_band = exp(-pow((r_disk - 1.38) * 2.55, 2.0)) * swirl * smoothstep(0.68, 0.86, r);
+        let r_lens = length(vec2<f32>(dq.x * 0.96, abs(dq.y) * 1.22));
+        let lens_arch = exp(-pow((r_lens - 0.94) * 5.2, 2.0)) * smoothstep(0.74, 0.84, r) * 0.82;
+        let doppler = 1.0 + 0.52 * clamp(dq.x * 0.85, -1.0, 1.0);
+        let glow_ring = (einstein * 1.55 + disk_band * 1.45 + lens_arch * 1.15) * doppler;
+        let void_alpha = clamp(horizon * 0.994 + clamp(glow_ring * 0.52, 0.0, 0.85), 0.0, 0.996);
+        if (void_alpha < 0.012 && glow_ring < 0.015) { discard; }
+        let bh_tint = mix(base_col, vec3<f32>(0.78, 0.42, 1.0), 0.40);
+        let hot_disk = mix(bh_tint, vec3<f32>(1.0, 0.97, 0.92), clamp(einstein * 0.88 + disk_band * 0.55 * doppler, 0.0, 1.0));
+        let rgb_out = hot_disk * glow_ring * (1.0 - horizon * 0.97);
+        return vec4<f32>(rgb_out, void_alpha);
+    }
+
+    // Style 9: Ophanim Gyro-Mill — two +/-45 deg counter-rotating 20-tooth diamond saw-wheels + inner gimbal + blazing shear eye!
+    if (in.style == 9u) {
+        let wob1 = 1.92 + 0.48 * sin(t * 5.8);
+        let wob2 = 1.92 + 0.48 * cos(t * 5.8);
+        let p1 = vec2<f32>((q.x + q.y) * 0.7071068, (-q.x + q.y) * 0.7071068 * wob1);
+        let p2 = vec2<f32>((q.x - q.y) * 0.7071068, (q.x + q.y) * 0.7071068 * wob2);
+        let r1 = length(p1);
+        let r2 = length(p2);
+        let teeth1 = 0.50 + 0.50 * sin(atan2(p1.y, p1.x) * 20.0 + t * 54.0);
+        let teeth2 = 0.50 + 0.50 * sin(atan2(p2.y, p2.x) * 20.0 - t * 54.0);
+        let wheel1 = exp(-pow((r1 - 1.66) * 4.4, 2.0)) * (0.76 + 0.72 * teeth1);
+        let wheel2 = exp(-pow((r2 - 1.66) * 4.4, 2.0)) * (0.76 + 0.72 * teeth2);
+        let gimbal = exp(-pow((r - 0.94) * 6.5, 2.0)) * (0.62 + 0.48 * sin(atan2(q.y, q.x) * 14.0 - t * 42.0));
+        let x_slash = (exp(-pow((q.x - q.y) * 5.4, 2.0)) + exp(-pow((q.x + q.y) * 5.4, 2.0)))
+                    * exp(-r * 0.92) * (0.65 + 0.45 * sin(t * 62.0 - r * 9.5));
+        let iris = exp(-pow((r - 0.42) * 6.8, 2.0));
+        let eye_core = exp(-r * r * 7.8);
+        let slit = smoothstep(0.26, 0.05, length(vec2<f32>(q.x * 2.7, q.y * 0.90)));
+        let rings = wheel1 + wheel2 + gimbal * 0.72 + x_slash * 0.78;
+        let alpha = clamp(rings * 0.92 + iris * 0.95 + eye_core * 0.92, 0.0, 0.98);
+        if (alpha < 0.015) { discard; }
+        let gold_tint = mix(base_col, vec3<f32>(1.0, 0.92, 0.55), 0.35);
+        let hot = mix(gold_tint, vec3<f32>(1.0, 0.995, 0.97), clamp(rings * 0.68 + iris * 0.90 + eye_core * 0.72, 0.0, 1.0));
+        let eye_rgb = mix(hot, base_col * 0.06, slit * 0.88);
+        let corona = gold_tint * (rings * 1.75 + iris * 1.75 + exp(-r * 1.25) * 0.65) * (1.0 - 0.62 * slit);
+        return vec4<f32>(eye_rgb * alpha + corona, alpha);
+    }
 
     // Style 8: Phase-Wave Crest — foaming parabolic bow-wave crescent + turbulent trailing surf ribs!
     if (in.style == 8u) {

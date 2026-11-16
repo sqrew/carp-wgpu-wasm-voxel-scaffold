@@ -232,4 +232,70 @@ The seeded biome stratigraphy (`Surface Meadow -> Mossy Karst -> Crystal Vaults 
   - [ ] **7.2.** **The 4 Exotic / Systemic Benders (`Electromancer`, `Biomancer`, `Photomancer`, `Alchemancer`)**: Lorentz railgun `Electromancer (V, M)`, pheromone/flora `Biomancer (field.w)`, Darklight/Schlieren-mirage `Photomancer`, and in-place transmutation `Alchemancer`.
   - [ ] **7.3.** **Dualmancer (`Mancer(archetype_a, archetype_b)`) & SS13 Shadowling / Nightmare**: Split-robe `2+2` halo combo warlock + Darklight apex stalker (`light < 0.18` Shadow-Jaunt & Light-Snuffer).
 
+---
+
+## 9. Universal Rune-Strip Wand Grimoire — Shipped Roster & Idea Backlog
+
+### 9.1. Shipped Wand System (`src/systems/wands.carp`, 37 Items Live)
+- **Dual-Strip Universal Chassis (`0=Conduit 4L/3R`, `1=Stinger 5L/2R`, `2=Artillery 3L/5R`) + Twin Lock-on-Fill Tanks (`[1]` & `[2]`) + `8,192`-Bolt SoA Pool**.
+- **Shipped LMB Spell Runes (`1..6`)**: `1=Sparkbolt`, `2=Bullet`, `3=Minimortar`, `4=Luminous Drill` (`-0.18s`), `5=Buckshot`, `6=Spitter`.
+- **Shipped Linker Runes (`21..25`)**: `21=Impact Trigger`, `22=Airburst Timer`, `23=2x Twin`, `24=Expire Trigger`, `25=Echo Burst`.
+- **Shipped Modifier Runes (`31..48`)**: `31=Ricochet`, `32=Homing`, `33=Pierce`, `34=Accelerate`, `35=Heavy`, `36=Trail`, `37=Hover`, `38=Boomerang`, `39=Blink`, `40=Glitch`, `41=Explosive`, `42=Invert`, `43=Impart`, `44=Pulse`, `45=Surge`, `46=Helix`, `47=Sine`, `48=Sticky` (`Sticky <-> Ricochet` Flubber/Glue swap with `Invert`).
+- **Shipped RMB `◆` Power Spells (`101..108`)**:
+  - `101 = ◆ Rail-Lance` (Hypersonic rock-boring sabot + mid-air Rail-Jump)
+  - `102 = ◆ Nova` (100-orb 3D Fibonacci sphere / Bulwark shield)
+  - `103 = ◆ Bolt Gyre` (Spinning sub-bolt sprinkler vortex)
+  - `104 = ◆ Maelstrom` (Category-5 physics hurricane + spell-bender; `+Invert` = Gravity Anvil)
+  - `105 = ◆ Starburst` (`0.44s` vacuum implosion -> 12-way reagent patooey + 8 heavy antiprism orbs)
+  - `106 = ◆ Phase-Wave` (7-crest 60-Hz zero-backwash plough morphing into Seismic Wave / Tidal Breaker / Plume; `+Invert` = Undertow)
+  - `107 = ◆ Ophanim` (`±45°` counter-rotating 20-tooth concrete-saw blender + Dual-Tank emulsifier + Boulder & Mancer-Orb Cuisinart; `+Invert` = Centrifuge)
+  - `108 = ◆ Supernova` (Swelling `1.1m -> 4.5m` photosphere star + `0.36s` core-collapse pinch + 64-orb shock-shell; `+Invert` = Gargantua Black Hole devouring boulders/orbs to grow)
+
+---
+
+### 9.2. Backlog: Simple / Bread-and-Butter LMB Spell Runes (`7..16`)
+Lightweight, low-mana LMB building blocks that feel humble solo yet go nuclear with Linkers, Tanks, and Modifiers:
+- **`7 = Bubble` (`3.5m • 0.08s`)**: Slow zero-G wobbling bubble (`4.5s` hang, `3` soft bounces). Area-denial reagent minefield; `Bubble + Expire + Mortar` = floating cluster mines; feeds into `Phase-Wave` / `Maelstrom`.
+- **`8 = Saw-Disc` (`9m • 0.19s`)**: Waist-level mini-chakram (`2` horizontal-locked bounces, `+1` pierce) that curves back toward your cast origin after `0.55s` (catching it refunds `3m` mana).
+- **`9 = Pebble / Clod` (`5m • 0.16s`)**: Heavy gravity-lobbed stone clod with high stun/poise damage that spawns a small **real physics boulder** on impact—lets you self-feed `Ophanim` & `Black Hole` on demand!
+- **`10 = Arc-Zap` (`5.5m • 0.12s`)**: Instantaneous `6.5m` jagged electric snap (`SHOCKING` tag). Zero-travel-time Trigger carrier that electrifies wet rooms & conductive gold veins and ignites gas safely.
+- **`11 = Caltrop` (`6m • 0.20s`)**: Tosses 3 floor spikes lasting `8s` that pop & stagger leaping Hoppers (`Caltrop + Impact Trigger + Buckshot` = proximity Claymore mines!).
+- **`12 = Mist Puff` (`4.5m • 0.10s`)**: Stationary `3m` alchemical vapor cloud (`3.2s` linger) that coats targets in Tank stains without knockback (`Mist + Homing + Pierce/Explosive` = *Noita* sentient death-cloud!).
+- **`13 = Grapple-Barb` (`7m • 0.22s`)**: Fast `58 m/s` tether dart that tugs hit enemies, Slimes, boulders, or gold `4m` toward you (yank foes straight into `Ophanim` / `Supernova`!).
+- **`14 = Torch-Glob / Flare` (`4m • 0.18s`)**: Sticky luminescent magnesium glob (`14s` wall/ceiling 3D GI light + igniter; `+Invert` = Darklight Ink-Glob that snuffs light!).
+- **`15 = Glint-Shard` (`8m • 0.20s`)**: Spawns beside your shoulder, hovers `0.22s` locking onto your crosshair, then snap-fires at `110 m/s` (*Vergil Summoned Swords / Glintblade Phalanx* with `2x`/`Echo`!).
+- **`16 = Popper` (`3m • -0.08s!`)**: Point-blank firecracker snap that shaves `-0.08s` cast delay off the strip and parry-deflects incoming Mancer Orbs!
+
+---
+
+### 9.3. Backlog: Simple Inline Linkers (`26..29`) & Modifier Runes (`49..58`)
+- **Linkers (`26..29`)**:
+  - **`26 = 3x Trifurcate` (`⁅3x⁆`)**: Casts next 3 spells simultaneously in a `12°` fan.
+  - **`27 = Split-Flank` (`⁅⇄⁆`)**: Fires Spell A forward and Spell B `180°` behind you (kiting & recoil counterweight).
+  - **`28 = Cast-on-Bounce` (`🏀BNC`)**: `[Carrier] [🏀] [Payload]` fires `[Payload]` on **every** wall ricochet instead of only on first hit!
+  - **`29 = Blood/Tank Siphon-Link` (`🧪SIP`)**: Next spell costs `0` Mana when Tank 1 has reagent, consuming `2x` Tank sip instead.
+- **Modifiers (`49..58`)**:
+  - **`49 = Feather / Zero-G`**: Strips gravity & drag (`Mortars`/`Pebbles` fly laser-straight); `+Invert` = `4x` Anvil Drop gravity.
+  - **`50 = Lumen` (`-0.02s` delay)**: Cheap speed-reducer that turns every bolt into a blazing 3D GI lantern (cures photochemical Amber & burns Shadowlings).
+  - **`51 = Magnet-Arc`**: Curves bolts toward Gold veins, Conductive ore, Boulders, & Mancer Orbs (vacuuming loose Gold nuggets along in the wake).
+  - **`52 = Orbit / Satellite`**: Bolts orbit around **you**—or around the **hit enemy** when placed after `[💥 Impact Trigger]` (`[Bullet] [💥] [Orbit] [Lumi-Drill]` = sticks orbiting laser-saws onto a foe!).
+  - **`53 = Arc-Line / Net`**: Stretches a live electric/reagent clothesline *between sibling multicast bolts* (`Buckshot` becomes a 5-strand electric net!).
+  - **`54 = Longshot`**: Damage ramps from `0.5x` point-blank up to `2.8x` beyond `12m`.
+  - **`55 = Mitosis / Split`**: Mid-flight (`0.22s`), each bolt divides in two at `±14°`.
+  - **`56 = Parry-Coat`**: Bolts intercept & knock-deflect incoming Ecomancer Orbs mid-air.
+  - **`57 = Phase-Ghost`**: Bolts pass through solid rock walls for their first `1.8m` of stone (wall-piercing assassination shots through pillars/floors; `+Invert` = bounces off *air-to-water/gas* phase boundaries!).
+
+---
+
+### 9.4. Backlog: World-Shaping RMB `◆` Power Spells (`109+`)
+- **`◆ Wormhole` (*1 Succ / 1 Blow SDF Portal Pair*)**: Cast 1 drops an inert Intake sphere; Cast 2 drops a directional White-Hole Nozzle—completing the circuit! Raymarched `ray_pos` portal lensing in `shaders_render.carp` + teleports GPU liquids/gases, boulders, enemies, players, and LMB spells from Mouth A -> Mouth B at Mach 2 (`+Sticky` = weld Mouth B onto an enemy as a walking lava hydrant; `+Invert` swaps Succ/Blow!).
+- **`◆ Geyser` (*Old Faithful Floor Volcano*)**: Plants a pressurized seismic vent in the floor/wall that erupts a roaring vertical column of Tank 1 + Tank 2 fluid/steam/boulders straight into the ceiling (`+Invert` = Whirlpool Drain sucking an entire flooded room dry!).
+- **`◆ Rain Storm` (*Cavern Thunderhead*)**: Rises to hug the cave ceiling and drifts downrange, pouring heavy sheets of Tank 1/2 rain (Acid rain, Lava rain, Healing/Water rain) punctuated by forked lightning strikes!
+- **`◆ Rod from God` (*Kinetic Orbital Bunker-Buster*)**: Punches a hypersonic white-hot tungsten rod **straight down through the cave ceiling** onto your target point—boring a vertical skylight shaft, shattering stressed pillars, and triggering a seismic floor shockwave!
+- **`◆ Kamehameha` (*Sweeping Obliteration Beam*)**: Brief charge-up hum -> unleashes a thick, continuous, camera-aimed plasma & Tank-reagent beam (`1.6s`) that carves molten trenches across cave walls and vaporizes everything in its corridor!
+- **`◆ Stasis Dome` (*`tau` Chrono-Bubble*)**: Uses `field_in` `tau` time-scale to freeze fluids, boulders, enemies, **and your own LMB bolts** inside a `10m` sphere for `3.5s` so you can stack 40 projectiles around a target before everything unfreezes on the same frame (`+Invert` = `2x` Hyper-Time Overclock!).
+- **`◆ Chakram` (*Smart-Chaining Vibranium Disc*)**: Waist-locked horizontal disc that **smart-banks `Target -> Next Target`** (`Orb -> Orb -> Hopper -> Mancer`, up to 8 chain hits) and curves back to your hand, refunding `50%` mana & cooldown on catch!
+- **`◆ Glacier Rampart` (*Spire-Wave*)**, **`◆ Hammer of Dawn` (*Walking Ceiling Laser*)**, **`◆ Tectonic Maw` (*Fissure Jaws that Snap Shut*)**, **`◆ Tunnel-Wyrm` (*12-Segment Rock-Swimming Graboid*)**, **`◆ Jacob's Ladder` (*Self-Linking Pylon Clothesline*)**.
+
+
 
