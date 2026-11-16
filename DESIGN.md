@@ -236,10 +236,10 @@ The seeded biome stratigraphy (`Surface Meadow -> Mossy Karst -> Crystal Vaults 
 
 ## 9. Universal Rune-Strip Wand Grimoire — Shipped Roster & Idea Backlog
 
-### 9.1. Shipped Wand System (`src/systems/wands.carp`, 37 Items Live)
+### 9.1. Shipped Wand System (`src/systems/wands.carp`, 40 Items Live)
 - **Dual-Strip Universal Chassis (`0=Conduit 4L/3R`, `1=Stinger 5L/2R`, `2=Artillery 3L/5R`) + Twin Lock-on-Fill Tanks (`[1]` & `[2]`) + `8,192`-Bolt SoA Pool**.
-- **Shipped LMB Spell Runes (`1..6`)**: `1=Sparkbolt`, `2=Bullet`, `3=Minimortar`, `4=Luminous Drill` (`-0.18s`), `5=Buckshot`, `6=Spitter`.
-- **Shipped Linker Runes (`21..25`)**: `21=Impact Trigger`, `22=Airburst Timer`, `23=2x Twin`, `24=Expire Trigger`, `25=Echo Burst`.
+- **Shipped LMB Spell Runes (`1..8`)**: `1=Sparkbolt`, `2=Bullet`, `3=Minimortar`, `4=Luminous Drill` (`-0.18s`), `5=Buckshot`, `6=Spitter`, `7=Caltrop Mine` (3-pellet proximity floor mines; `+Trigger` = Claymores; `+Invert` = Ceiling Mines), `8=Chakram` (waist-level razor ring with `+2` gyro wall bounces, creature cleave + smart target-banking, & return-catch `+5.5` Mana / `-0.10s` CD refund).
+- **Shipped Linker Runes (`21..26`)**: `21=Impact Trigger`, `22=Airburst Timer`, `23=2x Twin`, `24=Expire Trigger`, `25=Echo Burst`, `26=Cast-on-Bounce` (`🏀BNC`: unleashes Payload on every wall bounce & Chakram bank!).
 - **Shipped Modifier Runes (`31..48`)**: `31=Ricochet`, `32=Homing`, `33=Pierce`, `34=Accelerate`, `35=Heavy`, `36=Trail`, `37=Hover`, `38=Boomerang`, `39=Blink`, `40=Glitch`, `41=Explosive`, `42=Invert`, `43=Impart`, `44=Pulse`, `45=Surge`, `46=Helix`, `47=Sine`, `48=Sticky` (`Sticky <-> Ricochet` Flubber/Glue swap with `Invert`).
 - **Shipped RMB `◆` Power Spells (`101..108`)**:
   - `101 = ◆ Rail-Lance` (Hypersonic rock-boring sabot + mid-air Rail-Jump)
@@ -253,13 +253,11 @@ The seeded biome stratigraphy (`Surface Meadow -> Mossy Karst -> Crystal Vaults 
 
 ---
 
-### 9.2. Backlog: Simple / Bread-and-Butter LMB Spell Runes (`7..16`)
+### 9.2. Backlog: Simple / Bread-and-Butter LMB Spell Runes (`9..16`)
 Lightweight, low-mana LMB building blocks that feel humble solo yet go nuclear with Linkers, Tanks, and Modifiers:
-- **`7 = Bubble` (`3.5m • 0.08s`)**: Slow zero-G wobbling bubble (`4.5s` hang, `3` soft bounces). Area-denial reagent minefield; `Bubble + Expire + Mortar` = floating cluster mines; feeds into `Phase-Wave` / `Maelstrom`.
-- **`8 = Saw-Disc` (`9m • 0.19s`)**: Waist-level mini-chakram (`2` horizontal-locked bounces, `+1` pierce) that curves back toward your cast origin after `0.55s` (catching it refunds `3m` mana).
-- **`9 = Pebble / Clod` (`5m • 0.16s`)**: Heavy gravity-lobbed stone clod with high stun/poise damage that spawns a small **real physics boulder** on impact—lets you self-feed `Ophanim` & `Black Hole` on demand!
-- **`10 = Arc-Zap` (`5.5m • 0.12s`)**: Instantaneous `6.5m` jagged electric snap (`SHOCKING` tag). Zero-travel-time Trigger carrier that electrifies wet rooms & conductive gold veins and ignites gas safely.
-- **`11 = Caltrop` (`6m • 0.20s`)**: Tosses 3 floor spikes lasting `8s` that pop & stagger leaping Hoppers (`Caltrop + Impact Trigger + Buckshot` = proximity Claymore mines!).
+- **`9 = Bubble` (`3.5m • 0.08s`)**: Slow zero-G wobbling bubble (`4.5s` hang, `3` soft bounces). Area-denial reagent minefield; `Bubble + Expire + Mortar` = floating cluster mines; feeds into `Phase-Wave` / `Maelstrom`.
+- **`10 = Pebble / Clod` (`5m • 0.16s`)**: Heavy gravity-lobbed stone clod with high stun/poise damage that spawns a small **real physics boulder** on impact—lets you self-feed `Ophanim` & `Black Hole` on demand!
+- **`11 = Arc-Zap` (`5.5m • 0.12s`)**: Instantaneous `6.5m` jagged electric snap (`SHOCKING` tag). Zero-travel-time Trigger carrier that electrifies wet rooms & conductive gold veins and ignites gas safely.
 - **`12 = Mist Puff` (`4.5m • 0.10s`)**: Stationary `3m` alchemical vapor cloud (`3.2s` linger) that coats targets in Tank stains without knockback (`Mist + Homing + Pierce/Explosive` = *Noita* sentient death-cloud!).
 - **`13 = Grapple-Barb` (`7m • 0.22s`)**: Fast `58 m/s` tether dart that tugs hit enemies, Slimes, boulders, or gold `4m` toward you (yank foes straight into `Ophanim` / `Supernova`!).
 - **`14 = Torch-Glob / Flare` (`4m • 0.18s`)**: Sticky luminescent magnesium glob (`14s` wall/ceiling 3D GI light + igniter; `+Invert` = Darklight Ink-Glob that snuffs light!).
@@ -268,11 +266,10 @@ Lightweight, low-mana LMB building blocks that feel humble solo yet go nuclear w
 
 ---
 
-### 9.3. Backlog: Simple Inline Linkers (`26..29`) & Modifier Runes (`49..58`)
-- **Linkers (`26..29`)**:
-  - **`26 = 3x Trifurcate` (`⁅3x⁆`)**: Casts next 3 spells simultaneously in a `12°` fan.
-  - **`27 = Split-Flank` (`⁅⇄⁆`)**: Fires Spell A forward and Spell B `180°` behind you (kiting & recoil counterweight).
-  - **`28 = Cast-on-Bounce` (`🏀BNC`)**: `[Carrier] [🏀] [Payload]` fires `[Payload]` on **every** wall ricochet instead of only on first hit!
+### 9.3. Backlog: Simple Inline Linkers (`27..29`) & Modifier Runes (`49..58`)
+- **Linkers (`27..29`)**:
+  - **`27 = 3x Trifurcate` (`⁅3x⁆`)**: Casts next 3 spells simultaneously in a `12°` fan.
+  - **`28 = Split-Flank` (`⁅⇄⁆`)**: Fires Spell A forward and Spell B `180°` behind you (kiting & recoil counterweight).
   - **`29 = Blood/Tank Siphon-Link` (`🧪SIP`)**: Next spell costs `0` Mana when Tank 1 has reagent, consuming `2x` Tank sip instead.
 - **Modifiers (`49..58`)**:
   - **`49 = Feather / Zero-G`**: Strips gravity & drag (`Mortars`/`Pebbles` fly laser-straight); `+Invert` = `4x` Anvil Drop gravity.

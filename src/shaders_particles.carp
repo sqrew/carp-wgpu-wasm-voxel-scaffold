@@ -742,6 +742,21 @@ struct BoltVertexOut {
         return out;
     }
 
+    // Style 12: Chakram Razor-Ring & Style 13: Caltrop Proximity Mine!
+    if (style == 12u || style == 13u) {
+        let spd12 = length(b.vel_style.xyz);
+        let qscale = select(1.78, 1.92, style == 12u);
+        let lxy12 = offset * qscale;
+        let wpos12 = b.pos_rad.xyz + ax1 * (lxy12.x * rad) + ax2 * (lxy12.y * rad);
+        let clip12 = u.view_proj * vec4<f32>(wpos12, 1.0);
+        out.clip_position = clip12;
+        out.local_xy = lxy12;
+        out.stretch_time = vec3<f32>(1.0, u.cam_right.w, spd12);
+        out.col_glow = b.col_glow;
+        out.style = style;
+        return out;
+    }
+
     if (scr_spd > 0.45 && (style == 1u || style == 5u || scr_spd > 68.0)) {
         let dir2 = vec2<f32>(vx_scr, vy_scr) / scr_spd;
         ax1 = u.cam_right.xyz * dir2.x + u.cam_up.xyz * dir2.y;
@@ -779,6 +794,50 @@ struct BoltVertexOut {
     let base_col = max(in.col_glow.rgb, vec3<f32>(0.02));
     let glow_amt = in.col_glow.w;
     let t = in.stretch_time.y;
+
+    // Style 12: Chakram — waist-tilted high-RPM 12-tooth annular razor-ring with hollow center & specular steel sheen!
+    if (in.style == 12u) {
+        let tilt = 1.52 + 0.16 * sin(t * 8.5);
+        let cq = vec2<f32>(q.x, q.y * tilt);
+        let rc = length(cq);
+        let cang = atan2(cq.y, cq.x);
+        let teeth = 0.50 + 0.50 * sin(cang * 12.0 - t * 68.0 - rc * 3.4);
+        let inner_bevel = exp(-pow((rc - 0.72) * 6.8, 2.0));
+        let blade_band = smoothstep(0.56, 0.70, rc) * smoothstep(1.30, 0.98, rc);
+        let saw_rim = exp(-pow((rc - 1.12) * 5.6, 2.0)) * (0.68 + 0.78 * teeth);
+        let glint = pow(max(0.0, cos(cang * 2.0 + t * 24.0)), 4.0) * blade_band;
+        let ring_sum = blade_band * 0.78 + inner_bevel * 0.95 + saw_rim;
+        let alpha = clamp(ring_sum * 0.94, 0.0, 0.97);
+        if (alpha < 0.015) { discard; }
+        let steel_tint = mix(base_col, vec3<f32>(0.68, 0.96, 1.0), 0.35);
+        let hot_edge = mix(steel_tint, vec3<f32>(1.0, 0.995, 0.98), clamp(inner_bevel * 0.85 + saw_rim * 0.72 + glint * 0.65, 0.0, 1.0));
+        let corona = steel_tint * (saw_rim * 1.55 + inner_bevel * 1.15 + exp(-abs(rc - 0.95) * 2.8) * 0.48);
+        return vec4<f32>(hot_edge * alpha + corona, alpha);
+    }
+
+    // Style 13: Caltrop Proximity Mine — tumbling 4-prong tetrahedral steel spikes + pulsing armed sensor beacon!
+    if (in.style == 13u) {
+        let spd13 = in.stretch_time.z;
+        let armed = clamp(1.0 - spd13 * 0.32, 0.0, 1.0);
+        let spin_a = mix(t * 22.0, 0.38, armed);
+        let cs = cos(spin_a);
+        let sn = sin(spin_a);
+        let rq = vec2<f32>(q.x * cs - q.y * sn, q.x * sn + q.y * cs);
+        let ang13 = atan2(rq.y, rq.x);
+        let prongs4 = pow(max(0.0, cos(ang13 * 4.0)), 6.0) * smoothstep(1.48, 0.14, r);
+        let diag_x = (exp(-pow((rq.x - rq.y * 0.45) * 7.5, 2.0)) + exp(-pow((rq.y + rq.x * 0.45) * 7.5, 2.0))) * smoothstep(1.22, 0.18, r);
+        let hub = exp(-r * r * 7.2);
+        let strobe = 0.45 + 0.55 * sin(t * 15.0);
+        let prox_ring = armed * exp(-pow((r - 1.24) * 7.5, 2.0)) * (0.28 + 0.52 * strobe);
+        let metal_body = clamp(prongs4 * 1.15 + diag_x * 0.58 + hub * 0.95, 0.0, 1.0);
+        let alpha = clamp(metal_body * 0.96 + prox_ring * 0.65, 0.0, 0.98);
+        if (alpha < 0.015) { discard; }
+        let iron_col = mix(vec3<f32>(0.52, 0.56, 0.64), base_col, 0.52);
+        let beacon_col = mix(base_col, vec3<f32>(1.0, 0.28, 0.12), armed * 0.62);
+        let surf_rgb = mix(iron_col * (0.55 + 0.65 * prongs4), vec3<f32>(1.0, 0.97, 0.92), clamp(hub * (0.55 + 0.45 * strobe) + prongs4 * 0.35, 0.0, 1.0));
+        let glow_rgb = beacon_col * (hub * (0.85 + 1.35 * armed * strobe) + prox_ring * 1.65 + prongs4 * 0.55);
+        return vec4<f32>(surf_rgb * metal_body + glow_rgb, alpha);
+    }
 
     // Style 10: Supernova Solar Star — roiling convective photosphere + whipping prominence loops + blue-white core-collapse flash!
     if (in.style == 10u) {
