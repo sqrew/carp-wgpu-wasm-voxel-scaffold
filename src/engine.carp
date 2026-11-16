@@ -413,8 +413,13 @@
   bolt-trig-pack (Array Int)
   bolt-fx (Array Int)
   bolt-trig-fx (Array Int)
+  bolt-base-rad (Array Float)
+  bolt-phase (Array Float)
+  bolt-lat (Array Float)
+  bolt-stuck (Array Int)
   bolt-gpu-staging (Array Float)
   target-cache (Array Float)
+  target-id (Array Int)
   target-count Int
 ])
 
@@ -422,11 +427,12 @@
   (defn make [seed]
     (let [starter-core (if (= (Int.mod (Int.abs seed) 2) 0) 104 102)
           alt-core (if (= starter-core 104) 102 104)
-          gems [105 101 103 alt-core 42 43
-                41 36 37 38 39 40
-                34 35 24 25 3 21
-                23 5 6 31 32 33
-                22 0 0 0 0 0]
+          gems [106 105 101 103 alt-core 48 46
+                47 44 45 42 43 41 36
+                37 38 39 40 34 35 31
+                32 33 21 22 23 24 25
+                3 5 6 2 0 0 0
+                0 0 0 0 0 0 0]
           mods-init [1 4 0 0 0
                      34 6 6 4 0
                      35 2 4 0 0]
@@ -451,7 +457,7 @@
         [0 0 0]
         mods-init
         rmb-init
-        ;; 30-Pocket Free-Swap Satchel (6x5 Grid)
+        ;; 42-Pocket Free-Swap Satchel (7x6 Grid)
         gems
         false 0 -1 0 1
         ;; 8,192-Bolt SoA Pool
@@ -479,15 +485,20 @@
         (Array.replicate MAX-BOLTS &0)
         (Array.replicate MAX-BOLTS &0)
         (Array.replicate MAX-BOLTS &0)
+        (Array.replicate MAX-BOLTS &0.15f)
+        (Array.replicate MAX-BOLTS &0.0f)
+        (Array.replicate (* MAX-BOLTS 3) &0.0f)
+        (Array.replicate MAX-BOLTS &0)
         (Array.replicate (* MAX-BOLTS 12) &0.0f)
         (Array.replicate 160 &0.0f)
+        (Array.replicate 40 &-1)
         0)))
 
   (defn grant-satchel-gem! [wb gem-id]
     (let [gems (WandBelt.satchel-gems wb)
           placed? false]
       (do
-        (for [i 0 30]
+        (for [i 0 42]
           (when (and (not placed?) (= @(Array.unsafe-nth gems i) 0))
             (do
               (Array.aset! gems i gem-id)
@@ -496,9 +507,9 @@
 
   (defn roll-loot-gem! [wb seed]
     (let [seq @(WandBelt.loot-seq wb)
-          pool [1 2 3 4 5 6 21 22 23 24 25 31 32 33 34 35 36 37 38 39 40 41 42 43 101 102 103 104 105]
+          pool [1 2 3 4 5 6 21 22 23 24 25 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 101 102 103 104 105 106]
           h (Int.abs (+ (* seq 73) (* seed 37)))
-          gem-id @(Array.unsafe-nth &pool (Int.mod h 29))]
+          gem-id @(Array.unsafe-nth &pool (Int.mod h 35))]
       (do
         (WandBelt.set-loot-seq! wb (+ seq 1))
         (WandBelt.grant-satchel-gem! wb gem-id))))

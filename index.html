@@ -279,20 +279,20 @@ canvas.emscripten { border: 0px none; background-color: black; }
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; border-bottom: 1px solid rgba(255,255,255,0.10); padding-bottom: 4px;">
           <div style="display: flex; align-items: center; gap: 8px;">
             <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: #4fc3f7;">[Tab] Dual-Strip Workbench</span>
-            <span style="font-size: 9.2px; color: #9aa4b8;">LMB + [4] RMB Strips • 💥/⏱/💀/2x/🔁 Linkers • 10 Modifiers</span>
+            <span style="font-size: 9.2px; color: #9aa4b8;">LMB + [4] RMB Strips • 💥/⏱/💀/2x/🔁 Linkers • 18 Modifiers</span>
           </div>
-          <span style="font-size: 9.2px; color: #ffd54f; font-weight: 700;">[1–3] Wand • [K] Gift All 25 • [Tab] Close</span>
+          <span style="font-size: 9.2px; color: #ffd54f; font-weight: 700;">[1–3] Wand • [K] Gift All 35 • [Tab] Close</span>
         </div>
         <!-- 3 Carried Universal Wand Chassis Tabs -->
         <div id="wb-wand-row" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 6px;"></div>
         <!-- Active Wand Dual Circuit Strips: Row 0 [LMB Strip] + Row 1 [RMB Strip] -->
         <div id="wb-active-strip" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(79, 195, 247, 0.26); border-radius: 10px; padding: 6px 8px; margin-bottom: 6px;"></div>
-        <!-- 30-Pocket Satchel Bag (6x5 Grid) -->
+        <!-- 42-Pocket Satchel Bag (7x6 Grid) -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; padding: 0 2px;">
-          <span style="font-size: 8.5px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: #8c99b0;">Satchel Rune Bag (30 Pockets)</span>
+          <span style="font-size: 8.5px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: #8c99b0;">Satchel Rune Bag (42 Pockets)</span>
           <span style="font-size: 8.5px; color: #78849b;">←→↑↓ / Scroll Navigate • [E] Grab / Swap • [&#8679;E / &#9003;] Quick-Move</span>
         </div>
-        <div id="wb-gem-row" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-bottom: 6px;"></div>
+        <div id="wb-gem-row" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 6px;"></div>
         <!-- Selected / Grabbed Rune Details + Action Pill -->
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 8px; padding: 5px 10px;">
           <div id="wb-sel-desc" style="font-size: 10.2px; color: #cfd6e6; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">←→↑↓ / Scroll to inspect • [E] Grab &amp; Swap freely!</div>
@@ -751,7 +751,8 @@ canvas.emscripten { border: 0px none; background-color: black; }
         102: { name: 'Nova',        short: 'NOVA', kind: 'core', col: '#ffd54f', stats: '42m • 0.96s', desc: '◆ RMB Primary Power Spell • Erupts 100 star-orbs in a 3D sphere! Pair Heavy + Hover + Boomerang for a Bulwark shield!' },
         103: { name: 'Bolt Gyre',   short: 'GYRE', kind: 'core', col: '#ea80fc', stats: '38m • 0.92s', desc: '◆ RMB Primary Power Spell • Spinning sub-bolt sprinkler orb! Pair with Mods, Echo, or Expire Trigger!' },
         104: { name: 'Maelstrom',   short: 'MAEL', kind: 'core', col: '#18ffff', stats: '46m • 1.05s', desc: '◆ RMB Primary Power Spell • Throw & anchor a Category-5 physics hurricane! Whips fluids/fire, rips boulders & bends LMB spells!' },
-        105: { name: 'Starburst',   short: 'STAR', kind: 'core', col: '#ff6d00', stats: '34m • 0.72s', desc: '◆ RMB Primary Power Spell • Long-thrown star-seed collapses in a huge vacuum implosion, then blasts a radial reagent patooey + 8 heavy Point-Nova orbs!' }
+        105: { name: 'Starburst',   short: 'STAR', kind: 'core', col: '#ff6d00', stats: '34m • 0.72s', desc: '◆ RMB Primary Power Spell • Long-thrown star-seed collapses in a huge vacuum implosion, then blasts a radial reagent patooey + 8 heavy Point-Nova orbs!' },
+        106: { name: 'Phase-Wave',  short: 'WAVE', kind: 'core', col: '#26ffb4', stats: '28m • 0.56s', desc: '◆ RMB Primary Power Spell • 7-crest cone wave morphing by Tank phase: Solid = Seismic boulder-ridge, Liquid = Tidal tsunami, Gas = Pyroclastic plume (+Invert = Undertow!)' }
       };
 
       const RUNE_DEFS = {
@@ -768,10 +769,10 @@ canvas.emscripten { border: 0px none; background-color: black; }
         23: { name: '2x Twin',        short: '⁅2x⁆',  kind: 'linker', col: '#80d8ff', stats: '+2m • Multi',   desc: 'Linker • [⁅2x⁆] [Spell A] [Spell B]: fires the next 2 spells simultaneously, sharing prefix Mods!' },
         24: { name: 'Expire Trigger', short: '💀EXP', kind: 'linker', col: '#ff9100', stats: '+3.5m • Death', desc: 'Linker • [Carrier] [💀] [Payload]: unleashes Payload ONLY when Carrier finally dies (after Bounces/Gyre)!' },
         25: { name: 'Echo Burst',     short: '🔁ECH', kind: 'linker', col: '#84ffff', stats: '+3m • 2-Tap',   desc: 'Linker • [🔁] [Spell]: fires the single Spell right after it twice in a tight axial 2-round burst!' },
-        // 13 Modifier Runes (31..43)
-        31: { name: 'Ricochet',       short: 'RIC',   kind: 'mod',    col: '#40c4ff', stats: '+2m • +3 Bnc',  desc: 'Modifier • +3 high-energy wall bounces (turns Rail-Lance & Gyre into room-clearing pinballs!)' },
+        // 18 Modifier Runes (31..48)
+        31: { name: 'Ricochet',       short: 'RIC',   kind: 'mod',    col: '#40c4ff', stats: '+2m • +3 Bnc',  desc: 'Modifier • +3 high-energy wall bounces (turns Rail-Lance & Gyre into room-clearing pinballs; +Invert flips into Sticky!)' },
         32: { name: 'Homing',         short: 'HOM',   kind: 'mod',    col: '#b9f6ca', stats: '+3m • Seek',    desc: 'Modifier • Curves toward Slimes, Hoppers & Mancers (stack 2x Homing for 360° lock-on!)' },
-        33: { name: 'Pierce',         short: 'PRC',   kind: 'mod',    col: '#ea80fc', stats: '+3.5m • Bore',  desc: 'Modifier • Bores through +3 rock/creature layers & extends Lumi-Drill beam reach!' },
+        33: { name: 'Pierce',         short: 'PRC',   kind: 'mod',    col: '#ea80fc', stats: '+3.5m • Bore',  desc: 'Modifier • Bores through +3 rock/creature layers, extends Lumi-Drill & grinds barbed contact ticks with Sticky!' },
         34: { name: 'Accelerate',     short: 'ACC',   kind: 'mod',    col: '#64ffda', stats: '+2.5m • +Spd',  desc: 'Modifier • +75% projectile speed, flatter arc, +15% kinetic hit, -0.03s delay & +2.6m Drill reach!' },
         35: { name: 'Heavy Bore',     short: 'HVY',   kind: 'mod',    col: '#ffab40', stats: '+3.5m • +Bore', desc: 'Modifier • +65% damage & rock carve, +32% caliber, +45% tank sip, -35% speed (+rips Maelstrom boulders!)' },
         36: { name: 'Trail',          short: '💧TRL', kind: 'mod',    col: '#26c6da', stats: '+2.5m • Wake',  desc: 'Modifier • Paints continuous Tank reagent skywriting wake in flight, along Rail-Lance & up Maelstrom!' },
@@ -780,8 +781,13 @@ canvas.emscripten { border: 0px none; background-color: black; }
         39: { name: 'Blink',          short: '⚡BLK', kind: 'mod',    col: '#e040fb', stats: '+4.5m • Warp',  desc: 'Modifier • Teleports YOU to every projectile hit/bounce & surfs inside Gyre/Maelstrom eyes!' },
         40: { name: 'Glitch',         short: '🎲GLT', kind: 'mod',    col: '#ff5252', stats: '+2m • Chaos',   desc: 'Modifier • Quantum phase-jumps mid-flight across thin cover & fractures Lumi-Drill into jagged arcs!' },
         41: { name: 'Explosive',      short: '💣DET', kind: 'mod',    col: '#ff3d00', stats: '+5m • +0.04s',  desc: 'Modifier (Stacks!) • Every hit, bounce & drill-tip detonates a fiery crater-carving HE blast + Rocket-Jumps! Busted on Spitter, Buckshot & Nova!' },
-        42: { name: 'Invert',         short: '🔄INV', kind: 'mod',    col: '#b388ff', stats: '+3m • Flip!',   desc: 'Modifier (Stacks!) • Reverses ALL spell forces! Maelstrom = Gravity Anvil smashing foes into the floor; +Explosive = Dark-Matter Implosion; +Blink = Abduct-Warp; +Drill = Rock Extruder; +Rail = Forward Lunge; +Nova = 100-Orb Iron Maiden!' },
-        43: { name: 'Impart',         short: '⏩IMP', kind: 'mod',    col: '#ffd740', stats: '+3.5m • Punt!', desc: 'Modifier (Stacks!) • Transfers live 3D bolt velocity straight into hit creatures/boulders + mid-air Jetpack recoil! Spitter/Drill = Hover-Jetpack; Accel+Bullet = Mach Punt; +Invert = Scorpion Harpoon Yank!' }
+        42: { name: 'Invert',         short: '🔄INV', kind: 'mod',    col: '#b388ff', stats: '+3m • Flip!',   desc: 'Modifier (Stacks!) • Reverses ALL spell forces! Maelstrom = Gravity Anvil; +Explosive = Dark-Matter Implosion; +Ricochet = Sticky; +Sticky = 1.24x Flubber; +Drill = Rock Extruder!' },
+        43: { name: 'Impart',         short: '⏩IMP', kind: 'mod',    col: '#ffd740', stats: '+3.5m • Punt!', desc: 'Modifier (Stacks!) • Transfers live 3D bolt velocity straight into hit creatures/boulders + mid-air Jetpack recoil! Spitter/Drill = Hover-Jetpack; Accel+Bullet = Mach Punt; +Invert = Scorpion Harpoon Yank!' },
+        44: { name: 'Pulse',          short: '💓PLS', kind: 'mod',    col: '#ff4081', stats: '+1.5m • Throb', desc: 'Modifier (Stacks!) • Oscillates projectile size between tiny crack-threading needle & huge 2.1x+ cannonball! Peak swell boosts hit/crater scale; Nova breathes like a jellyfish; +Invert = point-blank swell & anti-phase swarms!' },
+        45: { name: 'Surge',          short: '💨SRG', kind: 'mod',    col: '#00e5ff', stats: '+2m • Lunge',   desc: 'Modifier (Stacks!) • Oscillates flight speed in rhythmic coil-and-whiplash lunges (-0.01s delay)! Drops concentrated Trail puddles on pauses, hits 2.5x harder with Impart mid-surge & piston-pumps Lumi-Drill!' },
+        46: { name: 'Helix',          short: '🌀HLX', kind: 'mod',    col: '#1de9b6', stats: '+1.5m • Spiral', desc: 'Modifier (Stacks!) • Corkscrews projectiles in a 3D cylindrical spiral centered dead-on your crosshair! 2x/Echo weaves a symmetric DNA double-helix; +Trail paints helical reagent coils; +Invert flips spin; Lumi-Drill core-bores a rotary cone!' },
+        47: { name: 'Sine',           short: '🐍SIN', kind: 'mod',    col: '#76ff03', stats: '+1.5m • Wave',  desc: 'Modifier (Stacks!) • Slithers projectiles in a wide horizontal sidewinder wave sweeping corridors! +Invert flips to a vertical sea-serpent wave; 2x/Echo braids a figure-8 weave; Lumi-Drill sweeps like a bandsaw!' },
+        48: { name: 'Sticky',         short: '🍯STK', kind: 'mod',    col: '#ffc400', stats: '+2m • Latch',   desc: 'Modifier (Stacks!) • Glues projectiles onto the first creature or wall hit until expiration! +Expire/Timer = Semtex bomb; +Pierce = barbed buzz-drill & floor caltrop; +Impart = welded rocket thruster; +Invert flips into 1.24x Flubber!' }
       };
 
       window.wand_chassis_state = {
@@ -790,7 +796,7 @@ canvas.emscripten { border: 0px none; background-color: black; }
           { lcap: 5, rcap: 2, lexec: 0, rexec: 0, lmods: [34, 6, 6, 4, 0],  rmods: [101, 0, 0, 0, 0]  },
           { lcap: 3, rcap: 5, lexec: 0, rexec: 0, lmods: [5, 21, 3, 0, 0],  rmods: [35, 37, 38, 102, 0] }
         ],
-        gems: [105, 104, 102, 103, 101, 42, 43, 41, 3, 5, 21, 22, 23, 24, 25, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 6, 4, 2, 0, 0],
+        gems: [106, 105, 104, 102, 103, 101, 48, 46, 47, 44, 45, 42, 43, 41, 36, 37, 38, 39, 40, 34, 35, 31, 32, 33, 21, 22, 23, 24, 25, 3, 5, 6, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         wandCount: 1,
         relicCharges: 0,
         lastWbSig: '',
@@ -1884,7 +1890,7 @@ canvas.emscripten { border: 0px none; background-color: black; }
         return (id >= 101) ? (POWER_CORES[id] || null) : (RUNE_DEFS[id] || null);
       }
 
-      window.sync_satchel = function(openI, cursor, grabIdx, target, wcnt, rel, boltCount, lcaps, rcaps, lexecs, rexecs, lmods15, rmods15, gems30) {
+      window.sync_satchel = function(openI, cursor, grabIdx, target, wcnt, rel, boltCount, lcaps, rcaps, lexecs, rexecs, lmods15, rmods15, gems42) {
         const isOpen = (openI | 0) !== 0;
         window.satchel_open = isOpen;
 
@@ -1904,8 +1910,8 @@ canvas.emscripten { border: 0px none; background-color: black; }
             ch.rmods[k] = (rmods15 && rmods15[b5 + k]) ? (rmods15[b5 + k] | 0) : 0;
           }
         }
-        for (let g = 0; g < 30; g++) {
-          wcs.gems[g] = (gems30 && gems30[g]) ? (gems30[g] | 0) : 0;
+        for (let g = 0; g < 42; g++) {
+          wcs.gems[g] = (gems42 && gems42[g]) ? (gems42[g] | 0) : 0;
         }
 
         renderHandsAndBeltHUD();
@@ -1935,7 +1941,7 @@ canvas.emscripten { border: 0px none; background-color: black; }
         const lcap      = Math.max(1, Math.min(5, actCh.lcap || 4));
         const rcap      = Math.max(1, Math.min(5, actCh.rcap || 3));
         const wandSlots = lcap + rcap;
-        const totSlots  = wandSlots + 30;
+        const totSlots  = wandSlots + 42;
         const cur       = Math.max(0, Math.min(totSlots - 1, cursor | 0));
         const grab      = (grabIdx !== undefined && (grabIdx | 0) >= 0) ? Math.min(totSlots - 1, grabIdx | 0) : -1;
 
@@ -2098,11 +2104,11 @@ canvas.emscripten { border: 0px none; background-color: black; }
           stripEl.innerHTML = sHtml;
         }
 
-        // 3. Render 30-Pocket Satchel Bag (6x5 Grid, Slots `wandSlots .. wandSlots + 29`)
+        // 3. Render 42-Pocket Satchel Bag (7x6 Grid, Slots `wandSlots .. wandSlots + 41`)
         const gemRowEl = document.getElementById('wb-gem-row');
         if (gemRowEl) {
           let gHtml = '';
-          for (let i = 0; i < 30; i++) {
+          for (let i = 0; i < 42; i++) {
             const sl     = wandSlots + i;
             const gid    = wcs.gems[i] | 0;
             const isSel  = (cur === sl);

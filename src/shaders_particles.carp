@@ -694,6 +694,25 @@ struct BoltVertexOut {
         return out;
     }
 
+    // Style 8: Phase-Wave Crest — wide sweeping crescent wave-blade oriented along travel direction!
+    if (style == 8u) {
+        let spd8 = length(b.vel_style.xyz);
+        if (scr_spd > 0.25) {
+            let dir2 = vec2<f32>(vx_scr, vy_scr) / scr_spd;
+            ax1 = u.cam_right.xyz * dir2.x + u.cam_up.xyz * dir2.y;
+            ax2 = -u.cam_right.xyz * dir2.y + u.cam_up.xyz * dir2.x;
+        }
+        let lxy8 = vec2<f32>(offset.x * 1.48, offset.y * 2.15);
+        let wpos8 = b.pos_rad.xyz + ax1 * (lxy8.x * rad) + ax2 * (lxy8.y * rad);
+        let clip8 = u.view_proj * vec4<f32>(wpos8, 1.0);
+        out.clip_position = clip8;
+        out.local_xy = lxy8;
+        out.stretch_time = vec3<f32>(1.0, u.cam_right.w, spd8);
+        out.col_glow = b.col_glow;
+        out.style = style;
+        return out;
+    }
+
     if (scr_spd > 0.45 && (style == 1u || style == 5u || scr_spd > 68.0)) {
         let dir2 = vec2<f32>(vx_scr, vy_scr) / scr_spd;
         ax1 = u.cam_right.xyz * dir2.x + u.cam_up.xyz * dir2.y;
@@ -725,12 +744,30 @@ struct BoltVertexOut {
     let cx = clamp(in.local_xy.x, -half_seg, half_seg);
     let q = vec2<f32>(in.local_xy.x - cx, in.local_xy.y);
     let r = length(q);
-    let max_r = select(1.58, 2.10, in.style == 1u || in.style == 7u);
+    let max_r = select(1.58, 2.55, in.style == 1u || in.style == 7u || in.style == 8u);
     if (r > max_r) { discard; }
 
     let base_col = max(in.col_glow.rgb, vec3<f32>(0.02));
     let glow_amt = in.col_glow.w;
     let t = in.stretch_time.y;
+
+    // Style 8: Phase-Wave Crest — foaming parabolic bow-wave crescent + turbulent trailing surf ribs!
+    if (in.style == 8u) {
+        let yn = clamp(q.y * 0.465, -1.0, 1.0);
+        let bow_x = 0.42 - 0.68 * yn * yn;
+        let dx_bow = q.x - bow_x;
+        let span_fade = smoothstep(1.02, 0.18, abs(yn));
+        let crest_edge = exp(-pow(dx_bow * 4.4, 2.0)) * span_fade;
+        let wake_mask = smoothstep(0.12, -0.95, dx_bow) * smoothstep(-1.45, -0.25, dx_bow) * span_fade;
+        let ribs = 0.55 + 0.45 * sin(dx_bow * 11.0 + t * 28.0 + yn * 4.5);
+        let foam = crest_edge * (0.82 + 0.25 * sin(yn * 9.0 - t * 22.0));
+        let wake_body = wake_mask * ribs * 0.62;
+        let alpha = clamp(foam * 0.94 + wake_body * 0.72, 0.0, 0.94);
+        if (alpha < 0.015) { discard; }
+        let hot = mix(base_col, vec3<f32>(1.0, 0.99, 0.97), clamp(foam * 0.88 + wake_body * 0.22, 0.0, 1.0));
+        let corona = base_col * (crest_edge * 1.45 + wake_body * 0.95);
+        return vec4<f32>(hot * alpha + corona, alpha);
+    }
 
     // Style 6: Maelstrom Storm-Eye Seed — visible compressed storm pearl during throw, vanishing into a faint eye shimmer once anchored!
     if (in.style == 6u) {
