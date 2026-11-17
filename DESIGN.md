@@ -236,11 +236,11 @@ The seeded biome stratigraphy (`Surface Meadow -> Mossy Karst -> Crystal Vaults 
 
 ## 9. Universal Rune-Strip Wand Grimoire — Shipped Roster & Idea Backlog
 
-### 9.1. Shipped Wand System (`src/systems/wands.carp`, 40 Items Live)
-- **Dual-Strip Universal Chassis (`0=Conduit 4L/3R`, `1=Stinger 5L/2R`, `2=Artillery 3L/5R`) + Twin Lock-on-Fill Tanks (`[1]` & `[2]`) + `8,192`-Bolt SoA Pool**.
+### 9.1. Shipped Wand System (`src/systems/wands.carp`, 45 Items Live, 56-Pocket `8×7` Satchel)
+- **Dual-Strip Universal Chassis (`0=Conduit 4L/3R`, `1=Stinger 5L/2R`, `2=Artillery 3L/5R`) + Twin Lock-on-Fill Tanks (`[1]` & `[2]`) + `56`-Pocket (`8×7`) Satchel Bag + `8,192`-Bolt SoA Pool (`bolt-fx` + `bolt-fx2`)**.
 - **Shipped LMB Spell Runes (`1..8`)**: `1=Sparkbolt`, `2=Bullet`, `3=Minimortar`, `4=Luminous Drill` (`-0.18s`), `5=Buckshot`, `6=Spitter`, `7=Caltrop Mine` (3-pellet proximity floor mines; `+Trigger` = Claymores; `+Invert` = Ceiling Mines), `8=Chakram` (waist-level razor ring with `+2` gyro wall bounces, creature cleave + smart target-banking, & return-catch `+5.5` Mana / `-0.10s` CD refund).
-- **Shipped Linker Runes (`21..26`)**: `21=Impact Trigger`, `22=Airburst Timer`, `23=2x Twin`, `24=Expire Trigger`, `25=Echo Burst`, `26=Cast-on-Bounce` (`🏀BNC`: unleashes Payload on every wall bounce & Chakram bank!).
-- **Shipped Modifier Runes (`31..48`)**: `31=Ricochet`, `32=Homing`, `33=Pierce`, `34=Accelerate`, `35=Heavy`, `36=Trail`, `37=Hover`, `38=Boomerang`, `39=Blink`, `40=Glitch`, `41=Explosive`, `42=Invert`, `43=Impart`, `44=Pulse`, `45=Surge`, `46=Helix`, `47=Sine`, `48=Sticky` (`Sticky <-> Ricochet` Flubber/Glue swap with `Invert`).
+- **Shipped Linker & Volley Runes (`21..29`)**: `21=Impact Trigger`, `22=Airburst Timer`, `23=2x Twin`, `24=Expire Trigger`, `25=Echo Burst`, `26=Cast-on-Bounce` (`🏀BNC`: unleashes Payload on every wall bounce & Chakram bank!), `27=Double-Cast (×2)`, `28=Triple-Cast (×3)`, `29=Quad-Cast (×4)` (multiplicative Simple-Spell volley cloners up to `×16` with sublinear mana scaling; `+Invert` = **Wingman Crossfire / Fin-Funnel Shoulder Halo**!).
+- **Shipped Modifier Runes (`31..50`)**: `31=Ricochet`, `32=Homing`, `33=Pierce`, `34=Accelerate`, `35=Heavy`, `36=Trail`, `37=Hover`, `38=Boomerang`, `39=Blink`, `40=Glitch`, `41=Explosive`, `42=Invert`, `43=Impart`, `44=Pulse`, `45=Surge`, `46=Helix`, `47=Sine`, `48=Sticky` (`Sticky <-> Ricochet` Flubber/Glue swap with `Invert`), `49=Fission` (`🫧FIS`: `1 -> 2 -> 4 -> 8` mitotic split; `+Invert` = **🌟 Thermonuclear Pinch-Fusion**), `50=Fusion` (`☀️FUS`: magnetic Mega-Slug coalescence; `+Invert` = **☢️ Supercritical 3-Way Fission**; `[Fission + Fusion]` = **⚛️ Breeder Reactor**; **`[Fission + Fusion + Invert]` 3-Card Exodia = `☢️🕳️ DEMON CORE / KILONOVA CASCADE`**!).
 - **Shipped RMB `◆` Power Spells (`101..108`)**:
   - `101 = ◆ Rail-Lance` (Hypersonic rock-boring sabot + mid-air Rail-Jump)
   - `102 = ◆ Nova` (100-orb 3D Fibonacci sphere / Bulwark shield)
@@ -266,21 +266,18 @@ Lightweight, low-mana LMB building blocks that feel humble solo yet go nuclear w
 
 ---
 
-### 9.3. Backlog: Simple Inline Linkers (`27..29`) & Modifier Runes (`49..58`)
-- **Linkers (`27..29`)**:
-  - **`27 = 3x Trifurcate` (`⁅3x⁆`)**: Casts next 3 spells simultaneously in a `12°` fan.
-  - **`28 = Split-Flank` (`⁅⇄⁆`)**: Fires Spell A forward and Spell B `180°` behind you (kiting & recoil counterweight).
-  - **`29 = Blood/Tank Siphon-Link` (`🧪SIP`)**: Next spell costs `0` Mana when Tank 1 has reagent, consuming `2x` Tank sip instead.
-- **Modifiers (`49..58`)**:
-  - **`49 = Feather / Zero-G`**: Strips gravity & drag (`Mortars`/`Pebbles` fly laser-straight); `+Invert` = `4x` Anvil Drop gravity.
-  - **`50 = Lumen` (`-0.02s` delay)**: Cheap speed-reducer that turns every bolt into a blazing 3D GI lantern (cures photochemical Amber & burns Shadowlings).
-  - **`51 = Magnet-Arc`**: Curves bolts toward Gold veins, Conductive ore, Boulders, & Mancer Orbs (vacuuming loose Gold nuggets along in the wake).
-  - **`52 = Orbit / Satellite`**: Bolts orbit around **you**—or around the **hit enemy** when placed after `[💥 Impact Trigger]` (`[Bullet] [💥] [Orbit] [Lumi-Drill]` = sticks orbiting laser-saws onto a foe!).
-  - **`53 = Arc-Line / Net`**: Stretches a live electric/reagent clothesline *between sibling multicast bolts* (`Buckshot` becomes a 5-strand electric net!).
-  - **`54 = Longshot`**: Damage ramps from `0.5x` point-blank up to `2.8x` beyond `12m`.
-  - **`55 = Mitosis / Split`**: Mid-flight (`0.22s`), each bolt divides in two at `±14°`.
-  - **`56 = Parry-Coat`**: Bolts intercept & knock-deflect incoming Ecomancer Orbs mid-air.
-  - **`57 = Phase-Ghost`**: Bolts pass through solid rock walls for their first `1.8m` of stone (wall-piercing assassination shots through pillars/floors; `+Invert` = bounces off *air-to-water/gas* phase boundaries!).
+### 9.3. Backlog: Simple Inline Linkers (`30`) & Modifier Runes (`51..58`)
+- **Linkers**:
+  - **`30 = Split-Flank / Siphon-Link`**: Fires forward + `180°` rear counterweight, or `0`-Mana Tank-siphon cast.
+- **Modifiers (`51..58`)**:
+  - **`51 = Feather / Zero-G`**: Strips gravity & drag (`Mortars`/`Pebbles` fly laser-straight); `+Invert` = `4x` Anvil Drop gravity.
+  - **`52 = Lumen` (`-0.02s` delay)**: Cheap speed-reducer that turns every bolt into a blazing 3D GI lantern (cures photochemical Amber & burns Shadowlings).
+  - **`53 = Magnet-Arc`**: Curves bolts toward Gold veins, Conductive ore, Boulders, & Mancer Orbs (vacuuming loose Gold nuggets along in the wake).
+  - **`54 = Orbit / Satellite`**: Bolts orbit around **you**—or around the **hit enemy** when placed after `[💥 Impact Trigger]` (`[Bullet] [💥] [Orbit] [Lumi-Drill]` = sticks orbiting laser-saws onto a foe!).
+  - **`55 = Arc-Line / Net`**: Stretches a live electric/reagent clothesline *between sibling multicast bolts* (`Buckshot` becomes a 5-strand electric net!).
+  - **`56 = Longshot`**: Damage ramps from `0.5x` point-blank up to `2.8x` beyond `12m`.
+  - **`57 = Parry-Coat`**: Bolts intercept & knock-deflect incoming Ecomancer Orbs mid-air.
+  - **`58 = Phase-Ghost`**: Bolts pass through solid rock walls for their first `1.8m` of stone (wall-piercing assassination shots through pillars/floors; `+Invert` = bounces off *air-to-water/gas* phase boundaries!).
 
 ---
 
