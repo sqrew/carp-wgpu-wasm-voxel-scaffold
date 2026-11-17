@@ -199,7 +199,7 @@
       const int* gems  = (const int*)gems_p;
       static int s_init = 0;
       static int p_open = -1, p_cur = -1, p_grab = -9, p_tgt = -1, p_wcnt = -1, p_rel = -1, p_bc = -1;
-      static int p_lcap[3], p_rcap[3], p_lexe[3], p_rexe[3], p_lmods[15], p_rmods[15], p_gems[56];
+      static int p_lcap[3], p_rcap[3], p_lexe[3], p_rexe[3], p_lmods[15], p_rmods[15], p_gems[64];
       int same = s_init && (open_i == p_open && cur == p_cur && grab == p_grab && tgt == p_tgt && wcnt == p_wcnt && rel == p_rel && bc == p_bc);
       if (same) {
           for (int i = 0; i < 3; i++) {
@@ -208,21 +208,21 @@
       }
       if (same) {
           for (int i = 0; i < 15; i++) {
-              if (lmods[i] != p_lmods[i] || rmods[i] != p_rmods[i]) { same = 0; break; }
+              if (lmods[i] != p_lmods[i] || rmods[i] != rmods[i] || rmods[i] != p_rmods[i]) { same = 0; break; }
           }
       }
       if (same) {
-          for (int i = 0; i < 56; i++) { if (gems[i] != p_gems[i]) { same = 0; break; } }
+          for (int i = 0; i < 64; i++) { if (gems[i] != p_gems[i]) { same = 0; break; } }
       }
       if (same) return;
       s_init = 1;
       p_open = open_i; p_cur = cur; p_grab = grab; p_tgt = tgt; p_wcnt = wcnt; p_rel = rel; p_bc = bc;
       for (int i = 0; i < 3; i++) { p_lcap[i] = lcap[i]; p_rcap[i] = rcap[i]; p_lexe[i] = lexe[i]; p_rexe[i] = rexe[i]; }
       for (int i = 0; i < 15; i++) { p_lmods[i] = lmods[i]; p_rmods[i] = rmods[i]; }
-      for (int i = 0; i < 56; i++) p_gems[i] = gems[i];
+      for (int i = 0; i < 64; i++) p_gems[i] = gems[i];
       char buf[2048];
       snprintf(buf, sizeof(buf),
-        \"if (window.sync_satchel) window.sync_satchel(%d,%d,%d,%d,%d,%d,%d,[%d,%d,%d],[%d,%d,%d],[%d,%d,%d],[%d,%d,%d],[%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d],[%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d],[%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d]);\",
+        \"if (window.sync_satchel) window.sync_satchel(%d,%d,%d,%d,%d,%d,%d,[%d,%d,%d],[%d,%d,%d],[%d,%d,%d],[%d,%d,%d],[%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d],[%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d],[%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d]);\",
         open_i, cur, grab, tgt, wcnt, rel, bc,
         lcap[0], lcap[1], lcap[2],
         rcap[0], rcap[1], rcap[2],
@@ -240,7 +240,8 @@
         gems[24], gems[25], gems[26], gems[27], gems[28], gems[29], gems[30], gems[31],
         gems[32], gems[33], gems[34], gems[35], gems[36], gems[37], gems[38], gems[39],
         gems[40], gems[41], gems[42], gems[43], gems[44], gems[45], gems[46], gems[47],
-        gems[48], gems[49], gems[50], gems[51], gems[52], gems[53], gems[54], gems[55]);
+        gems[48], gems[49], gems[50], gems[51], gems[52], gems[53], gems[54], gems[55],
+        gems[56], gems[57], gems[58], gems[59], gems[60], gems[61], gems[62], gems[63]);
       emscripten_run_script(buf);
 #endif
   }")

@@ -557,6 +557,7 @@
           b-life (WandBelt.bolt-life wb)
           b-pos (WandBelt.bolt-pos wb)
           b-vel (WandBelt.bolt-vel wb)
+          b-fx4 (WandBelt.bolt-fx4 wb)
           midx @(Array.unsafe-nth (MancerBank.idx mbk) mslot)
           player-id @(EngineState.player-ent-id state)
           pos? (>= pol 0.0f)
@@ -585,6 +586,8 @@
                 (let [bvx @(Array.unsafe-nth b-vel b3)
                       bvy @(Array.unsafe-nth b-vel (+ b3 1))
                       bvz @(Array.unsafe-nth b-vel (+ b3 2))
+                      fx4 @(Array.unsafe-nth b-fx4 bi)
+                      slm (if (< fx4 67108864) 0 (Int.mod (/ (- fx4 67108864) 512) 8))
                       inv-d (Double.to-float (if (> d 0.15) (/ 1.0 d) 1.0))
                       ux (* (Double.to-float dx) inv-d)
                       uy (* (Double.to-float dy) inv-d)
@@ -597,7 +600,7 @@
                         (Array.aset! b-vel b3 (* bvx mul))
                         (Array.aset! b-vel (+ b3 1) (* bvy mul))
                         (Array.aset! b-vel (+ b3 2) (* bvz mul))))
-                    (if (and (= law-id 4) pos?)
+                    (if (and (= law-id 4) (and pos? (and (/= slm 1) (/= slm 3))))
                       ;; PHOTO +Solar Mirror: Reflects approaching wand bolts straight back!
                       (when (< (+ (+ (* bvx ux) (* bvy uy)) (* bvz uz)) 0.0f)
                         (do
@@ -1552,36 +1555,40 @@
               b-pos (WandBelt.bolt-pos wb)
               b-vel (WandBelt.bolt-vel wb)
               b-life (WandBelt.bolt-life wb)
+              b-fx4 (WandBelt.bolt-fx4 wb)
               mx (Double.to-float @(Vector3.x mpos))
               my (+ (Double.to-float @(Vector3.y mpos)) 0.25f)
               mz (Double.to-float @(Vector3.z mpos))
               parried? false]
           (do
-            ;; 1. Scan active Wand Bolts within 5.2m hurtling toward this Ecomancer!
+            ;; 1. Scan active Wand Bolts within 5.2m hurtling toward this Ecomancer (`🔇 Suppressor` `slm == 1` or `3` ghosts past undetected!)
             (for [bi 0 b-cnt]
               (when (and (not parried?) (> @(Array.unsafe-nth b-life bi) 0.02f))
-                (let [b3 (* bi 3)
-                      bx @(Array.unsafe-nth b-pos b3)
-                      by @(Array.unsafe-nth b-pos (+ b3 1))
-                      bz @(Array.unsafe-nth b-pos (+ b3 2))
-                      bvx @(Array.unsafe-nth b-vel b3)
-                      bvy @(Array.unsafe-nth b-vel (+ b3 1))
-                      bvz @(Array.unsafe-nth b-vel (+ b3 2))
-                      dx (- mx bx)
-                      dy (- my by)
-                      dz (- mz bz)
-                      d2 (+ (+ (* dx dx) (* dy dy)) (* dz dz))
-                      approaching? (> (+ (+ (* bvx dx) (* bvy dy)) (* bvz dz)) 0.0f)]
-                  (when (and (< d2 27.0f) approaching?)
-                    (let [ipos (Vector3.init (Double.from-float bx) (Double.from-float by) (Double.from-float bz))
-                          ivel (Vector3.init (Double.from-float bvx) (Double.from-float bvy) (Double.from-float bvz))]
-                      (do
-                        (Array.aset! b-life bi 0.0f)
-                        (ParticleSystem.emit-sparks! ps bx by bz 0.0f 1.0f 0.0f 24)
-                        (ParticleSystem.emit! ps bx by bz 0.0f 3.5f 0.0f 1.4f 16 PARTICLE-TYPE-MAGIC 0.35f 0.1f)
-                        (Array.aset! (MancerBank.flash mbk) mslot -1.0f)
-                        (MancerSystem.trigger-orb-impact! state oslot &ipos &ivel)
-                        (set! parried? true)))))))
+                (let [fx4 @(Array.unsafe-nth b-fx4 bi)
+                      slm (if (< fx4 67108864) 0 (Int.mod (/ (- fx4 67108864) 512) 8))]
+                  (when (and (/= slm 1) (/= slm 3))
+                    (let [b3 (* bi 3)
+                          bx @(Array.unsafe-nth b-pos b3)
+                          by @(Array.unsafe-nth b-pos (+ b3 1))
+                          bz @(Array.unsafe-nth b-pos (+ b3 2))
+                          bvx @(Array.unsafe-nth b-vel b3)
+                          bvy @(Array.unsafe-nth b-vel (+ b3 1))
+                          bvz @(Array.unsafe-nth b-vel (+ b3 2))
+                          dx (- mx bx)
+                          dy (- my by)
+                          dz (- mz bz)
+                          d2 (+ (+ (* dx dx) (* dy dy)) (* dz dz))
+                          approaching? (> (+ (+ (* bvx dx) (* bvy dy)) (* bvz dz)) 0.0f)]
+                      (when (and (< d2 27.0f) approaching?)
+                        (let [ipos (Vector3.init (Double.from-float bx) (Double.from-float by) (Double.from-float bz))
+                              ivel (Vector3.init (Double.from-float bvx) (Double.from-float bvy) (Double.from-float bvz))]
+                          (do
+                            (Array.aset! b-life bi 0.0f)
+                            (ParticleSystem.emit-sparks! ps bx by bz 0.0f 1.0f 0.0f 24)
+                            (ParticleSystem.emit! ps bx by bz 0.0f 3.5f 0.0f 1.4f 16 PARTICLE-TYPE-MAGIC 0.35f 0.1f)
+                            (Array.aset! (MancerBank.flash mbk) mslot -1.0f)
+                            (MancerSystem.trigger-orb-impact! state oslot &ipos &ivel)
+                            (set! parried? true)))))))))
 
             ;; 2. Scan incoming high-speed physics Boulders / Punted Orbs (> 10.5 m/s within 5.0m)!
             (when (not parried?)

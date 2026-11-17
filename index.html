@@ -279,17 +279,17 @@ canvas.emscripten { border: 0px none; background-color: black; }
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; border-bottom: 1px solid rgba(255,255,255,0.10); padding-bottom: 4px;">
           <div style="display: flex; align-items: center; gap: 8px;">
             <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: #4fc3f7;">[Tab] Dual-Strip Workbench</span>
-            <span style="font-size: 9.2px; color: #9aa4b8;">LMB + [4] RMB Strips • 💥/⏱/💀/🏀/×2–4/🔁 Linkers • 20 Modifiers</span>
+            <span style="font-size: 9.2px; color: #9aa4b8;">LMB + [4] RMB Strips • 💥/⏱/💀/🏀/×2–4/🔁 Linkers • 30 Modifiers</span>
           </div>
-          <span style="font-size: 9.2px; color: #ffd54f; font-weight: 700;">[1–3] Wand • [K] Gift All 45 • [Tab] Close</span>
+          <span style="font-size: 9.2px; color: #ffd54f; font-weight: 700;">[1–3] Wand • [K] Gift All 55 • [Tab] Close</span>
         </div>
         <!-- 3 Carried Universal Wand Chassis Tabs -->
         <div id="wb-wand-row" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 6px;"></div>
         <!-- Active Wand Dual Circuit Strips: Row 0 [LMB Strip] + Row 1 [RMB Strip] -->
         <div id="wb-active-strip" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(79, 195, 247, 0.26); border-radius: 10px; padding: 6px 8px; margin-bottom: 6px;"></div>
-        <!-- 56-Pocket Satchel Bag (8x7 Grid) -->
+        <!-- 64-Pocket Satchel Bag (8x8 Grid) -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; padding: 0 2px;">
-          <span style="font-size: 8.5px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: #8c99b0;">Satchel Rune Bag (56 Pockets)</span>
+          <span style="font-size: 8.5px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: #8c99b0;">Satchel Rune Bag (64 Pockets)</span>
           <span style="font-size: 8.5px; color: #78849b;">←→↑↓ / Scroll Navigate • [E] Grab / Swap • [&#8679;E / &#9003;] Quick-Move</span>
         </div>
         <div id="wb-gem-row" style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 3.5px; margin-bottom: 6px;"></div>
@@ -777,27 +777,37 @@ canvas.emscripten { border: 0px none; background-color: black; }
         27: { name: 'Double-Cast',    short: '✖️2',   kind: 'linker', col: '#40c4ff', stats: '+2.5m • ×2',    desc: 'Volley Multiplier • Clones the next Simple Spell ×2 in a crisp fan (multiplies with ×2/×3/×4 up to ×16; +Invert = Wingman Crossfire!)' },
         28: { name: 'Triple-Cast',    short: '✖️3',   kind: 'linker', col: '#69f0ae', stats: '+4m • ×3',      desc: 'Volley Multiplier • Clones the next Simple Spell ×3 in a crisp fan (multiplies with ×2/×3/×4 up to ×16; +Invert = Wingman Crossfire!)' },
         29: { name: 'Quad-Cast',      short: '✖️4',   kind: 'linker', col: '#ffd740', stats: '+5.5m • ×4',    desc: 'Volley Multiplier • Clones the next Simple Spell ×4 in a crisp fan (multiplies with ×2/×3/×4 up to ×16; +Invert = Wingman Crossfire!)' },
-        // 20 Modifier Runes (31..50)
+        // 25 Modifier Runes (31..55)
         31: { name: 'Ricochet',       short: 'RIC',   kind: 'mod',    col: '#40c4ff', stats: '+2m • +3 Bnc',  desc: 'Modifier • +3 high-energy wall bounces (turns Rail-Lance & Gyre into room-clearing pinballs; +Invert flips into Sticky!)' },
         32: { name: 'Homing',         short: 'HOM',   kind: 'mod',    col: '#b9f6ca', stats: '+3m • Seek',    desc: 'Modifier • Curves toward Slimes, Hoppers & Mancers (stack 2x Homing for 360° lock-on!)' },
         33: { name: 'Pierce',         short: 'PRC',   kind: 'mod',    col: '#ea80fc', stats: '+3.5m • Bore',  desc: 'Modifier • Bores through +3 rock/creature layers, extends Lumi-Drill & grinds barbed contact ticks with Sticky!' },
-        34: { name: 'Accelerate',     short: 'ACC',   kind: 'mod',    col: '#64ffda', stats: '+2.5m • +Spd',  desc: 'Modifier • +75% projectile speed, flatter arc, +15% kinetic hit, -0.03s delay & +2.6m Drill reach!' },
-        35: { name: 'Heavy Bore',     short: 'HVY',   kind: 'mod',    col: '#ffab40', stats: '+3.5m • +Bore', desc: 'Modifier • +65% damage & rock carve, +32% caliber, +45% tank sip, -35% speed (+rips Maelstrom boulders!)' },
+        34: { name: 'Accelerate',     short: 'ACC',   kind: 'mod',    col: '#64ffda', stats: '+2.5m • +Spd',  desc: 'Modifier • +75% projectile speed, flatter arc, -0.03s delay & +2.6m Drill reach! (+Heavy Bore = 🏔️ MASSIVE 2.85x+ Kinetic Sabot!)' },
+        35: { name: 'Heavy Bore',     short: 'HVY',   kind: 'mod',    col: '#ffab40', stats: '+3.5m • +Bore', desc: 'Modifier • +65% damage & rock carve, +32% caliber, -35% speed! (+Accelerate = 🏔️ MASSIVE 2.85x+ Supersonic Sabot + +2 Pierce & Seismic Slam!)' },
         36: { name: 'Trail',          short: '💧TRL', kind: 'mod',    col: '#26c6da', stats: '+2.5m • Wake',  desc: 'Modifier • Paints continuous Tank reagent skywriting wake in flight, along Rail-Lance & up Maelstrom!' },
         37: { name: 'Hover',          short: '⚓HVR', kind: 'mod',    col: '#b39ddb', stats: '+2.5m • Brake', desc: 'Modifier • Air-brakes bolts into floating mines, lingers Lumi-Drill & anchors Maelstrom/Gyre in place!' },
         38: { name: 'Boomerang',      short: '🪃BMG', kind: 'mod',    col: '#ffca28', stats: '+3m • Return',  desc: 'Modifier • Whips spells back! Pair Hover + Boomerang for Nova Bulwark shield or wearable Maelstrom cloak!' },
         39: { name: 'Blink',          short: '⚡BLK', kind: 'mod',    col: '#e040fb', stats: '+4.5m • Warp',  desc: 'Modifier • Teleports YOU to every projectile hit/bounce & surfs inside Gyre/Maelstrom eyes!' },
         40: { name: 'Glitch',         short: '🎲GLT', kind: 'mod',    col: '#ff5252', stats: '+2m • Chaos',   desc: 'Modifier • Quantum phase-jumps mid-flight across thin cover & fractures Lumi-Drill into jagged arcs!' },
         41: { name: 'Explosive',      short: '💣DET', kind: 'mod',    col: '#ff3d00', stats: '+5m • +0.04s',  desc: 'Modifier (Stacks!) • Every hit, bounce & drill-tip detonates a fiery crater-carving HE blast + Rocket-Jumps! Busted on Spitter, Buckshot & Nova!' },
-        42: { name: 'Invert',         short: '🔄INV', kind: 'mod',    col: '#b388ff', stats: '+3m • Flip!',   desc: 'Modifier (Stacks!) • Reverses ALL spell forces! Supernova = Black Hole; ×2–4 = Wingman Crossfire; [Fission + Fusion + Invert] = ☢️🕳️ DEMON CORE!' },
+        42: { name: 'Invert',         short: '🔄INV', kind: 'mod',    col: '#b388ff', stats: '+3m • Flip!',   desc: 'Modifier (Stacks!) • Polarity Keystone! Flips ALL spell forces! Suppressor→📢LOUDENER; [2xDmg+0xDmg+🔄]=☢️NUCLEAR GANDHI; Exodias: [🫧+☀️+🔄], [🔬+🦖+🔄], [🧲+🛡️+🔄], [🔭+💢+🔄]!' },
         43: { name: 'Impart',         short: '⏩IMP', kind: 'mod',    col: '#ffd740', stats: '+3.5m • Punt!', desc: 'Modifier (Stacks!) • Transfers live 3D bolt velocity straight into hit creatures/boulders + mid-air Jetpack recoil! Spitter/Drill = Hover-Jetpack; Accel+Bullet = Mach Punt; +Invert = Scorpion Harpoon Yank!' },
         44: { name: 'Pulse',          short: '💓PLS', kind: 'mod',    col: '#ff4081', stats: '+1.5m • Throb', desc: 'Modifier (Stacks!) • Oscillates projectile size between tiny crack-threading needle & huge 2.1x+ cannonball! Peak swell boosts hit/crater scale; Nova breathes like a jellyfish; +Invert = point-blank swell & anti-phase swarms!' },
         45: { name: 'Surge',          short: '💨SRG', kind: 'mod',    col: '#00e5ff', stats: '+2m • Lunge',   desc: 'Modifier (Stacks!) • Oscillates flight speed in rhythmic coil-and-whiplash lunges (-0.01s delay)! Drops concentrated Trail puddles on pauses, hits 2.5x harder with Impart mid-surge & piston-pumps Lumi-Drill!' },
         46: { name: 'Helix',          short: '🌀HLX', kind: 'mod',    col: '#1de9b6', stats: '+1.5m • Spiral', desc: 'Modifier (Stacks!) • Corkscrews projectiles in a 3D cylindrical spiral centered dead-on your crosshair! 2x/Echo weaves a symmetric DNA double-helix; +Trail paints helical reagent coils; +Invert flips spin; Lumi-Drill core-bores a rotary cone!' },
         47: { name: 'Sine',           short: '🐍SIN', kind: 'mod',    col: '#76ff03', stats: '+1.5m • Wave',  desc: 'Modifier (Stacks!) • Slithers projectiles in a wide horizontal sidewinder wave sweeping corridors! +Invert flips to a vertical sea-serpent wave; 2x/Echo braids a figure-8 weave; Lumi-Drill sweeps like a bandsaw!' },
         48: { name: 'Sticky',         short: '🍯STK', kind: 'mod',    col: '#ffc400', stats: '+2m • Latch',   desc: 'Modifier (Stacks!) • Glues projectiles onto the first creature or wall hit until expiration! +Expire/Timer = Semtex bomb; +Pierce = barbed buzz-drill & floor caltrop; +Impart = welded rocket thruster; +Invert flips into 1.24x Flubber!' },
-        49: { name: 'Fission',        short: '🫧FIS', kind: 'mod',    col: '#00e676', stats: '+3.5m • Split', desc: 'Modifier (Stacks 1→2→4→8!) • Bolts divide in two mid-flight! +Invert = 🌟 Thermonuclear Pinch-Fusion; +Fusion = ⚛️ Breeder; +Fusion+Invert = ☢️🕳️ DEMON CORE!' },
-        50: { name: 'Fusion',         short: '☀️FUS', kind: 'mod',    col: '#ffab00', stats: '+3m • Merge',   desc: 'Modifier (Stacks!) • Friendly bolts coalesce into a giant Mega-Slug! +Invert = ☢️ 3-Way Supercritical Fission; +Fission = ⚛️ Breeder; +Fission+Invert = ☢️🕳️ DEMON CORE!' }
+        49: { name: 'Fission',        short: '🫧FIS', kind: 'mod',    col: '#00e676', stats: '+3.5m • Split', desc: 'Modifier (Stacks 1→2→4→8!) • Bolts divide in two mid-flight! +Invert = 🌟 Thermonuclear Pinch-Fusion; +Fusion = ⚛️ Breeder; +Fusion+(🔄/👑) = ☢️🕳️ DEMON CORE!' },
+        50: { name: 'Fusion',         short: '☀️FUS', kind: 'mod',    col: '#ffab00', stats: '+3m • Merge',   desc: 'Modifier (Stacks!) • Friendly bolts coalesce into a giant Mega-Slug! +Invert = ☢️ 3-Way Supercritical Fission; +Fission = ⚛️ Breeder; +Fission+(🔄/👑) = ☢️🕳️ DEMON CORE!' },
+        51: { name: 'Shrink',         short: '🔬SHR', kind: 'mod',    col: '#29b6f6', stats: '-45%m/CD • Mini', desc: 'Modifier (Stacks!) • Miniaturizes spells (-45% Mana & Cast Delay, +55% speed, shrinks Slimes)! +Invert = 🪐 Katamari Snowball; +Embiggen = 💥 Pym Jackhammer; +Embiggen+(🔄/👑) = ☄️ EXTINCTION METEOR!' },
+        52: { name: 'Embiggen',       short: '🦖BIG', kind: 'mod',    col: '#ff7043', stats: '+45%m • Kaiju', desc: 'Modifier (Stacks!) • Super-sizes spells (2.15x+ caliber, 1.95x+ dmg, craters rock & force-swells Slimes)! +Invert = 🦟 Flechette Gatling (-75% CD!); +Shrink = 💥 Pym Jackhammer; +Shrink+(🔄/👑) = ☄️ EXTINCTION METEOR!' },
+        53: { name: 'Magnet',         short: '🧲MAG', kind: 'mod',    col: '#ff5252', stats: '+3m • Pull',    desc: 'Modifier (Stacks!) • Drags Boulders, 24k Gold, Enemies & hijacked Mancer Orbs in a comet tail! +Invert = 🌀 Mag-Lev Wall-Skimmer; +Repulse = 🪐 Saturn Debris Ring; +Repulse+(🔄/👑) = 🌩️ MAGNETAR!' },
+        54: { name: 'Repulse',        short: '🛡️REP', kind: 'mod',    col: '#40c4ff', stats: '+3m • Parry',   desc: 'Modifier (Stacks!) • Reflects Ecomancer Orbs back at warlocks, parts Lava/Acid & cowcatches foes! +Invert = ⚡ Lorentz Mach-3 Rail-Slingshot; +Magnet = 🪐 Saturn Ring; +Magnet+(🔄/👑) = 🌩️ MAGNETAR!' },
+        55: { name: 'Long Shot',      short: '🔭LNG', kind: 'mod',    col: '#ffd740', stats: '+2.5m • Sniper', desc: 'Modifier (Stacks!) • Ramps damage 0.42x→3.4x+ by real path distance traveled (Ricochet/Chakram banks count! Chokes Buckshot)! +Invert = 🪝 Harpoon Yank; +Point-Blank = ⚖️ Buck & Ball; +PBK+(🔄/👑) = ⚡ PARADOX RAIL-CANNON!' },
+        56: { name: 'Point-Blank',    short: '💢PBK', kind: 'mod',    col: '#ff6e40', stats: '-22%CD • Meat!', desc: 'Modifier (Stacks!) • Super-Shotgun 3.65x+ meatshot (<3.8m), -22% CD, Shotgun-Jump & +3 Buckshot pellets! +Invert = 🚀 Gyrojet 6m Rocket Stage; +Long Shot = ⚖️ Buck & Ball; +LNG+(🔄/👑) = ⚡ PARADOX RAIL-CANNON!' },
+        57: { name: 'Empower',        short: '👑EMP', kind: 'mod',    col: '#ffd54f', stats: '+3.5m • Awaken', desc: 'Modifier (Stacks!) • Overdrive Keystone! +35% Dmg/Size/Potency + Awakens Spells (Sparkbolt=⚡Chain-Arc, Drill=🔥Lava-Melt, Buckshot=🐉Dragon-Breath, Chakram=✂️Twin-Ring, Caltrop=⚡Tesla) + Unlocks ALL 3-Card Exodias!' },
+        58: { name: 'Double-Dmg',     short: '💀2X!', kind: 'mod',    col: '#ff1744', stats: '+4.5m • 2x–5x!', desc: 'Modifier (Stacks!) • Pure 2.0x / 3.5x / 5.0x Heavy Damage + concussive punch! +Invert = 🩸 -25% CD Berserker; +Zero-Dmg = 🎰 50/50 Crit Gamble; +Zero-Dmg+(🔄/👑) = ☢️ NUCLEAR GANDHI 10x UNDERFLOW!' },
+        59: { name: 'Zero-Dmg',       short: '🫧0DM', kind: 'mod',    col: '#80deea', stats: '-65%m/-35%CD',   desc: 'Modifier • 0 HP Dmg (-65% Mana & -35% CD)! Painless Rocket-Jumps, cheap Blink/Trigger carriers, & non-lethal Slime-Ranching (1.85x feeding, 0 shatter)! +Invert = 💉 Mana-Siphon; +2xDmg+(🔄/👑) = ☢️ 10x GANDHI CRIT!' },
+        60: { name: 'Suppressor',     short: '🔇SIL', kind: 'mod',    col: '#90a4ae', stats: '-0.04s • Stealth', desc: 'Modifier (Stacks!) • -0.04s CD, 0.15x pinpoint choke, 0 flash/recoil, ghosts past Ecomancer Halo-Orb Parries, 1.75x+ Sneak-Crit & silent bloodless Hopper kills! +Invert = 📢 THE LOUDENER (shatters Crystal/Ice & lures cavern)!' }
       };
 
       window.wand_chassis_state = {
@@ -806,7 +816,7 @@ canvas.emscripten { border: 0px none; background-color: black; }
           { lcap: 5, rcap: 2, lexec: 0, rexec: 0, lmods: [34, 6, 6, 4, 0],  rmods: [101, 0, 0, 0, 0]  },
           { lcap: 3, rcap: 5, lexec: 0, rexec: 0, lmods: [5, 21, 3, 0, 0],  rmods: [35, 37, 38, 102, 0] }
         ],
-        gems: [108, 107, 106, 105, 104, 102, 103, 101, 50, 49, 48, 46, 47, 44, 45, 42, 43, 41, 36, 37, 38, 39, 40, 34, 35, 31, 32, 33, 29, 28, 27, 26, 21, 22, 23, 24, 25, 8, 7, 3, 5, 6, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        gems: [108, 107, 106, 105, 104, 102, 103, 101, 60, 59, 58, 57, 56, 55, 54, 53, 52, 51, 50, 49, 48, 46, 47, 44, 45, 42, 43, 41, 36, 37, 38, 39, 40, 34, 35, 31, 32, 33, 29, 28, 27, 26, 21, 22, 23, 24, 25, 8, 7, 3, 5, 6, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         wandCount: 1,
         relicCharges: 0,
         lastWbSig: '',
@@ -1900,7 +1910,7 @@ canvas.emscripten { border: 0px none; background-color: black; }
         return (id >= 101) ? (POWER_CORES[id] || null) : (RUNE_DEFS[id] || null);
       }
 
-      window.sync_satchel = function(openI, cursor, grabIdx, target, wcnt, rel, boltCount, lcaps, rcaps, lexecs, rexecs, lmods15, rmods15, gems56) {
+      window.sync_satchel = function(openI, cursor, grabIdx, target, wcnt, rel, boltCount, lcaps, rcaps, lexecs, rexecs, lmods15, rmods15, gems64) {
         const isOpen = (openI | 0) !== 0;
         window.satchel_open = isOpen;
 
@@ -1920,8 +1930,8 @@ canvas.emscripten { border: 0px none; background-color: black; }
             ch.rmods[k] = (rmods15 && rmods15[b5 + k]) ? (rmods15[b5 + k] | 0) : 0;
           }
         }
-        for (let g = 0; g < 56; g++) {
-          wcs.gems[g] = (gems56 && gems56[g]) ? (gems56[g] | 0) : 0;
+        for (let g = 0; g < 64; g++) {
+          wcs.gems[g] = (gems64 && gems64[g]) ? (gems64[g] | 0) : 0;
         }
 
         renderHandsAndBeltHUD();
@@ -1951,7 +1961,7 @@ canvas.emscripten { border: 0px none; background-color: black; }
         const lcap      = Math.max(1, Math.min(5, actCh.lcap || 4));
         const rcap      = Math.max(1, Math.min(5, actCh.rcap || 3));
         const wandSlots = lcap + rcap;
-        const totSlots  = wandSlots + 56;
+        const totSlots  = wandSlots + 64;
         const cur       = Math.max(0, Math.min(totSlots - 1, cursor | 0));
         const grab      = (grabIdx !== undefined && (grabIdx | 0) >= 0) ? Math.min(totSlots - 1, grabIdx | 0) : -1;
 
@@ -2117,11 +2127,11 @@ canvas.emscripten { border: 0px none; background-color: black; }
           stripEl.innerHTML = sHtml;
         }
 
-        // 3. Render 56-Pocket Satchel Bag (8x7 Grid, Slots `wandSlots .. wandSlots + 55`)
+        // 3. Render 64-Pocket Satchel Bag (8x8 Grid, Slots `wandSlots .. wandSlots + 63`)
         const gemRowEl = document.getElementById('wb-gem-row');
         if (gemRowEl) {
           let gHtml = '';
-          for (let i = 0; i < 56; i++) {
+          for (let i = 0; i < 64; i++) {
             const sl     = wandSlots + i;
             const gid    = wcs.gems[i] | 0;
             const isSel  = (cur === sl);

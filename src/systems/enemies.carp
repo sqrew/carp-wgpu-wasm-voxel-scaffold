@@ -303,8 +303,8 @@
         (ignore (GoldSystem.spawn-nugget! state nug-pos nug-vel nug-rad nug-val))
         (EnemySystem.destroy-hopper-slot! state slot))))
 
-  ;; Apply combat/hazard damage to a Cave Hopper, squirting MAT_BLOOD and popping knockback!
-  (defn damage-hopper! [state slot raw-dmg dx dy dz kb elem-tag]
+  ;; Apply combat/hazard damage to a Cave Hopper, squirting MAT_BLOOD (unless `silent?` Suppressor kill!) and popping knockback!
+  (defn damage-hopper-ex! [state slot raw-dmg dx dy dz kb elem-tag silent?]
     (let [eb (EngineState.enemies state)
           h-alive (EnemyBank.alive eb)]
       (if (or (< slot 0) (or (>= slot 16) (not @(Array.unsafe-nth h-alive slot))))
@@ -337,7 +337,8 @@
                       (Array.aset! (EnemyBank.flash eb) slot 1.0f)
                       (Array.aset! (EnemyBank.hurt-cd eb) slot 0.16f)
                       (Array.aset! (EnemyBank.state eb) slot 0)
-                      (EnemySystem.squirt-blood! state ps fx fy fz dx dy dz (/ dmg 20.0f))
+                      (when (not silent?)
+                        (EnemySystem.squirt-blood! state ps fx fy fz dx dy dz (/ dmg 20.0f)))
                       (if (<= next-hp 0.0f)
                         (EnemySystem.kill-hopper! state slot &pos dx dy dz)
                         (do
@@ -358,6 +359,9 @@
                                 (ECS.add-component! ecs &ent (CompBody.init @rb))
                                 (Array.aset! (EnemyBank.prev-spd eb) slot nv-spd))))))
                       true)))))))))
+
+  (defn damage-hopper! [state slot raw-dmg dx dy dz kb elem-tag]
+    (EnemySystem.damage-hopper-ex! state slot raw-dmg dx dy dz kb elem-tag false))
 
   (defn spawn-hopper! [state spawn-pos vel raw-mat init-dx init-dz]
     (let [slot (EnemySystem.find-free-slot state)]
