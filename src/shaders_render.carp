@@ -1197,6 +1197,190 @@ fn map_entities_full(
     }
 }
 
+struct LiquidOptics {
+    sigma_ext: vec3<f32>,
+    scatter_col: vec3<f32>,
+    caustic_tint: vec3<f32>,
+    r0: f32,
+    ior_eta: f32,
+    spec_power: f32,
+    thin_film: f32,
+}
+
+fn get_liquid_optics(liq_id_u: u32, base_liq: vec3<f32>) -> LiquidOptics {
+    var opt: LiquidOptics;
+    opt.sigma_ext = vec3<f32>(0.44, 0.12, 0.042);
+    opt.scatter_col = base_liq * 0.14;
+    opt.caustic_tint = vec3<f32>(0.82, 0.95, 1.0);
+    opt.r0 = 0.024;
+    opt.ior_eta = 0.75;
+    opt.spec_power = 96.0;
+    opt.thin_film = 0.0;
+
+    switch (liq_id_u) {
+        case 1u: { // Water: crystal-clear shallows -> rich turquoise & abyssal sapphire at depth
+            opt.sigma_ext = vec3<f32>(0.44, 0.12, 0.042);
+            opt.scatter_col = vec3<f32>(0.015, 0.068, 0.115);
+            opt.caustic_tint = vec3<f32>(0.80, 0.96, 1.0);
+            opt.r0 = 0.024;
+            opt.ior_eta = 0.75;
+            opt.spec_power = 96.0;
+        }
+        case 2u: { // Lava: opaque molten magma with basaltic cooling crust
+            opt.sigma_ext = vec3<f32>(8.0, 9.0, 10.0);
+            opt.scatter_col = base_liq;
+            opt.r0 = 0.055;
+            opt.ior_eta = 0.0;
+            opt.spec_power = 28.0;
+        }
+        case 3u: { // Acid: clear venomous emerald transmission + fluorescent caustics
+            opt.sigma_ext = vec3<f32>(0.72, 0.055, 0.56);
+            opt.scatter_col = vec3<f32>(0.035, 0.20, 0.045);
+            opt.caustic_tint = vec3<f32>(0.45, 1.0, 0.38);
+            opt.r0 = 0.032;
+            opt.ior_eta = 0.74;
+            opt.spec_power = 88.0;
+        }
+        case 4u: { // Crude Oil: translucent dark amber edges -> pitch crude + rainbow thin-film slick!
+            opt.sigma_ext = vec3<f32>(0.85, 1.38, 2.25);
+            opt.scatter_col = vec3<f32>(0.038, 0.028, 0.014);
+            opt.caustic_tint = vec3<f32>(1.0, 0.68, 0.25);
+            opt.r0 = 0.046;
+            opt.ior_eta = 0.68;
+            opt.spec_power = 76.0;
+            opt.thin_film = 0.88;
+        }
+        case 5u: { // Blood: deep crimson ruby transmission at thin rims
+            opt.sigma_ext = vec3<f32>(0.52, 2.90, 3.20);
+            opt.scatter_col = vec3<f32>(0.14, 0.010, 0.012);
+            opt.caustic_tint = vec3<f32>(1.0, 0.22, 0.18);
+            opt.r0 = 0.030;
+            opt.ior_eta = 0.74;
+            opt.spec_power = 68.0;
+        }
+        case 6u: { // Ambrosia: luminescent 24k golden nectar
+            opt.sigma_ext = vec3<f32>(0.16, 0.26, 0.82);
+            opt.scatter_col = vec3<f32>(0.24, 0.19, 0.04);
+            opt.caustic_tint = vec3<f32>(1.0, 0.88, 0.32);
+            opt.r0 = 0.058;
+            opt.ior_eta = 0.70;
+            opt.spec_power = 112.0;
+            opt.thin_film = 0.25;
+        }
+        case 7u: { // Volatile Gel: glossy magenta gel
+            opt.sigma_ext = vec3<f32>(0.45, 1.85, 0.75);
+            opt.scatter_col = vec3<f32>(0.22, 0.03, 0.16);
+            opt.caustic_tint = vec3<f32>(1.0, 0.35, 0.82);
+            opt.r0 = 0.045;
+            opt.ior_eta = 0.71;
+            opt.spec_power = 64.0;
+        }
+        case 8u: { // Toxic Sludge: murky viscous sludge
+            opt.sigma_ext = vec3<f32>(1.55, 0.85, 1.95);
+            opt.scatter_col = vec3<f32>(0.08, 0.20, 0.03);
+            opt.r0 = 0.036;
+            opt.ior_eta = 0.0;
+            opt.spec_power = 38.0;
+        }
+        case 9u: { // Diesel: warm amber fuel + iridescent slick
+            opt.sigma_ext = vec3<f32>(0.42, 0.78, 1.55);
+            opt.scatter_col = vec3<f32>(0.06, 0.035, 0.01);
+            opt.caustic_tint = vec3<f32>(1.0, 0.74, 0.30);
+            opt.r0 = 0.044;
+            opt.ior_eta = 0.69;
+            opt.spec_power = 84.0;
+            opt.thin_film = 0.72;
+        }
+        case 10u: { // Kerosene: clear golden-honey lamp fuel
+            opt.sigma_ext = vec3<f32>(0.14, 0.28, 0.72);
+            opt.scatter_col = vec3<f32>(0.08, 0.055, 0.012);
+            opt.caustic_tint = vec3<f32>(1.0, 0.84, 0.42);
+            opt.r0 = 0.038;
+            opt.ior_eta = 0.71;
+            opt.spec_power = 96.0;
+            opt.thin_film = 0.38;
+        }
+        case 11u: { // Naphtha: light champagne solvent
+            opt.sigma_ext = vec3<f32>(0.08, 0.13, 0.34);
+            opt.scatter_col = vec3<f32>(0.07, 0.065, 0.03);
+            opt.caustic_tint = vec3<f32>(1.0, 0.94, 0.68);
+            opt.r0 = 0.035;
+            opt.ior_eta = 0.72;
+            opt.spec_power = 104.0;
+            opt.thin_film = 0.30;
+        }
+        case 12u: { // Mercury: liquid-chrome T-1000 mirror!
+            opt.sigma_ext = vec3<f32>(24.0, 24.0, 24.0);
+            opt.scatter_col = vec3<f32>(0.84, 0.88, 0.94);
+            opt.r0 = 0.82;
+            opt.ior_eta = 0.0;
+            opt.spec_power = 136.0;
+        }
+        case 13u: { // Caustic Lye: clear violet-alkali solution
+            opt.sigma_ext = vec3<f32>(0.24, 0.34, 0.10);
+            opt.scatter_col = vec3<f32>(0.09, 0.075, 0.14);
+            opt.caustic_tint = vec3<f32>(0.86, 0.78, 1.0);
+            opt.r0 = 0.032;
+            opt.ior_eta = 0.74;
+            opt.spec_power = 92.0;
+        }
+        case 14u: { // Nitroglycerin: dense oily high-index refractive ester
+            opt.sigma_ext = vec3<f32>(0.10, 0.15, 0.36);
+            opt.scatter_col = vec3<f32>(0.12, 0.11, 0.06);
+            opt.caustic_tint = vec3<f32>(1.0, 0.95, 0.72);
+            opt.r0 = 0.048;
+            opt.ior_eta = 0.68;
+            opt.spec_power = 108.0;
+            opt.thin_film = 0.28;
+        }
+        case 15u: { // Liquid Nitrogen / Cryo: ultra-crisp glacial cyan
+            opt.sigma_ext = vec3<f32>(0.30, 0.06, 0.022);
+            opt.scatter_col = vec3<f32>(0.04, 0.14, 0.18);
+            opt.caustic_tint = vec3<f32>(0.72, 0.97, 1.0);
+            opt.r0 = 0.020;
+            opt.ior_eta = 0.82;
+            opt.spec_power = 116.0;
+        }
+        default: {}
+    }
+    return opt;
+}
+
+fn wrap_world_uvw(q: vec3<f32>) -> vec3<f32> {
+    let w = q - floor(q / 160.0) * 160.0;
+    return clamp(w / 160.0, vec3<f32>(0.002), vec3<f32>(0.998));
+}
+
+fn sample_gi_world(q: vec3<f32>) -> vec3<f32> {
+    return textureSampleLevel(light_texture, voxel_sampler, wrap_world_uvw(q), 0.0).rgb;
+}
+
+fn sample_meniscus_normal(p: vec3<f32>, v_flow: vec3<f32>, l_spd: f32, t_dist: f32, out_ripple: ptr<function, f32>) -> vec3<f32> {
+    let eps_m = 1.15;
+    let gx_n = textureSampleLevel(liquid_texture, voxel_sampler, wrap_world_uvw(p - vec3<f32>(eps_m, 0.0, 0.0)), 0.0).g;
+    let gx_p = textureSampleLevel(liquid_texture, voxel_sampler, wrap_world_uvw(p + vec3<f32>(eps_m, 0.0, 0.0)), 0.0).g;
+    let gy_n = textureSampleLevel(liquid_texture, voxel_sampler, wrap_world_uvw(p - vec3<f32>(0.0, eps_m, 0.0)), 0.0).g;
+    let gy_p = textureSampleLevel(liquid_texture, voxel_sampler, wrap_world_uvw(p + vec3<f32>(0.0, eps_m, 0.0)), 0.0).g;
+    let gz_n = textureSampleLevel(liquid_texture, voxel_sampler, wrap_world_uvw(p - vec3<f32>(0.0, 0.0, eps_m)), 0.0).g;
+    let gz_p = textureSampleLevel(liquid_texture, voxel_sampler, wrap_world_uvw(p + vec3<f32>(0.0, 0.0, eps_m)), 0.0).g;
+    let raw_g = vec3<f32>(gx_n - gx_p, gy_n - gy_p, gz_n - gz_p);
+    let glen = length(raw_g);
+    let n0 = select(vec3<f32>(0.0, 1.0, 0.0), raw_g / max(glen, 0.0001), glen > 0.002);
+
+    let rip_fade = exp(-t_dist * 0.045) * smoothstep(42.0, 4.0, t_dist);
+    if (rip_fade > 0.005) {
+        let w1 = sample_spectral_3d(p * 3.2 - v_flow * 1.8 + vec3<f32>(u.time * 0.85, u.time * 0.30, -u.time * 0.62));
+        let w2 = sample_spectral_3d(p * 7.4 - v_flow * 2.5 + vec3<f32>(-u.time * 1.15, -u.time * 0.40, u.time * 0.92));
+        *out_ripple = w1.b * 0.65 + w2.r * 0.35;
+        let wave_vec = vec3<f32>(w1.r, w1.b, w1.g) * 0.65 + vec3<f32>(w2.g, w2.a, w2.r) * 0.35;
+        let wave_tan = wave_vec - n0 * dot(wave_vec, n0);
+        let rip_amp = (0.095 + clamp(l_spd * 0.14, 0.0, 0.22)) * rip_fade;
+        return normalize(n0 + wave_tan * rip_amp);
+    }
+    *out_ripple = 0.0;
+    return n0;
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> FragmentOutput {
     let aspect = u.width / u.height;
@@ -1266,8 +1450,34 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         var ray_p = ro + rd * t_start;
         var cur_rd = rd;
         var hit_color = vec3<f32>(0.0);
-        var accum_color = vec3<f32>(0.0);
-        var accum_alpha: f32 = 0.0;
+        var trans_rgb = vec3<f32>(1.0);
+        var in_scatter_rgb = vec3<f32>(0.0);
+
+        let start_liq_s = textureSampleLevel(liquid_texture, voxel_sampler, wrap_world_uvw(ray_p), 0.0);
+        var in_liq: bool = start_liq_s.g >= 0.26;
+        var meniscus_t: f32 = select(100000.0, t_start, in_liq);
+        var meniscus_p = ray_p;
+        var meniscus_rd = rd;
+        var meniscus_sigma = vec3<f32>(0.44, 0.12, 0.042);
+        var meniscus_caustic = vec3<f32>(0.80, 0.96, 1.0);
+        if (in_liq) {
+            let start_ip = vec3<i32>(clamp(ray_p - floor(ray_p / 160.0) * 160.0, vec3<f32>(0.0), vec3<f32>(159.0)));
+            var s_lid = u32(round(abs(textureLoad(liquid_texture, start_ip, 0).r)));
+            if (s_lid == 0u) {
+                s_lid = max(1u, u32(round(abs(start_liq_s.r / max(start_liq_s.g, 0.05)))));
+            }
+            s_lid = clamp(s_lid, 1u, 15u);
+            let smat = materials[s_lid + 256u];
+            let sopt = get_liquid_optics(s_lid, vec3<f32>(smat.r, smat.g, smat.b));
+            meniscus_sigma = sopt.sigma_ext;
+            meniscus_caustic = sopt.caustic_tint;
+        }
+        var pre_meniscus_trans = vec3<f32>(1.0);
+        var pre_meniscus_scatter = vec3<f32>(0.0);
+        var meniscus_refl_saved = vec3<f32>(0.0);
+        var meniscus_fres_saved: f32 = 0.0;
+        var clear_liq_path: f32 = 0.0;
+        var caustic_col_acc = meniscus_caustic;
         
         for (var step = 0; step < 144; step = step + 1) {
             if (t > min(t_far, 88.0)) {
@@ -1282,7 +1492,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
             // Sample SDF value from green channel (G) and Refractive Index Offset Delta_n from blue channel (B)
             let val = textureSampleLevel(solid_texture, voxel_sampler, uvw, 0.0);
             let dist = val.g * 0.5;
-            let step_len = clamp(dist, 0.008, 0.85);
+            var step_len = clamp(dist, 0.008, 0.85);
 
             // 3D Eikonal Schlieren Ray-Bending in open air (strictly outside 1-voxel trilinear footprint of stained/piezo solids!)
             if (t > 1.5 && dist > 0.95 && abs(val.r) < 0.001 && abs(val.b) > 0.0025 && abs(val.b) < 0.065) {
@@ -1299,20 +1509,153 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 cur_rd = normalize(rd + tot_bend);
             }
             
-            // Accumulate Fluids and Gases
+            // Accumulate Refractive Meniscus Liquids and Gases
             let ip_cell = vec3<i32>(clamp(wrapped_p, vec3<f32>(0.0), vec3<f32>(159.0)));
 
             let liq_val = textureSampleLevel(liquid_texture, voxel_sampler, uvw, 0.0);
+            if (!in_liq && liq_val.g > 0.02) {
+                step_len = min(step_len, 0.16);
+            } else if (in_liq && liq_val.g < 0.45) {
+                step_len = min(step_len, 0.18);
+            }
+
+            // Liquid -> Air Exit (Underwater Looking Up: 48.6-deg Snell's Window + Total Internal Reflection!)
+            if (in_liq && liq_val.g < 0.20) {
+                var rip_u: f32 = 0.0;
+                let v_ex = textureSampleLevel(vel_texture, voxel_sampler, uvw, 0.0);
+                let raw_ln = sample_meniscus_normal(p, v_ex.xyz, length(v_ex.xyz), t, &rip_u);
+                let under_n = select(-raw_ln, raw_ln, dot(cur_rd, -raw_ln) > 0.0);
+                let exit_r = refract(cur_rd, under_n, 1.333);
+                let ndv_u = max(dot(under_n, -cur_rd), 0.0);
+                let refl_u = reflect(cur_rd, under_n);
+                let u_gi = max(vec3<f32>(0.0), sample_gi_world(p + refl_u * 2.2) * 0.85 + vec3<f32>(0.02, 0.055, 0.085));
+                if (length(exit_r) < 0.01) {
+                    let tir_f = 0.64 + 0.24 * (0.5 + 0.5 * rip_u);
+                    in_scatter_rgb += trans_rgb * (u_gi * 1.28 + vec3<f32>(0.035, 0.085, 0.135)) * tir_f;
+                    trans_rgb *= (1.0 - tir_f);
+                } else {
+                    let tir_edge = pow(1.0 - ndv_u, 4.0) * 0.55;
+                    in_scatter_rgb += trans_rgb * u_gi * tir_edge;
+                    trans_rgb *= (1.0 - tir_edge);
+                    cur_rd = normalize(mix(cur_rd, exit_r, 0.45));
+                }
+                in_liq = false;
+            }
+
             if (liq_val.g > 0.05) {
                 let raw_liq = textureLoad(liquid_texture, ip_cell, 0);
-                let liq_id_u = u32(round(abs(raw_liq.r)));
+                var liq_id_u = u32(round(abs(raw_liq.r)));
+                if (liq_id_u == 0u) {
+                    let below_ip = vec3<i32>(ip_cell.x, max(ip_cell.y - 1, 0), ip_cell.z);
+                    liq_id_u = u32(round(abs(textureLoad(liquid_texture, below_ip, 0).r)));
+                    if (liq_id_u == 0u) {
+                        liq_id_u = max(1u, u32(round(abs(liq_val.r / max(liq_val.g, 0.05)))));
+                    }
+                }
+                liq_id_u = clamp(liq_id_u, 1u, 15u);
                 let mat = materials[liq_id_u + 256u];
                 let base_liq = vec3<f32>(mat.r, mat.g, mat.b);
+                let opt = get_liquid_optics(liq_id_u, base_liq);
                 let v_liq = textureSampleLevel(vel_texture, voxel_sampler, uvw, 0.0);
                 let l_spd = length(v_liq.xyz);
-                var liq_color = base_liq;
-                var light_env = vec3<f32>(1.0);
-                if ((mat.tags & 2097152u) != 0u) {
+                let is_lum_liq = (mat.tags & 2097152u) != 0u;
+
+                let l_gi = textureSampleLevel(light_texture, voxel_sampler, uvw, 0.0).rgb;
+                let sky_open = clamp((p.y - 8.0) / 20.0, 0.08, 1.0);
+                let l_amb = clamp(u.sun_dir.y * 3.0 + 0.35, 0.12, 1.0) * sky_open;
+                var l_flash = vec3<f32>(0.0);
+                var f_att_m: f32 = 0.0;
+                if (u.cam_pos.w > 0.5) {
+                    f_att_m = 1.0 / (1.0 + 0.05 * t + 0.012 * t * t);
+                    l_flash = vec3<f32>(1.0, 0.96, 0.88) * f_att_m * 2.2;
+                }
+                let light_env = max(vec3<f32>(0.0), vec3<f32>(l_amb) + l_gi + l_flash);
+
+                // Air -> Liquid Meniscus Crossing (fires once on surface entry!)
+                if (!in_liq && liq_val.g >= 0.26) {
+                    var rip_w: f32 = 0.0;
+                    let raw_ln = sample_meniscus_normal(p, v_liq.xyz, l_spd, t, &rip_w);
+                    let liq_n = select(raw_ln, -raw_ln, dot(cur_rd, raw_ln) > 0.0);
+                    let ndv = max(dot(liq_n, -cur_rd), 0.0);
+                    let fres = clamp(opt.r0 + (1.0 - opt.r0) * pow(1.0 - ndv, 5.0), 0.0, 0.96);
+
+                    let refl_d = reflect(cur_rd, liq_n);
+                    let gi_r1 = sample_gi_world(p + refl_d * 1.9);
+                    let gi_r2 = sample_gi_world(p + refl_d * 4.4);
+                    let sky_refl = mix(space_color, horizon_color, max(0.0, refl_d.y)) * clamp((p.y - 6.0) / 20.0, 0.0, 1.0);
+                    var refl_env = max(vec3<f32>(0.0), sky_refl + gi_r1 * 0.68 + gi_r2 * 0.42 + vec3<f32>(0.03, 0.04, 0.06) * l_amb);
+
+                    // Sun + Player Headlamp wet meniscus specular glints
+                    let sun_vis_m = clamp(u.sun_dir.y * 4.0, 0.0, 1.0) * clamp((p.y - 6.0) / 18.0, 0.0, 1.0);
+                    let h_sun = normalize(-cur_rd + light_dir + vec3<f32>(0.0001));
+                    var spec_glint = vec3<f32>(1.0, 0.95, 0.84) * pow(max(dot(liq_n, h_sun), 0.0), opt.spec_power) * sun_vis_m * 2.4;
+                    if (u.cam_pos.w > 0.5) {
+                        let lamp_m = normalize((u.cam_pos.xyz + u.cam_right.xyz * 0.42 + u.cam_up.xyz * 0.28) - p + vec3<f32>(0.0001));
+                        let h_lamp = normalize(-cur_rd + lamp_m + vec3<f32>(0.0001));
+                        let tight_s = pow(max(dot(liq_n, h_lamp), 0.0), opt.spec_power * 0.72);
+                        let broad_s = pow(max(dot(liq_n, h_lamp), 0.0), 18.0) * 0.14;
+                        spec_glint += vec3<f32>(1.0, 0.97, 0.90) * (tight_s * 1.95 + broad_s) * f_att_m;
+                    }
+
+                    if (liq_id_u == 12u) {
+                        // Mercury (12): Liquid-chrome T-1000 mirror reflectance!
+                        let chrome_tint = vec3<f32>(0.86, 0.90, 0.96);
+                        refl_env = (refl_env + light_env * 0.38) * chrome_tint;
+                        spec_glint *= chrome_tint * 1.45;
+                    } else if (opt.thin_film > 0.01) {
+                        // Thin-film rainbow interference on Crude Oil / Diesel / Kerosene / Ambrosia!
+                        let rainbow = 0.52 + 0.48 * cos(ndv * 15.0 + rip_w * 5.2 + vec3<f32>(0.0, 2.094, 4.188));
+                        refl_env *= mix(vec3<f32>(1.0), rainbow * 1.35, opt.thin_film);
+                        spec_glint *= mix(vec3<f32>(1.0), rainbow * 1.20, opt.thin_film * 0.65);
+                    }
+
+                    // Capillary shoreline meniscus rim where liquid laps against rock walls/ledges!
+                    var shore_foam = vec3<f32>(0.0);
+                    if (dist < 0.28 && liq_id_u != 2u && liq_id_u != 12u) {
+                        let rim_m = smoothstep(0.28, 0.02, dist) * (0.62 + 0.38 * rip_w);
+                        let foam_col = mix(vec3<f32>(0.90, 0.96, 1.0), base_liq + vec3<f32>(0.45), 0.35);
+                        shore_foam = foam_col * max(light_env, vec3<f32>(0.18)) * rim_m * 0.32;
+                    }
+
+                    var surf_refl = refl_env * fres + spec_glint + shore_foam;
+                    if (liq_id_u == 2u) {
+                        surf_refl *= 0.22;
+                    }
+
+                    if (meniscus_t > 99999.0) {
+                        pre_meniscus_trans = trans_rgb;
+                        pre_meniscus_scatter = in_scatter_rgb;
+                        meniscus_t = t;
+                        meniscus_sigma = opt.sigma_ext;
+                        meniscus_caustic = opt.caustic_tint;
+                        meniscus_refl_saved = surf_refl;
+                        meniscus_fres_saved = select(fres, 0.0, liq_id_u == 2u);
+                    }
+
+                    in_scatter_rgb += trans_rgb * surf_refl;
+                    if (liq_id_u != 2u) {
+                        trans_rgb *= (1.0 - fres);
+                    }
+
+                    if (opt.ior_eta > 0.01) {
+                        let refr_d = refract(cur_rd, liq_n, opt.ior_eta);
+                        if (length(refr_d) > 0.01) {
+                            cur_rd = normalize(mix(cur_rd, refr_d, 0.52));
+                        }
+                    }
+                    if (meniscus_t == t) {
+                        meniscus_p = p;
+                        meniscus_rd = cur_rd;
+                    }
+                    in_liq = true;
+                }
+
+                // Interior Volume Step: Chromatic Beer-Lambert Absorption + Emissive/Scatter!
+                let eff_step = max(0.008, step_len) * clamp(liq_val.g, 0.0, 1.20);
+                var ext_step = opt.sigma_ext;
+                var vol_radiance = opt.scatter_col * light_env;
+
+                if (is_lum_liq) {
                     let base_glow = base_liq * max(1.0, mat.a * 0.65);
                     let l_fade = smoothstep(34.0, 7.0, t);
                     if (liq_id_u == 2u && l_fade > 0.01) {
@@ -1323,42 +1666,39 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                         let hot_seam = smoothstep(0.18, -0.10, abs(m_sp.b)) * (0.55 + 0.45 * clamp(m_sp.a + 0.5, 0.0, 1.0));
                         let sculpted_lava = mix(base_glow, vec3<f32>(0.16, 0.045, 0.035), crust * 0.82)
                                           + vec3<f32>(1.35, 0.78, 0.18) * (hot_seam * (0.55 + 0.35 * clamp(l_spd, 0.0, 1.5)));
-                        liq_color = mix(base_glow, sculpted_lava, l_fade);
+                        vol_radiance = mix(base_glow, sculpted_lava, l_fade);
                     } else if (l_fade > 0.01) {
                         let c_sp = sample_spectral_3d(p * 10.5 - v_liq.xyz * 2.0 + vec3<f32>(0.0, u.time * 0.45, 0.0));
                         let caustic = clamp(1.0 + (c_sp.b * 0.22 + c_sp.a * 0.16) * l_fade, 0.74, 1.30);
-                        liq_color = base_glow * caustic;
+                        vol_radiance = base_glow * caustic * select(0.55, 1.0, opt.ior_eta < 0.01);
                     } else {
-                        liq_color = base_glow;
+                        vol_radiance = base_glow * select(0.55, 1.0, opt.ior_eta < 0.01);
                     }
-                } else {
-                    let l_gi = textureSampleLevel(light_texture, voxel_sampler, uvw, 0.0).rgb;
-                    let sky_open = clamp((p.y - 8.0) / 20.0, 0.08, 1.0);
-                    let l_amb = clamp(u.sun_dir.y * 3.0 + 0.35, 0.12, 1.0) * sky_open;
-                    var l_flash = vec3<f32>(0.0);
-                    if (u.cam_pos.w > 0.5) {
-                        let f_att = 1.0 / (1.0 + 0.05 * t + 0.012 * t * t);
-                        l_flash = vec3<f32>(1.0, 0.96, 0.88) * f_att * 2.2;
-                    }
-                    light_env = max(vec3<f32>(0.0), vec3<f32>(l_amb) + l_gi + l_flash);
-                    liq_color = base_liq * light_env;
+                } else if (liq_id_u == 12u) {
+                    vol_radiance = opt.scatter_col * max(light_env, vec3<f32>(0.16));
                 }
-                if (l_spd > 0.32) {
+
+                if (l_spd > 0.36 && liq_id_u != 2u && liq_id_u != 12u) {
                     let fp = p * 5.8 - v_liq.xyz * 2.4;
                     let froth_n = 0.5 + 0.5 * sin(fp.x + sin(fp.y * 1.3 + fp.z)) * cos(fp.z - sin(fp.y * 1.1 - fp.x));
-                    let foam = smoothstep(0.32, 2.4, l_spd) * smoothstep(0.28, 0.82, froth_n);
-                    let froth_tint = mix(base_liq, vec3<f32>(0.92, 0.96, 1.0), 0.72) * max(light_env, vec3<f32>(0.28));
-                    liq_color = mix(liq_color, froth_tint, foam * 0.78);
+                    let foam = smoothstep(0.36, 2.5, l_spd) * smoothstep(0.32, 0.84, froth_n);
+                    let froth_tint = mix(base_liq, vec3<f32>(0.92, 0.96, 1.0), 0.78) * max(light_env, vec3<f32>(0.26));
+                    vol_radiance = mix(vol_radiance, froth_tint, foam * 0.80);
+                    ext_step += vec3<f32>(foam * 1.45);
                 }
                 if (liq_val.b > 0.04) {
                     let arc_w = 0.65 + 0.35 * sin(u.time * 32.0 + dot(p, vec3<f32>(6.3, 9.1, 7.4)));
-                    liq_color += vec3<f32>(0.38, 0.88, 2.75) * (liq_val.b * arc_w);
+                    vol_radiance += vec3<f32>(0.38, 0.88, 2.75) * (liq_val.b * arc_w);
                 }
-                let absorb = mat.density * (1.0 + smoothstep(0.4, 2.5, l_spd) * 0.35);
-                let step_size = max(0.008, dist);
-                let alpha = 1.0 - exp(-liq_val.g * step_size * absorb);
-                accum_color = mix(accum_color, liq_color, alpha * (1.0 - accum_alpha));
-                accum_alpha = accum_alpha + alpha * (1.0 - accum_alpha);
+
+                if (opt.ior_eta > 0.01) {
+                    clear_liq_path += eff_step;
+                    caustic_col_acc = opt.caustic_tint;
+                }
+
+                let t_slab = exp(-ext_step * eff_step);
+                in_scatter_rgb += trans_rgb * vol_radiance * (vec3<f32>(1.0) - t_slab);
+                trans_rgb *= t_slab;
             }
 
             let gas_val = textureSampleLevel(gas_texture, voxel_sampler, uvw, 0.0);
@@ -1397,10 +1737,16 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                     gas_color *= mix(1.0, 0.82 + 0.36 * wisp, streak);
                     absorb *= mix(1.0, (0.60 + 0.75 * wisp) * (1.0 + clamp(abs(v_gas.w) * 0.35, 0.0, 0.55)), streak);
                 }
-                let step_size = max(0.008, dist);
-                let alpha = (1.0 - exp(-gas_val.g * step_size * absorb)) * 0.4;
-                accum_color = mix(accum_color, gas_color, alpha * (1.0 - accum_alpha));
-                accum_alpha = accum_alpha + alpha * (1.0 - accum_alpha);
+                let step_size = max(0.008, step_len);
+                let alpha = clamp((1.0 - exp(-gas_val.g * step_size * absorb)) * 0.4, 0.0, 0.98);
+                in_scatter_rgb += trans_rgb * gas_color * alpha;
+                trans_rgb *= (1.0 - alpha);
+            }
+
+            if (max(trans_rgb.r, max(trans_rgb.g, trans_rgb.b)) < 0.005) {
+                hit_color = in_scatter_rgb;
+                hit = true;
+                break;
             }
             
             if (dist < 0.008) {
@@ -1552,8 +1898,22 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 }
 
                 stained_base = stained_base * clamp(1.0 + surf_imp.albedo_grain, 0.86, 1.14);
+                var caustic_add = vec3<f32>(0.0);
+                if (clear_liq_path > 0.06) {
+                    // Wetten submerged rock & project dancing refracted spectral caustic light-nets!
+                    stained_base *= mix(1.0, 0.72, clamp(clear_liq_path * 1.8, 0.0, 1.0));
+                    let c_fade = smoothstep(0.05, 0.55, clear_liq_path) * exp(-clear_liq_path * 0.14) * smoothstep(32.0, 5.0, t);
+                    if (c_fade > 0.005) {
+                        let cs1 = sample_spectral_3d(p * 3.8 + vec3<f32>(u.time * 0.58, -u.time * 0.24, -u.time * 0.44)).b;
+                        let cs2 = sample_spectral_3d(p * 6.1 + vec3<f32>(-u.time * 0.46, -u.time * 0.30, u.time * 0.63)).g;
+                        let focus = pow(clamp(1.0 - abs(cs1 + cs2 * 0.80) * 2.1, 0.0, 1.0), 2.6);
+                        let up_exp = clamp(normal.y * 0.55 + 0.45, 0.06, 1.0);
+                        let src_e = sun_intensity * 1.45 + min(length(pos_gi_base), 1.8) * 0.78 + min(length(player_glow), 1.8) * 0.42;
+                        caustic_add = caustic_col_acc * (focus * up_exp * src_e * c_fade * 0.88);
+                    }
+                }
                 let rock_albedo = mix(stained_base, stained_base * 0.07, crack_core * 0.94);
-                let total_light = max(vec3<f32>(0.0), direct + ambient + moon_light + block_light + player_glow);
+                let total_light = max(vec3<f32>(0.0), direct + ambient + moon_light + block_light + player_glow + caustic_add);
                 var gold_spec = stain_spec * min(length(total_light), 2.0);
                 let spec_l_dir = select(select(normal, lamp_dir, u.cam_pos.w > 0.5), light_dir, sun_intensity > 0.15);
                 let raw_h = -cur_rd + spec_l_dir;
@@ -1568,7 +1928,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                     gold_spec += mix(vec3<f32>(0.92, 0.96, 1.0), base_color + vec3<f32>(0.32), 0.45) * micro_spec;
                 }
                 let solid_col = rock_albedo * total_light + emissive + gold_spec;
-                hit_color = mix(solid_col, accum_color, accum_alpha);
+                hit_color = solid_col * trans_rgb + in_scatter_rgb;
                 hit = true;
                 break;
             }
@@ -1588,18 +1948,19 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
             var active_mask: u32 = 0u;
             var min_ent_t: f32 = voxel_hit_t;
             var max_ent_t: f32 = t_start;
+            let refr_pad = select(0.0, 0.55, meniscus_t < voxel_hit_t);
             let ent_count = u32(u.entity_count);
             for (var ei: u32 = 0u; ei < ent_count; ei = ei + 1u) {
                 let e = s_entities[ei];
                 let oc = e.pos_type.xyz - ro;
                 let proj = dot(oc, rd);
-                var r_bound: f32 = e.extents_rad.w * 1.38 + 0.26;
+                var r_bound: f32 = e.extents_rad.w * 1.38 + 0.26 + refr_pad;
                 if (e.pos_type.w > 4.5) {
-                    r_bound = e.extents_rad.w * 2.15 + 0.45;
+                    r_bound = e.extents_rad.w * 2.15 + 0.45 + refr_pad;
                 } else if (e.pos_type.w >= 1.5 && e.pos_type.w < 3.5) {
-                    r_bound = e.extents_rad.w + length(e.extents_rad.xyz) + 0.56;
+                    r_bound = e.extents_rad.w + length(e.extents_rad.xyz) + 0.56 + refr_pad;
                 } else if (e.pos_type.w >= 0.5 && e.pos_type.w < 1.5) {
-                    r_bound = length(e.extents_rad.xyz) + 0.10;
+                    r_bound = length(e.extents_rad.xyz) + 0.10 + refr_pad;
                 }
                 if (proj + r_bound > t_start && proj - r_bound < voxel_hit_t) {
                     let perp2 = dot(oc, oc) - proj * proj;
@@ -1628,7 +1989,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
 
                 for (var step = 0; step < 38; step = step + 1) {
                     if (ent_t > max_ent_t) { break; }
-                    let p = ro + rd * ent_t;
+                    let p = select(ro + rd * ent_t, meniscus_p + meniscus_rd * (ent_t - meniscus_t), ent_t > meniscus_t);
 
                     var ent_c = vec3<f32>(0.0);
                     var ent_kind: f32 = 0.0;
@@ -1838,7 +2199,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                             // Translucent Ditto-Amoeba: refracted cave background + wet Fresnel rim + glowing stomach vacuole + eyespots!
                             let far_y_bg = ro.y + rd.y * min(t_far, 88.0);
                             let bg_sky_vis = clamp((max(ro.y, far_y_bg) - 6.0) / 18.0, 0.0, 1.0);
-                            let fallback_bg = mix(color * bg_sky_vis, accum_color, accum_alpha);
+                            let fallback_bg = (color * bg_sky_vis) * trans_rgb + in_scatter_rgb;
                             let bg_behind = select(fallback_bg, hit_color, hit);
 
                             let ndv = max(dot(normal, -rd), 0.0);
@@ -1922,7 +2283,22 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 if (ent_hit) {
                     hit = true;
                     t = ent_t;
-                    hit_color = final_ent_color;
+                    if (ent_t <= meniscus_t) {
+                        // Dry / above-waterline half of floating log or boulder (with dark capillary wet collar near meniscus_t!)
+                        let wet_ring = smoothstep(0.14, 0.0, meniscus_t - ent_t);
+                        let above_col = final_ent_color * mix(1.0, 0.70, wet_ring);
+                        hit_color = above_col * pre_meniscus_trans + pre_meniscus_scatter;
+                    } else {
+                        // Submerged half below the meniscus: Beer-Lambert depth absorption + underwater caustics + surface Fresnel reflection!
+                        let sub_d = ent_t - meniscus_t;
+                        let sub_trans = exp(-meniscus_sigma * sub_d);
+                        let p_sub = meniscus_p + meniscus_rd * sub_d;
+                        let cs_e = sample_spectral_3d(p_sub * 4.2 + vec3<f32>(u.time * 0.55, -u.time * 0.25, -u.time * 0.42)).b;
+                        let e_caustic = pow(clamp(1.0 - abs(cs_e) * 2.4, 0.0, 1.0), 2.4) * exp(-sub_d * 0.20) * smoothstep(28.0, 4.0, ent_t);
+                        let wet_sub_col = final_ent_color * 0.78 + meniscus_caustic * (e_caustic * 0.24);
+                        hit_color = (wet_sub_col * sub_trans) * pre_meniscus_trans * (1.0 - meniscus_fres_saved)
+                                  + pre_meniscus_scatter + pre_meniscus_trans * meniscus_refl_saved;
+                    }
                 }
             }
         }
@@ -1939,7 +2315,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         } else {
             let far_y = ro.y + rd.y * min(t_far, 88.0);
             let bg_sky_vis = clamp((max(ro.y, far_y) - 6.0) / 18.0, 0.0, 1.0);
-            color = mix(color * bg_sky_vis, accum_color, accum_alpha);
+            color = (color * bg_sky_vis) * trans_rgb + in_scatter_rgb;
         }
 
         // Lawmancer 3D Personal Forcefield Bubble (r = 2.75m) & Radiating Spherical Wavefront Shell + Wall-Slice Ring!

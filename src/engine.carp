@@ -570,6 +570,10 @@
   mancers MancerBank
   wands WandBelt
   gold GoldBank
+  fsi-idx (Array Uint64)
+  fsi-gen (Array Uint32)
+  fsi-rho (Array Float)
+  fsi-count Int
 ])
 
 (defmodule EngineState
@@ -602,7 +606,7 @@
                 (Camera.update-basis! (Player.camera &player))
                 
                 (let [player-ent (GameWorld.create-entity! &ecs-world)
-                      rb (RigidBody.new @&spawn-foot-pos (Quaternion.identity) 1.0 0.0 0.0 0.99 1.0 1.0)
+                      rb (RigidBody.new @&spawn-foot-pos (Quaternion.identity) 3.5 0.0 0.0 0.99 1.0 1.0)
                       vol (Volume.Ball (Sphere.init spawn-foot-pos 0.5))]
                   (do
                     ;; Lock capsule rotation (inv-inertia = 0) so 2-sphere contacts stay strictly upright!
@@ -636,7 +640,11 @@
                         (EnemyBank.make)
                         (MancerBank.make)
                         (WandBelt.make w-seed)
-                        (GoldBank.make)))))))))))
+                        (GoldBank.make)
+                        (Array.replicate 256 &(Uint64.from-long 0l))
+                        (Array.replicate 256 &(Uint32.from-long 0l))
+                        (Array.replicate 256 &0.0f)
+                        0))))))))))
 
   (defn draw-bounds-wireframe! [ren min-x min-y min-z max-x max-y max-z color]
     (let [w0 (Vector3.init min-x min-y min-z)
@@ -970,6 +978,30 @@
               (Array.aset! ed (+ b 5) (Float.from-int skip-eid))
               (VoxelQueue.set-expl-count! vq (+ cnt 1))))))))
 
+  (defn entity-buoyant? [state idx gen body-mass]
+    (let [cnt @(EngineState.fsi-count state)
+          f-idx (EngineState.fsi-idx state)
+          f-gen (EngineState.fsi-gen state)
+          f-rho (EngineState.fsi-rho state)
+          bm (Double.to-float (if (< body-mass 0.35) 0.35 body-mass))
+          ecs (EngineState.ecs-world state)
+          ent (ECS.Entity.init (Handle.init idx gen))
+          cb-opt (the (Maybe CompBody) (get-component ecs &ent))
+          bobbing? (match cb-opt
+                     (Maybe.Nothing) false
+                     (Maybe.Just cb)
+                       (> (Double.abs @(Vector3.y (Body.velocity (RigidBody.body (CompBody.rb &cb))))) 0.18))
+          found? false]
+      (do
+        (for [i 0 cnt]
+          (when (and (not found?)
+                     (and (Uint64.= idx @(Array.unsafe-nth f-idx i))
+                          (Uint32.= gen @(Array.unsafe-nth f-gen i))))
+            (let [rho @(Array.unsafe-nth f-rho i)]
+              (set! found? (or (>= rho (* 0.97f bm))
+                               (and bobbing? (>= rho (* 0.52f bm))))))))
+        found?)))
+
   )
 
 (load "systems/player.carp")
@@ -983,6 +1015,123 @@
 
 (defmodule EngineState
 
+  ;; Generation-safe GPU -> ECS RigidBody Fluid-Structure Interaction (Archimedes buoyancy + vel_texture drag + -grad(P) launch)
+  (defn apply-gpu-fluid-forces! [state dt]
+    (let [ecs (EngineState.ecs-world state)
+          rig (EngineState.rig state)
+          grab-idx @(RigBelt.grab-idx rig)
+          f-idx (EngineState.fsi-idx state)
+          f-gen (EngineState.fsi-gen state)
+          f-rho (EngineState.fsi-rho state)
+          cnt @(EngineState.fsi-count state)
+          o-state (MancerBank.orb-state (EngineState.mancers state))
+          raw-rb (gpu-readback-get-raw)
+          safe-dt (if (> dt 0.001) dt 0.016)]
+      (for [ei 0 cnt]
+        (let [flow-off (Long.from-int (* (+ 108 (* ei 2)) 4))
+              hyd-off  (Long.from-int (* (+ 109 (* ei 2)) 4))
+              fvx (Double.from-float (Pointer.to-value (Pointer.add raw-rb flow-off)))
+              fvy (Double.from-float (Pointer.to-value (Pointer.add raw-rb (+ flow-off 1l))))
+              fvz (Double.from-float (Pointer.to-value (Pointer.add raw-rb (+ flow-off 2l))))
+              dyn-p (Double.from-float (Pointer.to-value (Pointer.add raw-rb (+ flow-off 3l))))
+              gpx (Double.from-float (Pointer.to-value (Pointer.add raw-rb hyd-off)))
+              gpy (Double.from-float (Pointer.to-value (Pointer.add raw-rb (+ hyd-off 1l))))
+              gpz (Double.from-float (Pointer.to-value (Pointer.add raw-rb (+ hyd-off 2l))))
+              eff-rho-f (Pointer.to-value (Pointer.add raw-rb (+ hyd-off 3l)))
+              eff-rho (Double.from-float eff-rho-f)
+              eidx @(Array.unsafe-nth f-idx ei)
+              egen @(Array.unsafe-nth f-gen ei)]
+          (do
+            (Array.aset! f-rho ei eff-rho-f)
+            (when (not (Uint64.= grab-idx eidx))
+              (let [ent (ECS.Entity.init (Handle.init eidx egen))
+                    cb-opt (the (Maybe CompBody) (get-component ecs &ent))]
+                (match cb-opt
+                  (Maybe.Nothing) ()
+                  (Maybe.Just cb)
+                    (let [rb (CompBody.rb &cb)
+                          b (RigidBody.body rb)
+                          is-dyn (match-ref (Body.body-type b)
+                                   (BodyType.Dynamic) (> @(Body.inv-mass b) 0.0)
+                                   _ false)]
+                      (when (and is-dyn (not (has-component? ecs &ent CompPlayer)))
+                        (let [aslot (CritterSystem.amoeba-slot-by-idx state eidx)
+                              hslot (if (>= aslot 0) -1 (EnemySystem.hopper-slot-by-idx state eidx))
+                              mslot (if (or (>= aslot 0) (>= hslot 0)) -1 (MancerSystem.mancer-slot-by-idx state eidx))
+                              oslot (MancerSystem.orb-slot-by-idx state eidx)
+                              halo-orb? (and (>= oslot 0)
+                                             (let [ost @(Array.unsafe-nth o-state oslot)]
+                                               (or (= ost 1) (= ost 2))))
+                              ai-creature? (or (>= aslot 0) (or (>= hslot 0) (>= mslot 0)))
+                              fspd (Double.sqrt (+ (+ (* fvx fvx) (* fvy fvy)) (* fvz fvz)))
+                              gmag (Double.sqrt (+ (+ (* gpx gpx) (* gpy gpy)) (* gpz gpz)))]
+                          (when (not halo-orb?)
+                            (if ai-creature?
+                              ;; Creatures: punt on strong geysers, pipe cannons, or dense magma without disturbing calm crawling!
+                              (when (or (> fspd 2.0) (or (> gmag 0.55) (> eff-rho 4.5)))
+                                (let [mass (Physics.dmax 0.5 @(Body.mass b))
+                                      bvel @(Body.velocity b)
+                                      ax (+ (* (- (* fvx 5.4) @(Vector3.x &bvel)) 2.6) (* gpx 28.0))
+                                      ay (+ (+ (* (- (* fvy 5.4) @(Vector3.y &bvel)) 2.6) (* gpy 28.0))
+                                            (if (> eff-rho 4.5) (Physics.dmin 32.0 (* eff-rho 3.2)) 0.0))
+                                      az (+ (* (- (* fvz 5.4) @(Vector3.z &bvel)) 2.6) (* gpz 28.0))
+                                      max-a (/ 34.0 safe-dt)
+                                      cax (Physics.clamp (- 0.0 max-a) max-a ax)
+                                      cay (Physics.clamp (- 0.0 max-a) max-a ay)
+                                      caz (Physics.clamp (- 0.0 max-a) max-a az)]
+                                  (do
+                                    (Body.set-is-sleeping! b false)
+                                    (Body.apply-force! b &(Vector3.init (* cax mass) (* cay mass) (* caz mass)))
+                                    (RigidBody.set-body! rb @b)
+                                    (ECS.add-component! ecs &ent (CompBody.init @rb)))))
+                              ;; Passive RigidBodies (boulders, logs, ice, crystals, nuggets, matches, dropped orbs):
+                              (when (or (> eff-rho 0.04) (or (> fspd 0.28) (> gmag 0.08)))
+                                (let [mass (Physics.dmax 0.35 @(Body.mass b))
+                                      bvel @(Body.velocity b)
+                                      bvx @(Vector3.x &bvel)
+                                      bvy @(Vector3.y &bvel)
+                                      bvz @(Vector3.z &bvel)
+                                      buoy-ratio (Physics.clamp 0.0 2.6 (/ eff-rho mass))
+                                      buoy-acc (* 25.0 buoy-ratio)
+                                      vy-damp (if (> eff-rho 0.08)
+                                                (* (- 0.0 bvy) (Physics.clamp 0.45 9.0 (/ (* eff-rho 2.4) mass)))
+                                                0.0)
+                                      engage-flow? (or (> eff-rho 0.06) (> fspd 0.28))
+                                      drag-k (if engage-flow?
+                                               (Physics.clamp 0.35 14.0 (/ (+ 0.65 (* eff-rho 2.4)) (+ 0.45 (* mass 0.30))))
+                                               0.0)
+                                      tvx (* fvx 5.6)
+                                      tvy (* fvy 5.6)
+                                      tvz (* fvz 5.6)
+                                      adx (* (- tvx bvx) drag-k)
+                                      ady (* (- tvy bvy) drag-k)
+                                      adz (* (- tvz bvz) drag-k)
+                                      p-gain (/ 32.0 (Physics.clamp 0.55 3.5 (* mass 0.28)))
+                                      noz-boost (if (and (> dyn-p 0.30) (> fvy 0.20)) (* dyn-p (* p-gain 0.85)) 0.0)
+                                      apx (* gpx p-gain)
+                                      apy (+ (* gpy p-gain) noz-boost)
+                                      apz (* gpz p-gain)
+                                      tot-ax (+ adx apx)
+                                      tot-ay (+ (+ buoy-acc vy-damp) (+ ady apy))
+                                      tot-az (+ adz apz)
+                                      max-a (/ 38.0 safe-dt)
+                                      cax (Physics.clamp (- 0.0 max-a) max-a tot-ax)
+                                      cay (Physics.clamp (- 0.0 max-a) max-a tot-ay)
+                                      caz (Physics.clamp (- 0.0 max-a) max-a tot-az)]
+                                  (do
+                                    (Body.set-is-sleeping! b false)
+                                    (Body.apply-force! b &(Vector3.init (* cax mass) (* cay mass) (* caz mass)))
+                                    (when (> eff-rho 0.12)
+                                      (let [old-w @(Body.angular-velocity b)
+                                            w-damp (Physics.clamp 0.78 0.98 (- 1.0 (* safe-dt (Physics.clamp 0.8 6.0 (/ (* eff-rho 1.6) mass)))))
+                                            roll-x (* (- tvz bvz) (* 0.35 safe-dt))
+                                            roll-z (* (- bvx tvx) (* 0.35 safe-dt))]
+                                        (Body.set-angular-velocity! b
+                                          (Vector3.init (+ (* @(Vector3.x &old-w) w-damp) roll-x)
+                                                        (* @(Vector3.y &old-w) w-damp)
+                                                        (+ (* @(Vector3.z &old-w) w-damp) roll-z)))))
+                                    (RigidBody.set-body! rb @b)
+                                    (ECS.add-component! ecs &ent (CompBody.init @rb))))))))))))))))))
 
   (defn register-handlers! [state]
     (Coordinator.subscribe! (EngineState.coord state)
@@ -1285,8 +1434,9 @@
         (Diagnostics.with-zone diag "Ecomancers"
           (MancerSystem.update! state input dt))
 
-        ;; Drain GPU + Creature explosions BEFORE Physics Solver so knockback arcs & Camera.pos step with zero lag!
+        ;; Drain GPU + Creature explosions & apply GPU hydrodynamic/buoyancy forces BEFORE Physics Solver!
         (EngineState.drain-explosions! state)
+        (EngineState.apply-gpu-fluid-forces! state dt)
 
         (Diagnostics.with-zone diag "Physics Solver"
           (do
@@ -1432,6 +1582,8 @@
               mn-dir (MancerBank.dir mbank)
               mn-trap (MancerBank.trap-timer mbank)
               mn-sup-age (MancerBank.sup-age mbank)
+              f-idx (EngineState.fsi-idx state)
+              f-gen (EngineState.fsi-gen state)
               fc @(EngineState.frame-count state)
               num-entities 0]
           (do
@@ -1445,6 +1597,10 @@
                       hslot (if (>= aslot 0) -1 (EnemySystem.hopper-slot-by-idx state eidx))
                       mslot (if (or (>= aslot 0) (>= hslot 0)) -1 (MancerSystem.mancer-slot-by-idx state eidx))]
                   (do
+                    (when (< num-entities 256)
+                      (do
+                        (Array.aset! f-idx num-entities eidx)
+                        (Array.aset! f-gen num-entities (ECS.Entity.generation &e))))
                     (Array.aset! entities-data (+ idx 8) (Double.to-float @(Vector3.x color)))
                     (Array.aset! entities-data (+ idx 9) (Double.to-float @(Vector3.y color)))
                     (Array.aset! entities-data (+ idx 10) (Double.to-float @(Vector3.z color)))
@@ -1591,6 +1747,7 @@
                                   (Array.aset! entities-data (+ idx 6) (Double.to-float ez))
                                   (Array.aset! entities-data (+ idx 7) 0.0f)))))))
                     (set! num-entities (+ num-entities 1))))))
+            (EngineState.set-fsi-count! state (if (< num-entities 256) num-entities 256))
             (Array.aset! uniforms 36 (Float.from-int num-entities))
             (Array.aset! uniforms 37 0.0f)
             (Array.aset! uniforms 38 (Float.from-int fc))

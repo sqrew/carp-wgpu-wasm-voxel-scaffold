@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdbool.h>
 
-#define RAYCAST_READBACK_FLOATS 424
+#define RAYCAST_READBACK_FLOATS 2496
 #define RAYCAST_READBACK_BYTES (RAYCAST_READBACK_FLOATS * sizeof(float))
 
 static float latest_hit_pos[RAYCAST_READBACK_FLOATS] = {0.0f};

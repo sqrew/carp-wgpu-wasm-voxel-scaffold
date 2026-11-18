@@ -113,7 +113,9 @@
           m (Float.round mat-id)
           restit (if (= m 10) 0.92 0.44)
           fric (if (= m 8) 0.05 0.48)
-          rb (RigidBody.new @&spawn-pos (Quaternion.identity) 1.6 restit fric 0.08 0.12 0.22)
+          bmass (Materials.body-density mat-id)
+          binertia (Physics.dmax 0.12 (* bmass (* radius (* radius 0.65))))
+          rb (RigidBody.new @&spawn-pos (Quaternion.identity) bmass restit fric 0.08 0.12 binertia)
           vol (Volume.Ball (Sphere.init @&spawn-pos radius))]
       (do
         (Body.set-velocity! (RigidBody.body &rb) vel)

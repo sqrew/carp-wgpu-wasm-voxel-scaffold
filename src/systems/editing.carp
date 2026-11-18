@@ -53,13 +53,14 @@
             (if (<= (- by cam-y) -110.0f)
               (GameWorld.destroy-entity! ecs &ent)
               (let [surf-d (World.sample-sdf-nearest world &pos)
-                    near-surf? (<= surf-d (+ base-r 0.75f))]
-                (if (or held? (and (= stage 0) (or (> spd 4.8) (and (not near-surf?) (> spd 1.4)))))
-                  ;; Still held in [4] Gauntlet, airborne, or flying fast -> damp creep & re-check in 360ms!
+                    near-surf? (<= surf-d (+ base-r 0.75f))
+                    buoyant? (EngineState.entity-buoyant? state idx gen @(Body.mass b))]
+                (if (or held? (and (= stage 0) (or buoyant? (or (> spd 4.8) (and (not near-surf?) (> spd 1.4))))))
+                  ;; Still held in [4] Gauntlet, buoyantly floating on liquid, airborne, or flying fast -> re-check in 360ms!
                   (do
                     (when (> stage 0)
                       (ECS.add-component! ecs &ent (CompVolume.init (Volume.Ball (Sphere.init pos (Double.from-float base-r))))))
-                    (when (and (not held?) near-surf?)
+                    (when (and (not held?) (and near-surf? (not buoyant?)))
                       (let [old-w @(Body.angular-velocity b)]
                         (do
                           (Body.set-velocity! b (Vector3.mul &vel 0.72))
@@ -157,7 +158,9 @@
           ang-vel (Vector3.init (+ (* vz -0.35) (* (sin (* s-hash 1.7)) 4.5))
                                 (* (cos (* s-hash 2.3)) 4.2)
                                 (+ (* vx 0.35) (* (sin (* s-hash 3.1)) 4.5)))
-          rb (RigidBody.new @&spawn-pos init-rot 1.5 restit fric 0.14 0.22 0.26)
+          bmass (Materials.body-density mat-id)
+          binertia (Physics.dmax 0.12 (* bmass (* radius (* radius 0.65))))
+          rb (RigidBody.new @&spawn-pos init-rot bmass restit fric 0.14 0.22 binertia)
           vol (Volume.Ball (Sphere.init @&spawn-pos radius))
           first-check (if (< ttl-ms 850l) ttl-ms 720l)]
       (do

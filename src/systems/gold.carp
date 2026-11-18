@@ -28,7 +28,7 @@
           slot (Int.mod @(GoldBank.slot gb) 16)
           ecs (EngineState.ecs-world state)
           col (Vector3.init 1.48 1.14 0.24)
-          rb (RigidBody.new @&spawn-pos (Quaternion.identity) 2.2 0.56 0.36 0.06 0.10 0.16)
+          rb (RigidBody.new @&spawn-pos (Quaternion.identity) 15.0 0.56 0.36 0.06 0.10 1.25)
           vol (Volume.Ball (Sphere.init @&spawn-pos radius))]
       (do
         (GoldSystem.destroy-nugget-slot! state slot)

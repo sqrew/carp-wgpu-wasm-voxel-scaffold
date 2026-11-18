@@ -567,4 +567,18 @@
             )))
         (build-reactions &arr)
         arr)))
+
+  ;; Calibrated specific gravity for dynamic RigidBodies:
+  ;; Wood (1.15) & Ice (1.75) float on Water (2.0); Crystal (4.0) & Amethyst (4.5) float on Lava (5.0);
+  ;; Coal (8.0) & Stone (10.0) float on Mercury (13.5); Obsidian (14.0), Gold (15.0) & Rad-Ore (16.0) sink in Mercury!
+  (defn body-density [mat-id]
+    (let [m (Materials.valid-id mat-id)]
+      (if (= m 3)
+        1.15
+        (if (= m 8)
+          1.75
+          (if (and (>= m 1) (< m 768))
+            (let [d (Double.from-float @(Material.density (Array.unsafe-nth &registry m)))]
+              (if (< d 0.35) 0.35 (if (> d 20.0) 20.0 d)))
+            5.0)))))
 )

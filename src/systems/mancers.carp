@@ -321,8 +321,10 @@
             (let [col (Materials.slime-color mat-id 0)
                   restit (Materials.boulder-restitution mat-id)
                   fric (Materials.boulder-friction mat-id)
+                  bmass (Materials.body-density mat-id)
+                  binertia (Physics.dmax 0.12 (* bmass (* rad-d (* rad-d 0.65))))
                   e (GameWorld.create-entity! ecs)
-                  rb (RigidBody.new @&spawn-pos (Quaternion.identity) 1.4 restit fric 0.06 0.12 0.18)
+                  rb (RigidBody.new @&spawn-pos (Quaternion.identity) bmass restit fric 0.06 0.12 binertia)
                   vol (Volume.Ball (Sphere.init @&spawn-pos rad-d))]
               (do
                 (Body.set-velocity! (RigidBody.body &rb) init-vel)
@@ -800,7 +802,7 @@
         (MatchBook.set-slot! mb (+ slot 1))
         (ParticleSystem.emit-sparks! ps sx sy sz 0.0f 1.0f 0.0f 28)
         (let [e (GameWorld.create-entity! ecs)
-              rb (RigidBody.new @&spawn-p (Quaternion.identity) 0.35 0.50 0.58 0.14 0.14 0.14)
+              rb (RigidBody.new @&spawn-p (Quaternion.identity) 0.95 0.50 0.58 0.14 0.14 0.14)
               vol (Volume.Ball (Sphere.init spawn-p 0.20))
               hdr-col (Vector3.init 2.95 1.52 0.32)]
           (do

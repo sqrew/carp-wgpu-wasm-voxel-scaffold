@@ -95,11 +95,16 @@
           p-gas (Pointer.to-value (Pointer.add raw-rb 145l))
           p-ign (Pointer.to-value (Pointer.add raw-rb 146l))
           p-heal (Pointer.to-value (Pointer.add raw-rb 147l))
-          w-vx (Pointer.to-value (Pointer.add raw-rb 244l))
-          w-vy (Pointer.to-value (Pointer.add raw-rb 245l))
-          w-vz (Pointer.to-value (Pointer.add raw-rb 246l))
           amb-tau (Pointer.to-value (Pointer.add raw-rb 250l))
           amb-g (Pointer.to-value (Pointer.add raw-rb 251l))
+          fl-vx (Pointer.to-value (Pointer.add raw-rb 424l))
+          fl-vy (Pointer.to-value (Pointer.add raw-rb 425l))
+          fl-vz (Pointer.to-value (Pointer.add raw-rb 426l))
+          fl-dynp (Pointer.to-value (Pointer.add raw-rb 427l))
+          fl-gpx (Pointer.to-value (Pointer.add raw-rb 428l))
+          fl-gpy (Pointer.to-value (Pointer.add raw-rb 429l))
+          fl-gpz (Pointer.to-value (Pointer.add raw-rb 430l))
+          fl-rho (Pointer.to-value (Pointer.add raw-rb 431l))
           field-ready? (> (+ amb-tau amb-g) 0.015f)
           p-ent-id (EngineState.player-ent-id state)
           p-ent (ECS.Entity.init (Handle.init (Uint64.from-long (the Long (Long.from-int @p-ent-id))) (Uint32.from-long 1l)))
@@ -178,12 +183,44 @@
                   (let [pos @(RigidBody.position rb)
                         curr-vel @(Body.velocity body)
                         cg-opt (get-component ecs &p-ent)
-                        is-grounded (match cg-opt
-                                      (Maybe.Just cg) @(CompGrounded.grounded &cg)
-                                      (Maybe.Nothing) false)
+                        raw-grounded (match cg-opt
+                                       (Maybe.Just cg) @(CompGrounded.grounded &cg)
+                                       (Maybe.Nothing) false)
+                        vx @(Vector3.x &curr-vel)
+                        vy @(Vector3.y &curr-vel)
+                        vz @(Vector3.z &curr-vel)
+                        prev-vy @(Player.prev-vy player)
+                        jump-held (InputManager.action-digital? input "jump")
+                        eff-rho (Double.from-float fl-rho)
+                        fvx (Double.from-float fl-vx)
+                        fvy (Double.from-float fl-vy)
+                        fvz (Double.from-float fl-vz)
+                        dyn-p (Double.from-float fl-dynp)
+                        gpx (Double.from-float fl-gpx)
+                        gpy (Double.from-float fl-gpy)
+                        gpz (Double.from-float fl-gpz)
+                        fspd (Double.sqrt (+ (+ (* fvx fvx) (* fvy fvy)) (* fvz fvz)))
+                        rho-p (if jump-held 1.35 2.10)
+                        swim-kick (if (and jump-held (> eff-rho 0.55)) 4.6 0.0)
+                        ay-buoy (if (> eff-rho 0.05)
+                                  (+ (* 25.0 (Physics.clamp 0.0 2.35 (/ eff-rho rho-p))) swim-kick)
+                                  0.0)
+                        tvx (* fvx 5.8)
+                        tvy (* fvy 5.8)
+                        tvz (* fvz 5.8)
+                        k-liq (if (> eff-rho 0.10) (Physics.clamp 0.0 5.8 (* eff-rho 1.15)) 0.0)
+                        ay-liq-est (* (- tvy vy) k-liq)
+                        ay-jet-est (if (and (> fspd 0.30) (> tvy vy)) (* (- tvy vy) 4.2) 0.0)
+                        ay-noz (if (and (> dyn-p 0.30) (> fvy 0.20)) (* dyn-p 26.0) 0.0)
+                        ax-press (* gpx 34.0)
+                        ay-press (+ (* gpy 34.0) ay-noz)
+                        az-press (* gpz 34.0)
+                        lift-unstick? (> (+ ay-buoy (+ ay-liq-est (+ ay-jet-est ay-press))) 26.5)
+                        is-grounded (and raw-grounded (not lift-unstick?))
+                        mercury-skate? (and (> eff-rho 2.25) (< (Double.abs vy) 3.4))
                         fmat (if is-grounded (Physics.sample-floor-mat world &pos) 0.0f)
                         cur-stain (if (> @(Player.stain-timer player) 0.05f) @(Player.stain-mat player) 0.0f)
-                        coyote (if is-grounded 0.12 (Physics.dmax 0.0 (- @(Player.coyote-timer player) dt)))
+                        coyote (if is-grounded 0.12 (if lift-unstick? 0.0 (Physics.dmax 0.0 (- @(Player.coyote-timer player) dt))))
                         f (Camera.front cam)
                         fx @(Vector3.x f)
                         fz @(Vector3.z f)
@@ -205,19 +242,19 @@
                         wlen (Double.sqrt (+ (* raw-wx raw-wx) (* raw-wz raw-wz)))
                         wx (if (> wlen 0.001) (/ raw-wx wlen) 0.0)
                         wz (if (> wlen 0.001) (/ raw-wz wlen) 0.0)
-                        ice? (and is-grounded (or (Materials.slippery? fmat) (or (Materials.slippery? p-liq) (Materials.slippery? cur-stain))))
+                        ice? (or mercury-skate? (and is-grounded (or (Materials.slippery? fmat) (or (Materials.slippery? p-liq) (Materials.slippery? cur-stain)))))
                         bouncy-floor? (and is-grounded (or (Materials.bouncy? fmat) (or (Materials.bouncy? p-liq) (Materials.bouncy? cur-stain))))
                         sticky-floor? (and is-grounded (and (or (Materials.sticky? fmat) (Materials.sticky? p-liq)) (not bouncy-floor?)))
                         chrono-haste (if (and field-ready? (> amb-tau 0.68f)) 1.32 1.0)
-                        max-spd (* (if ice? 15.8 (if sticky-floor? 6.4 11.5)) chrono-haste)
-                        accel-rate (if (not is-grounded) 1.85 (if ice? 1.55 (if sticky-floor? 7.0 8.5)))
-                        fric (if (not is-grounded) 0.45 (if ice? 0.90 (if sticky-floor? 18.0 10.5)))
-                        vx @(Vector3.x &curr-vel)
-                        vy @(Vector3.y &curr-vel)
-                        vz @(Vector3.z &curr-vel)
-                        hspd (Double.sqrt (+ (* vx vx) (* vz vz)))
-                        prev-vy @(Player.prev-vy player)
-                        jump-held (InputManager.action-digital? input "jump")]
+                        swim-spd-scale (if (and (> eff-rho 0.85) (not mercury-skate?)) 0.82 1.0)
+                        max-spd (* (* (if ice? 15.8 (if sticky-floor? 6.4 11.5)) chrono-haste) swim-spd-scale)
+                        accel-rate (if (not is-grounded)
+                                     (if mercury-skate? 5.8 (if (> eff-rho 0.65) 4.6 1.85))
+                                     (if ice? 1.55 (if sticky-floor? 7.0 8.5)))
+                        fric (if (not is-grounded)
+                               (if mercury-skate? 1.35 0.45)
+                               (if ice? 0.90 (if sticky-floor? 18.0 10.5)))
+                        hspd (Double.sqrt (+ (* vx vx) (* vz vz)))]
                     (do
                       (Body.set-body-type! body (BodyType.Dynamic))
                       (Body.set-is-sleeping! body false)
@@ -246,17 +283,41 @@
                                 (set! vx (+ vx (* wx gain)))
                                 (set! vz (+ vz (* wz gain))))))))
 
-                      ;; 2b. Two-Way GPU Field & 3D Wind Coupling (vel_texture gales/shockwaves + Lawmancer Gravi/Chrono fields!)
-                      (let [dvx (Double.from-float w-vx)
-                            dvy (Double.from-float w-vy)
-                            dvz (Double.from-float w-vz)
-                            wspd (Double.sqrt (+ (+ (* dvx dvx) (* dvy dvy)) (* dvz dvz)))]
-                        (when (> wspd 1.45)
-                          (let [wgain (* (if is-grounded 1.80 3.50) dt)]
-                            (do
-                              (set! vx (+ vx (* dvx wgain)))
-                              (set! vy (+ vy (* (* dvy wgain) 0.85)))
-                              (set! vz (+ vz (* dvz wgain)))))))
+                      ;; 2b. Archimedes Buoyancy, River Currents, Geyser/Pipe Velocity Jets & -grad(P) Launch!
+                      (when (> eff-rho 0.05)
+                        (let [vy-damp (* (- 0.0 vy) (Physics.clamp 0.5 8.5 (* eff-rho 1.45)))
+                              dvx-l (* (- tvx vx) k-liq)
+                              dvy-l (+ ay-buoy (+ vy-damp (* (- tvy vy) k-liq)))
+                              dvz-l (* (- tvz vz) k-liq)]
+                          (do
+                            (set! vx (+ vx (* dvx-l dt)))
+                            (set! vy (+ vy (* dvy-l dt)))
+                            (set! vz (+ vz (* dvz-l dt))))))
+
+                      (when (> fspd 0.30)
+                        (let [ux (/ fvx fspd)
+                              uy (/ fvy fspd)
+                              uz (/ fvz fspd)
+                              tspd (* fspd 5.8)
+                              v-proj (+ (+ (* vx ux) (* vy uy)) (* vz uz))]
+                          (when (> tspd v-proj)
+                            (let [k-jet (if is-grounded 2.8 4.2)
+                                  j-dv (Physics.dmin (- tspd v-proj) (* (- tspd v-proj) (* k-jet dt)))
+                                  y-mul (if is-grounded 0.85 1.0)]
+                              (do
+                                (set! vx (+ vx (* ux j-dv)))
+                                (set! vy (+ vy (* (* uy j-dv) y-mul)))
+                                (set! vz (+ vz (* uz j-dv))))))))
+
+                      (when (or (> (Double.abs ax-press) 0.25)
+                                (or (> (Double.abs ay-press) 0.25)
+                                    (> (Double.abs az-press) 0.25)))
+                        (let [py-mul (if is-grounded 0.85 1.0)]
+                          (do
+                            (set! vx (+ vx (* ax-press dt)))
+                            (set! vy (+ vy (* (* ay-press py-mul) dt)))
+                            (set! vz (+ vz (* az-press dt))))))
+
                       (when field-ready?
                         (do
                           (when (< amb-g 0.36f)
@@ -270,7 +331,7 @@
                                 (set! vy (+ (* vy sdamp) (* 11.5 dt)))
                                 (set! vz (* vz sdamp)))))))
 
-                      ;; 3. Solid Slime / Shelf-Fungus / Volatile Gel Trampoline Rebound + Coyote-Time Jump
+                      ;; 3. Solid Slime / Shelf-Fungus / Volatile Gel Trampoline Rebound + Coyote / Mercury / Swim-Breach Jump
                       (when (and bouncy-floor? (< prev-vy -5.2))
                         (let [rebound-raw (* (- 0.0 prev-vy) (if jump-held 0.96 0.78))
                               rebound-vy (Physics.dmin 24.0 (Physics.dmax 13.0 rebound-raw))
@@ -284,11 +345,17 @@
                                                   (Double.to-float @(Vector3.z &pos))
                                                   0.0f 5.5f 0.0f 1.5f 14 b-pt 0.32f 0.25f))))
 
-                      (when (and jump-held (> coyote 0.0))
+                      (if (and jump-held (> coyote 0.0))
                         (let [jump-v (if sticky-floor? 9.2 (if bouncy-floor? 15.2 12.2))]
                           (do
                             (set! vy (Physics.dmax vy jump-v))
-                            (set! coyote 0.0))))
+                            (set! coyote 0.0)))
+                        (if (and jump-held mercury-skate?)
+                          ;; Hop cleanly off dense Mercury / Magma surfaces!
+                          (set! vy (Physics.dmax vy 11.4))
+                          ;; Crisp ledge-breach boost when swimming out of a pool!
+                          (when (and jump-held (and (>= eff-rho 0.42) (and (<= eff-rho 1.55) (and (> vy 1.2) (> wlen 0.1)))))
+                            (set! vy (Physics.dmax vy 8.4)))))
 
                       (Player.set-coyote-timer! player coyote)
                       (Player.set-prev-vy! player (- vy (* 25.0 dt)))

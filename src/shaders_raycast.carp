@@ -208,6 +208,119 @@ fn eval_chemo_score(p: vec3<f32>) -> vec2<f32> {
     return vec2<f32>(score, rec.y);
 }
 
+struct HydroPair {
+    flow: vec4<f32>,
+    hydro: vec4<f32>,
+}
+
+fn eval_open_pressure(p: vec3<f32>) -> vec2<f32> {
+    let sol = get_solid_world(p);
+    if (sol.y <= -0.25) {
+        return vec2<f32>(0.0, 0.0);
+    }
+    let rv = get_vel_world(p);
+    let vp = select(clamp(rv.w, -3.5, 3.8), 4.0, rv.w >= 4.3);
+    let pf = get_field_world(p);
+    let pf_p = select(0.0, unpack_pair(pf.x).y, pf.w <= -0.5);
+    return vec2<f32>(vp + pf_p * 1.45, 1.0);
+}
+
+fn eval_cell_fluid_rho(p_cell: vec3<f32>) -> f32 {
+    var rho: f32 = 0.0;
+    let liq = get_liquid_world(p_cell);
+    if (liq.y > 0.04) {
+        let lid = clamp(u32(round(abs(liq.x))), 1u, 15u);
+        rho += clamp(liq.y, 0.0, 1.0) * materials[256u + lid].density;
+    }
+    let gas = get_gas_world(p_cell);
+    if (gas.y > 0.08) {
+        let gid = clamp(u32(round(abs(gas.x))), 1u, 13u);
+        rho += clamp(gas.y, 0.0, 1.50) * materials[512u + gid].density * 0.12;
+    }
+    return rho;
+}
+
+fn eval_smooth_fluid_rho_y(sp: vec3<f32>) -> f32 {
+    let y_shifted = sp.y - 0.5;
+    let y0 = floor(y_shifted);
+    let fy = y_shifted - y0;
+    let r0 = eval_cell_fluid_rho(vec3<f32>(sp.x, y0 + 0.5, sp.z));
+    let r1 = eval_cell_fluid_rho(vec3<f32>(sp.x, y0 + 1.5, sp.z));
+    return mix(r0, r1, fy);
+}
+
+fn sample_hydro_pair(c: vec3<f32>, rad: f32, box_min: vec3<f32>, box_max: vec3<f32>) -> HydroPair {
+    if (c.x <= box_min.x + 2.5 || c.x >= box_max.x - 2.5 ||
+        c.y <= box_min.y + 2.5 || c.y >= box_max.y - 2.5 ||
+        c.z <= box_min.z + 2.5 || c.z >= box_max.z - 2.5) {
+        return HydroPair(vec4<f32>(0.0), vec4<f32>(0.0));
+    }
+
+    let h_step = clamp(rad * 0.85, 0.55, 1.35);
+    let offs = array<vec3<f32>, 7>(
+        vec3<f32>(0.0, 0.0, 0.0),
+        vec3<f32>(0.0, h_step, 0.0),
+        vec3<f32>(0.0, -h_step, 0.0),
+        vec3<f32>(h_step, 0.0, 0.0),
+        vec3<f32>(-h_step, 0.0, 0.0),
+        vec3<f32>(0.0, 0.0, h_step),
+        vec3<f32>(0.0, 0.0, -h_step)
+    );
+    var sum_v = vec3<f32>(0.0);
+    var open_cnt: f32 = 0.0;
+    var peak_v = vec3<f32>(0.0);
+    var best_e: f32 = 0.0;
+    var max_dyn_p: f32 = 0.0;
+    for (var i = 0u; i < 7u; i = i + 1u) {
+        let sp = c + offs[i];
+        let sol = get_solid_world(sp);
+        if (sol.y > -0.25) {
+            let rv = get_vel_world(sp);
+            let cp = select(clamp(rv.w, -3.5, 3.8), 3.8, rv.w >= 4.3);
+            sum_v += rv.xyz;
+            open_cnt += 1.0;
+            max_dyn_p = max(max_dyn_p, cp);
+            let e = dot(rv.xyz, rv.xyz) + max(0.0, cp) * 0.35;
+            if (e > best_e) {
+                best_e = e;
+                peak_v = rv.xyz;
+            }
+        }
+    }
+    let avg_v = sum_v / max(open_cnt, 1.0);
+    let blend_v = mix(avg_v, peak_v, 0.62);
+
+    let pc_raw = eval_open_pressure(c);
+    let p_center = pc_raw.x;
+    let px_m = eval_open_pressure(c - vec3<f32>(1.0, 0.0, 0.0));
+    let px_p = eval_open_pressure(c + vec3<f32>(1.0, 0.0, 0.0));
+    let py_m = eval_open_pressure(c - vec3<f32>(0.0, 1.0, 0.0));
+    let py_p = eval_open_pressure(c + vec3<f32>(0.0, 1.0, 0.0));
+    let pz_m = eval_open_pressure(c - vec3<f32>(0.0, 0.0, 1.0));
+    let pz_p = eval_open_pressure(c + vec3<f32>(0.0, 0.0, 1.0));
+    var neg_grad_p = vec3<f32>(
+        0.5 * (select(p_center, px_m.x, px_m.y > 0.5) - select(p_center, px_p.x, px_p.y > 0.5)),
+        0.5 * (select(p_center, py_m.x, py_m.y > 0.5) - select(p_center, py_p.x, py_p.y > 0.5)),
+        0.5 * (select(p_center, pz_m.x, pz_m.y > 0.5) - select(p_center, pz_p.x, pz_p.y > 0.5))
+    );
+    let p_noz = eval_open_pressure(c - vec3<f32>(0.0, max(rad, 0.9), 0.0));
+    if (p_noz.y > 0.5) {
+        neg_grad_p.y += max(0.0, p_noz.x - p_center) * 0.85;
+        max_dyn_p = max(max_dyn_p, p_noz.x);
+    }
+
+    // Smooth 3-station vertical Archimedes density profile (bottom 0.42, center 0.35, top 0.23)
+    let dy = rad * 0.75;
+    let rho_bot = eval_smooth_fluid_rho_y(c - vec3<f32>(0.0, dy, 0.0));
+    let rho_mid = eval_smooth_fluid_rho_y(c);
+    let rho_top = eval_smooth_fluid_rho_y(c + vec3<f32>(0.0, dy, 0.0));
+    let eff_rho = rho_bot * 0.42 + rho_mid * 0.35 + rho_top * 0.23;
+
+    let flow_vec = vec4<f32>(blend_v, max_dyn_p);
+    let hydro_vec = vec4<f32>(clamp(neg_grad_p, vec3<f32>(-4.0), vec3<f32>(4.0)), eff_rho);
+    return HydroPair(flow_vec, hydro_vec);
+}
+
 fn probe_universal_succ(
     ro: vec3<f32>,
     rd: vec3<f32>,
@@ -1457,6 +1570,28 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             hit_buffer[96u + mi] = sample_entity_vel(m.xyz, box_min, box_max);
         } else {
             hit_buffer[96u + mi] = vec4<f32>(0.0);
+        }
+    }
+
+    // 11. Hydrodynamic Flow, -grad(P) Nozzle Launch & Archimedes Buoyancy Probes -> hit_buffer[106..619]
+    let p_body = ro - vec3<f32>(0.0, 0.85, 0.0);
+    let p_hp = sample_hydro_pair(p_body, 0.85, box_min, box_max);
+    hit_buffer[106] = p_hp.flow;
+    hit_buffer[107] = p_hp.hydro;
+
+    let hydro_ent_lim = min(ent_count, 256u);
+    for (var ei: u32 = 0u; ei < 256u; ei = ei + 1u) {
+        let out_base = 108u + 2u * ei;
+        if (ei < hydro_ent_lim) {
+            let e = s_entities[ei];
+            let raw_r = select(max(e.extents_rad.x, e.extents_rad.y), e.extents_rad.w, e.pos_type.w < 0.5 || e.pos_type.w >= 1.5);
+            let er = clamp(raw_r, 0.25, 2.4);
+            let ehp = sample_hydro_pair(e.pos_type.xyz, er, box_min, box_max);
+            hit_buffer[out_base] = ehp.flow;
+            hit_buffer[out_base + 1u] = ehp.hydro;
+        } else {
+            hit_buffer[out_base] = vec4<f32>(0.0);
+            hit_buffer[out_base + 1u] = vec4<f32>(0.0);
         }
     }
 }

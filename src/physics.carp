@@ -233,7 +233,7 @@
                 (ECS.add-component! game-world &e (CompGrounded.init false)))
               (let [b (RigidBody.body rb)]
                 (do
-                  (Body.apply-force! b &(Vector3.init 0.0 -25.0 0.0))
+                  (Body.apply-force! b &(Vector3.init 0.0 (* -25.0 @(Body.mass b)) 0.0))
                   (RigidBody.set-body! rb @b)))
               (RigidBody.step-custom! rb fixed-dt fixed-dt)
               (ECS.add-component! game-world &e (CompBody.init @rb)))))
