@@ -1369,16 +1369,43 @@ fn sample_meniscus_normal(p: vec3<f32>, v_flow: vec3<f32>, l_spd: f32, t_dist: f
 
     let rip_fade = exp(-t_dist * 0.045) * smoothstep(42.0, 4.0, t_dist);
     if (rip_fade > 0.005) {
-        let w1 = sample_spectral_3d(p * 3.2 - v_flow * 1.8 + vec3<f32>(u.time * 0.85, u.time * 0.30, -u.time * 0.62));
-        let w2 = sample_spectral_3d(p * 7.4 - v_flow * 2.5 + vec3<f32>(-u.time * 1.15, -u.time * 0.40, u.time * 0.92));
+        let w1 = sample_spectral_3d(p * 3.2 + vec3<f32>(u.time * 0.85, u.time * 0.30, -u.time * 0.62));
+        let w2 = sample_spectral_3d(p * 7.4 + vec3<f32>(-u.time * 1.15, -u.time * 0.40, u.time * 0.92));
         *out_ripple = w1.b * 0.65 + w2.r * 0.35;
         let wave_vec = vec3<f32>(w1.r, w1.b, w1.g) * 0.65 + vec3<f32>(w2.g, w2.a, w2.r) * 0.35;
         let wave_tan = wave_vec - n0 * dot(wave_vec, n0);
-        let rip_amp = (0.095 + clamp(l_spd * 0.14, 0.0, 0.22)) * rip_fade;
+        let flow_chop = clamp((l_spd + length(v_flow) * 0.25) * 0.11, 0.0, 0.25);
+        let rip_amp = (0.095 + flow_chop) * rip_fade;
         return normalize(n0 + wave_tan * rip_amp);
     }
     *out_ripple = 0.0;
     return n0;
+}
+
+// Exact discrete liquid ID lookup across the 2x2x2 trilinear footprint (never divides interpolated ID by partial fill!)
+fn resolve_liquid_id(wrapped_p: vec3<f32>, ip_cell: vec3<i32>) -> u32 {
+    let center_l = textureLoad(liquid_texture, ip_cell, 0);
+    let cid = u32(round(abs(center_l.r)));
+    if (cid >= 1u && cid <= 15u && center_l.g > 0.01) {
+        return cid;
+    }
+    let base_c = vec3<i32>(floor(wrapped_p - vec3<f32>(0.5)));
+    var best_id: u32 = 0u;
+    var best_fill: f32 = 0.005;
+    for (var dz = 0; dz <= 1; dz = dz + 1) {
+        for (var dy = 0; dy <= 1; dy = dy + 1) {
+            for (var dx = 0; dx <= 1; dx = dx + 1) {
+                let tc = clamp(base_c + vec3<i32>(dx, dy, dz), vec3<i32>(0), vec3<i32>(159));
+                let tl = textureLoad(liquid_texture, tc, 0);
+                let tid = u32(round(abs(tl.r)));
+                if (tid >= 1u && tid <= 15u && tl.g > best_fill) {
+                    best_fill = tl.g;
+                    best_id = tid;
+                }
+            }
+        }
+    }
+    return best_id;
 }
 
 @fragment
@@ -1461,12 +1488,9 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         var meniscus_sigma = vec3<f32>(0.44, 0.12, 0.042);
         var meniscus_caustic = vec3<f32>(0.80, 0.96, 1.0);
         if (in_liq) {
-            let start_ip = vec3<i32>(clamp(ray_p - floor(ray_p / 160.0) * 160.0, vec3<f32>(0.0), vec3<f32>(159.0)));
-            var s_lid = u32(round(abs(textureLoad(liquid_texture, start_ip, 0).r)));
-            if (s_lid == 0u) {
-                s_lid = max(1u, u32(round(abs(start_liq_s.r / max(start_liq_s.g, 0.05)))));
-            }
-            s_lid = clamp(s_lid, 1u, 15u);
+            let start_w = ray_p - floor(ray_p / 160.0) * 160.0;
+            let start_ip = vec3<i32>(clamp(start_w, vec3<f32>(0.0), vec3<f32>(159.0)));
+            let s_lid = max(1u, resolve_liquid_id(start_w, start_ip));
             let smat = materials[s_lid + 256u];
             let sopt = get_liquid_optics(s_lid, vec3<f32>(smat.r, smat.g, smat.b));
             meniscus_sigma = sopt.sigma_ext;
@@ -1543,16 +1567,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
             }
 
             if (liq_val.g > 0.05) {
-                let raw_liq = textureLoad(liquid_texture, ip_cell, 0);
-                var liq_id_u = u32(round(abs(raw_liq.r)));
-                if (liq_id_u == 0u) {
-                    let below_ip = vec3<i32>(ip_cell.x, max(ip_cell.y - 1, 0), ip_cell.z);
-                    liq_id_u = u32(round(abs(textureLoad(liquid_texture, below_ip, 0).r)));
-                    if (liq_id_u == 0u) {
-                        liq_id_u = max(1u, u32(round(abs(liq_val.r / max(liq_val.g, 0.05)))));
-                    }
-                }
-                liq_id_u = clamp(liq_id_u, 1u, 15u);
+                let liq_id_u = resolve_liquid_id(wrapped_p, ip_cell);
+                if (liq_id_u >= 1u) {
                 let mat = materials[liq_id_u + 256u];
                 let base_liq = vec3<f32>(mat.r, mat.g, mat.b);
                 let opt = get_liquid_optics(liq_id_u, base_liq);
@@ -1660,15 +1676,15 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                     let l_fade = smoothstep(34.0, 7.0, t);
                     if (liq_id_u == 2u && l_fade > 0.01) {
                         // Lava: dark cooling basaltic crust plates + white-hot magma fissures!
-                        let m_sp = sample_spectral_3d(p * 8.5 - v_liq.xyz * 2.2 + vec3<f32>(u.time * 0.32, -u.time * 0.20, u.time * 0.26));
-                        let crust_thresh = 0.14 + clamp(l_spd * 0.35, 0.0, 0.42);
+                        let m_sp = sample_spectral_3d(p * 8.5 + vec3<f32>(u.time * 0.32, -u.time * 0.20, u.time * 0.26));
+                        let crust_thresh = 0.14 + clamp(l_spd * 0.25, 0.0, 0.38);
                         let crust = smoothstep(crust_thresh, crust_thresh + 0.36, m_sp.b * 0.75 + m_sp.r * 0.45);
                         let hot_seam = smoothstep(0.18, -0.10, abs(m_sp.b)) * (0.55 + 0.45 * clamp(m_sp.a + 0.5, 0.0, 1.0));
                         let sculpted_lava = mix(base_glow, vec3<f32>(0.16, 0.045, 0.035), crust * 0.82)
-                                          + vec3<f32>(1.35, 0.78, 0.18) * (hot_seam * (0.55 + 0.35 * clamp(l_spd, 0.0, 1.5)));
+                                          + vec3<f32>(1.35, 0.78, 0.18) * (hot_seam * (0.55 + 0.30 * clamp(l_spd, 0.0, 1.5)));
                         vol_radiance = mix(base_glow, sculpted_lava, l_fade);
                     } else if (l_fade > 0.01) {
-                        let c_sp = sample_spectral_3d(p * 10.5 - v_liq.xyz * 2.0 + vec3<f32>(0.0, u.time * 0.45, 0.0));
+                        let c_sp = sample_spectral_3d(p * 10.5 + vec3<f32>(0.0, u.time * 0.45, 0.0));
                         let caustic = clamp(1.0 + (c_sp.b * 0.22 + c_sp.a * 0.16) * l_fade, 0.74, 1.30);
                         vol_radiance = base_glow * caustic * select(0.55, 1.0, opt.ior_eta < 0.01);
                     } else {
@@ -1678,13 +1694,14 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                     vol_radiance = opt.scatter_col * max(light_env, vec3<f32>(0.16));
                 }
 
-                if (l_spd > 0.36 && liq_id_u != 2u && liq_id_u != 12u) {
-                    let fp = p * 5.8 - v_liq.xyz * 2.4;
-                    let froth_n = 0.5 + 0.5 * sin(fp.x + sin(fp.y * 1.3 + fp.z)) * cos(fp.z - sin(fp.y * 1.1 - fp.x));
-                    let foam = smoothstep(0.36, 2.5, l_spd) * smoothstep(0.32, 0.84, froth_n);
-                    let froth_tint = mix(base_liq, vec3<f32>(0.92, 0.96, 1.0), 0.78) * max(light_env, vec3<f32>(0.26));
-                    vol_radiance = mix(vol_radiance, froth_tint, foam * 0.80);
-                    ext_step += vec3<f32>(foam * 1.45);
+                // True aerated whitewater spray ONLY on broken air-mixed crests/waterfalls/waterspouts (liq_val.g < 0.68 && l_spd > 1.85), never clouding deep pools!
+                if (l_spd > 1.85 && liq_val.g < 0.68 && liq_id_u != 2u && liq_id_u != 12u) {
+                    let aer = smoothstep(0.68, 0.18, liq_val.g) * smoothstep(1.85, 4.2, l_spd);
+                    let bub = sample_spectral_3d(p * 9.5 + vec3<f32>(0.0, -u.time * 2.2, u.time * 0.85));
+                    let foam = aer * smoothstep(-0.10, 0.45, bub.r * 0.65 + bub.a * 0.55);
+                    let froth_tint = mix(base_liq, vec3<f32>(0.92, 0.96, 1.0), 0.82) * max(light_env, vec3<f32>(0.26));
+                    vol_radiance = mix(vol_radiance, froth_tint, foam * 0.72);
+                    ext_step += vec3<f32>(foam * 0.85);
                 }
                 if (liq_val.b > 0.04) {
                     let arc_w = 0.65 + 0.35 * sin(u.time * 32.0 + dot(p, vec3<f32>(6.3, 9.1, 7.4)));
@@ -1699,6 +1716,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 let t_slab = exp(-ext_step * eff_step);
                 in_scatter_rgb += trans_rgb * vol_radiance * (vec3<f32>(1.0) - t_slab);
                 trans_rgb *= t_slab;
+                }
             }
 
             let gas_val = textureSampleLevel(gas_texture, voxel_sampler, uvw, 0.0);

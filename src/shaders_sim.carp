@@ -373,14 +373,15 @@ fn eval_law_tg_liq(world_p: vec3<f32>, active_tg: bool) -> vec2<f32> {
 //   so Lava, Mercury, Water, and Sludge all plop cleanly to the floor instead of hanging as midair wisps.
 // - Supported pools (`dst.y >= 0.88`) blend smoothly back to viscous `src_props.g_rate`.
 // - Signed opposing-wind Peclet (`vy_against > wind_thresh`) prevents Lava's thermal updraft from shutting off gravity!
-fn calc_vert_fall(src: vec4<f32>, src_props: LiquidProps, dst: vec4<f32>, dst_props: LiquidProps, vy_against: f32, tau_f: f32) -> f32 {
+fn calc_vert_fall(src: vec4<f32>, src_props: LiquidProps, dst: vec4<f32>, dst_props: LiquidProps, vy_against: f32, swirl_suction: f32, tau_f: f32) -> f32 {
     if (src.y <= 0.001 || tau_f <= 0.001) { return 0.0; }
     if (dst.y > 0.05 && src_props.density < dst_props.density) { return 0.0; }
     let room = max(0.0, 1.0 - dst.y);
     if (room <= 0.001) { return 0.0; }
 
-    let wind_thresh = 1.45 + 0.22 * min(src_props.density, 8.0);
-    let pec = clamp(1.0 - max(0.0, vy_against - wind_thresh) * 0.65, 0.0, 1.0) * tau_f;
+    let eff_against = vy_against + select(0.0, swirl_suction * 0.52, vy_against > 0.55);
+    let wind_thresh = 1.15 + 0.22 * min(src_props.density, 8.0);
+    let pec = clamp(1.0 - max(0.0, eff_against - wind_thresh) * 0.55, 0.0, 1.0) * tau_f;
     if (pec <= 0.001) { return 0.0; }
 
     let cfl_cap = max(src_props.g_rate, 0.86 - 4.0 * src_props.l_rate);
@@ -616,12 +617,14 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         if (!is_solid(ip, down_d, win_min)) {
             let below = get_liquid(ip, down_d, win_min);
             let below_props = get_liq_props(below.x);
-            let vy_dn_signed = 0.5 * (self_vel.y + get_vel(ip, down_d, win_min).y);
+            let v_dn_pair = 0.5 * (self_vel + get_vel(ip, down_d, win_min));
+            let vy_dn_signed = v_dn_pair.y;
+            let swirl_dn = length(v_dn_pair.xz) * 0.42 + max(0.0, -v_dn_pair.w) * 0.65;
             if (!anti_dn) {
-                let flow_out = calc_vert_fall(self_liq, self_props, below, below_props, vy_dn_signed, tau_dn);
+                let flow_out = calc_vert_fall(self_liq, self_props, below, below_props, vy_dn_signed, swirl_dn, tau_dn);
                 net_flow -= flow_out;
             } else {
-                let flow_in = calc_vert_fall(below, below_props, self_liq, self_props, -vy_dn_signed, tau_dn);
+                let flow_in = calc_vert_fall(below, below_props, self_liq, self_props, -vy_dn_signed, swirl_dn, tau_dn);
                 net_flow += flow_in;
                 if (flow_in > max_inflow) {
                     max_inflow = flow_in;
@@ -633,16 +636,18 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         if (!is_solid(ip, up_d, win_min)) {
             let above = get_liquid(ip, up_d, win_min);
             let above_props = get_liq_props(above.x);
-            let vy_up_signed = 0.5 * (self_vel.y + get_vel(ip, up_d, win_min).y);
+            let v_up_pair = 0.5 * (self_vel + get_vel(ip, up_d, win_min));
+            let vy_up_signed = v_up_pair.y;
+            let swirl_up = length(v_up_pair.xz) * 0.42 + max(0.0, -v_up_pair.w) * 0.65;
             if (!anti_up) {
-                let flow_in = calc_vert_fall(above, above_props, self_liq, self_props, vy_up_signed, tau_up);
+                let flow_in = calc_vert_fall(above, above_props, self_liq, self_props, vy_up_signed, swirl_up, tau_up);
                 net_flow += flow_in;
                 if (flow_in > max_inflow) {
                     max_inflow = flow_in;
                     next_id = above.x;
                 }
             } else {
-                let flow_out = calc_vert_fall(self_liq, self_props, above, above_props, -vy_up_signed, tau_up);
+                let flow_out = calc_vert_fall(self_liq, self_props, above, above_props, -vy_up_signed, swirl_up, tau_up);
                 net_flow -= flow_out;
             }
         }
@@ -674,7 +679,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             }
         }
 
-        // 6-face symmetric upwind kinetic advection (carves troughs, piles bow-waves up to 1.35, throws +Y rooster-tails, Chrono-scaled!)
+        // 6-face symmetric upwind kinetic advection (carves troughs, piles bow-waves up to 1.35, whips cyclone waterspouts & +Y rooster-tails!)
         let adv_dirs = array<vec3<i32>, 6>(
             vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
             vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
@@ -689,20 +694,25 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 let n_liq = get_liquid(ip, ad, win_min);
                 let n_vel = get_vel(ip, ad, win_min);
                 let n_dens_raw = get_liq_props(n_liq.x).density;
-                let v_ab = 0.5 * dot(self_vel.xyz + n_vel.xyz, vec3<f32>(ad));
-                let vy_pair = 0.5 * (self_vel.y + n_vel.y);
+                let v_pair = 0.5 * (self_vel + n_vel);
+                let v_ab = dot(v_pair.xyz, vec3<f32>(ad));
+                let vy_pair = v_pair.y;
                 let up_donor_dens = select(n_dens_raw, self_props.density, ad.y > 0);
-                let loft_thresh = 0.25 + 0.28 * min(max(up_donor_dens, 1.0), 8.0);
+                let vort_assist = min(0.32, length(v_pair.xz) * 0.07 + max(0.0, -v_pair.w) * 0.12);
+                let base_loft = 0.24 + 0.20 * min(max(up_donor_dens, 1.0), 8.0);
+                let loft_thresh = max(0.24, base_loft - vort_assist);
                 let vy_eff = select(vy_pair, max(0.0, vy_pair - loft_thresh), vy_pair > 0.0);
                 let v_drive = select(v_ab, vy_eff * f32(ad.y), ad.y != 0);
+                let adv_gain = select(0.21, 0.18, ad.y != 0);
+                let adv_cap = select(0.145, 0.175, ad.y != 0);
                 let can_mix_l = self_vol <= 0.04 || n_liq.y <= 0.04 || abs(self_liq.x - n_liq.x) < 0.5;
                 if (can_mix_l && v_drive > 0.015 && self_vol > 0.01) {
-                    let w_out = min(self_vol, max(0.0, 1.35 - n_liq.y)) * clamp(v_drive * 0.22 * dens_resist, 0.0, 0.145) * tau_ad;
+                    let w_out = min(self_vol, max(0.0, 1.35 - n_liq.y)) * clamp(v_drive * adv_gain * dens_resist, 0.0, adv_cap) * tau_ad;
                     net_flow -= w_out;
                 } else if (can_mix_l && v_drive < -0.015 && n_liq.y > 0.01) {
                     let n_dens = max(0.25, n_dens_raw);
                     let n_resist = 1.0 / max(0.65, sqrt(n_dens));
-                    let w_in = min(n_liq.y, max(0.0, 1.35 - self_vol)) * clamp((-v_drive) * 0.22 * n_resist, 0.0, 0.145) * tau_ad;
+                    let w_in = min(n_liq.y, max(0.0, 1.35 - self_vol)) * clamp((-v_drive) * adv_gain * n_resist, 0.0, adv_cap) * tau_ad;
                     net_flow += w_in;
                     if (self_vol <= 0.04 && w_in > max_inflow) {
                         max_inflow = w_in;
@@ -3550,9 +3560,11 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     let crown_out = smoothstep(0.76, 1.0, t_seg);
                     let rad_flow = mix(wp1.w * in_band * sheath, 2.25 * sheath, crown_out);
                     let swirl_spd = (6.8 + abs(wp1.w) * 0.85) * rankine;
-                    let vort_v = tang_dir * swirl_spd + rad_dir * rad_flow + wv.xyz * ((0.42 + 0.68 * rankine) * u_fall);
+                    let ax_sgn = sign(dot(wv.xyz, axis_dir) + 0.001);
+                    let ekman_lift = axis_dir * (ax_sgn * max(0.0, -wv.w) * 0.26 * (1.0 - 0.55 * rankine) * (1.0 - crown_out) * u_fall);
+                    let vort_v = tang_dir * swirl_spd + rad_dir * rad_flow + wv.xyz * ((0.38 + 0.44 * rankine) * (1.0 - 0.55 * crown_out) * u_fall) + ekman_lift;
                     let vort_p = wv.w * u_fall;
-                    let k_vort = clamp(0.48 * u_fall + 0.14, 0.0, 0.62);
+                    let k_vort = clamp(0.46 * u_fall + 0.12, 0.0, 0.58);
                     next_v = mix(next_v, vort_v, k_vort);
                     next_p = mix(next_p, vort_p, 0.34 * u_fall);
                 } else {
@@ -3648,10 +3660,15 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (s_zm && next_v.z < 0.0) { next_v.z = 0.0; }
     if (s_zp && next_v.z > 0.0) { next_v.z = 0.0; }
 
-    let v_mag = length(next_v);
-    if (v_mag > 6.0) {
-        next_v = next_v * (6.0 / v_mag);
-    } else if (v_mag < 0.004) {
+    // Decouple horizontal swirl cap (5.8) from controlled vertical lift cap (2.65) so funnels crest & recirculate instead of Mach-12 yeeting!
+    let v_xz_mag = length(next_v.xz);
+    if (v_xz_mag > 5.8) {
+        let xz_sc = 5.8 / v_xz_mag;
+        next_v.x = next_v.x * xz_sc;
+        next_v.z = next_v.z * xz_sc;
+    }
+    next_v.y = clamp(next_v.y, -3.2, 2.65);
+    if (dot(next_v, next_v) < 0.000016) {
         next_v = vec3<f32>(0.0);
     }
     // Normal pressure clamps to [-3.8, 3.8] so >= 4.3 exclusively marks single-frame detonation pulses!
