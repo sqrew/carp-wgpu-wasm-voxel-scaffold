@@ -379,9 +379,9 @@ fn calc_vert_fall(src: vec4<f32>, src_props: LiquidProps, dst: vec4<f32>, dst_pr
     let room = max(0.0, 1.0 - dst.y);
     if (room <= 0.001) { return 0.0; }
 
-    let eff_against = vy_against + select(0.0, swirl_suction * 0.12, vy_against > 1.15);
-    let wind_thresh = 1.15 + 0.22 * min(src_props.density, 8.0);
-    let pec = clamp(1.0 - max(0.0, eff_against - wind_thresh) * 0.62, 0.0, 1.0) * tau_f;
+    let eff_against = vy_against;
+    let wind_thresh = 2.45 + 0.35 * min(src_props.density, 8.0);
+    let pec = clamp(1.0 - max(0.0, eff_against - wind_thresh) * 0.65, 0.0, 1.0) * tau_f;
     if (pec <= 0.001) { return 0.0; }
 
     let cfl_cap = max(src_props.g_rate, 0.86 - 4.0 * src_props.l_rate);
@@ -698,13 +698,13 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 let v_ab = dot(v_pair.xyz, vec3<f32>(ad));
                 let vy_pair = v_pair.y;
                 let up_donor_dens = select(n_dens_raw, self_props.density, ad.y > 0);
-                let vort_assist = min(0.32, length(v_pair.xz) * 0.07 + max(0.0, -v_pair.w) * 0.12);
-                let base_loft = 0.24 + 0.20 * min(max(up_donor_dens, 1.0), 8.0);
-                let loft_thresh = max(0.24, base_loft - vort_assist);
+                let vort_assist = min(0.28, length(v_pair.xz) * 0.05 + max(0.0, -v_pair.w) * 0.08);
+                let base_loft = 0.65 + 0.32 * min(max(up_donor_dens, 1.0), 8.0);
+                let loft_thresh = max(0.45, base_loft - vort_assist);
                 let vy_eff = select(vy_pair, max(0.0, vy_pair - loft_thresh), vy_pair > 0.0);
                 let v_drive = select(v_ab, vy_eff * f32(ad.y), ad.y != 0);
-                let adv_gain = select(0.26, 0.19, ad.y != 0);
-                let adv_cap = select(0.195, 0.165, ad.y != 0);
+                let adv_gain = select(0.26, 0.16, ad.y != 0);
+                let adv_cap = select(0.195, 0.135, ad.y != 0);
                 let can_mix_l = self_vol <= 0.04 || n_liq.y <= 0.04 || abs(self_liq.x - n_liq.x) < 0.5;
                 if (can_mix_l && v_drive > 0.015 && self_vol > 0.01) {
                     let w_out = min(self_vol, max(0.0, 1.35 - n_liq.y)) * clamp(v_drive * adv_gain * dens_resist, 0.0, adv_cap) * tau_ad;
@@ -1417,10 +1417,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     let n_vel = get_vel(ip, ad, win_min);
                     let v_ab = 0.5 * dot(self_vel.xyz + n_vel.xyz, vec3<f32>(ad));
                     if (v_ab > 0.012 && self_vol > 0.005) {
-                        let w_out = min(self_vol, max(0.0, 1.85 - n_gas.y)) * clamp(v_ab * 0.23, 0.0, 0.148) * tau_ad;
+                        let w_out = min(self_vol, max(0.0, 1.85 - n_gas.y)) * clamp(v_ab * 0.27, 0.0, 0.215) * tau_ad;
                         net_flow -= w_out;
                     } else if (v_ab < -0.012 && n_gas.y > 0.005) {
-                        let w_in = min(n_gas.y, max(0.0, 1.85 - self_vol)) * clamp((-v_ab) * 0.23, 0.0, 0.148) * tau_ad;
+                        let w_in = min(n_gas.y, max(0.0, 1.85 - self_vol)) * clamp((-v_ab) * 0.27, 0.0, 0.215) * tau_ad;
                         net_flow += w_in;
                         if (self_vol <= 0.04 && w_in > max_inflow) {
                             max_inflow = w_in;
@@ -1632,16 +1632,39 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             }
         }
     } else {
-        // 4.2. Passive Volatile Outgassing & Pyrophoric Air Ignition into open air above surface:
-        // - Naphtha (11.0) slowly evaporates heavy Butane vapor (10.0) right on top of the hydrocarbon pool!
-        // - Liquid Nitrogen (15.0) gently boils off cold vapor plumes (1.0) as it chills the cave!
-        // - Rad-Ore (17.0) slowly exhales heavy radioactive Radon gas (12.0) into low cave basins!
-        // - White Phosphorus (25.0) is pyrophoric: calm while submerged under Water, but spontaneously ignites into Fire (3.0) when exposed to open air!
-        let liq_below = get_liquid(ip, down_d, win_min);
-        if (liq_below.y > 0.35 && round(abs(liq_below.x)) == 11.0 && next_vol < 0.32) {
+        // 4.2. Passive Volatile Outgassing, Pyrophoric Air Ignition & Kelvin-Helmholtz Cyclone Spray Atomization:
+        let liq_b1 = get_liquid(ip, down_d, win_min);
+        let liq_b2 = get_liquid(ip, vec3<i32>(0, -2, 0), win_min);
+        let liq_below = select(liq_b1, liq_b2, liq_b1.y <= 0.16 && liq_b2.y > 0.28 && !is_solid(ip, down_d, win_min));
+        let shear_xz = length(self_vel.xz);
+        let core_suct = max(0.0, -self_vel.w);
+        if (liq_below.y > 0.18 && shear_xz > 2.45 && (core_suct > 0.28 || self_vel.y > 0.85) && next_vol < 0.86) {
+            let lid_s = round(abs(liq_below.x));
+            let spray_v = clamp((shear_xz - 2.45) * 0.14 + core_suct * 0.16, 0.08, 0.52);
+            if (lid_s == 2.0) {
+                spawn_gas_id = 3.0; // Lava -> roaring Firenado!
+                spawn_gas_vol = spray_v * 1.15;
+            } else if (lid_s == 3.0) {
+                spawn_gas_id = 5.0; // Acid -> corrosive Acid Vapor funnel!
+                spawn_gas_vol = spray_v;
+            } else if (lid_s == 8.0) {
+                spawn_gas_id = 11.0; // Toxic Sludge -> green Chlorine tornado!
+                spawn_gas_vol = spray_v;
+            } else if (lid_s == 4.0 || lid_s == 7.0 || lid_s == 9.0 || lid_s == 10.0 || lid_s == 11.0 || lid_s == 14.0) {
+                spawn_gas_id = 10.0; // Fuels -> flammable Butane fuel-air aerosol tornado!
+                spawn_gas_vol = spray_v;
+            } else if (lid_s != 12.0) {
+                spawn_gas_id = 1.0; // Water / Cryo / Ambrosia / Blood / Lye -> towering Steam sea-spray waterspout!
+                spawn_gas_vol = spray_v * 1.18;
+            }
+        } else if (core_suct > 0.82 && shear_xz > 4.10 && self_vel.y > 1.35 && next_vol < 0.36 && (next_vol < 0.04 || round(abs(next_id)) == 1.0)) {
+            // Bernoulli adiabatic dew-point condensation along intense low-pressure tornado eyewalls!
+            spawn_gas_id = 1.0;
+            spawn_gas_vol = clamp((core_suct - 0.82) * 0.16, 0.04, 0.18);
+        } else if (liq_b1.y > 0.35 && round(abs(liq_b1.x)) == 11.0 && next_vol < 0.32) {
             spawn_gas_id = 10.0;
             spawn_gas_vol = 0.04;
-        } else if (liq_below.y > 0.25 && round(abs(liq_below.x)) == 15.0 && next_vol < 0.28) {
+        } else if (liq_b1.y > 0.25 && round(abs(liq_b1.x)) == 15.0 && next_vol < 0.28) {
             spawn_gas_id = 1.0;
             spawn_gas_vol = 0.035;
         } else {
@@ -3570,12 +3593,12 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                         let tang_dir = cross(axis_dir, cyl_rad) * ax_sgn;
                         let theta = atan2(dot(cyl_rad, v_e2), dot(cyl_rad, v_e1));
 
-                        let r_eye = mix(1.15, 3.20, t_seg);
-                        let r_norm = perp_len / max(r_eye, 0.40);
+                        let r_eye = mix(0.90, 2.35, t_seg);
+                        let r_norm = perp_len / max(r_eye, 0.38);
                         let burgers = (2.0 * r_norm) / (1.0 + r_norm * r_norm);
-                        let swirl_spd = (6.4 + abs(wp1.w) * 0.65) * burgers * smoothstep(0.0, 0.25, cyl_fall);
+                        let swirl_spd = (6.8 + abs(wp1.w) * 0.72) * burgers * smoothstep(0.0, 0.25, cyl_fall);
 
-                        // Co-rotating m=2 + m=3 helical spiral arms (3.6 rad/s phase-locked to VOF horizontal advection!)
+                        // Co-rotating m=2 + m=3 helical spiral arms (3.6 rad/s phase-locked to fluid/gas advection!)
                         let hel2 = sin(theta * 2.0 - t_seg * 4.8 - u.time * 7.2 * ax_sgn);
                         let hel3 = sin(theta * 3.0 - t_seg * 6.6 - u.time * 10.8 * ax_sgn);
                         let spiral = 0.68 * hel2 + 0.32 * hel3;
@@ -3585,15 +3608,15 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                         var rad_flow: f32 = 0.0;
                         var ax_flow: f32 = 0.0;
                         if (is_up_spout) {
-                            let eye_clear = 3.15 * (1.0 - smoothstep(0.0, 0.85, r_norm));
-                            let outer_conv = smoothstep(0.75, 1.45, r_norm) * mix(1.35, wp1.w * 0.78, arm_up) * c_sheath;
-                            let crown_out = smoothstep(0.70, 0.96, t_seg);
-                            rad_flow = mix(eye_clear + outer_conv, 3.85 * c_sheath, crown_out);
+                            let eye_clear = 1.65 * (1.0 - smoothstep(0.0, 0.72, r_norm));
+                            let outer_conv = smoothstep(0.62, 1.35, r_norm) * (wp1.w * (0.55 + 0.50 * arm_up)) * c_sheath;
+                            let anvil_out = smoothstep(0.90, 1.06, raw_t);
+                            rad_flow = mix(eye_clear + outer_conv, 1.85 * c_sheath, anvil_out);
 
                             let base_up = dot(wv.xyz, axis_dir);
-                            let wall_band = smoothstep(0.35, 0.90, r_norm) * (1.0 - smoothstep(1.35, 2.65, r_norm));
-                            let climb = (base_up * (0.42 + 0.48 * wall_band) + max(0.0, -wv.w) * 0.34 * wall_band) * mix(0.08, 1.15, arm_up);
-                            ax_flow = mix(climb, -0.95, crown_out) * cyl_fall;
+                            let wall_band = smoothstep(0.28, 0.85, r_norm) * (1.0 - smoothstep(1.45, 2.85, r_norm));
+                            let climb = (base_up * (0.52 + 0.52 * wall_band) + max(0.0, -wv.w) * 0.48 * wall_band) * mix(0.55, 1.25, arm_up);
+                            ax_flow = mix(climb, 1.35, anvil_out) * cyl_fall;
                         } else {
                             let floor_splat = 1.0 - smoothstep(0.0, 0.34, t_seg);
                             rad_flow = mix(wp1.w * smoothstep(0.25, 1.0, r_norm), abs(wp1.w) * 1.15, floor_splat) * c_sheath;
@@ -3602,9 +3625,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                         let drift_perp = wv.xyz - axis_dir * dot(wv.xyz, axis_dir);
                         let vort_v = tang_dir * swirl_spd + cyl_rad * rad_flow + axis_dir * ax_flow + drift_perp * (0.45 * v_env);
                         let vort_p = wv.w * v_env;
-                        let k_vort = clamp(0.54 * v_env, 0.0, 0.62);
+                        let k_vort = clamp(0.62 * v_env, 0.0, 0.68);
                         next_v = mix(next_v, vort_v, k_vort);
-                        next_p = mix(next_p, vort_p, 0.34 * v_env);
+                        next_p = mix(next_p, vort_p, 0.38 * v_env);
                     }
                 } else {
                     let jet_v = rad_dir * (wp1.w * sheath) + wv.xyz * core_fall;
@@ -3699,14 +3722,14 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (s_zm && next_v.z < 0.0) { next_v.z = 0.0; }
     if (s_zp && next_v.z > 0.0) { next_v.z = 0.0; }
 
-    // Decouple horizontal swirl cap (6.4) from controlled vertical lift/microburst cap ([-5.2, 2.95]) so funnels whip & recirculate!
+    // Decouple horizontal swirl cap (6.8) from sky-funnel / microburst cap ([-5.5, 4.35]) so mist tornadoes soar & spin!
     let v_xz_mag = length(next_v.xz);
-    if (v_xz_mag > 6.4) {
-        let xz_sc = 6.4 / v_xz_mag;
+    if (v_xz_mag > 6.8) {
+        let xz_sc = 6.8 / v_xz_mag;
         next_v.x = next_v.x * xz_sc;
         next_v.z = next_v.z * xz_sc;
     }
-    next_v.y = clamp(next_v.y, -5.2, 2.95);
+    next_v.y = clamp(next_v.y, -5.5, 4.35);
     if (dot(next_v, next_v) < 0.000016) {
         next_v = vec3<f32>(0.0);
     }

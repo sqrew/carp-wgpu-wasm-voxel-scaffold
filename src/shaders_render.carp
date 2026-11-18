@@ -1745,9 +1745,12 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                         let f_att = 1.0 / (1.0 + 0.05 * t + 0.012 * t * t);
                         g_flash = vec3<f32>(0.9, 0.88, 0.82) * f_att * 1.1;
                     }
-                    let wilson = smoothstep(1.6, 4.2, g_spd) * 0.22;
-                    let puff_shade = 0.75 + 0.35 * billow + wilson;
-                    gas_color = (gas_color * puff_shade + vec3<f32>(wilson * 0.55)) * max(vec3<f32>(0.18), g_gi * 1.45 + g_flash);
+                    let wilson = smoothstep(1.6, 4.2, g_spd) * 0.28;
+                    let puff_shade = 0.72 + 0.36 * billow + wilson;
+                    let g_sky = clamp((p.y - 6.0) / 20.0, 0.08, 1.0);
+                    let g_amb = clamp(u.sun_dir.y * 2.8 + 0.35, 0.16, 0.92) * g_sky;
+                    let g_gi_kneed = (g_gi * 1.30) / (vec3<f32>(1.0) + g_gi * 0.65);
+                    gas_color = (gas_color * puff_shade + vec3<f32>(wilson * 0.45)) * max(vec3<f32>(0.18), vec3<f32>(g_amb) + g_gi_kneed + g_flash);
                     absorb = mat.density * (0.65 + 0.75 * billow) * (1.0 + clamp(abs(v_gas.w) * 0.35, 0.0, 0.55));
                 } else if (g_spd > 0.12) {
                     let wisp_p = p_adv * 2.6 - vec3<f32>(0.0, u.time * 1.8, 0.0);
