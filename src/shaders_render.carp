@@ -1699,7 +1699,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                     let aer = smoothstep(0.68, 0.18, liq_val.g) * smoothstep(1.85, 4.2, l_spd);
                     let bub = sample_spectral_3d(p * 9.5 + vec3<f32>(0.0, -u.time * 2.2, u.time * 0.85));
                     let foam = aer * smoothstep(-0.10, 0.45, bub.r * 0.65 + bub.a * 0.55);
-                    let froth_tint = mix(base_liq, vec3<f32>(0.92, 0.96, 1.0), 0.82) * max(light_env, vec3<f32>(0.26));
+                    let kneed_env = max(light_env / (vec3<f32>(1.0) + light_env * 0.65), vec3<f32>(0.26));
+                    let froth_tint = mix(base_liq, vec3<f32>(0.90, 0.96, 1.0), 0.60) * kneed_env;
                     vol_radiance = mix(vol_radiance, froth_tint, foam * 0.72);
                     ext_step += vec3<f32>(foam * 0.85);
                 }

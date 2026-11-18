@@ -379,9 +379,9 @@ fn calc_vert_fall(src: vec4<f32>, src_props: LiquidProps, dst: vec4<f32>, dst_pr
     let room = max(0.0, 1.0 - dst.y);
     if (room <= 0.001) { return 0.0; }
 
-    let eff_against = vy_against + select(0.0, swirl_suction * 0.52, vy_against > 0.55);
+    let eff_against = vy_against + select(0.0, swirl_suction * 0.12, vy_against > 1.15);
     let wind_thresh = 1.15 + 0.22 * min(src_props.density, 8.0);
-    let pec = clamp(1.0 - max(0.0, eff_against - wind_thresh) * 0.55, 0.0, 1.0) * tau_f;
+    let pec = clamp(1.0 - max(0.0, eff_against - wind_thresh) * 0.62, 0.0, 1.0) * tau_f;
     if (pec <= 0.001) { return 0.0; }
 
     let cfl_cap = max(src_props.g_rate, 0.86 - 4.0 * src_props.l_rate);
@@ -703,8 +703,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 let loft_thresh = max(0.24, base_loft - vort_assist);
                 let vy_eff = select(vy_pair, max(0.0, vy_pair - loft_thresh), vy_pair > 0.0);
                 let v_drive = select(v_ab, vy_eff * f32(ad.y), ad.y != 0);
-                let adv_gain = select(0.21, 0.18, ad.y != 0);
-                let adv_cap = select(0.145, 0.175, ad.y != 0);
+                let adv_gain = select(0.26, 0.19, ad.y != 0);
+                let adv_cap = select(0.195, 0.165, ad.y != 0);
                 let can_mix_l = self_vol <= 0.04 || n_liq.y <= 0.04 || abs(self_liq.x - n_liq.x) < 0.5;
                 if (can_mix_l && v_drive > 0.015 && self_vol > 0.01) {
                     let w_out = min(self_vol, max(0.0, 1.35 - n_liq.y)) * clamp(v_drive * adv_gain * dens_resist, 0.0, adv_cap) * tau_ad;
@@ -3539,7 +3539,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         if (rad > 0.05) {
             let seg = wp1.xyz - wp0.xyz;
             let seg_len2 = dot(seg, seg);
-            let t_seg = select(0.0, clamp(dot(world_p - wp0.xyz, seg) / max(seg_len2, 0.0001), 0.0, 1.0), seg_len2 > 0.0001);
+            let raw_t = select(0.5, dot(world_p - wp0.xyz, seg) / max(seg_len2, 0.0001), seg_len2 > 0.0001);
+            let t_seg = clamp(raw_t, 0.0, 1.0);
             let closest = wp0.xyz + seg * t_seg;
             let rel = world_p - closest;
             let d = length(rel);
@@ -3553,20 +3554,58 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 let rad_dir = select(sph_dir, perp / max(perp_len, 0.001), perp_len > 0.001 && seg_len2 > 0.02);
                 let sheath = smoothstep(0.0, 0.38, u_fall);
                 if (is_vortex) {
-                    let r_eye = mix(1.15, 3.25, t_seg);
-                    let tang_dir = cross(axis_dir, rad_dir);
-                    let rankine = clamp(perp_len / max(r_eye, 0.35), 0.0, 1.0) * smoothstep(0.0, 0.32, u_fall);
-                    let in_band = smoothstep(0.22, 0.90, perp_len / max(r_eye, 0.35));
-                    let crown_out = smoothstep(0.76, 1.0, t_seg);
-                    let rad_flow = mix(wp1.w * in_band * sheath, 2.25 * sheath, crown_out);
-                    let swirl_spd = (6.8 + abs(wp1.w) * 0.85) * rankine;
-                    let ax_sgn = sign(dot(wv.xyz, axis_dir) + 0.001);
-                    let ekman_lift = axis_dir * (ax_sgn * max(0.0, -wv.w) * 0.26 * (1.0 - 0.55 * rankine) * (1.0 - crown_out) * u_fall);
-                    let vort_v = tang_dir * swirl_spd + rad_dir * rad_flow + wv.xyz * ((0.38 + 0.44 * rankine) * (1.0 - 0.55 * crown_out) * u_fall) + ekman_lift;
-                    let vort_p = wv.w * u_fall;
-                    let k_vort = clamp(0.46 * u_fall + 0.12, 0.0, 0.58);
-                    next_v = mix(next_v, vort_v, k_vort);
-                    next_p = mix(next_p, vort_p, 0.34 * u_fall);
+                    // Open-topped conical vortex (trims hemispherical capsule dome above wp1 so water never parks in a jellyfish cap!)
+                    let cyl_fall = clamp(1.0 - perp_len / rad, 0.0, 1.0);
+                    let ax_env = smoothstep(-0.18, 0.06, raw_t) * (1.0 - smoothstep(0.84, 1.08, raw_t));
+                    let v_env = cyl_fall * ax_env;
+                    if (v_env > 0.005) {
+                        let ax_sgn = select(-1.0, 1.0, dot(wv.xyz, axis_dir) >= 0.0);
+                        let is_up_spout = wv.w < -0.05 && ax_sgn > 0.0;
+                        let up_ref = select(vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(1.0, 0.0, 0.0), abs(axis_dir.y) > 0.90);
+                        let v_e1 = normalize(cross(up_ref, axis_dir));
+                        let v_e2 = cross(axis_dir, v_e1);
+                        let spin_ang = u.time * 7.2 * ax_sgn;
+                        let core_kick = v_e1 * cos(spin_ang) + v_e2 * sin(spin_ang);
+                        let cyl_rad = select(core_kick, perp / max(perp_len, 0.001), perp_len > 0.02);
+                        let tang_dir = cross(axis_dir, cyl_rad) * ax_sgn;
+                        let theta = atan2(dot(cyl_rad, v_e2), dot(cyl_rad, v_e1));
+
+                        let r_eye = mix(1.15, 3.20, t_seg);
+                        let r_norm = perp_len / max(r_eye, 0.40);
+                        let burgers = (2.0 * r_norm) / (1.0 + r_norm * r_norm);
+                        let swirl_spd = (6.4 + abs(wp1.w) * 0.65) * burgers * smoothstep(0.0, 0.25, cyl_fall);
+
+                        // Co-rotating m=2 + m=3 helical spiral arms (3.6 rad/s phase-locked to VOF horizontal advection!)
+                        let hel2 = sin(theta * 2.0 - t_seg * 4.8 - u.time * 7.2 * ax_sgn);
+                        let hel3 = sin(theta * 3.0 - t_seg * 6.6 - u.time * 10.8 * ax_sgn);
+                        let spiral = 0.68 * hel2 + 0.32 * hel3;
+                        let arm_up = smoothstep(-0.35, 0.55, spiral);
+                        let c_sheath = smoothstep(0.0, 0.35, cyl_fall);
+
+                        var rad_flow: f32 = 0.0;
+                        var ax_flow: f32 = 0.0;
+                        if (is_up_spout) {
+                            let eye_clear = 3.15 * (1.0 - smoothstep(0.0, 0.85, r_norm));
+                            let outer_conv = smoothstep(0.75, 1.45, r_norm) * mix(1.35, wp1.w * 0.78, arm_up) * c_sheath;
+                            let crown_out = smoothstep(0.70, 0.96, t_seg);
+                            rad_flow = mix(eye_clear + outer_conv, 3.85 * c_sheath, crown_out);
+
+                            let base_up = dot(wv.xyz, axis_dir);
+                            let wall_band = smoothstep(0.35, 0.90, r_norm) * (1.0 - smoothstep(1.35, 2.65, r_norm));
+                            let climb = (base_up * (0.42 + 0.48 * wall_band) + max(0.0, -wv.w) * 0.34 * wall_band) * mix(0.08, 1.15, arm_up);
+                            ax_flow = mix(climb, -0.95, crown_out) * cyl_fall;
+                        } else {
+                            let floor_splat = 1.0 - smoothstep(0.0, 0.34, t_seg);
+                            rad_flow = mix(wp1.w * smoothstep(0.25, 1.0, r_norm), abs(wp1.w) * 1.15, floor_splat) * c_sheath;
+                            ax_flow = dot(wv.xyz, axis_dir) * (0.55 + 0.45 * burgers) * cyl_fall;
+                        }
+                        let drift_perp = wv.xyz - axis_dir * dot(wv.xyz, axis_dir);
+                        let vort_v = tang_dir * swirl_spd + cyl_rad * rad_flow + axis_dir * ax_flow + drift_perp * (0.45 * v_env);
+                        let vort_p = wv.w * v_env;
+                        let k_vort = clamp(0.54 * v_env, 0.0, 0.62);
+                        next_v = mix(next_v, vort_v, k_vort);
+                        next_p = mix(next_p, vort_p, 0.34 * v_env);
+                    }
                 } else {
                     let jet_v = rad_dir * (wp1.w * sheath) + wv.xyz * core_fall;
                     let jet_p = wv.w * u_fall;
@@ -3660,14 +3699,14 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (s_zm && next_v.z < 0.0) { next_v.z = 0.0; }
     if (s_zp && next_v.z > 0.0) { next_v.z = 0.0; }
 
-    // Decouple horizontal swirl cap (5.8) from controlled vertical lift cap (2.65) so funnels crest & recirculate instead of Mach-12 yeeting!
+    // Decouple horizontal swirl cap (6.4) from controlled vertical lift/microburst cap ([-5.2, 2.95]) so funnels whip & recirculate!
     let v_xz_mag = length(next_v.xz);
-    if (v_xz_mag > 5.8) {
-        let xz_sc = 5.8 / v_xz_mag;
+    if (v_xz_mag > 6.4) {
+        let xz_sc = 6.4 / v_xz_mag;
         next_v.x = next_v.x * xz_sc;
         next_v.z = next_v.z * xz_sc;
     }
-    next_v.y = clamp(next_v.y, -3.2, 2.65);
+    next_v.y = clamp(next_v.y, -5.2, 2.95);
     if (dot(next_v, next_v) < 0.000016) {
         next_v = vec3<f32>(0.0);
     }
