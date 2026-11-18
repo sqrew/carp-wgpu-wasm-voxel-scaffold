@@ -47,8 +47,15 @@
     (let [seed (fresh-run-seed)
           noise-state (Noise.make-noise seed)
           strata (Terrain.make-strata seed)
+          origin-st (Structures.supercell-desc &noise-state &strata 0 -1 0)
           world-chunks []]
       (do
+        (when @(StructureDesc.active &origin-st)
+          (IO.println &(str* "  [CSG] Near-Spawn Vault: "
+                             (Structures.archetype-name @(StructureDesc.kind &origin-st))
+                             " @ (" (Double.to-int @(StructureDesc.sx &origin-st))
+                             ", " (Double.to-int @(StructureDesc.sy &origin-st))
+                             ", " (Double.to-int @(StructureDesc.sz &origin-st)) ")")))
         (for [tz 0 5]
           (for [ty 0 5]
             (for [tx 0 5]

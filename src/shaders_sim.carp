@@ -1275,6 +1275,15 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     next_id = above.x;
                 }
             }
+            // Symmetric vertical overpressure expansion when compressed (> 1.0) in boiler risers / spouts!
+            if (can_mix_up && max(self_vol, above.y) > 1.0) {
+                let p_flow_up = (above.y - self_vol) * 0.115 * pec_up;
+                net_flow += p_flow_up;
+                if (self_vol <= 0.04 && p_flow_up > max_inflow) {
+                    max_inflow = p_flow_up;
+                    next_id = above.x;
+                }
+            }
         }
         if (!is_solid(ip, down_d, win_min)) {
             let below = get_gas(ip, down_d, win_min);
@@ -1289,6 +1298,14 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 net_flow += flow_in;
                 if (self_vol <= 0.04 && flow_in > max_inflow) {
                     max_inflow = flow_in;
+                    next_id = below.x;
+                }
+            }
+            if (can_mix_dn && max(self_vol, below.y) > 1.0) {
+                let p_flow_dn = (below.y - self_vol) * 0.115 * pec_dn;
+                net_flow += p_flow_dn;
+                if (self_vol <= 0.04 && p_flow_dn > max_inflow) {
+                    max_inflow = p_flow_dn;
                     next_id = below.x;
                 }
             }
@@ -1578,18 +1595,23 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
     }
     
+    let tau_self = select(clamp(tg_self.x * 2.0, 0.0, 1.35), 0.0, tg_self.x < 0.12);
     if (spawn_gas_vol > 0.0) {
+        let sg = round(abs(spawn_gas_id));
+        // Progressive phase-expansion boil-pump: Steam (1), Acid Vapor (5), Hydrogen (9), Chlorine (11) & Acetylene (13)
+        // flash to 1.0 on initial contact and steadily pressurize up to 1.75 under sustained bulk boiling (Fire/Smoke stay <= 1.0)!
+        let is_boil_gas = spawn_gas_vol >= 0.95 && (sg == 1.0 || sg == 5.0 || sg == 9.0 || sg == 11.0 || sg == 13.0);
         if (next_vol < 0.95) {
             next_id = spawn_gas_id;
             next_vol = min(1.0, next_vol + spawn_gas_vol);
             next_sleep = 0.0;
+        } else if (is_boil_gas && abs(round(abs(next_id)) - sg) < 0.5 && next_vol < 1.75) {
+            next_vol = min(1.75, next_vol + 0.22 * tau_self);
+            next_sleep = 0.0;
         }
     }
 
-
-
     // --- 5. Evaporate, decay and clamp (Chrono-scaled; detonation pulse flashes into Fire!) ---
-    let tau_self = select(clamp(tg_self.x * 2.0, 0.0, 1.35), 0.0, tg_self.x < 0.12);
     let next_props = get_gas_props(next_id);
     let under_roof = is_solid(ip, up_d, win_min) || is_solid(ip, vec3<i32>(0, 2, 0), win_min);
     let eff_decay = select(next_props.decay, next_props.decay * 0.42, under_roof && (abs(next_id) == 4.0 || abs(next_id) == 1.0)) * tau_self;
@@ -2447,9 +2469,21 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
 
         let avg_T = select(self_tp.x, sum_T / t_cnt, t_cnt > 0.5);
-        let avg_P = select(self_tp.y, sum_P / air_cnt, air_cnt > 0.5);
         var next_T = max(updraft_T, mix(mix(self_tp.x, avg_T, 0.45), 0.20, 0.14));
-        var next_P = max(mix(self_tp.y, avg_P, 0.50) * 0.78, clamp(raw_vel.w * 0.42, 0.0, 0.92));
+        // Exact face-symmetric conservative pressure diffusion across open air neighbors (hermetic against solid pipe/tank walls!):
+        let at_win_edge = lp.x <= 2 || lp.x >= 157 || lp.y <= 2 || lp.y >= 157 || lp.z <= 2 || lp.z >= 157;
+        let diff_P = clamp(self_tp.y + 0.145 * (sum_P - air_cnt * self_tp.y), 0.0, 1.0);
+        // Confinement-aware retention: pipes/ducts/tanks (air_cnt <= 4) hold pressure ~25x longer than open 3D air, while window borders vent to 0!
+        let sky_vent = select(1.0, 0.82, world_p.y > 38.0 && air_cnt >= 5.5);
+        let p_retain = select(mix(0.992, 0.925, clamp((air_cnt - 3.5) * 0.40, 0.0, 1.0)) * sky_vent, 0.45, at_win_edge);
+        // Ideal-gas PV=nRT + hydraulic head: compressed gas (>1.0), heated gas (T>0.24), or pressurized liquid (>1.02) sustains static vessel pressure!
+        let p_eos = clamp(
+            max(0.0, raw_gas.g - 1.00) * 0.88 +
+            min(raw_gas.g, 1.25) * max(0.0, next_T - 0.24) * 0.92 +
+            max(0.0, raw_liq.g - 1.02) * 1.35,
+            0.0, 0.94
+        );
+        var next_P = max(diff_P * p_retain, max(p_eos, clamp(raw_vel.w * 0.42, 0.0, 0.92)));
         var next_V = max_V;
         var next_M = mix(self_vm.y, sum_M / max(air_cnt, 1.0), 0.45) * 0.84;
         var next_tau = mix(mix(self_tg.x, select(0.50, sum_tau / air_cnt, air_cnt > 0.5), 0.35), 0.50, 0.10);
@@ -3385,14 +3419,17 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     let div_v = ((v_xp.x - v_xm.x) + (v_yp.y - v_ym.y) + (v_zp.z - v_zm.z)) * 0.5;
     let avg_p = (min(v_xm.w, 3.8) + min(v_xp.w, 3.8) + min(v_ym.w, 3.8) + min(v_yp.w, 3.8) + min(v_zm.w, 3.8) + min(v_zp.w, 3.8)) / 6.0;
-    let avg_v = (v_xm.xyz + v_xp.xyz + v_ym.xyz + v_yp.xyz + v_zm.xyz + v_zp.xyz) / 6.0;
+    // Free-slip Neumann neighbor velocity average so narrow 1x1/2x2 pipes don't lose 67% speed to solid wall neighbors!
+    let avg_v = (select(v_xm.xyz, adv.xyz, s_xm) + select(v_xp.xyz, adv.xyz, s_xp) +
+                 select(v_ym.xyz, adv.xyz, s_ym) + select(v_yp.xyz, adv.xyz, s_yp) +
+                 select(v_zm.xyz, adv.xyz, s_zm) + select(v_zp.xyz, adv.xyz, s_zp)) / 6.0;
     let grad_p = vec3<f32>(v_xp.w - v_xm.w, v_yp.w - v_ym.w, v_zp.w - v_zm.w) * 0.5;
 
     let base_drag = select(0.935, 0.84, raw_liq.g > 0.22);
     let drag = mix(0.992, base_drag, clamp(time_scale, 0.0, 1.0));
     let p_damp = mix(0.995, 0.88, clamp(time_scale, 0.0, 1.0));
     var next_p = mix(adv.w, avg_p, 0.34 * min(time_scale, 1.25)) * p_damp - div_v * (0.42 * time_scale) + max(0.0, self_tp.y - 0.36) * 0.05;
-    var next_v = (mix(adv.xyz, avg_v, 0.08 * min(time_scale, 1.25)) - (grad_p * 0.58 + grad_field_P * 0.65) * time_scale) * drag;
+    var next_v = (mix(adv.xyz, avg_v, 0.08 * min(time_scale, 1.25)) - (grad_p * 0.58 + grad_field_P * 0.92) * time_scale) * drag;
 
     // 3. Swept Capsule Wake Injection (Single-frame blasts/Mach slugs add directly; sustained Bellows/Flask jets blend framerate-independently!)
     let wake_cnt = min(u32(round(u.pad1)), 32u);

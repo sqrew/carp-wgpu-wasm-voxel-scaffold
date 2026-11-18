@@ -1,0 +1,798 @@
+;; =============================================================================
+;; src/structures.carp — Pure-Carp Baked CSG Subterranean Architecture & Pipeworks
+;;   Stateless `96 x 64 x 96` (`3 x 2 x 3` chunks) supercell placement + pure
+;;   Euclidean / Lipschitz-safe CSG combinators stamped directly into chunk
+;;   `(mat, sdf, fluid, health)` buffers during `Terrain.generate!` (`0.00 ms/frame`
+;;   runtime cost; full participation in raymarching, GI, stress, piezo, & fluids).
+;;
+;;   Archetypes (`kind = 0..5`):
+;;     0 = Brutalist Alchemist Pillbox ("Septum Cistern")
+;;     1 = Faceted Piezo-Amethyst Geode Shrine
+;;     2 = Sunken Galvanic Ziggurat
+;;     3 = Suspended Distillery Bell ("Alkali / Pyrophoric Drop-Trap")
+;;     4 = Vaulted Crossroad Gallery & Bank-Shot Demolition Vault
+;;     5 = Pressurized Alchemical Pipeworks & U-Trap Manifold
+;; =============================================================================
+
+(deftemplate csg-hash4 (Fn [Int Int Int Int] Int)
+  "int $NAME(int seed, int rx, int ry, int rz)"
+  "$DECL {
+     uint32_t h = (uint32_t)seed * 0x9E3779B9u;
+     h ^= (uint32_t)rx * 0x85EBCA6Bu;
+     h = (h << 13) | (h >> 19);
+     h = h * 5u + 0xE6546B64u;
+     h ^= (uint32_t)ry * 0xC2B2AE35u;
+     h = (h << 15) | (h >> 17);
+     h = h * 5u + 0x52DCE729u;
+     h ^= (uint32_t)rz * 0x27D4EB2Fu;
+     h ^= h >> 16;
+     h *= 0x85EBCA6Bu;
+     h ^= h >> 13;
+     h *= 0xC2B2AE35u;
+     h ^= h >> 16;
+     return (int)(h & 0x7FFFFFFFu);
+   }")
+
+;; `mode`:
+;;   0 = `CSG_NONE`       (outside structure + collar; keep Simplex voxel untouched)
+;;   1 = `CSG_SOLID`      (CSG masonry / rib / septum / pipe wall / bullion)
+;;   2 = `CSG_AIR_OR_VAT` (carved room air, pipe bore, fluid vat, or doorway apron)
+;;   3 = `CSG_COLLAR`     (3.5m smooth Euclidean SDF collar into surrounding cave rock/air)
+(deftype CSGSample [
+  mode Int
+  sdf Float
+  wall-sdf Float
+  mat Float
+  fluid Float
+])
+
+(deftype StructureDesc [
+  active Bool
+  kind Int
+  rot Int
+  variant Int
+  biome Int
+  sx Double
+  sy Double
+  sz Double
+  hx Double
+  hy Double
+  hz Double
+])
+
+;; =============================================================================
+;; Pure-Carp 3D SDF & Domain-Folding Combinator Kit (`CSG`)
+;; =============================================================================
+(defmodule CSG
+  (defn dmin [a b] (if (< a b) a b))
+  (defn dmax [a b] (if (> a b) a b))
+  (defn dclamp [lo hi x] (if (< x lo) lo (if (> x hi) hi x)))
+
+  (defn len2 [x y]
+    (Double.sqrt (+ (* x x) (* y y))))
+
+  (defn len3 [x y z]
+    (Double.sqrt (+ (+ (* x x) (* y y)) (* z z))))
+
+  ;; --- Exact & Lipschitz-Safe Primitives ---
+
+  (defn sd-sphere [px py pz r]
+    (- (CSG.len3 px py pz) r))
+
+  ;; Exact Quilez 3D Axis-Aligned Box
+  (defn sd-box [px py pz bx by bz]
+    (let [qx (- (Double.abs px) bx)
+          qy (- (Double.abs py) by)
+          qz (- (Double.abs pz) bz)
+          ox (CSG.dmax qx 0.0)
+          oy (CSG.dmax qy 0.0)
+          oz (CSG.dmax qz 0.0)
+          outside (CSG.len3 ox oy oz)
+          inside (CSG.dmin (CSG.dmax qx (CSG.dmax qy qz)) 0.0)]
+      (+ outside inside)))
+
+  ;; Brutalist 45-degree Chamfered Box (`ch` = corner/edge bevel inset)
+  (defn sd-chamfer-box [px py pz bx by bz ch]
+    (let [dbox (CSG.sd-box px py pz bx by bz)
+          ax (Double.abs px)
+          ay (Double.abs py)
+          az (Double.abs pz)
+          dxy (* (- (+ ax ay) (- (+ bx by) ch)) 0.70710678)
+          dyz (* (- (+ ay az) (- (+ by bz) ch)) 0.70710678)
+          dzx (* (- (+ az ax) (- (+ bz bx) ch)) 0.70710678)
+          doct (* (- (+ (+ ax ay) az) (- (+ (+ bx by) bz) (* ch 1.65))) 0.57735027)]
+      (CSG.dmax dbox (CSG.dmax (CSG.dmax dxy dyz) (CSG.dmax dzx doct)))))
+
+  ;; Battered / Sloped Rectangular Frustum along Y (`[-hh .. +hh]`, Lipschitz-corrected)
+  (defn sd-frustum-box-y [px py pz bx-bot bz-bot bx-top bz-top hh]
+    (let [u (CSG.dclamp 0.0 1.0 (/ (+ py hh) (* 2.0 hh)))
+          bx (+ bx-bot (* u (- bx-top bx-bot)))
+          bz (+ bz-bot (* u (- bz-top bz-bot)))
+          dx (- (Double.abs px) bx)
+          dz (- (Double.abs pz) bz)
+          dy (- (Double.abs py) hh)
+          slope-x (/ (Double.abs (- bx-bot bx-top)) (* 2.0 hh))
+          slope-z (/ (Double.abs (- bz-bot bz-top)) (* 2.0 hh))
+          ms (CSG.dmax slope-x slope-z)
+          lip (/ 1.0 (Double.sqrt (+ 1.0 (* ms ms))))
+          h-dist (* (CSG.dmax dx dz) lip)
+          ox (CSG.dmax (* dx lip) 0.0)
+          oy (CSG.dmax dy 0.0)
+          oz (CSG.dmax (* dz lip) 0.0)]
+      (+ (CSG.len3 ox oy oz) (CSG.dmin (CSG.dmax h-dist dy) 0.0))))
+
+  ;; Exact Capped Cylinders along Y, X, and Z
+  (defn sd-cyl-y [px py pz r hh]
+    (let [dr (- (CSG.len2 px pz) r)
+          dy (- (Double.abs py) hh)
+          out (CSG.len2 (CSG.dmax dr 0.0) (CSG.dmax dy 0.0))
+          ins (CSG.dmin (CSG.dmax dr dy) 0.0)]
+      (+ out ins)))
+
+  (defn sd-cyl-x [px py pz r hh]
+    (CSG.sd-cyl-y py px pz r hh))
+
+  (defn sd-cyl-z [px py pz r hh]
+    (CSG.sd-cyl-y px pz py r hh))
+
+  ;; Tapered Capped Cone / Hopper Funnel along Y (`[-hh .. +hh]`, Lipschitz-corrected)
+  (defn sd-capped-cone-y [px py pz r-bot r-top hh]
+    (let [q-r (CSG.len2 px pz)
+          u (CSG.dclamp 0.0 1.0 (/ (+ py hh) (* 2.0 hh)))
+          r-cur (+ r-bot (* u (- r-top r-bot)))
+          slope (/ (Double.abs (- r-bot r-top)) (* 2.0 hh))
+          lip (/ 1.0 (Double.sqrt (+ 1.0 (* slope slope))))
+          dr (* (- q-r r-cur) lip)
+          dy (- (Double.abs py) hh)]
+      (+ (CSG.len2 (CSG.dmax dr 0.0) (CSG.dmax dy 0.0))
+         (CSG.dmin (CSG.dmax dr dy) 0.0))))
+
+  ;; Torus Rings (Y-axis horizontal ring, X-axis & Z-axis vertical arch/elbow rings)
+  (defn sd-torus-y [px py pz major-r minor-r]
+    (let [qx (- (CSG.len2 px pz) major-r)]
+      (- (CSG.len2 qx py) minor-r)))
+
+  (defn sd-torus-x [px py pz major-r minor-r]
+    (let [qy (- (CSG.len2 py pz) major-r)]
+      (- (CSG.len2 qy px) minor-r)))
+
+  (defn sd-torus-z [px py pz major-r minor-r]
+    (let [qx (- (CSG.len2 px py) major-r)]
+      (- (CSG.len2 qx pz) minor-r)))
+
+  ;; Arbitrary 3D Capsule Segment `A -> B` (diagonal struts, angled drains, X-braces)
+  (defn sd-capsule [px py pz ax ay az bx by bz r]
+    (let [pax (- px ax)
+          pay (- py ay)
+          paz (- pz az)
+          bax (- bx ax)
+          bay (- by ay)
+          baz (- bz az)
+          b2 (+ (+ (* bax bax) (* bay bay)) (* baz baz))
+          h (if (> b2 0.0001)
+              (CSG.dclamp 0.0 1.0 (/ (+ (+ (* pax bax) (* pay bay)) (* paz baz)) b2))
+              0.0)]
+      (- (CSG.len3 (- pax (* bax h)) (- pay (* bay h)) (- paz (* baz h))) r)))
+
+  ;; Faceted Octahedron (Lipschitz bound; crisp crystal & geode facets)
+  (defn sd-octahedron [px py pz s]
+    (* (- (+ (+ (Double.abs px) (Double.abs py)) (Double.abs pz)) s) 0.57735027))
+
+  ;; --- Domain Folding, Rotations & Bounded Repetition ---
+
+  (defn rot90-x [px pz rot]
+    (let [r (Int.mod rot 4)]
+      (if (= r 0) px
+      (if (= r 1) (- 0.0 pz)
+      (if (= r 2) (- 0.0 px)
+                  pz)))))
+
+  (defn rot90-z [px pz rot]
+    (let [r (Int.mod rot 4)]
+      (if (= r 0) pz
+      (if (= r 1) px
+      (if (= r 2) (- 0.0 pz)
+                  (- 0.0 px))))))
+
+  ;; D4 Octant Fold (`0 <= z <= x` in XZ plane: 1 corner feature stamps all 4 corners / 8 walls!)
+  (defn dom-octant-x [px pz]
+    (let [ax (Double.abs px)
+          az (Double.abs pz)]
+      (CSG.dmax ax az)))
+
+  (defn dom-octant-z [px pz]
+    (let [ax (Double.abs px)
+          az (Double.abs pz)]
+      (CSG.dmin ax az)))
+
+  ;; N-Fold Polar Wedge Fold in XZ (`polar-r` = outward along wedge center, `polar-t` = signed tangential offset)
+  (defn polar-r [px pz n]
+    (let [r (CSG.len2 px pz)]
+      (if (< r 0.0001)
+        0.0
+        (let [ang (Double.atan2 pz px)
+              sec (/ 6.283185307179586 (Double.from-int n))
+              half-s (* 0.5 sec)
+              idx (Double.floor (+ (/ ang sec) 0.5))
+              wa (- ang (* idx sec))
+              ca (if (> wa half-s) (- wa sec) (if (< wa (- 0.0 half-s)) (+ wa sec) wa))]
+          (* r (Double.cos ca))))))
+
+  (defn polar-t [px pz n]
+    (let [r (CSG.len2 px pz)]
+      (if (< r 0.0001)
+        0.0
+        (let [ang (Double.atan2 pz px)
+              sec (/ 6.283185307179586 (Double.from-int n))
+              half-s (* 0.5 sec)
+              idx (Double.floor (+ (/ ang sec) 0.5))
+              wa (- ang (* idx sec))
+              ca (if (> wa half-s) (- wa sec) (if (< wa (- 0.0 half-s)) (+ wa sec) wa))]
+          (* r (Double.sin ca))))))
+
+  ;; Exact N-Sided Regular Prism (`n >= 3`, apothem `r`, half-height `hh`)
+  (defn sd-ngon-prism-y [px py pz r hh n]
+    (let [ur (- (CSG.polar-r px pz n) r)
+          dy (- (Double.abs py) hh)]
+      (+ (CSG.len2 (CSG.dmax ur 0.0) (CSG.dmax dy 0.0))
+         (CSG.dmin (CSG.dmax ur dy) 0.0))))
+
+  ;; Roman (`pinch = 0.0`) or Pointed Gothic (`pinch > 0.0`) Vaulted Arch Corridor along Z (`py = 0` at floor!)
+  (defn sd-arch-z [px py pz half-w wall-h len-z pinch]
+    (let [rect-d (CSG.sd-box px (- py (* 0.5 wall-h)) pz half-w (* 0.5 wall-h) len-z)
+          ay (- py wall-h)
+          off (* half-w (CSG.dclamp 0.0 0.90 pinch))
+          arc-r (+ half-w off)
+          dr (- (CSG.len2 (+ (Double.abs px) off) (CSG.dmax ay 0.0)) arc-r)
+          dz (- (Double.abs pz) len-z)
+          arch-2d (if (< ay 0.0) (- (Double.abs px) half-w) dr)
+          vault-d (+ (CSG.len2 (CSG.dmax arch-2d 0.0) (CSG.dmax dz 0.0))
+                     (CSG.dmin (CSG.dmax arch-2d dz) 0.0))]
+      (CSG.dmin rect-d vault-d)))
+
+  (defn sd-arch-x [px py pz half-w wall-h len-x pinch]
+    (CSG.sd-arch-z pz py px half-w wall-h len-x pinch))
+
+  ;; Bounded Quilez Repetition (`x - s * clamp(round(x / s), -cneg, cpos)`)
+  (defn dom-rep-clamped [x spacing c-neg c-pos]
+    (let [idx (CSG.dclamp (- 0.0 c-neg) c-pos (Double.floor (+ (/ x spacing) 0.5)))]
+      (- x (* spacing idx))))
+
+  ;; Gentle Helical Y-Twist (`|k| <= 0.10`)
+  (defn dom-twist-x [px py pz k]
+    (let [a (* py k)
+          c (Double.cos a)
+          s (Double.sin a)]
+      (- (* px c) (* pz s))))
+
+  (defn dom-twist-z [px py pz k]
+    (let [a (* py k)
+          c (Double.cos a)
+          s (Double.sin a)]
+      (+ (* px s) (* pz c))))
+
+  ;; --- Boolean, Chamfer, Smooth & Relief Combinators ---
+
+  (defn op-union [a b] (CSG.dmin a b))
+  (defn op-sub [d-base d-cut] (CSG.dmax d-base (- 0.0 d-cut)))
+  (defn op-isect [a b] (CSG.dmax a b))
+
+  (defn op-shell [d thickness]
+    (- (Double.abs d) thickness))
+
+  (defn op-chamfer-union [a b ch]
+    (CSG.dmin (CSG.dmin a b) (* (+ (- a ch) b) 0.70710678)))
+
+  (defn op-chamfer-sub [d-base d-cut ch]
+    (CSG.op-isect (CSG.dmax d-base (- 0.0 d-cut))
+                  (* (- (+ d-base ch) d-cut) 0.70710678)))
+
+  (defn op-smooth-union [a b k]
+    (let [h (/ (CSG.dmax (- k (Double.abs (- a b))) 0.0) k)]
+      (- (CSG.dmin a b) (* (* (* h h) k) 0.25))))
+
+  (defn op-smooth-sub [d-base d-cut k]
+    (let [nb (- 0.0 d-cut)
+          h (/ (CSG.dmax (- k (Double.abs (- d-base nb))) 0.0) k)]
+      (+ (CSG.dmax d-base nb) (* (* (* h h) k) 0.25))))
+
+  ;; Periodic Horizontal Masonry Courses / Stepped Corbel Relief
+  (defn op-corbel-y [d py period depth]
+    (let [u (/ py period)
+          f (- u (Double.floor u))
+          tri (- 1.0 (Double.abs (- (* 2.0 f) 1.0)))]
+      (+ d (* depth (- tri 0.5)))))
+
+  ;; --- Pressurized Pipe & U-Trap Helpers (`r-in >= 1.65m` = 3..4 voxel bore!) ---
+
+  (defn sd-pipe-seg-wall [px py pz ax ay az bx by bz r-in wall-t]
+    (let [d-out (CSG.sd-capsule px py pz ax ay az bx by bz (+ r-in wall-t))
+          d-in (CSG.sd-capsule px py pz ax ay az bx by bz r-in)]
+      (CSG.op-sub d-out d-in)))
+
+  ;; Flanged Z-Axis Pipeline Wall (`r-in` bore, `wall-t` shell, periodic collars)
+  (defn sd-pipe-flanged-z [px py pz len-z r-in wall-t fl-space fl-cnt]
+    (let [shell (CSG.op-sub (CSG.sd-cyl-z px py pz (+ r-in wall-t) len-z)
+                            (CSG.sd-cyl-z px py pz r-in (+ len-z 0.8)))
+          rz (CSG.dom-rep-clamped pz fl-space fl-cnt fl-cnt)
+          collar (CSG.op-sub (CSG.sd-cyl-z px py rz (+ (+ r-in wall-t) 0.52) 0.42)
+                             (CSG.sd-cyl-z px py pz r-in (+ len-z 0.8)))]
+      (CSG.dmin shell collar)))
+
+  ;; Lower Semicircular U-Bend (`py <= 0` in XY plane, centered at `(0,0,0)`)
+  (defn sd-utrap-wall-xy [px py pz bend-r r-in wall-t]
+    (let [tor-out (CSG.sd-torus-z px py pz bend-r (+ r-in wall-t))
+          tor-in (CSG.sd-torus-z px py pz bend-r r-in)
+          lower-only (CSG.dmax tor-out py)]
+      (CSG.op-sub lower-only tor-in)))
+
+  (defn sd-utrap-bore-xy [px py pz bend-r r-in]
+    (CSG.dmax (CSG.sd-torus-z px py pz bend-r r-in) py))
+)
+
+;; =============================================================================
+;; Supercell Grid, Biome-Reactive Reagents & 6 Archetype Evaluators (`Structures`)
+;; =============================================================================
+(defmodule Structures
+  (defn floor-div [a b]
+    (let [q (/ a b)
+          r (Int.mod a b)]
+      (if (and (< r 0) (/= r 0)) (- q 1) q)))
+
+  (defn hash-u01 [h]
+    (/ (Double.from-int (Int.mod (Int.abs h) 1000000)) 1000000.0))
+
+  (defn archetype-name [kind]
+    (if (= kind 0) @"Brutalist Septum Pillbox"
+    (if (= kind 1) @"Piezo-Amethyst Geode Shrine"
+    (if (= kind 2) @"Sunken Galvanic Ziggurat"
+    (if (= kind 3) @"Suspended Distillery Bell"
+    (if (= kind 4) @"Vaulted Crossroad & Bank Vault"
+                   @"Pressurized Pipeworks & U-Trap"))))))
+
+  ;; Sample the folded stratum biome at world `(sx, sy, sz)` (matching `Terrain.generate!`)
+  (defn biome-at [noise-state strata sx sy sz]
+    (let [iy (Double.to-int (Double.floor sy))
+          seg (if (>= iy -192) 0 (+ 1 (/ (- -193 iy) 192)))
+          local-fdy (+ sy (Double.from-int (* seg 192)))
+          fold-y (+ (* 10.5 (Noise.noise2d noise-state (+ (* sx 0.011) 131.0) (- (* sz 0.011) 83.0)))
+                    (* 4.0 (Noise.noise2d noise-state (- (* sx 0.029) 41.0) (+ (* sz 0.029) 67.0))))
+          wy (+ local-fdy fold-y)
+          biomes (StrataConfig.biomes strata)
+          splits (StrataConfig.splits strata)
+          s0 @(Array.unsafe-nth splits 0)
+          s1 @(Array.unsafe-nth splits 1)
+          s2 @(Array.unsafe-nth splits 2)
+          s3 @(Array.unsafe-nth splits 3)
+          slot (if (>= wy s0) 0 (if (>= wy s1) 1 (if (>= wy s2) 2 (if (>= wy s3) 3 4))))]
+      @(Array.unsafe-nth biomes slot)))
+
+  ;; Biome-tuned primary & secondary reactive liquids (`seed_fluid < 0` codes for `copy-wgsl`)
+  (defn vat-liq-a [b]
+    (if (= b 2)  -15.0f   ;; Glacial -> Liquid Nitrogen
+    (if (= b 3)  -3.0f    ;; Obsidian Vaults -> Acid
+    (if (= b 4)  -4.0f    ;; Tar Pits -> Crude Oil
+    (if (= b 5)  -14.0f   ;; Volatile Chasms -> Nitroglycerin
+    (if (= b 6)  -12.0f   ;; Rad-Geodes -> Mercury
+    (if (= b 7)  -2.0f    ;; Magma Abyss -> Lava
+    (if (= b 8)  -13.0f   ;; Alkali Domes -> Caustic Lye
+    (if (= b 9)  -13.0f   ;; Saponified Cisterns -> Caustic Lye
+    (if (= b 10) -10.0f   ;; Lampworks -> Kerosene
+    (if (= b 11) -15.0f   ;; Cryo-Phosphor -> Liquid Nitrogen
+                 -3.0f))))))))))) ;; Default -> Acid
+
+  (defn vat-liq-b [b]
+    (if (= b 2)  -1.0f    ;; Glacial -> Water (instant Ice flash-freeze!)
+    (if (= b 3)  -13.0f   ;; Obsidian Vaults -> Caustic Lye
+    (if (= b 4)  -13.0f   ;; Tar Pits -> Caustic Lye (Saponifies Oil -> Soap!)
+    (if (= b 5)  -3.0f    ;; Volatile Chasms -> Acid
+    (if (= b 6)  -3.0f    ;; Rad-Geodes -> Acid
+    (if (= b 7)  -1.0f    ;; Magma Abyss -> Water (Steam + Obsidian boiler!)
+    (if (= b 8)  -4.0f    ;; Alkali Domes -> Oil
+    (if (= b 9)  -14.0f   ;; Saponified Cisterns -> Nitroglycerin
+    (if (= b 10) -1.0f    ;; Lampworks -> Water
+    (if (= b 11) -2.0f    ;; Cryo-Phosphor -> Lava
+                 -4.0f))))))))))) ;; Default -> Crude Oil
+
+  ;; Guard packed granular masonry (`Carbide 24`, `Sand 6`, `Sodium 20`, `Gunpowder 7`) from `sdf == -0.50f` grain-lift!
+  (defn safe-solid-sdf [d]
+    (let [f (Float.clamp -12.0f -0.06f (Double.to-float d))]
+      (if (and (> f -0.54f) (< f -0.46f)) -0.56f f)))
+
+  ;; Build final 4-zone `CSGSample` from `d-wall` (`<= 0` solid), `d-carve` (`<= 0` carved interior/apron), `mat`, `fluid`
+  (defn finalize-sample [d-wall d-carve mat fluid]
+    (if (<= d-wall 0.0)
+      (CSGSample.init 1 (Structures.safe-solid-sdf d-wall) -1.0f mat 0.0f)
+      (if (< d-carve 0.0)
+        (let [air-d (CSG.dclamp 0.06 12.0 (CSG.dmin d-wall (- 0.0 d-carve)))]
+          (CSGSample.init 2 (Double.to-float air-d) (Double.to-float (CSG.dmin d-wall 12.0)) 0.0f fluid))
+        (if (or (< d-carve 3.5) (< d-wall 3.5))
+          (CSGSample.init 3
+            (Double.to-float (- 0.0 d-carve))
+            (Double.to-float (CSG.dmin d-wall 12.0))
+            0.0f 0.0f)
+          (CSGSample.init 0 0.0f 12.0f 0.0f 0.0f)))))
+
+  ;; O(1) Deterministic Supercell Descriptor for `96 x 64 x 96` cell `(rx, ry, rz)`
+  (defn supercell-desc [noise-state strata rx ry rz]
+    (if (>= ry 0)
+      (StructureDesc.init false 0 0 0 0 0.0 0.0 0.0 0.0 0.0 0.0)
+      (let [seed @(StrataConfig.seed strata)
+            h0 (csg-hash4 seed rx ry rz)
+            near-spawn? (and (= rx 0) (and (= ry -1) (= rz 0)))
+            occ-roll (Int.mod h0 100)]
+        (if (and (not near-spawn?) (>= occ-roll 54))
+          (StructureDesc.init false 0 0 0 0 0.0 0.0 0.0 0.0 0.0 0.0)
+          (let [h1 (csg-hash4 (+ seed 7919) rx ry rz)
+                h2 (csg-hash4 (+ seed 15485863) rx ry rz)
+                h3 (csg-hash4 (+ seed 32452843) rx ry rz)
+                kind (Int.mod h1 6)
+                rot (Int.mod (/ h1 8) 4)
+                variant (Int.mod h2 65536)
+                ;; Strict extents (`hx, hz <= 19.0m` + `3.5m` collar <= `22.5m` -> stays >= 4.5m inside `96m` seams!)
+                hx (if (= kind 0) 16.0 (if (= kind 1) 16.0 (if (= kind 2) 18.0 (if (= kind 3) 15.0 (if (= kind 4) 19.0 18.0)))))
+                hy (if (= kind 0) 11.0 (if (= kind 1) 13.0 (if (= kind 2) 13.0 (if (= kind 3) 14.0 (if (= kind 4) 11.0 12.0)))))
+                hz hx
+                ux (Structures.hash-u01 h1)
+                uy (Structures.hash-u01 h2)
+                uz (Structures.hash-u01 h3)
+                sx (+ (Double.from-int (* rx 96)) (+ 28.0 (* ux 40.0)))
+                sz (+ (Double.from-int (* rz 96)) (+ 28.0 (* uz 40.0)))
+                ;; Vertical Tier inside 192m Abyssal Seal segment (`192 = 3 * 64`):
+                ;;   `ry = -1, -4, -7` -> tier 0 (`local-gy` in `-64..-1`)
+                ;;   `ry = -2, -5, -8` -> tier 1 (`local-gy` in `-128..-65`)
+                ;;   `ry = -3, -6, -9` -> tier 2 (`local-gy` in `-192..-129`, MAT_SEAL at `-192..-187`!)
+                neg-idx (- -1 ry)
+                seg (/ neg-idx 3)
+                tier (Int.mod neg-idx 3)
+                local-sy (if (= tier 0)
+                           (if (= seg 0)
+                             (- -28.0 (* uy 11.0))   ;; `-28 .. -39m` (well below seg 0 surface!)
+                             (- -28.0 (* uy 10.0)))  ;; `-28 .. -38m` (>10m below upper MAT_SEAL!)
+                           (if (= tier 1)
+                             (- -89.0 (* uy 14.0))   ;; `-89 .. -103m` (center of mid-band)
+                             (- -146.0 (* uy 11.0)))) ;; `-146 .. -157m` -> bottom >= -174.5m (12.5m above MAT_SEAL!)
+                sy (- local-sy (Double.from-int (* seg 192)))
+                b-struct (Structures.biome-at noise-state strata sx sy sz)]
+            (StructureDesc.init true kind rot variant b-struct sx sy sz hx hy hz))))))
+
+  ;; ===========================================================================
+  ;; Blueprint 0: Brutalist Alchemist Pillbox ("Septum Cistern" + Overhead Pipe)
+  ;; ===========================================================================
+  (defn eval-pillbox [px py pz variant biome n-det]
+    (let [battered? (= (Int.mod variant 2) 1)
+          ruin? (= (Int.mod (/ variant 4) 5) 0)
+          outer-shell (if battered?
+                        (CSG.sd-frustum-box-y px py pz 11.8 11.8 9.8 9.8 7.2)
+                        (CSG.sd-chamfer-box px py pz 11.2 7.2 11.2 2.2))
+          inner-room (CSG.sd-chamfer-box px (- py 0.8) pz 8.8 5.2 8.8 1.2)
+          ;; Bevelled `+Z` Entrance Portal + `3.8m` Exterior Sightline Apron!
+          door-cut (CSG.sd-arch-z px (+ py 2.4) (- pz 9.8) 2.3 3.2 4.6 0.35)
+          apron-cut (CSG.sd-chamfer-box px (- py 0.2) (- pz 12.8) 3.8 3.6 3.0 0.9)
+          ;; Armored 45-deg Sniper Slits on `-X`, `+X`, and `-Z` walls
+          slit-lr (CSG.sd-box (Double.abs px) (- py 1.8) pz 4.0 0.85 5.4)
+          slit-bk (CSG.sd-box px (- py 1.8) (+ pz 10.0) 5.2 0.85 3.0)
+          bunker0 (CSG.op-chamfer-sub (CSG.op-sub outer-shell inner-room) door-cut 0.65)
+          bunker1 (CSG.op-chamfer-sub (CSG.op-chamfer-sub bunker0 slit-lr 0.55) slit-bk 0.55)
+          ;; Glass Window Panes recessed inside the sniper slits
+          glass-lr (CSG.sd-box (- (Double.abs px) 10.0) (- py 1.8) pz 0.48 0.95 5.5)
+          glass-bk (CSG.sd-box px (- py 1.8) (+ pz 10.0) 5.3 0.95 0.48)
+          ;; Twin Sunken Vat Basins (`py` in `-5.2 .. -1.4`) divided by a `1.1m` Brittle Glass Septum (`|px| < 0.58`)!
+          vat-cut-l (CSG.sd-box (+ px 4.4) (+ py 3.2) (+ pz 1.2) 3.6 2.1 5.6)
+          vat-cut-r (CSG.sd-box (- px 4.4) (+ py 3.2) (+ pz 1.2) 3.6 2.1 5.6)
+          septum (CSG.sd-box px (+ py 3.1) (+ pz 1.2) 0.58 2.2 5.7)
+          catwalk (CSG.sd-box px (+ py 1.4) (- pz 5.8) 8.6 0.65 1.8)
+          ;; Sealed Rear Gold Alcove (`-Z`) with C4 (`12`) / Sodium (`20`) Breach Plug!
+          bullion-box (CSG.sd-box px (+ py 0.2) (+ pz 7.5) 2.2 1.2 1.0)
+          plug-box (CSG.sd-box px (+ py 0.2) (+ pz 6.1) 2.4 1.4 0.58)
+          ;; Overhead Flanged Glass Feed-Pipe entering through `+X` upper wall (`r-in = 1.65m`)!
+          pipe-py (- py 4.2)
+          pipe-pz (+ pz 1.2)
+          pipe-bore (CSG.sd-cyl-x (- px 5.2) pipe-py pipe-pz 1.65 7.5)
+          pipe-shell (CSG.op-sub (CSG.sd-cyl-x (- px 5.2) pipe-py pipe-pz 2.45 7.2) pipe-bore)
+          rx-fl (CSG.dom-rep-clamped (- px 5.2) 3.2 2.0 2.0)
+          pipe-flange (CSG.op-sub (CSG.sd-cyl-x rx-fl pipe-py pipe-pz 2.95 0.42) pipe-bore)
+          ;; Optional Fault-Crack Ruin Slice on 20% of Pillboxes
+          fault-cut (if ruin? (- (+ (* px 0.55) (+ (* (- py 3.5) 0.65) (* pz 0.52))) (+ 8.2 (* n-det 1.4))) 99.0)
+          bunker-solid (CSG.op-sub (CSG.dmin (CSG.op-sub (CSG.op-sub bunker1 vat-cut-l) vat-cut-r) catwalk) pipe-bore)
+          d-obsidian (CSG.op-sub (CSG.dmin bunker-solid pipe-flange) fault-cut)
+          d-glass (CSG.op-sub (CSG.dmin (CSG.dmin glass-lr glass-bk) (CSG.dmin septum pipe-shell)) fault-cut)
+          d-gold bullion-box
+          d-plug plug-box
+          d-wall (CSG.dmin (CSG.dmin d-obsidian d-glass) (CSG.dmin d-gold d-plug))
+          d-carve (CSG.dmin (CSG.dmin inner-room (CSG.dmin vat-cut-l vat-cut-r))
+                            (CSG.dmin (CSG.dmin door-cut apron-cut) pipe-bore))
+          plug-mat (if (= (Int.mod variant 3) 0) 20.0f 12.0f)
+          mat (if (<= d-gold (+ d-wall 0.02)) 5.0f
+              (if (<= d-plug (+ d-wall 0.02)) plug-mat
+              (if (<= d-glass (+ d-wall 0.02)) 9.0f
+              (if (< (Double.abs (- py -1.4)) 0.68) 1.0f 16.0f))))
+          liq-l (Structures.vat-liq-a biome)
+          liq-r (Structures.vat-liq-b biome)
+          fluid (if (and (< vat-cut-l 0.0) (< py -1.8))
+                  liq-l
+                  (if (and (< vat-cut-r 0.0) (< py -1.8))
+                    liq-r
+                    (if (and (< pipe-bore 0.0) (> px 2.2)) liq-r 0.0f)))]
+      (Structures.finalize-sample d-wall d-carve mat fluid)))
+
+  ;; ===========================================================================
+  ;; Blueprint 1: Faceted Piezo-Amethyst Geode Shrine (Live Galvanic + Piezo!)
+  ;; ===========================================================================
+  (defn eval-geode-shrine [px py pz variant biome]
+    (let [n-sym (if (= (Int.mod variant 2) 0) 6 8)
+          twist-k (if (= (Int.mod (/ variant 2) 3) 0) 0.055 0.0)
+          tx (CSG.dom-twist-x px py pz twist-k)
+          tz (CSG.dom-twist-z px py pz twist-k)
+          oct-outer (CSG.sd-octahedron tx py tz 14.8)
+          oct-inner (CSG.sd-octahedron tx py tz 11.8)
+          rind (CSG.op-sub oct-outer oct-inner)
+          ;; 4 Cardinal Rose-Window Portals + Sightline Aprons
+          ox (CSG.dom-octant-x px pz)
+          oz (CSG.dom-octant-z px pz)
+          portal-cut (CSG.sd-arch-x (- ox 10.5) (+ py 3.2) oz 2.2 3.0 5.2 0.50)
+          ;; N-Fold Piezoelectric Amethyst & Crystal Flying-Buttress Ribs inside the Geode
+          ur (CSG.polar-r px pz n-sym)
+          ut (CSG.polar-t px pz n-sym)
+          rib-torus (CSG.op-isect (CSG.sd-torus-z (- ur 3.2) py ut 6.8 1.25) oct-outer)
+          ;; Flat Shrine Floor (`py <= -3.4`) with Sunken Galvanic Acid+Gold Ring Moat!
+          floor-slab (CSG.op-isect (CSG.sd-cyl-y px (+ py 5.6) pz 11.5 2.4) oct-outer)
+          moat-cut (CSG.sd-torus-y px (+ py 3.4) pz 5.6 1.55)
+          gold-bed (CSG.op-isect (CSG.sd-torus-y px (+ py 4.8) pz 5.6 1.65) oct-outer)
+          ;; Central Stepped Pedestal + Glowing Ambrosia (`-6.0f`) Chalice Basin!
+          ped-base (CSG.sd-ngon-prism-y px (+ py 2.4) pz 2.9 1.3 n-sym)
+          ped-cup (CSG.op-sub (CSG.sd-ngon-prism-y px (+ py 0.5) pz 2.1 1.1 n-sym)
+                              (CSG.sd-cyl-y px (- py 0.1) pz 1.35 0.95))
+          chalice-air (CSG.sd-cyl-y px (- py 0.1) pz 1.35 0.95)
+          d-obsidian (CSG.op-chamfer-sub (CSG.op-sub (CSG.dmin rind floor-slab) moat-cut) portal-cut 0.75)
+          d-crystal (CSG.op-sub rib-torus portal-cut)
+          d-gold (CSG.dmin gold-bed ped-cup)
+          d-ped (CSG.op-sub ped-base chalice-air)
+          d-wall (CSG.dmin (CSG.dmin d-obsidian d-crystal) (CSG.dmin d-gold d-ped))
+          d-carve (CSG.dmin (CSG.dmin oct-inner portal-cut) (CSG.dmin moat-cut chalice-air))
+          cryst-mat (if (= (Int.mod (Double.to-int (+ (+ py 20.0) (* ur 0.5))) 3) 0) 14.0f 15.0f)
+          mat (if (<= d-gold (+ d-wall 0.02)) 5.0f
+              (if (<= d-crystal (+ d-wall 0.02)) cryst-mat
+                  16.0f))
+          fluid (if (and (< chalice-air 0.0) (< py 0.35))
+                  -6.0f
+                  (if (and (< moat-cut 0.0) (< py -3.35)) -3.0f 0.0f))]
+      (Structures.finalize-sample d-wall d-carve mat fluid)))
+
+  ;; ===========================================================================
+  ;; Blueprint 2: Sunken Galvanic Ziggurat (Sand Fulgurite Skirt + Crypt Gate)
+  ;; ===========================================================================
+  (defn eval-ziggurat [px py pz variant biome]
+    (let [hex? (= (Int.mod variant 3) 1)
+          ;; Domed Subterranean Cavern Envelope (`R = 16.5m`) + 4 Entrance Arches
+          dome-sphere (CSG.sd-sphere px (+ py 2.5) pz 15.6)
+          dome-floor (- (- 0.0 py) 6.2)
+          cavern-air (CSG.dmax dome-sphere dome-floor)
+          ox (CSG.dom-octant-x px pz)
+          oz (CSG.dom-octant-z px pz)
+          gate-apron (CSG.sd-arch-x (- ox 14.2) (+ py 5.8) oz 2.6 3.2 4.2 0.25)
+          ;; Courtyard Sand Skirt (`Sand = 6.0f`: fuses into `Fulgurite Glass = 9.0f` under high voltage!)
+          sand-skirt (CSG.sd-cyl-y px (+ py 6.9) pz 14.8 0.85)
+          ;; 4-Tier Stepped Ziggurat Pyramid (`py` in `-6.0 .. +3.2`) + Corbel Relief
+          zig-raw (if hex?
+                    (CSG.op-corbel-y (CSG.sd-capped-cone-y px (+ py 1.4) pz 11.4 3.8 4.8) py 2.2 0.42)
+                    (CSG.op-corbel-y (CSG.sd-frustum-box-y px (+ py 1.4) pz 10.8 10.8 3.6 3.6 4.8) py 2.2 0.42))
+          ;; Hollow Inner Burial Crypt + `+Z` Acoustic Shatter-Gate (`Amethyst 15` / `Glass 9`)!
+          crypt-air (CSG.sd-chamfer-box px (+ py 3.2) pz 3.8 2.4 3.8 0.8)
+          crypt-hall (CSG.sd-box px (+ py 3.8) (- pz 6.8) 1.8 1.8 4.4)
+          shatter-gate (CSG.sd-box px (+ py 3.8) (- pz 5.6) 1.9 1.9 0.72)
+          crypt-gold (CSG.sd-chamfer-box px (+ py 4.6) (+ pz 1.2) 2.2 1.0 1.6 0.35)
+          ;; Summit Ambrosia / Cryo Font (`py` in `+2.0 .. +3.6`)
+          font-cut (CSG.sd-box px (- py 2.8) pz 2.2 1.1 2.2)
+          ;; 4 Corner Crystal Lightning-Rod Obelisks (`dom-octant-xz` stamps all 4 in O(1)!)
+          obel-d (CSG.sd-capped-cone-y (- (Double.abs px) 10.6) (+ py 1.6) (- (Double.abs pz) 10.6) 1.35 0.45 4.6)
+          zig-body (CSG.op-sub (CSG.op-sub (CSG.op-sub zig-raw crypt-air) crypt-hall) font-cut)
+          d-gate shatter-gate
+          d-gold crypt-gold
+          d-obel obel-d
+          d-sand (CSG.op-sub sand-skirt zig-raw)
+          d-wall (CSG.dmin (CSG.dmin zig-body d-sand) (CSG.dmin d-obel (CSG.dmin d-gate d-gold)))
+          d-carve (CSG.dmin (CSG.dmin cavern-air gate-apron) (CSG.dmin crypt-air (CSG.dmin crypt-hall font-cut)))
+          gate-mat (if (= (Int.mod variant 2) 0) 15.0f 9.0f)
+          body-mat (if (or (= biome 3) (= biome 7)) 16.0f 1.0f)
+          mat (if (<= d-gold (+ d-wall 0.02)) 5.0f
+              (if (<= d-gate (+ d-wall 0.02)) gate-mat
+              (if (<= d-obel (+ d-wall 0.02)) 14.0f
+              (if (<= d-sand (+ d-wall 0.02)) 6.0f
+                  body-mat))))
+          top-liq (if (or (= biome 2) (= biome 11)) -15.0f -6.0f)
+          fluid (if (and (< font-cut 0.0) (< py 3.25)) top-liq 0.0f)]
+      (Structures.finalize-sample d-wall d-carve mat fluid)))
+
+  ;; ===========================================================================
+  ;; Blueprint 3: Suspended Distillery Bell (Stress-Safe Arched Buttresses!)
+  ;;   - Variant A (`even`): Upper `Water (-1)` above dry `Sodium (20) + Carbide (24)`!
+  ;;   - Variant B (`odd`):  `White Phosphorus (25)` submerged under `2.2m` `Water (-1)` keeper!
+  ;; ===========================================================================
+  (defn eval-distillery-bell [px py pz variant biome]
+    (let [phos-mode? (= (Int.mod variant 2) 1)
+          alembic? (= (Int.mod (/ variant 2) 2) 1)
+          ;; Vertical Cylindrical Shaft (`R = 11.4m`, `hh = 11.6m`) + Obsidian Shaft Liner + 2 Side Tunnels
+          shaft-outer (CSG.sd-cyl-y px py pz 13.0 11.8)
+          shaft-air (CSG.sd-cyl-y px py pz 10.8 11.2)
+          side-tunnels (CSG.sd-arch-z px (+ py 6.5) pz 2.5 3.2 14.4 0.30)
+          shaft-liner (CSG.op-chamfer-sub (CSG.op-sub shaft-outer shaft-air) side-tunnels 0.65)
+          ;; Suspended Vessel (`py` centered at `+2.2m`, `R = 5.6m`)
+          vy (- py 2.2)
+          bell-outer (if alembic?
+                       (CSG.dmin (CSG.sd-sphere px vy pz 5.5) (CSG.sd-capped-cone-y px (- vy 3.2) pz 4.2 1.8 2.8))
+                       (CSG.sd-sphere px vy pz 5.6))
+          bell-inner (CSG.sd-sphere px vy pz 4.35)
+          bell-shell (CSG.op-sub bell-outer bell-inner)
+          ;; Reinforced Obsidian Equatorial Collar (`toughness 12.0 -> limit_t = 600` prevents self-drop!)
+          eq-collar (CSG.op-sub (CSG.sd-torus-y px (- vy 0.8) pz 5.35 1.05) bell-inner)
+          ;; 4 Thick (`r = 1.28m`) 45-deg Amethyst Buttress Struts (`polar-xz 4`) -> hum with live Piezo stress!
+          ur (CSG.polar-r px pz 4)
+          ut (CSG.polar-t px pz 4)
+          strut-d (CSG.op-sub (CSG.sd-capsule ur vy ut 4.8 0.8 0.0 11.2 4.8 0.0 1.28) bell-inner)
+          ;; Horizontal Brittle Glass Septum (`vy in -0.45 .. +0.45`) + Gold Core Nugget
+          septum (CSG.op-isect (CSG.sd-box px vy pz 4.6 0.52 4.6) bell-outer)
+          reagent-bed (CSG.op-isect (CSG.sd-box px (+ vy 2.45) pz 3.8 0.95 3.8) bell-inner)
+          gold-core (CSG.sd-sphere px (+ vy 2.2) pz 1.25)
+          ;; Bottom Catch-Basin Sump at floor of shaft (`py` in `-11.0 .. -8.2`)
+          sump-rim (CSG.op-sub (CSG.sd-cyl-y px (+ py 9.6) pz 6.8 1.5)
+                               (CSG.sd-cyl-y px (+ py 9.0) pz 5.2 1.6))
+          d-obs (CSG.dmin shaft-liner (CSG.dmin eq-collar sump-rim))
+          d-strut strut-d
+          d-glass (CSG.dmin bell-shell (if phos-mode? 99.0 septum))
+          d-gold gold-core
+          d-reag (CSG.op-sub reagent-bed gold-core)
+          d-wall (CSG.dmin (CSG.dmin d-obs d-strut) (CSG.dmin d-glass (CSG.dmin d-gold d-reag)))
+          d-carve (CSG.dmin (CSG.dmin shaft-air side-tunnels) bell-inner)
+          reag-mat (if phos-mode? 25.0f (if (< px 0.0) 20.0f 24.0f))
+          mat (if (<= d-gold (+ d-wall 0.02)) 5.0f
+              (if (<= d-reag (+ d-wall 0.02)) reag-mat
+              (if (<= d-strut (+ d-wall 0.02)) 15.0f
+              (if (<= d-glass (+ d-wall 0.02)) 9.0f
+                  16.0f))))
+          ;; Variant A: Upper hemisphere holds Water (`-1.0f`) above dry Sodium+Carbide!
+          ;; Variant B: Phosphorus bed is submerged under `2.4m` of Water (`vy < 0.8`) so it never air-ignites until drained!
+          fluid (if (< bell-inner 0.0)
+                  (if phos-mode?
+                    (if (and (> d-wall 0.0) (< vy 0.85)) -1.0f 0.0f)
+                    (if (and (> vy 0.52) (< vy 3.6)) -1.0f 0.0f))
+                  (if (and (< (CSG.len2 px pz) 5.1) (and (< py -8.4) (> py -10.4)))
+                    (Structures.vat-liq-a biome)
+                    0.0f))]
+      (Structures.finalize-sample d-wall d-carve mat fluid)))
+
+  ;; ===========================================================================
+  ;; Blueprint 4: Vaulted Crossroad Gallery & Bank-Shot Pipe Demolition Vault
+  ;; ===========================================================================
+  (defn eval-crossroad-vault [px py pz variant biome]
+    (let [pinch (if (= (Int.mod variant 2) 1) 0.52 0.0)
+          ;; Intersecting X & Z Vaulted Galleries (`floor at py = -4.2`) + Central Octagonal Rotunda
+          hall-x (CSG.sd-arch-x px (+ py 4.2) pz 3.1 3.6 17.8 pinch)
+          hall-z-open (CSG.sd-arch-z px (+ py 4.2) (- pz 3.5) 3.1 3.6 14.2 pinch)
+          rotunda-in (CSG.sd-ngon-prism-y px (+ py 0.5) pz 5.6 5.2 8)
+          rotunda-out (CSG.sd-ngon-prism-y px (+ py 0.4) pz 7.6 6.8 8)
+          gallery-out (CSG.dmin (CSG.dmin (CSG.sd-arch-x px (+ py 5.6) pz 4.8 5.2 16.2 pinch)
+                                          (CSG.sd-arch-z px (+ py 5.6) (- pz 2.5) 4.8 5.2 13.0 pinch))
+                                rotunda-out)
+          ;; Bounded Coffered Stone Arch Ribs along X and Z (`dom-rep-clamped`)
+          rx-rib (CSG.dom-rep-clamped px 4.4 3.0 3.0)
+          rib-x (CSG.op-sub (CSG.sd-arch-x rx-rib (+ py 4.2) pz 3.6 4.1 0.45 pinch)
+                            (CSG.sd-arch-x rx-rib (+ py 4.2) pz 2.65 3.2 0.90 pinch))
+          ;; `-Z` Heavy Obsidian Bank Vault (`pz` in `-16.5 .. -7.5`)!
+          vault-out (CSG.sd-chamfer-box px (+ py 0.6) (+ pz 12.2) 6.6 5.8 5.0 1.2)
+          vault-in (CSG.sd-chamfer-box px (+ py 1.2) (+ pz 12.6) 4.2 3.4 2.8 0.6)
+          ;; Solid Obsidian Vault Door + Pre-Notched C4 (`12`) / Gunpowder (`7`) Blaster's Seam!
+          seam-ring (CSG.op-sub (CSG.sd-box px (+ py 1.8) (+ pz 8.4) 2.7 2.5 0.95)
+                                (CSG.sd-box px (+ py 1.8) (+ pz 8.4) 1.7 1.6 1.20))
+          ;; Overhead `r-in = 1.75m` Bank-Shot Ventilation Pipe curving from Rotunda Ceiling into Vault Roof!
+          pipe-run-bore (CSG.sd-cyl-z px (- py 4.6) (+ pz 7.8) 1.75 5.0)
+          pipe-drop-bore (CSG.sd-cyl-y px (- py 2.4) (+ pz 12.4) 1.75 2.6)
+          pipe-bore (CSG.dmin pipe-run-bore pipe-drop-bore)
+          pipe-wall (CSG.op-sub (CSG.dmin (CSG.sd-cyl-z px (- py 4.6) (+ pz 7.8) 2.65 4.8)
+                                          (CSG.sd-cyl-y px (- py 2.6) (+ pz 12.4) 2.65 2.6))
+                                pipe-bore)
+          grate-disc (CSG.sd-cyl-z px (- py 4.6) (+ pz 3.2) 1.78 0.38)
+          ;; Vault Treasury Bullion + Sunken Ambrosia Font
+          treasury-gold (CSG.sd-chamfer-box px (+ py 3.5) (+ pz 13.8) 2.8 1.1 1.1 0.3)
+          amb-basin (CSG.sd-box px (+ py 4.4) (+ pz 11.4) 2.2 0.9 1.0)
+          carve-main (CSG.dmin (CSG.dmin hall-x hall-z-open) (CSG.dmin rotunda-in (CSG.dmin vault-in amb-basin)))
+          d-carve (CSG.dmin carve-main pipe-bore)
+          shell-stone (CSG.op-sub (CSG.dmin gallery-out rib-x) d-carve)
+          d-vault (CSG.op-sub (CSG.dmin vault-out pipe-wall) d-carve)
+          d-seam seam-ring
+          d-grate grate-disc
+          d-gold treasury-gold
+          d-wall (CSG.dmin (CSG.dmin shell-stone d-vault) (CSG.dmin d-seam (CSG.dmin d-grate d-gold)))
+          seam-mat (if (= (Int.mod variant 2) 0) 12.0f 7.0f)
+          mat (if (<= d-gold (+ d-wall 0.02)) 5.0f
+              (if (<= d-seam (+ d-wall 0.02)) seam-mat
+              (if (<= d-grate (+ d-wall 0.02)) 9.0f
+              (if (<= d-vault (+ d-wall 0.02)) 16.0f
+                  1.0f))))
+          fluid (if (and (< amb-basin 0.0) (< py -3.9)) -6.0f 0.0f)]
+      (Structures.finalize-sample d-wall d-carve mat fluid)))
+
+  ;; ===========================================================================
+  ;; Blueprint 5: Pressurized Alchemical Pipeworks & Mercury U-Trap Manifold
+  ;;   - Overhead glowing `Glass (9)` flanged pipeline across chasm
+  ;;   - Pressurized `Obsidian` gas-cannon breech (`Acetylene +13` / `Hydrogen +9`) + `Glass` burst-disc
+  ;;   - `r-in = 1.80m` Semicircular `Mercury (-12)` / `Water (-1)` U-Trap Airlock into Gold Chamber!
+  ;; ===========================================================================
+  (defn eval-pipeworks [px py pz variant biome]
+    (let [merc-trap? (/= (Int.mod variant 3) 0)
+          ;; Main Two-Level Manifold Hall (`px in -13..+4`) + Sealed Treasury Side-Vault (`px in +6..+15`)
+          hall-out (CSG.sd-chamfer-box (+ px 3.5) py pz 11.5 9.6 13.5 1.8)
+          hall-in (CSG.sd-chamfer-box (+ px 3.5) (- py 0.6) pz 9.2 7.4 11.2 1.2)
+          hall-apron (CSG.sd-arch-z (+ px 3.5) (+ py 4.6) (- pz 13.5) 2.6 3.4 4.2 0.25)
+          side-out (CSG.sd-chamfer-box (- px 10.6) (+ py 0.8) pz 5.6 5.6 6.8 1.2)
+          side-in (CSG.sd-chamfer-box (- px 10.8) (+ py 1.0) pz 3.6 3.6 4.6 0.8)
+          catwalk (CSG.sd-box (+ px 3.5) (+ py 2.8) (- pz 4.5) 9.0 0.65 2.2)
+          ;; 1) Overhead Flanged Glass Sight-Pipeline (`py = +4.2`, along Z, `r-in = 1.70m`)!
+          gp-x (+ px 3.5)
+          gp-y (- py 4.2)
+          gp-bore (CSG.sd-cyl-z gp-x gp-y pz 1.70 11.4)
+          gp-glass (CSG.op-sub (CSG.sd-cyl-z gp-x gp-y pz 2.42 11.0) gp-bore)
+          rz-fl (CSG.dom-rep-clamped pz 3.6 2.0 2.0)
+          gp-flange (CSG.op-sub (CSG.sd-cyl-z gp-x gp-y rz-fl 2.95 0.45) gp-bore)
+          gp-cap-a (CSG.sd-cyl-z gp-x gp-y (- pz 11.2) 2.55 0.65)
+          gp-cap-b (CSG.sd-cyl-z gp-x gp-y (+ pz 11.2) 2.55 0.65)
+          ;; 2) Pressurized Obsidian Flame-Cannon Breech (`+Z` -> `-Z`, `Glass` Burst-Disc at `pz = +3.2`)!
+          cn-x (+ px 7.2)
+          cn-y (+ py 0.6)
+          cn-bore (CSG.sd-cyl-z cn-x cn-y (- pz 6.4) 1.75 3.6)
+          cn-wall (CSG.op-sub (CSG.sd-cyl-z cn-x cn-y (- pz 6.6) 2.85 4.2) cn-bore)
+          burst-disc (CSG.sd-cyl-z cn-x cn-y (- pz 2.9) 1.82 0.42)
+          ;; 3) Giant U-Bend Siphon Airlock connecting Main Hall (`px = +1.4`) under Wall into Treasury (`px = +7.8`)!
+          ut-x (- px 4.6)
+          ut-y (+ py 4.2)
+          ut-bend-bore (CSG.sd-utrap-bore-xy ut-x ut-y pz 3.2 1.80)
+          ut-leg-l (CSG.sd-cyl-y (+ ut-x 3.2) (- ut-y 1.8) pz 1.80 2.0)
+          ut-leg-r (CSG.sd-cyl-y (- ut-x 3.2) (- ut-y 1.8) pz 1.80 2.0)
+          ut-bore (CSG.dmin ut-bend-bore (CSG.dmin ut-leg-l ut-leg-r))
+          ut-wall (CSG.op-sub (CSG.dmin (CSG.sd-utrap-wall-xy ut-x ut-y pz 3.2 1.80 1.05)
+                                        (CSG.dmin (CSG.sd-cyl-y (+ ut-x 3.2) (- ut-y 1.6) pz 2.85 1.8)
+                                                  (CSG.sd-cyl-y (- ut-x 3.2) (- ut-y 1.6) pz 2.85 1.8)))
+                              ut-bore)
+          ;; Treasury Gold Bullion + Ambrosia Vat inside the U-Trap Vault!
+          side-gold (CSG.sd-chamfer-box (- px 12.2) (+ py 3.2) pz 1.4 1.2 2.8 0.3)
+          d-carve-raw (CSG.dmin (CSG.dmin hall-in hall-apron) (CSG.dmin side-in (CSG.dmin gp-bore (CSG.dmin cn-bore ut-bore))))
+          shell-obs (CSG.op-sub (CSG.dmin (CSG.dmin hall-out side-out)
+                                          (CSG.dmin catwalk (CSG.dmin gp-flange (CSG.dmin gp-cap-a (CSG.dmin gp-cap-b (CSG.dmin cn-wall ut-wall))))))
+                                d-carve-raw)
+          d-glass (CSG.dmin gp-glass burst-disc)
+          d-gold side-gold
+          d-wall (CSG.dmin shell-obs (CSG.dmin d-glass d-gold))
+          d-carve d-carve-raw
+          mat (if (<= d-gold (+ d-wall 0.02)) 5.0f
+              (if (<= d-glass (+ d-wall 0.02)) 9.0f
+                  16.0f))
+          overhead-liq (if (= (Int.mod variant 2) 0) -6.0f (Structures.vat-liq-a biome))
+          breech-gas (if (= (Int.mod variant 2) 0) 13.0f 9.0f) ;; Acetylene (+13) or Hydrogen (+9)!
+          trap-liq (if merc-trap? -12.0f -1.0f)                ;; Dense Mercury (-12) or Water (-1) airlock!
+          fluid (if (and (< gp-bore 0.0) (< (Double.abs pz) 10.6))
+                  overhead-liq
+                  (if (and (< cn-bore 0.0) (> pz 3.4))
+                    breech-gas
+                    (if (and (< ut-bore 0.0) (< ut-y -0.6))
+                      trap-liq
+                      0.0f)))]
+      (Structures.finalize-sample d-wall d-carve mat fluid)))
+
+  ;; Master Per-Voxel Dispatcher (rotates world `(gx, gy, gz)` into local structure frame)
+  (defn eval [desc gx gy gz n-det]
+    (let [dx (- gx @(StructureDesc.sx desc))
+          dy (- gy @(StructureDesc.sy desc))
+          dz (- gz @(StructureDesc.sz desc))
+          rot @(StructureDesc.rot desc)
+          px (CSG.rot90-x dx dz rot)
+          pz (CSG.rot90-z dx dz rot)
+          kind @(StructureDesc.kind desc)
+          var @(StructureDesc.variant desc)
+          bio @(StructureDesc.biome desc)]
+      (if (= kind 0) (Structures.eval-pillbox px dy pz var bio n-det)
+      (if (= kind 1) (Structures.eval-geode-shrine px dy pz var bio)
+      (if (= kind 2) (Structures.eval-ziggurat px dy pz var bio)
+      (if (= kind 3) (Structures.eval-distillery-bell px dy pz var bio)
+      (if (= kind 4) (Structures.eval-crossroad-vault px dy pz var bio)
+                     (Structures.eval-pipeworks px dy pz var bio))))))))
+)

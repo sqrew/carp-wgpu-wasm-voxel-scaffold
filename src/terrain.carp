@@ -17,6 +17,8 @@
   splits (Array Double)
 ])
 
+(load "structures.carp")
+
 (defmodule Terrain
   (defn biome-name [b]
     (if (= b 0)  @"Overgrown Spore Karst"
@@ -441,7 +443,29 @@
           mw0 (Terrain.macro-w b0) mw1 (Terrain.macro-w b1) mw2 (Terrain.macro-w b2) mw3 (Terrain.macro-w b3) mw4 (Terrain.macro-w b4)
           cw0 (Terrain.chasm-w b0) cw1 (Terrain.chasm-w b1) cw2 (Terrain.chasm-w b2) cw3 (Terrain.chasm-w b3) cw4 (Terrain.chasm-w b4)
           tw0 (Terrain.tun-w b0)   tw1 (Terrain.tun-w b1)   tw2 (Terrain.tun-w b2)   tw3 (Terrain.tun-w b3)   tw4 (Terrain.tun-w b4)
-          th0 (Terrain.thresh-w b0) th1 (Terrain.thresh-w b1) th2 (Terrain.thresh-w b2) th3 (Terrain.thresh-w b3) th4 (Terrain.thresh-w b4)]
+          th0 (Terrain.thresh-w b0) th1 (Terrain.thresh-w b1) th2 (Terrain.thresh-w b2) th3 (Terrain.thresh-w b3) th4 (Terrain.thresh-w b4)
+          ;; O(1) Supercell CSG Early-Out (~82% of chunks skip per-voxel CSG entirely!)
+          rx (Structures.floor-div qx 3)
+          ry (Structures.floor-div qy 2)
+          rz (Structures.floor-div qz 3)
+          sdesc (Structures.supercell-desc noise-state strata rx ry rz)
+          csg-pad 3.6
+          csg-min-x (- @(StructureDesc.sx &sdesc) (+ @(StructureDesc.hx &sdesc) csg-pad))
+          csg-max-x (+ @(StructureDesc.sx &sdesc) (+ @(StructureDesc.hx &sdesc) csg-pad))
+          csg-min-y (- @(StructureDesc.sy &sdesc) (+ @(StructureDesc.hy &sdesc) csg-pad))
+          csg-max-y (+ @(StructureDesc.sy &sdesc) (+ @(StructureDesc.hy &sdesc) csg-pad))
+          csg-min-z (- @(StructureDesc.sz &sdesc) (+ @(StructureDesc.hz &sdesc) csg-pad))
+          csg-max-z (+ @(StructureDesc.sz &sdesc) (+ @(StructureDesc.hz &sdesc) csg-pad))
+          chunk-x0 (Double.from-int (* qx 32))
+          chunk-y0 (Double.from-int (* qy 32))
+          chunk-z0 (Double.from-int (* qz 32))
+          chunk-has-csg (and @(StructureDesc.active &sdesc)
+                             (and (<= chunk-x0 csg-max-x)
+                                  (and (>= (+ chunk-x0 31.0) csg-min-x)
+                                       (and (<= chunk-y0 csg-max-y)
+                                            (and (>= (+ chunk-y0 31.0) csg-min-y)
+                                                 (and (<= chunk-z0 csg-max-z)
+                                                      (>= (+ chunk-z0 31.0) csg-min-z)))))))]
       (do
         (for [z 0 res]
           (for [x 0 res]
@@ -449,6 +473,11 @@
                   gz (+ (* qz 32) z)
                   fdx (Double.from-int gx)
                   fdz (Double.from-int gz)
+                  col-has-csg (and chunk-has-csg
+                                   (and (>= fdx csg-min-x)
+                                        (and (<= fdx csg-max-x)
+                                             (and (>= fdz csg-min-z)
+                                                  (<= fdz csg-max-z)))))
                   surface-h (+ 32.0 (* 10.0 (Noise.noise2d noise-state (* fdx 0.015) (* fdz 0.015))))
                   sky-cutoff (+ surface-h 3.0)
                   ;; Geological folding/faulting warps stratum boundaries by +-14m across (x, z)
@@ -514,40 +543,73 @@
                                   cave-sdf (if (> cave-sdf-raw 12.0) 12.0 (if (< cave-sdf-raw -12.0) -12.0 cave-sdf-raw))
                                   surf-clamped (if (> surf-sdf 12.0) 12.0 (if (< surf-sdf -12.0) -12.0 surf-sdf))
                                   final-sdf (if (and (= seg 0) (> surf-clamped cave-sdf)) surf-clamped cave-sdf)
-                                  slot (if (>= wy s0) 0 (if (>= wy s1) 1 (if (>= wy s2) 2 (if (>= wy s3) 3 4))))
-                                  b-curr (if (= slot 0) b0 (if (= slot 1) b1 (if (= slot 2) b2 (if (= slot 3) b3 b4))))
-                                  band-top (if (= slot 0) 24.0 (if (= slot 1) s0 (if (= slot 2) s1 (if (= slot 3) s2 s3))))
-                                  band-bot (if (= slot 0) s0 (if (= slot 1) s1 (if (= slot 2) s2 (if (= slot 3) s3 -187.0))))]
-                              (if (> final-sdf 0.0)
-                                  (let [seed-fluid (if (< surf-sdf -12.0)
-                                                       (Terrain.seed-fluid-for-biome b-curr wy band-bot band-top n-macro n-chasm n-tun)
-                                                       0.0f)]
-                                    (do
-                                      (Pointer.set (Pointer.add p-data (Long.from-int offset)) 0.0f)
-                                      (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) (Double.to-float final-sdf))
-                                      (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) seed-fluid)
-                                      (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 0.0f)))
-                                  (let [cave-skin? (and (< surf-sdf -5.0) (> final-sdf -1.6))
-                                        n3 (if cave-skin?
-                                               (Noise.noise3d noise-state (- (* fdx 0.17) 11.0) (+ (* fdy 0.17) 53.0) (* fdz 0.17))
-                                               0.0)
-                                        ;; Dither rock boundaries slightly and shield perched Acid/Magma cauldron rims with Obsidian!
-                                        wy-dither (+ wy (* n-det 2.4))
-                                        slot-m (if (>= wy-dither s0) 0 (if (>= wy-dither s1) 1 (if (>= wy-dither s2) 2 (if (>= wy-dither s3) 3 4))))
-                                        b-mat (if (= slot-m 0) b0 (if (= slot-m 1) b1 (if (= slot-m 2) b2 (if (= slot-m 3) b3 b4))))
-                                        bot-m (if (= slot-m 0) s0 (if (= slot-m 1) s1 (if (= slot-m 2) s2 (if (= slot-m 3) s3 -187.0))))
-                                        under-cauldron? (or (and (Terrain.cauldron-biome? b0) (< (Double.abs (- wy s0)) 5.0))
-                                                            (or (and (Terrain.cauldron-biome? b1) (< (Double.abs (- wy s1)) 5.0))
-                                                                (or (and (Terrain.cauldron-biome? b2) (< (Double.abs (- wy s2)) 5.0))
-                                                                    (and (Terrain.cauldron-biome? b3) (< (Double.abs (- wy s3)) 5.0)))))
-                                        mat-id (if (and (= seg 0) (> surf-sdf -3.2))
-                                                   2.0f
-                                                   (if under-cauldron?
-                                                       16.0f
-                                                       (Terrain.solid-mat-for-biome b-mat wy-dither bot-m cave-skin? n3 n-tun n-det)))]
-                                    (do
-                                      (Pointer.set (Pointer.add p-data (Long.from-int offset)) mat-id)
-                                      (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) (Double.to-float final-sdf))
-                                      (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
-                                      (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 10.0f))))))))))))))))
+                                  csg-hit? (and col-has-csg (and (>= fdy csg-min-y) (<= fdy csg-max-y)))
+                                  csg-s (if csg-hit?
+                                          (Structures.eval &sdesc fdx fdy fdz n-det)
+                                          (CSGSample.init 0 0.0f 12.0f 0.0f 0.0f))
+                                  csg-mode @(CSGSample.mode &csg-s)]
+                              (if (= csg-mode 1)
+                                  ;; Mode 1 (`CSG_SOLID`): Crisp CSG masonry / septum / pipe wall / bullion!
+                                  (do
+                                    (Pointer.set (Pointer.add p-data (Long.from-int offset)) @(CSGSample.mat &csg-s))
+                                    (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) @(CSGSample.sdf &csg-s))
+                                    (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
+                                    (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 10.0f))
+                                  (if (= csg-mode 2)
+                                      ;; Mode 2 (`CSG_AIR_OR_VAT`): Carved room air, pipe bore, fluid vat, or doorway apron!
+                                      (let [c-fl @(CSGSample.fluid &csg-s)
+                                            c-sdf @(CSGSample.sdf &csg-s)
+                                            w-lim @(CSGSample.wall-sdf &csg-s)
+                                            f-sdf (Double.to-float final-sdf)
+                                            out-sdf (if (/= c-fl 0.0f)
+                                                      c-sdf
+                                                      (Float.clamp 0.06f 12.0f (Float.min w-lim (Float.max f-sdf c-sdf))))]
+                                        (do
+                                          (Pointer.set (Pointer.add p-data (Long.from-int offset)) 0.0f)
+                                          (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) out-sdf)
+                                          (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) c-fl)
+                                          (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 0.0f)))
+                                      ;; Mode 0 (`CSG_NONE`) or Mode 3 (`CSG_COLLAR` smooth Euclidean cave collar):
+                                      (let [eff-sdf (if (= csg-mode 3)
+                                                      (Double.from-float
+                                                        (Float.clamp -12.0f 12.0f
+                                                          (Float.min @(CSGSample.wall-sdf &csg-s)
+                                                                     (Float.max (Double.to-float final-sdf) @(CSGSample.sdf &csg-s)))))
+                                                      final-sdf)
+                                            slot (if (>= wy s0) 0 (if (>= wy s1) 1 (if (>= wy s2) 2 (if (>= wy s3) 3 4))))
+                                            b-curr (if (= slot 0) b0 (if (= slot 1) b1 (if (= slot 2) b2 (if (= slot 3) b3 b4))))
+                                            band-top (if (= slot 0) 24.0 (if (= slot 1) s0 (if (= slot 2) s1 (if (= slot 3) s2 s3))))
+                                            band-bot (if (= slot 0) s0 (if (= slot 1) s1 (if (= slot 2) s2 (if (= slot 3) s3 -187.0))))]
+                                        (if (> eff-sdf 0.0)
+                                            (let [seed-fluid (if (< surf-sdf -12.0)
+                                                                 (Terrain.seed-fluid-for-biome b-curr wy band-bot band-top n-macro n-chasm n-tun)
+                                                                 0.0f)]
+                                              (do
+                                                (Pointer.set (Pointer.add p-data (Long.from-int offset)) 0.0f)
+                                                (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) (Double.to-float eff-sdf))
+                                                (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) seed-fluid)
+                                                (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 0.0f)))
+                                            (let [cave-skin? (and (< surf-sdf -5.0) (> eff-sdf -1.6))
+                                                  n3 (if cave-skin?
+                                                         (Noise.noise3d noise-state (- (* fdx 0.17) 11.0) (+ (* fdy 0.17) 53.0) (* fdz 0.17))
+                                                         0.0)
+                                                  ;; Dither rock boundaries slightly and shield perched Acid/Magma cauldron rims with Obsidian!
+                                                  wy-dither (+ wy (* n-det 2.4))
+                                                  slot-m (if (>= wy-dither s0) 0 (if (>= wy-dither s1) 1 (if (>= wy-dither s2) 2 (if (>= wy-dither s3) 3 4))))
+                                                  b-mat (if (= slot-m 0) b0 (if (= slot-m 1) b1 (if (= slot-m 2) b2 (if (= slot-m 3) b3 b4))))
+                                                  bot-m (if (= slot-m 0) s0 (if (= slot-m 1) s1 (if (= slot-m 2) s2 (if (= slot-m 3) s3 -187.0))))
+                                                  under-cauldron? (or (and (Terrain.cauldron-biome? b0) (< (Double.abs (- wy s0)) 5.0))
+                                                                      (or (and (Terrain.cauldron-biome? b1) (< (Double.abs (- wy s1)) 5.0))
+                                                                          (or (and (Terrain.cauldron-biome? b2) (< (Double.abs (- wy s2)) 5.0))
+                                                                              (and (Terrain.cauldron-biome? b3) (< (Double.abs (- wy s3)) 5.0)))))
+                                                  mat-id (if (and (= seg 0) (> surf-sdf -3.2))
+                                                             2.0f
+                                                             (if under-cauldron?
+                                                                 16.0f
+                                                                 (Terrain.solid-mat-for-biome b-mat wy-dither bot-m cave-skin? n3 n-tun n-det)))]
+                                              (do
+                                                (Pointer.set (Pointer.add p-data (Long.from-int offset)) mat-id)
+                                                (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) (Double.to-float eff-sdf))
+                                                (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
+                                                (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 10.0f)))))))))))))))))))
 )
