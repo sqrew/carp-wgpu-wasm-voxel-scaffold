@@ -295,7 +295,7 @@
   write-head-buf (Ptr WGPUVertexBufferWrapper)       ;; storage: atomic u32
   spawn-queue-buf (Ptr WGPUVertexBufferWrapper)      ;; storage: SpawnRequest array (4096 * 48 bytes)
   spawn-count-buf (Ptr WGPUVertexBufferWrapper)      ;; storage: f32 (spawn count)
-  dt-buf (Ptr WGPUVertexBufferWrapper)               ;; storage: 8 x f32 (dt, cam_pos, env_time, player_vxz, frame)
+  dt-buf (Ptr WGPUVertexBufferWrapper)               ;; storage: 12 x f32 (dt, cam_pos, env_time, player_vxz, frame, ent_cnt, awake)
   vp-buffer (Ptr WGPUUniformBufferWrapper)           ;; render: 112 bytes (view_proj + cam_right + cam_up + cam_pos)
   compute-bg WGPUBindGroup
   render-bg WGPUBindGroup
@@ -309,6 +309,7 @@
   bolt-time Float
   env-time Float
   lantern-on Float
+  entity-count Float
   prev-cx Float
   prev-cz Float
   frame-step Int
@@ -319,7 +320,7 @@
   ;; -------------------------------------------------------------------------
   ;; Create the particle + tethered flora system: allocates all GPU buffers, pipelines, bind groups
   ;; -------------------------------------------------------------------------
-  (defn create [ctx format solid-tex vel-tex light-tex liquid-tex]
+  (defn create [ctx format solid-tex vel-tex light-tex liquid-tex gas-tex ent-buf]
     ;; 1. Allocate initial particle data (all zeros = all dead)
     (let [particle-floats (* PARTICLE-MAX 8)  ;; 8 floats per particle (32 bytes)
           initial-particles (the (Array Float) (Array.replicate particle-floats &0.0f))
@@ -347,8 +348,8 @@
           spawn-count-data (the (Array Float) [0.0f 0.0f 0.0f 0.0f])
           spawn-count-ptr (Result.unsafe-from-success (WGPURender.create-storage-vertex-buffer ctx &spawn-count-data))
 
-          ;; 6. Delta-time + camera world origin + time + player velocity buffer (8 x f32 = 32 bytes)
-          dt-data (the (Array Float) [0.016f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f])
+          ;; 6. Delta-time + camera world origin + time + player velocity + entity count buffer (12 x f32 = 48 bytes)
+          dt-data (the (Array Float) [0.016f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f])
           dt-ptr (Result.unsafe-from-success (WGPURender.create-storage-vertex-buffer ctx &dt-data))
 
           ;; 7. VP + Camera basis + Camera pos uniform buffer (28 x f32 = 112 bytes)
@@ -373,7 +374,7 @@
           _free (builder-free b)
 
           ;; 9b. Build flora compute bind group:
-          ;;     0=flora, 1=particles, 2=write_head, 3=time_params, 4=solid_texture, 5=vel_texture, 6=liquid_texture
+          ;;     0=flora, 1=particles, 2=write_head, 3=time_params, 4=solid_texture, 5=vel_texture, 6=liquid_texture, 7=gas_texture, 8=s_entities
           b-fc (builder-new)
           _fc (do
               (builder-add-buffer b-fc (particle-get-v-buffer flora-buf-ptr))
@@ -382,7 +383,9 @@
               (builder-add-buffer b-fc (particle-get-v-buffer dt-ptr))
               (builder-add-texture b-fc solid-tex)
               (builder-add-texture b-fc vel-tex)
-              (builder-add-texture b-fc liquid-tex))
+              (builder-add-texture b-fc liquid-tex)
+              (builder-add-texture b-fc gas-tex)
+              (builder-add-buffer b-fc (particle-get-v-buffer ent-buf)))
           flora-compute-bg (builder-build-compute ctx flora-compute-pipe b-fc)
           _free-fc (builder-free b-fc)
 
@@ -407,13 +410,15 @@
           bolt-bg (builder-build-render ctx bolt-pipe b-blt)
           _free-blt (builder-free b-blt)
 
-          ;; 11c. Create flora ribbon render bind group: 0=uniforms, 1=flora, 2=light_texture, 3=liquid_texture
+          ;; 11c. Create flora ribbon render bind group: 0=uniforms, 1=flora, 2=light_tex, 3=liquid_tex, 4=solid_tex, 5=gas_tex
           b-fren (builder-new)
           _fren (do
               (builder-add-buffer b-fren (particle-get-u-buffer vp-ptr))
               (builder-add-buffer b-fren (particle-get-v-buffer flora-buf-ptr))
               (builder-add-texture b-fren light-tex)
-              (builder-add-texture b-fren liquid-tex))
+              (builder-add-texture b-fren liquid-tex)
+              (builder-add-texture b-fren solid-tex)
+              (builder-add-texture b-fren gas-tex))
           flora-render-bg (builder-build-render ctx flora-render-pipe b-fren)
           _free-fren (builder-free b-fren)
 
@@ -443,6 +448,7 @@
         0
         0
         0
+        0.0f
         0.0f
         0.0f
         0.0f
@@ -552,14 +558,15 @@
           old-cz @(ParticleSystem.prev-cz ps)
           pvx (if (= fstep 0) 0.0f (Float.clamp -18.0f 18.0f (/ (- cx old-cx) fdt)))
           pvz (if (= fstep 0) 0.0f (Float.clamp -18.0f 18.0f (/ (- cz old-cz) fdt)))
-          dt-arr [fdt cx cy cz @(ParticleSystem.env-time ps) pvx pvz (Float.from-int fstep)]
+          awake-f (if (or (> sc 0) (> af 0)) 1.0f 0.0f)
+          dt-arr [fdt cx cy cz @(ParticleSystem.env-time ps) pvx pvz (Float.from-int fstep) @(ParticleSystem.entity-count ps) awake-f 0.0f 0.0f]
           batch-encoder (GPUBatcher.begin-batch ctx)]
       (do
         (ParticleSystem.set-prev-cx! ps cx)
         (ParticleSystem.set-prev-cz! ps cz)
         (ParticleSystem.set-frame-step! ps (Int.mod (+ fstep 1) 1000000))
 
-        ;; Upload 8-float time/camera/slipstream buffer (32 bytes)
+        ;; Upload 12-float time/camera/slipstream/entity-count buffer (48 bytes)
         (WGPURender.update-vertex-buffer ctx @(ParticleSystem.dt-buf ps) &dt-arr)
 
         ;; 1. Always dispatch lightweight 65,536-slot toroidal tethered flora compute (1,024 workgroups)

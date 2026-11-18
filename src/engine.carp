@@ -624,7 +624,9 @@
                           vel-tex @(M-RenderTexture.p (Renderer.vel-texture &ren))
                           light-tex @(M-RenderTexture.p (Renderer.light-texture &ren))
                           liquid-tex @(M-RenderTexture.p (Renderer.liquid-texture &ren))
-                          ps (ParticleSystem.create ps-ctx &surf-format solid-tex vel-tex light-tex liquid-tex)
+                          gas-tex @(M-RenderTexture.p (Renderer.gas-texture &ren))
+                          ent-buf @(M-VertexBuffer.p (Renderer.entities-buffer &ren))
+                          ps (ParticleSystem.create ps-ctx &surf-format solid-tex vel-tex light-tex liquid-tex gas-tex ent-buf)
                           w-seed (Double.to-int (* (Double.abs spawn-foot-y) 13.0))]
                       (Result.Success (EngineState.init
                         platform-eng ren world player uniforms
@@ -2202,6 +2204,7 @@
                       (* (Float.from-int fc) 0.01667f))))
                 ))
             
+            (ParticleSystem.set-entity-count! (EngineState.particles state) (Float.from-int num-entities))
             (Engine.update-uniform-buffer eng @(M-UniformBuffer.p (Renderer.uniform-buffer ren)) uniforms)
             (WGPUVertexBufferWrapper.update-offset @(M-WGPUContext.p (Engine.ctx eng)) @(M-VertexBuffer.p (Renderer.entities-buffer ren)) (Uint64.from-long 0l) (WGPU.array->ptr entities-data) (Uint64.from-long (Long.from-int (* num-entities 48)))))))))
 
