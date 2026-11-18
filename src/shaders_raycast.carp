@@ -1222,8 +1222,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                             if (smat < 1.0 || smat >= 254.5) {
                                 smat = round(abs(sv.x));
                             }
-                            if (smat >= 1.0 && smat <= 25.0 && smat != 18.0) {
-                                let exotic = smat >= 3.0 && smat != 6.0 && smat != 16.0;
+                            if (smat >= 1.0 && smat < 254.5 && smat != 18.0) {
+                                let exotic = smat >= 3.0 && smat != 6.0 && smat != 16.0 && smat != 26.0 && smat != 30.0;
                                 let sc = 20.0 - abs(st - 6.5) + select(0.0, 6.5, exotic);
                                 if (sc > best_score) {
                                     best_score = sc;
@@ -1333,11 +1333,11 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     if (asd < 0.32) {
                         let aiv = get_solid_world(asp + asdir * 0.65);
                         var smat = round(abs(aiv.x));
-                        if (smat < 1.0 || smat > 25.0 || smat == 18.0) {
+                        if (smat < 1.0 || smat >= 254.5 || smat == 18.0) {
                             smat = round(abs(asv.x));
                         }
-                        if (smat >= 1.0 && smat <= 25.0 && smat != 18.0 && abs(0.0 - tphase) > 0.5) {
-                            let exotic = smat >= 3.0 && smat != 6.0 && smat != 16.0;
+                        if (smat >= 1.0 && smat < 254.5 && smat != 18.0 && abs(0.0 - tphase) > 0.5) {
+                            let exotic = smat >= 3.0 && smat != 6.0 && smat != 16.0 && smat != 26.0 && smat != 30.0;
                             let sc = select(18.0, 31.0, exotic) - ast * 0.4;
                             if (sc > alt_score) {
                                 alt_score = sc;

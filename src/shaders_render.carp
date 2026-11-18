@@ -316,6 +316,42 @@ fn get_fracture_profile(mat_id_u: u32, tags: u32, toughness: f32) -> FracturePro
             prof.splinter_gain = 1.20;
             prof.sub_scale = 3.7;
         }
+        case 26u, 30u: { // Moss & Canopy Foliage: soft velvety organic tuft tears
+            prof.scale = vec3<f32>(1.35, 1.35, 1.35);
+            prof.jitter = 0.90;
+            prof.warp_smooth = 0.62;
+            prof.warp_jagged = 0.02;
+            prof.width_mul = 1.48;
+            prof.splinter_gain = 0.20;
+            prof.sub_scale = 2.8;
+        }
+        case 27u, 31u: { // Hanging Vine & Thorn-Briar: vertical braided fibrous strands
+            prof.scale = vec3<f32>(3.10, 0.42, 3.10);
+            prof.jitter = 0.72;
+            prof.warp_smooth = 0.18;
+            prof.warp_jagged = 0.24;
+            prof.width_mul = 1.08;
+            prof.splinter_gain = 0.92;
+            prof.sub_scale = 4.4;
+        }
+        case 28u: { // Shelf Fungus: springy pleated gill-cap cellular flesh
+            prof.scale = vec3<f32>(1.55, 0.95, 1.55);
+            prof.jitter = 0.74;
+            prof.warp_smooth = 0.50;
+            prof.warp_jagged = 0.04;
+            prof.width_mul = 1.28;
+            prof.splinter_gain = 0.36;
+            prof.sub_scale = 3.0;
+        }
+        case 29u: { // Glow-Bulb: warm bioluminescent lantern fruit membrane veins
+            prof.scale = vec3<f32>(1.30, 1.30, 1.30);
+            prof.jitter = 0.70;
+            prof.warp_smooth = 0.56;
+            prof.warp_jagged = 0.0;
+            prof.width_mul = 1.18;
+            prof.splinter_gain = 0.44;
+            prof.sub_scale = 2.9;
+        }
         default: {
             if (toughness >= 8.0) {
                 prof.width_mul *= 0.82;

@@ -667,19 +667,46 @@
     (let [r (Int.mod n m)]
       (if (< r 0) (+ r m) r)))
 
-  (defn stream-chunks! [world eng ren cam-pos]
+  (defn consume-ready-chunk-sync! [state]
+    (when (gpu-readback-is-chunk-ready)
+      (let [vq (EngineState.voxels state)
+            world (EngineState.world state)
+            qx @(VoxelQueue.sync-qx vq)
+            qy @(VoxelQueue.sync-qy vq)
+            qz @(VoxelQueue.sync-qz vq)
+            tx (EngineState.positive-mod qx 5)
+            ty (EngineState.positive-mod qy 5)
+            tz (EngineState.positive-mod qz 5)
+            slot-idx (+ tx (+ (* ty 5) (* tz 25)))
+            chunks (World.chunks world)]
+        (if (< slot-idx (Array.length chunks))
+          (let [chunk (Array.unsafe-nth chunks slot-idx)]
+            (if (and (= qx @(Chunk.coord-x chunk))
+                     (and (= qy @(Chunk.coord-y chunk))
+                          (= qz @(Chunk.coord-z chunk))))
+              (gpu-readback-consume-chunk (Array.unsafe-raw (Chunk.voxel-data chunk)))
+              (let [dummy (the (Ptr Float) (Arena.calloc-array (EngineState.scratch-arena state) 131072l))]
+                (do
+                  (gpu-readback-consume-chunk dummy)
+                  (ChunkArchive.store! (World.archive world) qx qy qz dummy (World.next-archive-stamp! world))))))
+          (let [dummy (the (Ptr Float) (Arena.calloc-array (EngineState.scratch-arena state) 131072l))]
+            (gpu-readback-consume-chunk dummy))))))
+
+  (defn stream-chunks-limit! [world eng ren cam-pos max-loads]
     (let [cx (Double.to-int (Double.floor (/ @(Vector3.x cam-pos) 32.0)))
           cy (Double.to-int (Double.floor (/ @(Vector3.y cam-pos) 32.0)))
           cz (Double.to-int (Double.floor (/ @(Vector3.z cam-pos) 32.0)))
           chunks (World.chunks world)
           noise (World.noise-state world)
           strata (World.strata world)
+          archive (World.archive world)
           loaded-count 0]
       (do
-        (for [lz 0 5]
-          (for [ly 0 5]
+        ;; Stream bottom-to-top (`ly = 0 -> 4`) so lower foundations always land in GPU memory before upper roofs!
+        (for [ly 0 5]
+          (for [lz 0 5]
             (for [lx 0 5]
-              (when (< loaded-count 5)
+              (when (< loaded-count max-loads)
                 (let [qx (- (+ cx lx) 2)
                       qy (- (+ cy ly) 2)
                       qz (- (+ cz lz) 2)
@@ -690,16 +717,17 @@
                       current-chunk (Array.unsafe-nth chunks slot-idx)]
                   (when (or (/= @(Chunk.coord-x current-chunk) qx)
                             (or (/= @(Chunk.coord-y current-chunk) qy)
-                                 (/= @(Chunk.coord-z current-chunk) qz)))
-                    (do
-                      ;; Array.aupdate! pops the chunk out, passes ownership to the lambda, and puts the returned chunk back in place.
-                      ;; This completely bypasses the Carp allocator. Zero mallocs, zero frees!
-                      (Array.aupdate! chunks slot-idx &(fn [c] (Chunk.regenerate c noise strata qx qy qz)))
-                      (let [updated-chunk (Array.unsafe-nth chunks slot-idx)]
-                        (Renderer.update-chunk-texture eng ren qx qy qz (Chunk.voxel-data updated-chunk)))
-                      (set! loaded-count (inc loaded-count)))))))))
+                                (/= @(Chunk.coord-z current-chunk) qz)))
+                    (let [stamp (World.next-archive-stamp! world)]
+                      (do
+                        (Chunk.evict-and-load! current-chunk noise strata archive qx qy qz stamp)
+                        (Renderer.update-chunk-texture eng ren qx qy qz (Chunk.voxel-data current-chunk))
+                        (set! loaded-count (inc loaded-count))))))))))
         (when (> loaded-count 0)
           (Renderer.pack-buffers-to-textures! eng ren)))))
+
+  (defn stream-chunks! [world eng ren cam-pos]
+    (EngineState.stream-chunks-limit! world eng ren cam-pos 2))
 
 
 
@@ -752,6 +780,7 @@
         (InputManager.add-binding! input "satchel-down" (InputSource.Key GLFW.Keycode.SATCHEL_DOWN) 1.0)
         (InputManager.add-binding! input "satchel-quick" (InputSource.Key GLFW.Keycode.SATCHEL_BACKSPACE) 1.0)
         (InputManager.add-binding! input "weld-hold" (InputSource.Key GLFW.Keycode.E) 1.0)
+        (InputManager.add-binding! input "warp-structure" (InputSource.Key GLFW.Keycode.J) 1.0)
         (InputManager.add-binding! input "debug-loot" (InputSource.Key GLFW.Keycode.K) 1.0)
         
         (InputManager.add-binding! input "look-x" (InputSource.MouseDeltaX) 1.0)
@@ -834,16 +863,9 @@
                 (Array.aset! vact (+ b 2) flags)
                 (Array.aset! vact (+ b 3) 0.0f)
                 (VoxelQueue.set-count! vq (+ cnt 1)))))
-          (let [abs-m (Float.abs mat-id)
-                rm (Float.round abs-m)]
-            (if (< abs-m 255.0f)
-              (EngineState.mark-dirty-sphere! state x y z rad (if (< mat-id -0.5f) 6 2))
-              (when (or (= rm 257)
-                        (or (= rm 258)
-                            (or (= rm 259)
-                                (or (= rm 515)
-                                    (or (= rm 517) (= rm 519))))))
-                (EngineState.mark-dirty-sphere! state x y z rad 6))))))))
+          (let [abs-m (Float.abs mat-id)]
+            (EngineState.mark-dirty-sphere! state x y z rad
+              (if (or (< mat-id -0.5f) (>= abs-m 255.0f)) 6 2)))))))
 
   ;; Enqueue a swept 3D fluid/volfog wake capsule (`p0 -> p1`; `rad < 0` = Rankine Cyclone Funnel) into the 32-slot GPU velocity/pressure pass!
   (defn push-wake-capsule! [state x0 y0 z0 x1 y1 z1 rad radial-push vx vy vz pressure]
@@ -1297,29 +1319,8 @@
         (Diagnostics.with-zone diag "Chunk Sync"
           (let [vq (EngineState.voxels state)]
             (do
-              (if (gpu-readback-is-chunk-ready)
-                (let [qx @(VoxelQueue.sync-qx vq)
-                      qy @(VoxelQueue.sync-qy vq)
-                      qz @(VoxelQueue.sync-qz vq)
-                      tx (EngineState.positive-mod qx 5)
-                      ty (EngineState.positive-mod qy 5)
-                      tz (EngineState.positive-mod qz 5)
-                      slot-idx (+ tx (+ (* ty 5) (* tz 25)))
-                      chunks (World.chunks world)]
-                  (if (< slot-idx (Array.length chunks))
-                    (let [chunk (Array.unsafe-nth chunks slot-idx)]
-                      (if (and (= qx @(Chunk.coord-x chunk))
-                               (and (= qy @(Chunk.coord-y chunk))
-                                    (= qz @(Chunk.coord-z chunk))))
-                        (let [data (Chunk.voxel-data chunk)
-                              ptr (Array.unsafe-raw data)]
-                          (gpu-readback-consume-chunk ptr))
-                        (let [dummy (the (Ptr Float) (Arena.calloc-array (EngineState.scratch-arena state) 131072l))]
-                          (gpu-readback-consume-chunk dummy))))
-                    (let [dummy (the (Ptr Float) (Arena.calloc-array (EngineState.scratch-arena state) 131072l))]
-                      (gpu-readback-consume-chunk dummy))))
-                ())
-              (if (not (gpu-readback-is-chunk-mapping))
+              (EngineState.consume-ready-chunk-sync! state)
+              (when (not (gpu-readback-is-chunk-mapping))
                 (let [fc @(EngineState.frame-count state)]
                   (if (VoxelQueue.pop-ready-dirty! vq fc)
                     (Renderer.sync-chunk-async! platform-eng ren @(VoxelQueue.sync-qx vq) @(VoxelQueue.sync-qy vq) @(VoxelQueue.sync-qz vq))
@@ -1327,9 +1328,9 @@
                           px @(Vector3.x p-pos)
                           py @(Vector3.y p-pos)
                           pz @(Vector3.z p-pos)
-                          dx (- (Int.mod fc 3) 1)
-                          dy (- (Int.mod (/ fc 3) 3) 1)
-                          dz (- (Int.mod (/ fc 9) 3) 1)
+                          dx (- (Int.mod fc 5) 2)
+                          dy (- (Int.mod (/ fc 5) 5) 2)
+                          dz (- (Int.mod (/ fc 25) 5) 2)
                           cx (+ (Double.to-int (Double.floor (/ px 32.0))) dx)
                           cy (+ (Double.to-int (Double.floor (/ py 32.0))) dy)
                           cz (+ (Double.to-int (Double.floor (/ pz 32.0))) dz)]
@@ -1337,8 +1338,7 @@
                         (VoxelQueue.set-sync-qx! vq cx)
                         (VoxelQueue.set-sync-qy! vq cy)
                         (VoxelQueue.set-sync-qz! vq cz)
-                        (Renderer.sync-chunk-async! platform-eng ren cx cy cz)))))
-                ())))))))
+                        (Renderer.sync-chunk-async! platform-eng ren cx cy cz))))))))))))
 
   (defn post-update! [state]
     ())

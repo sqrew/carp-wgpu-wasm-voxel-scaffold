@@ -43,14 +43,32 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let ly = (dest_idx / 32u) % 32u;
     let lz = dest_idx / 1024u;
     
-    // The source buffer is a toroidal 160x160x160 array
+    // The source buffer and fluid textures are toroidal 160x160x160 volumes
     let gx = (u32(u.chunk_offset_x) + lx) % 160u;
     let gy = (u32(u.chunk_offset_y) + ly) % 160u;
     let gz = (u32(u.chunk_offset_z) + lz) % 160u;
-    
+    let ip = vec3<i32>(i32(gx), i32(gy), i32(gz));
+
     let src_idx = gx + gy * 160u + gz * 25600u;
-    
-    dest_chunk_buffer[dest_idx] = source_buffer[src_idx];
+    var vox = source_buffer[src_idx];
+
+    if (vox.y > 0.0) {
+        let liq = textureLoad(dummy6, ip, 0);
+        let gas = textureLoad(dummy7, ip, 0);
+        var out_z: f32 = 0.0;
+        if (abs(liq.x) > 0.5 && liq.y >= 0.03) {
+            let lid = round(abs(liq.x));
+            let v_frac = clamp(liq.y / 1.40, 0.02, 0.98);
+            out_z = -(lid + v_frac);
+        } else if (abs(gas.x) > 0.5 && gas.y >= 0.05) {
+            let gid = round(abs(gas.x));
+            let v_frac = clamp(gas.y / 1.90, 0.02, 0.98);
+            out_z = gid + v_frac;
+        }
+        vox.z = out_z;
+    }
+
+    dest_chunk_buffer[dest_idx] = vox;
 }
 ")
 )

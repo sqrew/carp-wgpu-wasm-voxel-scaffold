@@ -23,8 +23,8 @@
                             (or (= c 8) (or (= c 257) (or (= c 271) (= c 513)))))
                 acid?  (and (or (= l 23) (or (= l 259) (or (= l 517) (= l 523))))
                             (or (= c 23) (or (= c 259) (or (= c 517) (= c 523)))))
-                spore? (and (or (= l 13) (= l 520))
-                            (or (= c 13) (= c 520)))
+                spore? (and (or (= l 13) (or (= l 520) (or (= l 27) (or (= l 28) (or (= l 29) (= l 31))))))
+                            (or (= c 13) (or (= c 520) (or (= c 27) (or (= c 28) (or (= c 29) (= c 31)))))))
                 pyro?  (and (or (= l 258) (or (= l 515) (= l 519)))
                             (or (= c 258) (or (= c 515) (= c 519))))
                 boom?  (and (or (= l 7) (or (= l 12) (or (= l 263) (or (= l 270) (or (= l 518) (= l 525))))))
@@ -51,6 +51,10 @@
       (if (= m 23)   7.0f    ;; Sulfur -> refined Gunpowder!
       (if (= m 24)   14.0f   ;; Calcium Carbide -> glowing Crystal!
       (if (= m 25)   270.0f  ;; White Phosphorus -> Nitroglycerin!
+      (if (= m 27)   10.0f   ;; Vine -> bouncy Slime sap!
+      (if (= m 28)   13.0f   ;; Fungus -> luminescent Spore Pod!
+      (if (= m 29)   262.0f  ;; Glow-Bulb -> fermented Golden Ambrosia!
+      (if (= m 31)   263.0f  ;; Thorn-Briar -> Volatile Gel!
       (if (= m 268)  5.0f    ;; Liquid Mercury -> chrysopoeia 24k Gold!
       (if (= m 269)  22.0f   ;; Caustic Lye -> saponified Soap!
       (if (= m 270)  262.0f  ;; Nitroglycerin -> Golden Ambrosia!
@@ -74,7 +78,7 @@
       (if (= m 513)  10.0f   ;; Steam -> bouncy Slime!
       (if (= m 258)  5.0f    ;; Lava -> molten Gold!
       (if (> m 0)    mat-id
-                     10.0f)))))))))))))))))))))))))))))))))))))
+                     10.0f)))))))))))))))))))))))))))))))))))))))))
 
   (defn amoeba-slot-by-idx [state idx]
     (let [cbank (EngineState.critters state)

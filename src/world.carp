@@ -1,5 +1,6 @@
 (load "Vector.carp")
 (load "terrain.carp")
+(load "chunk_archive.carp")
 (use Vector3)
 (use Double)
 
@@ -15,6 +16,8 @@
   voxel-resolution Int
   noise-state NoiseState
   strata StrataConfig
+  archive ChunkArchive
+  archive-stamp Int
   carved-gold-count Int
   carved-gold-x Float
   carved-gold-y Float
@@ -40,22 +43,54 @@
         (Chunk.set-coord-z! &c qz)
         (Terrain.generate! noise-state strata qx qy qz p-data)
         c)))
+
+  ;; Archives outgoing `(old-qx, old-qy, old-qz)` into `World.archive`, then populates `(qx, qy, qz)`
+  ;; from `World.archive` (~0.02 ms on hit) or `Terrain.generate!` (on first visit)!
+  (defn evict-and-load! [chunk-ref noise-state strata archive qx qy qz stamp]
+    (let [old-qx @(Chunk.coord-x chunk-ref)
+          old-qy @(Chunk.coord-y chunk-ref)
+          old-qz @(Chunk.coord-z chunk-ref)
+          p-data (Array.unsafe-raw (Chunk.voxel-data chunk-ref))]
+      (do
+        (ChunkArchive.store! archive old-qx old-qy old-qz p-data stamp)
+        (Chunk.set-coord-x! chunk-ref qx)
+        (Chunk.set-coord-y! chunk-ref qy)
+        (Chunk.set-coord-z! chunk-ref qz)
+        (when (not (ChunkArchive.load! archive qx qy qz p-data stamp))
+          (Terrain.generate! noise-state strata qx qy qz p-data)))))
 )
 
 (defmodule World
+  (defn next-archive-stamp! [world]
+    (let [next-s (+ @(World.archive-stamp world) 1)]
+      (do
+        (World.set-archive-stamp! world next-s)
+        next-s)))
+
   (defn create []
     (let [seed (fresh-run-seed)
           noise-state (Noise.make-noise seed)
           strata (Terrain.make-strata seed)
+          archive (ChunkArchive.make)
+          surf-st (Structures.supercell-desc &noise-state &strata 0 0 0)
           origin-st (Structures.supercell-desc &noise-state &strata 0 -1 0)
+          east-st (Structures.supercell-desc &noise-state &strata 1 -1 0)
+          south-st (Structures.supercell-desc &noise-state &strata 0 -1 1)
+          deep-st (Structures.supercell-desc &noise-state &strata 0 -2 0)
           world-chunks []]
       (do
+        (when @(StructureDesc.active &surf-st)
+          (IO.println &(str* "  [CSG] Surface Citadel (20m ahead): "
+                             (Structures.archetype-name @(StructureDesc.kind &surf-st))
+                             " @ (" (Double.to-int @(StructureDesc.sx &surf-st))
+                             ", " (Double.to-int @(StructureDesc.sy &surf-st))
+                             ", " (Double.to-int @(StructureDesc.sz &surf-st)) ")")))
         (when @(StructureDesc.active &origin-st)
-          (IO.println &(str* "  [CSG] Near-Spawn Vault: "
+          (IO.println &(str* "  [CSG] Starter Complex (Press [J] to tour!): Hub="
                              (Structures.archetype-name @(StructureDesc.kind &origin-st))
-                             " @ (" (Double.to-int @(StructureDesc.sx &origin-st))
-                             ", " (Double.to-int @(StructureDesc.sy &origin-st))
-                             ", " (Double.to-int @(StructureDesc.sz &origin-st)) ")")))
+                             " -> East(Pipe-Gallery)=" (Structures.archetype-name @(StructureDesc.kind &east-st))
+                             " | South(Viaduct)=" (Structures.archetype-name @(StructureDesc.kind &south-st))
+                             " | Down(Drop-Shaft)=" (Structures.archetype-name @(StructureDesc.kind &deep-st)))))
         (for [tz 0 5]
           (for [ty 0 5]
             (for [tx 0 5]
@@ -63,7 +98,7 @@
                     qy (if (= ty 4) -1 ty)
                     qz (if (= tz 4) -1 tz)]
                 (Array.push-back! &world-chunks (Chunk.create &noise-state &strata qx qy qz))))))
-        (World.init world-chunks 32 noise-state strata 0 0.0f 0.0f 0.0f))))
+        (World.init world-chunks 32 noise-state strata archive 0 0 0.0f 0.0f 0.0f))))
 
   (defn positive-mod [n m]
     (let [r (Int.mod n m)]

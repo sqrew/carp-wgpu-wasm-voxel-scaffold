@@ -572,13 +572,7 @@
         (let [batch-encoder (GPUBatcher.begin-batch ctx)]
           (do
             (GPUBatcher.batch-dispatch batch-encoder @(Renderer.copy-pipeline ren) @(Renderer.copy-bind-group ren) 512)
-            (GPUBatcher.batch-copy-texture batch-encoder
-                                       (WGPUVertexBufferWrapper.get-buffer @(M-VertexBuffer.p (Renderer.light-half-buffer ren)))
-                                       0l
-                                       @(M-RenderTexture.p (Renderer.light-texture ren))
-                                       0 0 0
-                                       160 160 160)
-        (GPUBatcher.end-batch ctx batch-encoder))))))
+            (GPUBatcher.end-batch ctx batch-encoder))))))
 
 
 

@@ -95,6 +95,12 @@
   (def MAT_SULFUR 23)
   (def MAT_CARBIDE 24)
   (def MAT_PHOSPHORUS 25)
+  (def MAT_MOSS 26)
+  (def MAT_VINE 27)
+  (def MAT_FUNGUS 28)
+  (def MAT_GLOW_BULB 29)
+  (def MAT_LEAF 30)
+  (def MAT_BRIAR 31)
   (def MAT_BEDROCK 255)
   (def MAT_WATER 257)
   (def MAT_LAVA 258)
@@ -163,6 +169,12 @@
       (def-mat! MAT_SULFUR "Sulfur" 0.95f 0.88f 0.12f 1.0f 2.8f 0.9f (bit-or GRANULAR (bit-or FLAMMABLE CORRODIBLE)))
       (def-mat! MAT_CARBIDE "Carbide" 0.38f 0.42f 0.48f 1.0f 4.2f 2.2f (bit-or GRANULAR BRITTLE))
       (def-mat! MAT_PHOSPHORUS "Phosphorus" 0.96f 0.98f 0.70f 1.55f 2.4f 0.5f (bit-or LUMINESCENT (bit-or FLAMMABLE TOXIC)))
+      (def-mat! MAT_MOSS "Moss" 0.16f 0.68f 0.28f 1.0f 1.2f 0.7f (bit-or ORGANIC (bit-or FLAMMABLE (bit-or CORRODIBLE STAINABLE))))
+      (def-mat! MAT_VINE "Vine" 0.22f 0.52f 0.18f 1.0f 0.25f 2.5f (bit-or ORGANIC (bit-or FLAMMABLE (bit-or CORRODIBLE STAINABLE))))
+      (def-mat! MAT_FUNGUS "Fungus" 0.64f 0.22f 0.56f 1.0f 1.1f 1.4f (bit-or BOUNCY (bit-or ORGANIC (bit-or FLAMMABLE (bit-or CORRODIBLE STAINABLE)))))
+      (def-mat! MAT_GLOW_BULB "Glow-Bulb" 1.0f 0.56f 0.24f 2.15f 0.45f 0.6f (bit-or LUMINESCENT (bit-or ORGANIC (bit-or FLAMMABLE BRITTLE))))
+      (def-mat! MAT_LEAF "Foliage" 0.28f 0.76f 0.22f 1.0f 0.35f 0.6f (bit-or ORGANIC (bit-or FLAMMABLE (bit-or CORRODIBLE STAINABLE))))
+      (def-mat! MAT_BRIAR "Thorn-Briar" 0.52f 0.14f 0.16f 1.0f 1.6f 1.8f (bit-or ORGANIC (bit-or FLAMMABLE (bit-or CORRODIBLE STAINABLE))))
       (def-mat! MAT_BEDROCK "Bedrock" 0.05f 0.05f 0.05f 1.0f 999.0f 999.0f INDESTRUCTIBLE)
       (def-mat! MAT_WATER "Water" 0.1f 0.45f 0.85f 1.0f 2.0f 1.0f (bit-or EXTINGUISHER (bit-or CONDUCTIVE EVAPORABLE)))
       (def-mat! MAT_LAVA "Lava" 1.0f 0.4f 0.1f 2.5f 5.0f 1.0f (bit-or IGNITER LUMINESCENT))
@@ -387,6 +399,24 @@
       (set-reaction! arr MAT_CRYO_FLUID MAT_LAVA (Float.from-int MAT_STEAM) (Float.from-int MAT_OBSIDIAN))
       (set-reaction! arr MAT_CRYO_FLUID MAT_ACID (Float.from-int MAT_TOXIC_GAS) (Float.from-int MAT_CRYSTAL))
       (set-reaction! arr MAT_CRYO_FLUID MAT_BLOOD (Float.from-int MAT_STEAM) (Float.from-int MAT_AMETHYST))
+      ;; 20. Subterranean Flora & Fungal Alchemy:
+      ;;   - Ambrosia blooms Moss & Vine into bioluminescent Glow-Bulb fruit!
+      ;;   - Acid-pressing Glow-Bulb extracts Golden Ambrosia; Toxic Sludge mutates Fungus into Spore Pods!
+      ;;   - Blood-fed Thorn-Briar fruits into Glow-Bulbs; Oil-soaked Briar forms Volatile Gel pitch!
+      (set-reaction! arr MAT_MOSS MAT_AMBROSIA (Float.from-int MAT_GLOW_BULB) (Float.from-int MAT_WATER))
+      (set-reaction! arr MAT_VINE MAT_AMBROSIA (Float.from-int MAT_VINE) (Float.from-int MAT_GLOW_BULB))
+      (set-reaction! arr MAT_GLOW_BULB MAT_ACID (Float.from-int MAT_AMBROSIA) (Float.from-int MAT_STEAM))
+      (set-reaction! arr MAT_FUNGUS MAT_TOXIC_SLUDGE (Float.from-int MAT_SPORE_POD) (Float.from-int MAT_SPORE_CLOUD))
+      (set-reaction! arr MAT_BRIAR MAT_BLOOD (Float.from-int MAT_GLOW_BULB) (Float.from-int MAT_BRIAR))
+      (set-reaction! arr MAT_BRIAR MAT_OIL (Float.from-int MAT_VOLATILE_GEL) (Float.from-int MAT_SMOKE))
+      (set-reaction! arr MAT_SALT MAT_MOSS (Float.from-int MAT_SALT) (Float.from-int MAT_SMOKE))
+      (set-reaction! arr MAT_SALT MAT_FUNGUS (Float.from-int MAT_SALT) (Float.from-int MAT_WATER))
+      (set-reaction! arr MAT_LYE MAT_MOSS (Float.from-int MAT_SOAP) (Float.from-int MAT_STEAM))
+      (set-reaction! arr MAT_LYE MAT_VINE (Float.from-int MAT_STEAM) (Float.from-int MAT_METHANE))
+      (set-reaction! arr MAT_LYE MAT_FUNGUS (Float.from-int MAT_SOAP) (Float.from-int MAT_STEAM))
+      (set-reaction! arr MAT_LYE MAT_LEAF (Float.from-int MAT_STEAM) (Float.from-int MAT_METHANE))
+      (set-reaction! arr MAT_LYE MAT_BRIAR (Float.from-int MAT_STEAM) (Float.from-int MAT_METHANE))
+      (set-reaction! arr MAT_CRYO_FLUID MAT_LEAF (Float.from-int MAT_STEAM) (Float.from-int MAT_ICE))
       ()
     ))
 
@@ -432,10 +462,14 @@
   (defn healing? [mat-id]
     (Materials.has-tag? mat-id HEALING))
 
+  (defn flora? [mat-id]
+    (let [m (Materials.valid-id mat-id)]
+      (and (>= m MAT_MOSS) (<= m MAT_BRIAR))))
+
   (defn spicy-hazard? [mat-id]
     (Materials.has-tag? mat-id (bit-or (bit-or IGNITER ACIDIC) (bit-or TOXIC RADIOACTIVE))))
 
-  ;; Reactive cave elements that can imprint a Grey Slime (skips dull filler Stone 1, Soil 2, Sand 6, Obsidian 16, Seal 18, Bedrock 255, Smoke 516)
+  ;; Reactive cave elements that can imprint a Grey Slime (skips dull filler Stone 1, Soil 2, Sand 6, Obsidian 16, Seal 18, Moss 26, Leaf 30, Bedrock 255, Smoke 516)
   (defn imprintable? [mat-id]
     (let [m (Materials.valid-id mat-id)
           defined? (> @(Material.id (Array.unsafe-nth &registry m)) 0.5f)]
@@ -445,8 +479,10 @@
                      (and (/= m MAT_SAND)
                           (and (/= m MAT_OBSIDIAN)
                                (and (/= m MAT_SEAL)
-                                    (and (/= m MAT_BEDROCK)
-                                         (/= m MAT_SMOKE))))))))))
+                                    (and (/= m MAT_MOSS)
+                                         (and (/= m MAT_LEAF)
+                                              (and (/= m MAT_BEDROCK)
+                                                   (/= m MAT_SMOKE))))))))))))
 
   (defn jet-ptype [mat-id]
     (if (< mat-id 256.0f)

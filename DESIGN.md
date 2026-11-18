@@ -291,5 +291,29 @@ Lightweight, low-mana LMB building blocks that feel humble solo yet go nuclear w
 - **`◆ Chakram` (*Smart-Chaining Vibranium Disc*)**: Waist-locked horizontal disc that **smart-banks `Target -> Next Target`** (`Orb -> Orb -> Hopper -> Mancer`, up to 8 chain hits) and curves back to your hand, refunding `50%` mana & cooldown on catch!
 - **`◆ Glacier Rampart` (*Spire-Wave*)**, **`◆ Hammer of Dawn` (*Walking Ceiling Laser*)**, **`◆ Tectonic Maw` (*Fissure Jaws that Snap Shut*)**, **`◆ Tunnel-Wyrm` (*12-Segment Rock-Swimming Graboid*)**, **`◆ Jacob's Ladder` (*Self-Linking Pylon Clothesline*)**.
 
+---
 
+## 10. Subterranean Worldgen, Immersion & Vault Ecology Roadmap
 
+### 10.1. Shipped Pure-Carp CSG Architecture & Orthogonal Complex Graph (`src/structures_csg.carp`, `src/structures.carp`)
+- **`0.00 ms/frame` Baked Voxel Architecture**: Deterministic `96 × 64 × 96` (`3 × 2 × 3` chunks) stateless supercell placement + `288 × 192 × 288m` macro-sector pacing (~`83%` unspoiled natural caves, ~`85%` of spawned structures clustered into `3–6` room complexes, `100%` clear of `MAT_SEAL` segment boundaries).
+- **10 Biome-Weighted Blueprints (`kind = 0..9`)**: `0=Brutalist Septum Pillbox`, `1=Piezo-Amethyst Geode Shrine`, `2=Sunken Galvanic Ziggurat`, `3=Suspended Distillery Bell` (compression-cradled on 4 piezo `Amethyst` stilts), `4=Vaulted Crossroad & Bank-Shot Vault`, `5=Pressurized Pipeworks & Mercury U-Trap`, `6=Helical Abyssal Tower`, `7=Fractionating Refinery Furnace`, `8=Chrysopoeia Honeycomb Apiary`, `9=Cryo-Thermal Shock Core`.
+- **Human-Scale Orthogonal Connectors**: `2.6m × 3.0m` right-angle `X–Z–X` dungeon corridors, sub-floor `2.0m` `Glass`-grated reagent conduits, chasm parapet footbridges on `14m` `Obsidian` piers (`Mode 4: CSG_FOUNDATION`), and `11.6m` helical drop-shafts with `Water` cushion sumps.
+
+### 10.2. Next Focus — Biome & Cave Terrain Tightening (`src/terrain.carp`)
+- [ ] **Distinct Biome Geometry & Cave Silhouettes**: Sharpen geological character across the 12 strata beyond noise-weight tweaks (e.g., terraced karst shelves, columnar basalt/obsidian ribs, narrow coal-seam galleries vs. tall glacial vertical fissure shafts, salt-dome caverns, and crystal/geode vugs).
+- [ ] **Readable Subterranean Sightlines & Transitions**: Tune cave openness, floor/ceiling relief, ore/reagent vein placement, and how natural Simplex caverns frame and intersect CSG hallways, viaducts, and Abyssal Seal chambers.
+
+### 10.3. Fluid Immersion: Archimedes Buoyancy & Subterranean Breathing
+- [ ] **Specific-Gravity Buoyancy (`Player` + `RigidBody` Boulders, Slimes & Props)**:
+  - Scale buoyant force by real liquid density rather than uniform water-swimming: natural bob/swim in `Water (1.0×)`, **dangerous sinking** in light hydrocarbons (`Naphtha / Kerosene / Crude Oil < 0.85×` — lethal tar-pit trap!), high float in dense `Acid / Caustic Lye`, and **cork-like flotation on `Liquid Mercury (13.5×)`** & `Lava` (making `Mercury` U-trap airlocks a genuine physical puzzle to dive under, drain, or siphon!).
+- [ ] **Breathing, Lung O2 & Mine-Gas Displacement (`Firedamp / Chokedamp`)**:
+  - Hook into existing per-frame GPU head/chest readback (`p-liq` & `p-gas` in `src/systems/player.carp`):
+  - **Liquid Submersion**: Drains O2 meter underwater/under-oil; surfacing into trapped cave air-pockets or `U`-trap airlocks replenishes breath (and Gas Bellows `[3]` can even blow emergency air bubbles or clear gas pockets!).
+  - **Unbreathable & Toxic Mine Gases**: Heavy sump gases (`Butane`, `Radon`, `Chlorine`, `Miasma`) and buoyant roof pockets (`Methane` firedamp, dense `Smoke`, or `Vacuum` zones) displace breathable O2—creating classic subterranean mining tension where `[Z]` matches double as a risky firedamp test.
+
+### 10.4. Vault Ecology & Exploration Payoffs (Backlog)
+- [ ] **Living "Ecomancer Havens" & Slime Ranching**:
+  - Populate newly entered CSG vault supercells once via a lightweight visited-supercell ring/bitset: spawn a biome/vat-attuned resident `Ecomancer` + imprinted `Dittamoeba` slime broods (`Honeycomb Apiaries`, `Refineries`, `Pillboxes`) or `Cave Hopper` packs (`Crossroads`) so warlocks actively rip reagents out of their own room's CSG vats and sub-floor conduits during combat.
+- [ ] **Physical Pedestal Relics (Found Runes & Procedural Wands)**:
+  - Spawn GI-lit levitating Rune Gems (`◆` Power Cores, Linkers, Modifiers) and procedural found wands on shrine pedestals (`Geode`, `Ziggurat` crypt, `Helical Tower` summit) and behind puzzle locks (`Mercury` U-trap treasury, `C4` Bank-Shot Vault) to feed directly into on-the-spot `[Tab]` wand building.

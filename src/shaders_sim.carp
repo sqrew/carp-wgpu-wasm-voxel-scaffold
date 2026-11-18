@@ -72,12 +72,17 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         field_gpu_buffer_write[g_idx] = vec4<f32>(0.0);
     }
 
+    let abs_sf = abs(seed_fluid);
+    let f_id = floor(abs_sf + 0.0005);
+    let f_rem = abs_sf - f_id;
     if (final_val.y > 0.0 && seed_fluid < -0.5) {
-        liquid_gpu_buffer[g_idx] = vec4<f32>(abs(seed_fluid), 1.0, 0.0, 0.0);
+        let l_vol = select(1.0, clamp(f_rem * 1.40, 0.03, 1.35), f_rem > 0.01);
+        liquid_gpu_buffer[g_idx] = vec4<f32>(f_id, l_vol, 0.0, 0.0);
         gas_gpu_buffer[g_idx] = vec4<f32>(0.0);
     } else if (final_val.y > 0.0 && seed_fluid > 0.5) {
+        let g_vol = select(0.9, clamp(f_rem * 1.90, 0.05, 1.85), f_rem > 0.01);
         liquid_gpu_buffer[g_idx] = vec4<f32>(0.0);
-        gas_gpu_buffer[g_idx] = vec4<f32>(seed_fluid, 0.9, 0.0, 0.0);
+        gas_gpu_buffer[g_idx] = vec4<f32>(f_id, g_vol, 0.0, 0.0);
     } else {
         liquid_gpu_buffer[g_idx] = vec4<f32>(0.0);
         gas_gpu_buffer[g_idx] = vec4<f32>(0.0);
@@ -912,6 +917,11 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             }
             next_age = clamp(charge, 0.0, 1.0);
             if (next_age > 0.02) { next_sleep = 0.0; }
+            // Water Electrolysis: energized Water (> 0.72V) stoichiometrically splits into Hydrogen (9) fuel gas!
+            if (lid_u == 1u && next_age > 0.72) {
+                next_vol = max(0.0, next_vol - 0.018);
+                if (next_vol < 0.01) { next_vol = 0.0; next_id = 0.0; next_age = 0.0; }
+            }
         } else {
             next_age = 0.0;
         }
@@ -1515,7 +1525,11 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
     
     if (my_liq.y > 0.04) {
-        if (self_vol > 0.05 && abs(self_gas.x) > 0.5) {
+        // Water Electrolysis: Water (1.0) carrying > 0.72V electrical charge evolves compressed Hydrogen (9.0)!
+        if (round(abs(my_liq.x)) == 1.0 && my_liq.z > 0.72) {
+            spawn_gas_id = 9.0;
+            spawn_gas_vol = 1.0;
+        } else if (self_vol > 0.05 && abs(self_gas.x) > 0.5) {
             let rx_self = get_reaction(abs(my_liq.x), 256u, abs(self_gas.x), 512u);
             if (rx_self.x >= 512.0) {
                 spawn_gas_id = rx_self.x - 512.0; spawn_gas_vol = 1.0;
@@ -2470,16 +2484,24 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
         let avg_T = select(self_tp.x, sum_T / t_cnt, t_cnt > 0.5);
         var next_T = max(updraft_T, mix(mix(self_tp.x, avg_T, 0.45), 0.20, 0.14));
+        // First-Law Adiabatic Work (-P div v): active mechanical compression (raw_vel.w > 0.42) heats trapped cylinders
+        // up to sparkless Diesel ignition (>0.78), while pinhole rarefaction (raw_vel.w < -0.22) Joule-Thomson chills!
+        let mech_p = select(raw_vel.w, 0.0, raw_vel.w >= 4.2);
+        let conf_air = clamp((5.2 - air_cnt) * 0.45, 0.0, 1.0);
+        let adiab_dT = max(0.0, mech_p - 0.42) * (0.15 + 0.20 * conf_air) - max(0.0, -mech_p - 0.22) * 0.18;
+        next_T = clamp(next_T + adiab_dT, 0.02, 1.0);
+
         // Exact face-symmetric conservative pressure diffusion across open air neighbors (hermetic against solid pipe/tank walls!):
         let at_win_edge = lp.x <= 2 || lp.x >= 157 || lp.y <= 2 || lp.y >= 157 || lp.z <= 2 || lp.z >= 157;
         let diff_P = clamp(self_tp.y + 0.145 * (sum_P - air_cnt * self_tp.y), 0.0, 1.0);
         // Confinement-aware retention: pipes/ducts/tanks (air_cnt <= 4) hold pressure ~25x longer than open 3D air, while window borders vent to 0!
         let sky_vent = select(1.0, 0.82, world_p.y > 38.0 && air_cnt >= 5.5);
         let p_retain = select(mix(0.992, 0.925, clamp((air_cnt - 3.5) * 0.40, 0.0, 1.0)) * sky_vent, 0.45, at_win_edge);
-        // Ideal-gas PV=nRT + hydraulic head: compressed gas (>1.0), heated gas (T>0.24), or pressurized liquid (>1.02) sustains static vessel pressure!
+        // Ideal-gas PV=nRT (reactive gas + confined dry-air Stirling expansion!) + hydraulic head:
+        let eff_mol = max(min(raw_gas.g, 1.25), 0.48 * conf_air);
         let p_eos = clamp(
             max(0.0, raw_gas.g - 1.00) * 0.88 +
-            min(raw_gas.g, 1.25) * max(0.0, next_T - 0.24) * 0.92 +
+            eff_mol * max(0.0, next_T - 0.24) * 0.92 +
             max(0.0, raw_liq.g - 1.02) * 1.35,
             0.0, 0.94
         );
@@ -2683,8 +2705,11 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let final_dn = select(smooth_dn, 0.0, abs(smooth_dn) < 0.002);
         solid_buffer[idx] = vec4<f32>(sol.x, sol.y, final_dn, sol.w);
     } else {
+        let my_sol_id_pre = clamp(u32(round(abs(sol.x))), 0u, 255u);
         var max_neighbor_w = 0.0;
         var max_adj_T: f32 = 0.20;
+        var min_adj_T: f32 = 1.00;
+        var has_adj_T: bool = false;
         var max_adj_P: f32 = select(0.0, 1.0, raw_vel.w >= 4.2);
         var max_shock_p: f32 = select(0.0, 4.5, raw_vel.w >= 4.2);
         var max_adj_V: f32 = 0.0;
@@ -2720,12 +2745,23 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 if (supported_w > max_neighbor_w) {
                     max_neighbor_w = supported_w;
                 }
+                let n_sol_id = round(abs(n_sol.x));
+                if (n_sol_id == 8.0) {
+                    max_adj_T = max(max_adj_T, 0.06);
+                    min_adj_T = min(min_adj_T, 0.06);
+                    has_adj_T = true;
+                }
                 let n_sol_tex = textureLoad(solid_texture, nip, 0);
                 if (n_sol_tex.g <= 0.0) {
                     if (n_sol_tex.b > 0.01 && n_sol_tex.b < 1.5) {
-                        max_adj_T = max(max_adj_T, 0.20 + n_sol_tex.b * 0.92);
+                        let st = 0.20 + n_sol_tex.b * 0.92;
+                        max_adj_T = max(max_adj_T, st);
+                        min_adj_T = min(min_adj_T, st);
+                        has_adj_T = true;
                     } else if (n_sol_tex.b < -0.02) {
-                        max_adj_V = max(max_adj_V, -n_sol_tex.b * 0.90);
+                        // Gold -> Gold power cable uses low -0.015 linear Ohmic drop (~65m reach) instead of 0.81x decay!
+                        let v_hop = select(-n_sol_tex.b * 0.90, max(0.0, -n_sol_tex.b - 0.015), my_sol_id_pre == 5u && n_sol_id == 5.0);
+                        max_adj_V = max(max_adj_V, v_hop);
                     }
                 }
             } else {
@@ -2734,17 +2770,25 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     let ntp = unpack_air_tp(nf);
                     let nvm = unpack_air_vm(nf);
                     max_adj_T = max(max_adj_T, ntp.x);
+                    min_adj_T = min(min_adj_T, ntp.x);
+                    has_adj_T = true;
                     max_adj_P = max(max_adj_P, ntp.y);
                     max_adj_V = max(max_adj_V, nvm.x);
                 }
                 let nl = textureLoad(liquid_texture, nip, 0);
                 if (nl.g > 0.04) {
                     let nl_id = round(abs(nl.r));
-                    if (nl_id == 2.0) {
+                    if (nl_id == 2.0 || nl_id == 7.0) {
                         max_adj_T = max(max_adj_T, 0.96);
-                    } else if (nl_id >= 1.0 && nl_id <= 15.0) {
-                        if (adj_stain_liq < 0.5 || nl_id != 1.0) {
-                            adj_stain_liq = nl_id;
+                        min_adj_T = min(min_adj_T, 0.96);
+                        has_adj_T = true;
+                    } else {
+                        if (nl_id == 15.0) { min_adj_T = min(min_adj_T, 0.02); has_adj_T = true; }
+                        else if (nl_id == 1.0) { min_adj_T = min(min_adj_T, 0.16); has_adj_T = true; }
+                        if (nl_id >= 1.0 && nl_id <= 15.0) {
+                            if (adj_stain_liq < 0.5 || nl_id != 1.0) {
+                                adj_stain_liq = nl_id;
+                            }
                         }
                     }
                     if (nl_id == 3.0) { touches_acid_liq = true; }
@@ -2854,21 +2898,26 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             }
         }
         if (my_mat_id == 5u) {
-            // 24k Gold Vein: high-diffusivity Fourier heat conductor (+z) AND electric conductor (-z)
+            // 24k Gold Vein: low-loss ~65m electric power cable (-z) AND Fourier heat conductor (+z)
             if (touches_acid_liq) {
                 next_sol_z = -0.92; // Galvanic Gold+Acid cave battery electrode!
                 air_voltage = 0.92;
-            } else if (max_adj_V > 0.15) {
-                next_sol_z = -clamp(max_adj_V * 0.90, 0.0, 1.0);
+            } else if (max_adj_V > 0.03) {
+                next_sol_z = -clamp(max_adj_V, 0.0, 1.0);
                 air_voltage = -next_sol_z;
             } else if (max_adj_T > 0.28) {
                 next_sol_z = clamp((max_adj_T - 0.20) * 0.92, 0.0, 0.80);
             }
-        } else if ((my_mat_id == 14u || my_mat_id == 15u) && solid_stress > 0.58) {
-            // Piezoelectric Crystal (14) / Amethyst (15): high pillar stress generates high voltage!
-            let piezo_v = clamp((solid_stress - 0.55) * 1.85, 0.0, 1.0);
-            next_sol_z = -piezo_v;
-            air_voltage = piezo_v;
+        } else if (my_mat_id == 14u || my_mat_id == 15u) {
+            // Crystal (14) / Amethyst (15): Piezoelectric under load (>0.58) AND Seebeck TEG under Hot-vs-Cold delta_T (>0.36)!
+            let piezo_v = select(0.0, clamp((solid_stress - 0.55) * 1.85, 0.0, 1.0), solid_stress > 0.58);
+            let seebeck_dT = max(0.0, max_adj_T - select(0.20, min_adj_T, has_adj_T));
+            let teg_v = select(0.0, clamp((seebeck_dT - 0.34) * 1.72, 0.0, 1.0), has_adj_T && seebeck_dT > 0.36);
+            let crystal_v = max(piezo_v, teg_v);
+            if (crystal_v > 0.02) {
+                next_sol_z = -crystal_v;
+                air_voltage = crystal_v;
+            }
         }
 
         // Obsidian (16) + Miasma (519) emits Negative GI Darklight!
@@ -3515,6 +3564,43 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
     if (abs(self_tg.y - 0.50) > 0.16) {
         next_v.y += (0.50 - self_tg.y) * 0.32 * time_scale;
+    }
+
+    // 4.5. Solid-State Gold (5) -> Obsidian (16) MHD Pipe Pump!
+    // Energized Gold (-b > 0.18V) touching Obsidian drives fluid/gas velocity along the Gold->Obsidian stator vector!
+    if (s_xm || s_xp || s_ym || s_yp || s_zm || s_zp) {
+        let p_ips = array<vec3<i32>, 6>(ip_xm, ip_xp, ip_ym, ip_yp, ip_zm, ip_zp);
+        let sol_mask = select(0u, 1u, s_xm) | select(0u, 2u, s_xp) | select(0u, 4u, s_ym) |
+                       select(0u, 8u, s_yp) | select(0u, 16u, s_zm) | select(0u, 32u, s_zp);
+        let p_d6 = array<vec3<i32>, 6>(
+            vec3<i32>(-1, 0, 0), vec3<i32>(1, 0, 0),
+            vec3<i32>(0, -1, 0), vec3<i32>(0, 1, 0),
+            vec3<i32>(0, 0, -1), vec3<i32>(0, 0, 1)
+        );
+        var mhd_dir = vec3<f32>(0.0);
+        var mhd_v: f32 = 0.0;
+        for (var pi: u32 = 0u; pi < 6u; pi = pi + 1u) {
+            if ((sol_mask & (1u << pi)) != 0u) {
+                let g_ip = p_ips[pi];
+                let g_tex = textureLoad(solid_texture, g_ip, 0);
+                if (g_tex.g <= 0.0 && round(abs(g_tex.r)) == 5.0 && g_tex.b < -0.18) {
+                    let gv = clamp(-g_tex.b, 0.0, 1.0);
+                    for (var qi: u32 = 0u; qi < 6u; qi = qi + 1u) {
+                        let o_ip = (g_ip + p_d6[qi] + vec3<i32>(160)) % 160;
+                        let o_tex = textureLoad(solid_texture, o_ip, 0);
+                        if (o_tex.g <= 0.0 && round(abs(o_tex.r)) == 16.0) {
+                            mhd_dir += vec3<f32>(p_d6[qi]) * gv;
+                            mhd_v = max(mhd_v, gv);
+                        }
+                    }
+                }
+            }
+        }
+        let mhd_len = length(mhd_dir);
+        if (mhd_len > 0.05) {
+            let pump_vel = (mhd_dir / mhd_len) * (1.25 + 2.65 * mhd_v);
+            next_v = mix(next_v, pump_vel, 0.36 * mhd_v * clamp(time_scale, 0.0, 1.2));
+        }
     }
 
     // 5. Free-slip cave wall clamp (wakes splay tangentially along rock walls/floors instead of vanishing!)

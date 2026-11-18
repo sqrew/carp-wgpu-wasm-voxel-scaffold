@@ -126,6 +126,40 @@
 
                 (Player.handle-input! player input dt)
 
+                ;; [J] Sandbox CSG Vault Tour: warps to the entrance threshold of the next generated CSG structure!
+                (when (InputManager.action-pressed? input "warp-structure")
+                  (let [st-desc (Structures.next-tour-desc! (World.noise-state world) (World.strata world))
+                        epos (Structures.entry-pos &st-desc)
+                        ex @(Vector3.x &epos)
+                        ey @(Vector3.y &epos)
+                        ez @(Vector3.z &epos)
+                        dx (- @(StructureDesc.sx &st-desc) ex)
+                        dy (- (- @(StructureDesc.sy &st-desc) 0.8) ey)
+                        dz (- @(StructureDesc.sz &st-desc) ez)
+                        hd (Double.sqrt (+ (* dx dx) (* dz dz)))
+                        yaw-deg (* (Double.atan2 dz dx) 57.29577951308232)
+                        pitch-deg (Double.clamp -45.0 45.0 (* (Double.atan2 dy (if (> hd 0.01) hd 0.01)) 57.29577951308232))
+                        t (RigidBody.transform rb)]
+                    (do
+                      (Player.set-flying! player true)
+                      (Pointer.set (ref-to-ptr (Camera.pos cam)) @&epos)
+                      (Camera.update-yaw! cam yaw-deg)
+                      (Camera.update-pitch! cam pitch-deg)
+                      (Camera.update-basis! cam)
+                      (Body.set-body-type! body (BodyType.Kinematic))
+                      (Body.set-velocity! body (Vector3.init 0.0 0.0 0.0))
+                      (Transform.set-position! t (Vector3.sub &epos &(Vector3.init 0.0 1.2 0.0)))
+                      (RigidBody.set-transform! rb @t)
+                      (EngineState.consume-ready-chunk-sync! state)
+                      (EngineState.stream-chunks-limit! world (EngineState.eng state) (EngineState.renderer state) (Camera.pos cam) 125)
+                      (IO.println &(str* "[CSG Tour] Warped to "
+                                         (Structures.archetype-name @(StructureDesc.kind &st-desc))
+                                         " @ (" (Double.to-int @(StructureDesc.sx &st-desc))
+                                         ", " (Double.to-int @(StructureDesc.sy &st-desc))
+                                         ", " (Double.to-int @(StructureDesc.sz &st-desc)) ")"))
+                      (ParticleSystem.emit! ps (Double.to-float ex) (Double.to-float ey) (Double.to-float ez)
+                        0.0f 2.0f 0.0f 1.5f 20 PARTICLE-TYPE-MAGIC 0.40f 0.18f))))
+
                 (if @(Player.flying player)
                   ;; Noclip / Flying Mode ([C] toggle): direct lag-free camera flight, keeping capsule synced
                   (let [cam-p @(Camera.pos cam)
@@ -236,10 +270,11 @@
                                 (set! vy (+ (* vy sdamp) (* 11.5 dt)))
                                 (set! vz (* vz sdamp)))))))
 
-                      ;; 3. Solid Slime / Volatile Gel Trampoline Rebound + Coyote-Time Jump
+                      ;; 3. Solid Slime / Shelf-Fungus / Volatile Gel Trampoline Rebound + Coyote-Time Jump
                       (when (and bouncy-floor? (< prev-vy -5.2))
                         (let [rebound-raw (* (- 0.0 prev-vy) (if jump-held 0.96 0.78))
-                              rebound-vy (Physics.dmin 24.0 (Physics.dmax 13.0 rebound-raw))]
+                              rebound-vy (Physics.dmin 24.0 (Physics.dmax 13.0 rebound-raw))
+                              b-pt (if (> fmat 0.5f) (Materials.jet-ptype fmat) 410.0f)]
                           (do
                             (set! vy rebound-vy)
                             (set! coyote 0.0)
@@ -247,7 +282,7 @@
                                                   (Double.to-float @(Vector3.x &pos))
                                                   (Double.to-float (- @(Vector3.y &pos) 0.45))
                                                   (Double.to-float @(Vector3.z &pos))
-                                                  0.0f 5.5f 0.0f 1.5f 14 410.0f 0.32f 0.25f))))
+                                                  0.0f 5.5f 0.0f 1.5f 14 b-pt 0.32f 0.25f))))
 
                       (when (and jump-held (> coyote 0.0))
                         (let [jump-v (if sticky-floor? 9.2 (if bouncy-floor? 15.2 12.2))]
