@@ -44,14 +44,12 @@
           fold-y (+ (* 10.5 (Noise.noise2d noise-state (+ (* sx 0.011) 131.0) (- (* sz 0.011) 83.0)))
                     (* 4.0 (Noise.noise2d noise-state (- (* sx 0.029) 41.0) (+ (* sz 0.029) 67.0))))
           wy (+ local-fdy fold-y)
-          biomes (StrataConfig.biomes strata)
-          splits (StrataConfig.splits strata)
-          s0 @(Array.unsafe-nth splits 0)
-          s1 @(Array.unsafe-nth splits 1)
-          s2 @(Array.unsafe-nth splits 2)
-          s3 @(Array.unsafe-nth splits 3)
+          s0 (StrataConfig.split-for strata seg 0)
+          s1 (StrataConfig.split-for strata seg 1)
+          s2 (StrataConfig.split-for strata seg 2)
+          s3 (StrataConfig.split-for strata seg 3)
           slot (if (>= wy s0) 0 (if (>= wy s1) 1 (if (>= wy s2) 2 (if (>= wy s3) 3 4))))]
-      @(Array.unsafe-nth biomes slot)))
+      (StrataConfig.biome-for strata seg slot)))
 
   ;; Biome-tuned primary & secondary reactive liquids (`seed_fluid < 0` codes for `copy-wgsl`)
   (defn vat-liq-a [b]
