@@ -1,4 +1,5 @@
 (load "../../carp-math/noise.carp")
+(load "spectral_detail.carp")
 (system-include "time.h")
 
 (deftemplate fresh-run-seed (Fn [] Int)
@@ -15,6 +16,7 @@
   seed Int
   biomes (Array Int)
   splits (Array Double)
+  sdf-spec (Array Float)
 ])
 
 (defmodule StrataConfig
@@ -111,7 +113,8 @@
                            (Terrain.biome-name @(Array.unsafe-nth &biomes 8)) " -> "
                            (Terrain.biome-name @(Array.unsafe-nth &biomes 9))))
 
-        (StrataConfig.init seed biomes splits))))
+        (let [sdf-spec (SpectralDetail.make-sdf-volume seed)]
+          (StrataConfig.init seed biomes splits sdf-spec)))))
 
   (defn smooth01 [edge0 edge1 x]
     (let [raw (/ (- x edge0) (- edge1 edge0))
@@ -123,6 +126,30 @@
           b (+ a (* t1 (- v2 a)))
           c (+ b (* t2 (- v3 b)))]
       (+ c (* t3 (- v4 c)))))
+
+  ;; +1.0 = horizontal sedimentary strata, -1.0 = tall vertical rifts, 0.0 = isotropic crags
+  (defn spec-style [b]
+    (if (or (= b 1) (or (= b 4) (or (= b 8) (or (= b 9) (= b 10)))))
+      1.0
+      (if (or (= b 2) (or (= b 5) (= b 11)))
+        -1.0
+        0.0)))
+
+  (defn sample-biome-sdf-spec [sdf-spec fdx fdy fdz style-w]
+    (let [sx (* fdx 1.73)
+          sz (* fdz 1.73)]
+      (if (> style-w 0.75)
+        (SpectralDetail.sample-sdf-3d sdf-spec sx (* fdy 2.35) sz)
+        (if (< style-w -0.75)
+          (SpectralDetail.sample-sdf-3d sdf-spec sx (* fdy 1.25) sz)
+          (if (and (>= style-w -0.15) (<= style-w 0.15))
+            (SpectralDetail.sample-sdf-3d sdf-spec sx (* fdy 1.73) sz)
+            (let [iso (SpectralDetail.sample-sdf-3d sdf-spec sx (* fdy 1.73) sz)]
+              (if (> style-w 0.0)
+                (let [sed (SpectralDetail.sample-sdf-3d sdf-spec sx (* fdy 2.35) sz)]
+                  (+ iso (* style-w (- sed iso))))
+                (let [rft (SpectralDetail.sample-sdf-3d sdf-spec sx (* fdy 1.25) sz)]
+                  (+ iso (* (- 0.0 style-w) (- rft iso)))))))))))
 
   (defn macro-w [b]
     (if (= b 0)  0.42
@@ -471,6 +498,8 @@
           cw0 (Terrain.chasm-w b0) cw1 (Terrain.chasm-w b1) cw2 (Terrain.chasm-w b2) cw3 (Terrain.chasm-w b3) cw4 (Terrain.chasm-w b4)
           tw0 (Terrain.tun-w b0)   tw1 (Terrain.tun-w b1)   tw2 (Terrain.tun-w b2)   tw3 (Terrain.tun-w b3)   tw4 (Terrain.tun-w b4)
           th0 (Terrain.thresh-w b0) th1 (Terrain.thresh-w b1) th2 (Terrain.thresh-w b2) th3 (Terrain.thresh-w b3) th4 (Terrain.thresh-w b4)
+          st0 (Terrain.spec-style b0) st1 (Terrain.spec-style b1) st2 (Terrain.spec-style b2) st3 (Terrain.spec-style b3) st4 (Terrain.spec-style b4)
+          sdf-spec (StrataConfig.sdf-spec strata)
           ;; O(1) Supercell + Connector Graph Pre-Culler (~78% of chunks & ~75% of columns skip CSG!)
           ccsg (Structures.prepare-chunk noise-state strata qx qy qz)]
       (do
@@ -549,7 +578,19 @@
                                   cave-sdf-raw (* cave-raw sdf-scale)
                                   cave-sdf (if (> cave-sdf-raw 12.0) 12.0 (if (< cave-sdf-raw -12.0) -12.0 cave-sdf-raw))
                                   surf-clamped (if (> surf-sdf 12.0) 12.0 (if (< surf-sdf -12.0) -12.0 surf-sdf))
-                                  final-sdf (if (and (= seg 0) (> surf-clamped cave-sdf)) surf-clamped cave-sdf)
+                                  base-final-sdf (if (and (= seg 0) (> surf-clamped cave-sdf)) surf-clamped cave-sdf)
+                                  abs-base-sdf (Double.abs base-final-sdf)
+                                  final-sdf (if (and (< abs-base-sdf 3.4)
+                                                     (and (> local-fdy -184.5)
+                                                          (or (= seg 0) (< local-fdy -3.5))))
+                                              (let [seal-env (* (Terrain.smooth01 -184.5 -181.5 local-fdy)
+                                                                (if (> seg 0) (- 1.0 (Terrain.smooth01 -6.5 -3.5 local-fdy)) 1.0))
+                                                    skin-env (* seal-env (- 1.0 (Terrain.smooth01 0.75 3.4 abs-base-sdf)))
+                                                    style-w (Terrain.lerp5 st0 st1 st2 st3 st4 t0 t1 t2 t3)
+                                                    spec-val (Terrain.sample-biome-sdf-spec sdf-spec fdx fdy fdz style-w)
+                                                    spec-disp (* 0.33 (* skin-env spec-val))]
+                                                (Double.clamp -12.0 12.0 (+ base-final-sdf spec-disp)))
+                                              base-final-sdf)
                                   csg-s (if (/= col-mask 0)
                                           (Structures.eval-masked &ccsg col-mask fdx fdy fdz n-det)
                                           (CSGSample.init 0 0.0f 12.0f 0.0f 0.0f))

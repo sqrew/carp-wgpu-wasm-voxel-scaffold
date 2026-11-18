@@ -68,6 +68,8 @@ struct FragmentOutput {
 @group(0) @binding(6) var<storage, read> materials: array<Material>;
 @group(0) @binding(7) var<storage, read> s_entities: array<Entity>;
 @group(0) @binding(8) var vel_texture: texture_3d<f32>;
+@group(0) @binding(9) var detail_texture: texture_3d<f32>;
+@group(0) @binding(10) var detail_sampler: sampler;
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
@@ -396,16 +398,277 @@ fn voronoi_edge_3d(x: vec3<f32>, jitter_amt: f32) -> vec4<f32> {
     return vec4<f32>(seam_dir, edge_dist);
 }
 
+fn sample_spectral_3d(q: vec3<f32>) -> vec4<f32> {
+    // fract() keeps large world coordinates precise; detail_sampler (Repeat + Linear) wraps 63->0 seamlessly!
+    return textureSampleLevel(detail_texture, detail_sampler, fract(q * (1.0 / 64.0)), 0.0);
+}
+
+struct SurfaceImperfection {
+    tangent_bump: vec3<f32>,
+    micro_cavity: f32,
+    albedo_grain: f32,
+    spec_glint: f32,
+}
+
+fn eval_spec_relief_scalar(p_ws: vec3<f32>, scale_vec: vec3<f32>, swap_xy: bool, mode: u32, weights: vec4<f32>) -> vec2<f32> {
+    let q = p_ws * scale_vec;
+    let qs = select(q, vec3<f32>(q.y, q.x, q.z), swap_xy);
+    let s = sample_spectral_3d(qs);
+    var h = dot(s, weights);
+    if (mode == 1u) {
+        // Conchoidal / vitreous scalloped shell ripples (Ice, Glass, Obsidian, Bitumen)
+        h = sin(s.b * 3.4 + s.r * 1.25) * 0.52 + s.b * 0.34 + s.a * weights.w;
+    } else if (mode == 2u) {
+        // Polyhedral cleavage & metallic micro-facets (Crystal, Amethyst, Salt, Coal, Gold, Ore)
+        let facet_step = clamp(s.b * 2.1, -0.85, 0.85);
+        h = h * 0.68 + facet_step * 0.42;
+    }
+    return vec2<f32>(h, s.a);
+}
+
+fn eval_surface_imperfection(p: vec3<f32>, raw_normal: vec3<f32>, mat_id_u: u32, tags: u32, detail_fade: f32) -> SurfaceImperfection {
+    if (detail_fade <= 0.004) {
+        return SurfaceImperfection(vec3<f32>(0.0), 0.0, 0.0, 0.0);
+    }
+
+    let is_brittle = (tags & 16384u) != 0u;
+    let is_organic = (tags & 536870912u) != 0u;
+    let is_granular = (tags & 2048u) != 0u;
+    let is_transparent = (tags & 4194304u) != 0u;
+
+    // Default recipe (tag-driven fallback)
+    var scale_vec = vec3<f32>(15.0, 21.0, 15.0);
+    var weights = vec4<f32>(0.50, 0.42, 0.30, 0.34);
+    var swap_xy: bool = true;
+    var mode: u32 = 0u;
+    var bump_strength: f32 = 0.22;
+    var cavity_gain: f32 = 0.72;
+    var grain_gain: f32 = 0.10;
+    var glint_gain: f32 = 0.05;
+
+    if (is_granular) {
+        scale_vec = vec3<f32>(21.5, 21.5, 21.5);
+        weights = vec4<f32>(0.66, 0.14, 0.12, 0.52);
+        swap_xy = false;
+        bump_strength = 0.25;
+        cavity_gain = 0.85;
+        grain_gain = 0.12;
+        glint_gain = 0.0;
+    } else if (is_organic) {
+        scale_vec = vec3<f32>(19.5, 19.5, 19.5);
+        weights = vec4<f32>(0.62, 0.28, 0.10, 0.48);
+        swap_xy = false;
+        bump_strength = 0.22;
+        cavity_gain = 0.80;
+        grain_gain = 0.11;
+        glint_gain = 0.02;
+    } else if (is_brittle && is_transparent) {
+        scale_vec = vec3<f32>(15.0, 15.0, 15.0);
+        weights = vec4<f32>(0.14, 0.18, 0.78, 0.30);
+        swap_xy = false;
+        mode = 2u;
+        bump_strength = 0.18;
+        cavity_gain = 0.52;
+        grain_gain = 0.07;
+        glint_gain = 0.30;
+    }
+
+    switch (mat_id_u) {
+        case 1u, 255u: { // Stone & Bedrock: horizontal sedimentary strata + pitted mineral pores
+            scale_vec = vec3<f32>(13.5, 23.0, 13.5);
+            weights = vec4<f32>(0.52, 0.46, 0.28, 0.34);
+            swap_xy = true;
+            mode = 0u;
+            bump_strength = 0.24;
+            cavity_gain = 0.76;
+            grain_gain = 0.11;
+            glint_gain = 0.05;
+        }
+        case 2u: { // Soil: crumbly isotropic clods & rootlet pores
+            scale_vec = vec3<f32>(20.5, 20.5, 20.5);
+            weights = vec4<f32>(0.68, 0.14, 0.12, 0.50);
+            swap_xy = false;
+            mode = 0u;
+            bump_strength = 0.27;
+            cavity_gain = 0.88;
+            grain_gain = 0.12;
+            glint_gain = 0.0;
+        }
+        case 3u: { // Wood: elongated vertical bark & timber grain flutes
+            scale_vec = vec3<f32>(23.5, 6.8, 23.5);
+            weights = vec4<f32>(0.18, 0.80, 0.12, 0.38);
+            swap_xy = false;
+            mode = 0u;
+            bump_strength = 0.28;
+            cavity_gain = 0.84;
+            grain_gain = 0.13;
+            glint_gain = 0.02;
+        }
+        case 4u: { // Coal: horizontal bedding + crisp anthracite cleat facets
+            scale_vec = vec3<f32>(14.0, 22.5, 14.0);
+            weights = vec4<f32>(0.22, 0.46, 0.64, 0.28);
+            swap_xy = true;
+            mode = 2u;
+            bump_strength = 0.25;
+            cavity_gain = 0.72;
+            grain_gain = 0.09;
+            glint_gain = 0.22;
+        }
+        case 5u, 20u: { // Gold & Sodium: hammered/brushed metallic micro-facets
+            scale_vec = vec3<f32>(19.5, 19.5, 19.5);
+            weights = vec4<f32>(0.24, 0.38, 0.64, 0.22);
+            swap_xy = true;
+            mode = 2u;
+            bump_strength = 0.17;
+            cavity_gain = 0.48;
+            grain_gain = 0.08;
+            glint_gain = 0.26;
+        }
+        case 6u: { // Sand: fine wind/water-rippled quartz grains
+            scale_vec = vec3<f32>(24.0, 28.0, 24.0);
+            weights = vec4<f32>(0.62, 0.28, 0.10, 0.56);
+            swap_xy = true;
+            mode = 0u;
+            bump_strength = 0.24;
+            cavity_gain = 0.78;
+            grain_gain = 0.11;
+            glint_gain = 0.07;
+        }
+        case 7u: { // Gunpowder: coarse matte black-powder prills
+            scale_vec = vec3<f32>(25.0, 25.0, 25.0);
+            weights = vec4<f32>(0.64, 0.10, 0.16, 0.58);
+            swap_xy = false;
+            mode = 0u;
+            bump_strength = 0.26;
+            cavity_gain = 0.86;
+            grain_gain = 0.11;
+            glint_gain = 0.0;
+        }
+        case 8u, 9u, 16u: { // Ice, Glass & Obsidian: conchoidal shell ripples + frost/vitreous glint
+            let s_v = select(14.5, 13.0, mat_id_u == 9u);
+            scale_vec = vec3<f32>(s_v, s_v, s_v);
+            weights = vec4<f32>(0.14, 0.20, 0.76, 0.24);
+            swap_xy = false;
+            mode = 1u;
+            bump_strength = select(0.17, 0.12, mat_id_u == 9u);
+            cavity_gain = 0.45;
+            grain_gain = select(0.07, 0.04, mat_id_u == 9u);
+            glint_gain = 0.30;
+        }
+        case 10u, 12u, 22u, 29u: { // Slime, C4, Soap & Glow-Bulb: smooth dimpled gel / waxy rind
+            scale_vec = vec3<f32>(16.5, 16.5, 16.5);
+            weights = vec4<f32>(0.56, 0.28, 0.18, 0.26);
+            swap_xy = false;
+            mode = 0u;
+            bump_strength = 0.17;
+            cavity_gain = 0.58;
+            grain_gain = 0.08;
+            glint_gain = 0.14;
+        }
+        case 11u: { // Sponge: deep open cellular pores
+            scale_vec = vec3<f32>(21.5, 21.5, 21.5);
+            weights = vec4<f32>(0.74, 0.12, 0.08, 0.68);
+            swap_xy = false;
+            mode = 0u;
+            bump_strength = 0.30;
+            cavity_gain = 1.15;
+            grain_gain = 0.13;
+            glint_gain = 0.0;
+        }
+        case 14u, 15u, 18u, 21u: { // Crystal, Amethyst, Abyssal Seal & Salt: polyhedral cleavage steps & sparkle
+            scale_vec = vec3<f32>(16.0, 16.0, 16.0);
+            weights = vec4<f32>(0.16, 0.18, 0.82, 0.36);
+            swap_xy = false;
+            mode = 2u;
+            bump_strength = 0.22;
+            cavity_gain = 0.58;
+            grain_gain = 0.08;
+            glint_gain = 0.34;
+        }
+        case 17u, 23u, 24u, 25u: { // Rad-Ore, Sulfur, Carbide & Phosphorus: jagged crystalline ore / slag clinker
+            scale_vec = vec3<f32>(17.5, 21.5, 17.5);
+            weights = vec4<f32>(0.54, 0.28, 0.52, 0.46);
+            swap_xy = true;
+            mode = 2u;
+            bump_strength = 0.25;
+            cavity_gain = 0.80;
+            grain_gain = 0.11;
+            glint_gain = 0.15;
+        }
+        case 19u: { // Bitumen: viscous tar flow ripples
+            scale_vec = vec3<f32>(13.0, 20.0, 13.0);
+            weights = vec4<f32>(0.32, 0.52, 0.42, 0.22);
+            swap_xy = true;
+            mode = 1u;
+            bump_strength = 0.21;
+            cavity_gain = 0.64;
+            grain_gain = 0.08;
+            glint_gain = 0.22;
+        }
+        case 26u, 30u: { // Moss & Canopy Foliage: velvety bryophyte / leaf tufts
+            scale_vec = vec3<f32>(22.0, 22.0, 22.0);
+            weights = vec4<f32>(0.68, 0.24, 0.08, 0.58);
+            swap_xy = false;
+            mode = 0u;
+            bump_strength = 0.24;
+            cavity_gain = 0.95;
+            grain_gain = 0.12;
+            glint_gain = 0.0;
+        }
+        case 27u, 31u: { // Hanging Vine & Thorn-Briar: braided vertical fibrous strands
+            scale_vec = vec3<f32>(25.0, 6.2, 25.0);
+            weights = vec4<f32>(0.20, 0.80, 0.14, 0.42);
+            swap_xy = false;
+            mode = 0u;
+            bump_strength = 0.27;
+            cavity_gain = 0.86;
+            grain_gain = 0.12;
+            glint_gain = 0.03;
+        }
+        case 28u: { // Shelf Fungus: pleated gill-cap cellular flesh
+            scale_vec = vec3<f32>(18.0, 24.0, 18.0);
+            weights = vec4<f32>(0.48, 0.54, 0.12, 0.38);
+            swap_xy = true;
+            mode = 0u;
+            bump_strength = 0.22;
+            cavity_gain = 0.78;
+            grain_gain = 0.10;
+            glint_gain = 0.04;
+        }
+        default: {}
+    }
+
+    let max_sc = max(max(scale_vec.x, scale_vec.y), scale_vec.z);
+    let eps_w = 0.82 / max(max_sc, 1.0);
+    let r0 = eval_spec_relief_scalar(p, scale_vec, swap_xy, mode, weights);
+    let rx = eval_spec_relief_scalar(p + vec3<f32>(eps_w, 0.0, 0.0), scale_vec, swap_xy, mode, weights);
+    let ry = eval_spec_relief_scalar(p + vec3<f32>(0.0, eps_w, 0.0), scale_vec, swap_xy, mode, weights);
+    let rz = eval_spec_relief_scalar(p + vec3<f32>(0.0, 0.0, eps_w), scale_vec, swap_xy, mode, weights);
+
+    // Outward elevation h(p) tilts surface normal by -(grad_tan h) so pits shadow inward & rims catch light
+    let grad_h = vec3<f32>(rx.x - r0.x, ry.x - r0.x, rz.x - r0.x);
+    let g_tan = grad_h - raw_normal * dot(grad_h, raw_normal);
+    let tangent_bump = -g_tan * (bump_strength * detail_fade * 1.22);
+    let micro_cavity = clamp((max(0.0, -r0.x) * 0.75 + max(0.0, -r0.y) * 0.45) * cavity_gain, 0.0, 1.0) * detail_fade;
+    let albedo_grain = clamp((r0.x * 0.72 + r0.y * 0.28) * grain_gain, -0.14, 0.14) * detail_fade;
+    let facet_spark = smoothstep(-0.15, 0.55, r0.y);
+    let spec_glint = glint_gain * (0.55 + 0.75 * facet_spark) * detail_fade;
+
+    return SurfaceImperfection(tangent_bump, micro_cavity, albedo_grain, spec_glint);
+}
+
 // Returns vec4(tangent_bevel_normal.xyz, crack_fissure_core)
 fn eval_fracture_3d(p: vec3<f32>, strain: f32, surf_n: vec3<f32>, mat_id_u: u32, tags: u32, toughness: f32) -> vec4<f32> {
     let prof = get_fracture_profile(mat_id_u, tags, toughness);
 
-    // Derive both smooth organic curves and folded C0 jagged lightning kinks from the same 2 world-space noise samples
+    // Derive both smooth organic curves, folded C0 lightning kinks, and real IFFT spectral toothiness!
     let n_lo = vnoise3(p * 2.15);
     let n_hi = vnoise3(p * 5.9);
     let smooth_w = n_lo * 0.75 + n_hi * 0.25;
     let jagged_w = (abs(n_lo) * 2.0 - vec3<f32>(1.0)) * 0.62 + (abs(n_hi) * 2.0 - vec3<f32>(1.0)) * 0.38;
-    let warp = smooth_w * prof.warp_smooth + jagged_w * prof.warp_jagged;
+    let spec_f = sample_spectral_3d(p * 15.5);
+    let spec_warp = vec3<f32>(spec_f.r, spec_f.g, spec_f.b) * (0.045 + 0.11 * prof.warp_jagged) + vec3<f32>(spec_f.a) * 0.035;
+    let warp = smooth_w * prof.warp_smooth + jagged_w * prof.warp_jagged + spec_warp;
 
     let v1 = voronoi_edge_3d(p * prof.scale + warp, prof.jitter);
     let grad1 = v1.xyz * prof.scale;
@@ -413,7 +676,7 @@ fn eval_fracture_3d(p: vec3<f32>, strain: f32, surf_n: vec3<f32>, mat_id_u: u32,
     let seam_n1 = grad1 / grad_len1;
     let d1_world = v1.w / grad_len1;
 
-    let pinch = clamp(0.62 + 0.58 * vnoise3(p * 0.85 + vec3<f32>(11.3, 4.7, 8.1)).x, 0.22, 1.25);
+    let pinch = clamp(0.62 + 0.58 * vnoise3(p * 0.85 + vec3<f32>(11.3, 4.7, 8.1)).x, 0.22, 1.25) * clamp(1.0 + 0.26 * spec_f.a, 0.72, 1.30);
     let w1 = mix(0.014, 0.100, strain * strain) * prof.width_mul * mix(pinch, 1.0, strain * 0.6);
     let core1 = 1.0 - smoothstep(0.0, w1, d1_world);
     let lip1  = 1.0 - smoothstep(w1 * 0.35, w1 * 2.2, d1_world);
@@ -1042,14 +1305,32 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
             let liq_val = textureSampleLevel(liquid_texture, voxel_sampler, uvw, 0.0);
             if (liq_val.g > 0.05) {
                 let raw_liq = textureLoad(liquid_texture, ip_cell, 0);
-                let mat = materials[u32(round(raw_liq.r)) + 256u];
+                let liq_id_u = u32(round(abs(raw_liq.r)));
+                let mat = materials[liq_id_u + 256u];
                 let base_liq = vec3<f32>(mat.r, mat.g, mat.b);
                 let v_liq = textureSampleLevel(vel_texture, voxel_sampler, uvw, 0.0);
                 let l_spd = length(v_liq.xyz);
                 var liq_color = base_liq;
                 var light_env = vec3<f32>(1.0);
                 if ((mat.tags & 2097152u) != 0u) {
-                    liq_color = base_liq * max(1.0, mat.a * 0.65);
+                    let base_glow = base_liq * max(1.0, mat.a * 0.65);
+                    let l_fade = smoothstep(34.0, 7.0, t);
+                    if (liq_id_u == 2u && l_fade > 0.01) {
+                        // Lava: dark cooling basaltic crust plates + white-hot magma fissures!
+                        let m_sp = sample_spectral_3d(p * 8.5 - v_liq.xyz * 2.2 + vec3<f32>(u.time * 0.32, -u.time * 0.20, u.time * 0.26));
+                        let crust_thresh = 0.14 + clamp(l_spd * 0.35, 0.0, 0.42);
+                        let crust = smoothstep(crust_thresh, crust_thresh + 0.36, m_sp.b * 0.75 + m_sp.r * 0.45);
+                        let hot_seam = smoothstep(0.18, -0.10, abs(m_sp.b)) * (0.55 + 0.45 * clamp(m_sp.a + 0.5, 0.0, 1.0));
+                        let sculpted_lava = mix(base_glow, vec3<f32>(0.16, 0.045, 0.035), crust * 0.82)
+                                          + vec3<f32>(1.35, 0.78, 0.18) * (hot_seam * (0.55 + 0.35 * clamp(l_spd, 0.0, 1.5)));
+                        liq_color = mix(base_glow, sculpted_lava, l_fade);
+                    } else if (l_fade > 0.01) {
+                        let c_sp = sample_spectral_3d(p * 10.5 - v_liq.xyz * 2.0 + vec3<f32>(0.0, u.time * 0.45, 0.0));
+                        let caustic = clamp(1.0 + (c_sp.b * 0.22 + c_sp.a * 0.16) * l_fade, 0.74, 1.30);
+                        liq_color = base_glow * caustic;
+                    } else {
+                        liq_color = base_glow;
+                    }
                 } else {
                     let l_gi = textureSampleLevel(light_texture, voxel_sampler, uvw, 0.0).rgb;
                     let sky_open = clamp((p.y - 8.0) / 20.0, 0.08, 1.0);
@@ -1159,12 +1440,17 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 let strain_hi = select(0.90, 0.78, is_brittle);
                 let strain = select(smoothstep(strain_lo, strain_hi, stress_raw), 0.0, is_indestructible);
 
+                let detail_fade = exp(-t * 0.055) * smoothstep(28.0, 4.0, t);
+                let surf_imp = eval_surface_imperfection(p, raw_normal, mat_id_u, mat.tags, detail_fade);
+
                 var crack_core: f32 = 0.0;
+                var frac_bevel = vec3<f32>(0.0);
                 if (strain > 0.005) {
                     let frac = eval_fracture_3d(p, strain, raw_normal, mat_id_u, mat.tags, mat.toughness);
-                    normal = normalize(raw_normal + frac.xyz);
+                    frac_bevel = frac.xyz;
                     crack_core = frac.w;
                 }
+                normal = normalize(raw_normal + surf_imp.tangent_bump + frac_bevel);
                 
                 // Smoothly fade direct sky/moon illumination deep underground so >40m caverns stay dark except for GI & flashlight
                 let sky_exposure = clamp((p.y - 6.0) / 18.0, 0.0, 1.0);
@@ -1185,29 +1471,41 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 let moon_diffuse = max(dot(normal, moon_dir), 0.0);
                 let moon_light = vec3<f32>(0.7, 0.8, 1.0) * moon_diffuse * moon_intensity;
                 
-                // Ambient Occlusion (deepened inside open structural fissures)
-                let ao = getAO(p, raw_normal) * mix(1.0, 0.10, crack_core);
+                // Ambient Occlusion (deepened inside open structural fissures & spectral micro-cavities)
+                let ao = getAO(p, raw_normal) * mix(1.0, 0.10, crack_core) * mix(1.0, 0.72, surf_imp.micro_cavity);
                 
                 // Blend surface sky ambient with moody deep-subterranean ambient
                 let surf_ambient = clamp(u.sun_dir.y * 3.0 + 0.3, 0.2, 1.0);
                 let ambient_intensity = mix(0.22, surf_ambient, sky_exposure);
                 
-                // Combine Shading with GI Block Light (.rgb, clamped after summing so Negative GI Darklight devours ambient & flashlight!)
+                // Combine Shading with 1-Tap Directional GI Block Light (.rgb, preserving Negative GI Darklight!)
                 let ambient = vec3<f32>(0.15, 0.18, 0.25) * ao * ambient_intensity;
                 let direct = vec3<f32>(1.0, 0.95, 0.85) * diffuse * sha * sun_intensity;
-                let block_light = light_sample.rgb;
+                let gi_bevel_p = p + normal * 0.88;
+                let gi_bevel_w = gi_bevel_p - floor(gi_bevel_p / 160.0) * 160.0;
+                let gi_bevel_uvw = clamp(gi_bevel_w / 160.0, vec3<f32>(0.002), vec3<f32>(0.998));
+                let gi_dir_rgb = textureSampleLevel(light_texture, voxel_sampler, gi_bevel_uvw, 0.0).rgb;
+                let pos_gi_base = max(vec3<f32>(0.0), light_sample.rgb);
+                let pos_gi_bevel = max(vec3<f32>(0.0), gi_dir_rgb);
+                let neg_gi = min(vec3<f32>(0.0), min(light_sample.rgb, gi_dir_rgb));
+                let gi_relief = max(vec3<f32>(0.0), pos_gi_base * 0.52 + pos_gi_bevel * 0.48 + (pos_gi_bevel - pos_gi_base) * 0.85);
+                let block_light = gi_relief * mix(1.0, ao, 0.62) + neg_gi;
                 
-                // Player Ambient Glow (modulated slightly by beveled normal so flashlight catches fissure lips!)
+                // Player Ambient Glow (shoulder-offset lantern vector so micro-normals & fissure lips cast crisp raking relief!)
+                let lamp_vec = (u.cam_pos.xyz + u.cam_right.xyz * 0.42 + u.cam_up.xyz * 0.28) - p;
+                let lamp_dir = lamp_vec / max(length(lamp_vec), 0.001);
                 var player_glow = vec3<f32>(0.0);
                 if (u.cam_pos.w > 0.5) {
                     let attenuation = 1.0 / (1.0 + 0.04 * t + 0.009 * t * t);
-                    let view_bevel = clamp(0.55 + 0.65 * max(dot(normal, -cur_rd), 0.0), 0.35, 1.2);
+                    let view_bevel = clamp(0.46 + 0.78 * max(dot(normal, lamp_dir), 0.0), 0.30, 1.24);
                     player_glow = vec3<f32>(1.0, 0.96, 0.88) * attenuation * 2.6 * view_bevel;
                 }
 
                 var emissive = vec3<f32>(0.0);
                 if ((mat.tags & 2097152u) != 0u) {
-                    emissive = base_color * min(mat.a * 0.6, 1.5);
+                    let v_rim = 1.0 - max(dot(normal, -cur_rd), 0.0);
+                    let lum_sculpt = clamp(0.68 + surf_imp.albedo_grain * 1.65 - surf_imp.micro_cavity * 0.55 + pow(v_rim, 2.4) * 0.36, 0.34, 1.32);
+                    emissive = base_color * min(mat.a * 0.6, 1.5) * mix(1.0, lum_sculpt, clamp(detail_fade * 1.15, 0.0, 1.0));
                     // Luminescent crystals/ores bleed intense inner light through stress fissures!
                     emissive += base_color * crack_core * (1.25 + 1.5 * strain);
                     if (mat_id_u == 18u) {
@@ -1253,15 +1551,21 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                     }
                 }
 
+                stained_base = stained_base * clamp(1.0 + surf_imp.albedo_grain, 0.86, 1.14);
                 let rock_albedo = mix(stained_base, stained_base * 0.07, crack_core * 0.94);
                 let total_light = max(vec3<f32>(0.0), direct + ambient + moon_light + block_light + player_glow);
                 var gold_spec = stain_spec * min(length(total_light), 2.0);
+                let spec_l_dir = select(select(normal, lamp_dir, u.cam_pos.w > 0.5), light_dir, sun_intensity > 0.15);
+                let raw_h = -cur_rd + spec_l_dir;
+                let h_vec = raw_h / max(length(raw_h), 0.001);
                 if (mat_id_u == 5u) {
-                    let v_dir = -cur_rd;
-                    let n_dot_v = max(dot(normal, v_dir), 0.0);
-                    let facet = fract(sin(dot(floor(p * 4.5), vec3<f32>(12.9898, 78.233, 37.719))) * 43758.5453);
-                    let glint = pow(n_dot_v, 6.0) * (0.55 + select(0.0, 0.95, facet > 0.76));
-                    gold_spec += vec3<f32>(1.45, 1.12, 0.28) * (glint * min(length(total_light), 2.4) + 0.09);
+                    let n_dot_h = max(dot(normal, h_vec), 0.0);
+                    let spec_mod = 0.58 + 1.65 * surf_imp.spec_glint;
+                    let glint = pow(n_dot_h, 9.0) * spec_mod;
+                    gold_spec += vec3<f32>(1.45, 1.12, 0.28) * (glint * min(length(total_light), 2.4) + 0.08);
+                } else if (surf_imp.spec_glint > 0.002) {
+                    let micro_spec = surf_imp.spec_glint * pow(max(dot(normal, h_vec), 0.0), 14.0) * min(length(total_light), 2.2);
+                    gold_spec += mix(vec3<f32>(0.92, 0.96, 1.0), base_color + vec3<f32>(0.32), 0.45) * micro_spec;
                 }
                 let solid_col = rock_albedo * total_light + emissive + gold_spec;
                 hit_color = mix(solid_col, accum_color, accum_alpha);
