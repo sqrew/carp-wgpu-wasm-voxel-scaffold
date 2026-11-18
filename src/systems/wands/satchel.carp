@@ -1,0 +1,359 @@
+;; =============================================================================
+;; wands/satchel.carp — [Tab] Dual-Strip Workbench & 64-Pocket (8x8) Satchel Bag
+;; =============================================================================
+
+(defmodule WandSystem
+  ;; ===========================================================================
+  ;; Dual-Strip [Tab] Workbench (Unified Slot Addressing:
+  ;;   `0 .. lcap - 1`                   = LMB Primary Strip (`ch-mods`)
+  ;;   `lcap .. lcap + rcap - 1`         = RMB Secondary / Power Strip (`ch-rmb-mods`)
+  ;;   `lcap + rcap .. lcap + rcap + 63` = 64-Pocket Satchel Bag (`8x8` Grid))
+  ;; ===========================================================================
+
+  (defn wb-read-slot [wb tgt lcap rcap slot]
+    (let [wand-slots (+ lcap rcap)]
+      (if (< slot lcap)
+        @(Array.unsafe-nth (WandBelt.ch-mods wb) (+ (* tgt 5) slot))
+        (if (< slot wand-slots)
+          @(Array.unsafe-nth (WandBelt.ch-rmb-mods wb) (+ (* tgt 5) (- slot lcap)))
+          @(Array.unsafe-nth (WandBelt.satchel-gems wb) (WandSystem.clamp-int 0 63 (- slot wand-slots)))))))
+
+  (defn wb-write-slot! [wb tgt lcap rcap slot val]
+    (let [wand-slots (+ lcap rcap)]
+      (if (< slot lcap)
+        (Array.aset! (WandBelt.ch-mods wb) (+ (* tgt 5) slot) val)
+        (if (< slot wand-slots)
+          (Array.aset! (WandBelt.ch-rmb-mods wb) (+ (* tgt 5) (- slot lcap)) val)
+          (Array.aset! (WandBelt.satchel-gems wb) (WandSystem.clamp-int 0 63 (- slot wand-slots)) val)))))
+
+  ;; Guardrail Validator:
+  ;;  1) LMB Strip cannot contain `◆` Power Spells (`101`, `103`).
+  ;;  2) RMB Strip allows at most `1` `◆` Power Spell, and ONLY as a primary spell
+  ;;     (never placed after an Infix Linker `21 = Impact`, `22 = Timer`, `24 = Expiration`!).
+  (defn wb-strips-valid? [wb tgt lcap rcap]
+    (let [base (* tgt 5)
+          lmods (WandBelt.ch-mods wb)
+          rmods (WandBelt.ch-rmb-mods wb)
+          ok true
+          pcores 0
+          seen-infix false]
+      (do
+        (for [li 0 lcap]
+          (when (WandSystem.power-core? @(Array.unsafe-nth lmods (+ base li)))
+            (set! ok false)))
+        (for [ri 0 rcap]
+          (let [rv @(Array.unsafe-nth rmods (+ base ri))]
+            (do
+              (when (WandSystem.power-core? rv)
+                (do
+                  (set! pcores (+ pcores 1))
+                  (when seen-infix (set! ok false))))
+              (when (WandSystem.infix-linker? rv)
+                (set! seen-infix true)))))
+        (and ok (<= pcores 1)))))
+
+  (defn prefix-rune? [r]
+    (or (WandSystem.modifier-rune? r) (or (= r 23) (or (= r 25) (and (>= r 27) (<= r 29))))))
+
+  (defn strip-needs-trig-spell? [mods base cap]
+    (let [open-infix? false]
+      (do
+        (for [si 0 cap]
+          (let [r @(Array.unsafe-nth mods (+ base si))]
+            (when (> r 0)
+              (if (WandSystem.infix-linker? r)
+                (set! open-infix? true)
+                (when (WandSystem.any-spell-rune? r)
+                  (set! open-infix? false))))))
+        open-infix?)))
+
+  (defn wb-initial-exec [mods base cap]
+    (let [has-spell? false
+          open-infix? false
+          trail-start -1]
+      (do
+        (for [si 0 cap]
+          (let [r @(Array.unsafe-nth mods (+ base si))]
+            (when (> r 0)
+              (if (WandSystem.infix-linker? r)
+                (do
+                  (set! open-infix? true)
+                  (set! trail-start -1))
+                (if (WandSystem.any-spell-rune? r)
+                  (do
+                    (set! has-spell? true)
+                    (set! open-infix? false)
+                    (set! trail-start -1))
+                  (when (and (not open-infix?) (and (< trail-start 0) (WandSystem.prefix-rune? r)))
+                    (set! trail-start si)))))))
+        (if (and has-spell? (> trail-start 0)) trail-start 0))))
+
+  (defn wb-touch-wand! [wb ps rx ry rz fx fy fz tgt]
+    (let [tbase (* tgt 5)
+          lcap @(Array.unsafe-nth (WandBelt.ch-mod-cap wb) tgt)
+          rcap @(Array.unsafe-nth (WandBelt.ch-rmb-cap wb) tgt)]
+      (do
+        (Array.aset! (WandBelt.mana wb) tgt 0.0f)
+        (Array.aset! (WandBelt.ch-exec wb) tgt (WandSystem.wb-initial-exec (WandBelt.ch-mods wb) tbase lcap))
+        (Array.aset! (WandBelt.ch-rmb-exec wb) tgt (WandSystem.wb-initial-exec (WandBelt.ch-rmb-mods wb) tbase rcap))
+        (ParticleSystem.emit-sparks! ps (+ rx (* fx 0.82f)) (+ ry (* fy 0.82f)) (+ rz (* fz 0.82f)) fx fy fz 16))))
+
+  (defn wb-owns-item? [wb item-id]
+    (let [lmods (WandBelt.ch-mods wb)
+          rmods (WandBelt.ch-rmb-mods wb)
+          gems (WandBelt.satchel-gems wb)
+          found? false]
+      (do
+        (for [wi 0 15]
+          (when (or (= @(Array.unsafe-nth lmods wi) item-id)
+                    (= @(Array.unsafe-nth rmods wi) item-id))
+            (set! found? true)))
+        (for [gi 0 64]
+          (when (= @(Array.unsafe-nth gems gi) item-id)
+            (set! found? true)))
+        found?)))
+
+  (defn step-satchel! [state input wb ps rx ry rz fx fy fz active-default]
+    (do
+      ;; [K] Sandbox Gift Key: unlocks all 3 Universal Wands, Relic Charges, & ensures all 55 Runes/Cores are owned
+      ;; (leaving 9+ spare pockets open for Quick-Unequip, or gifting 3 stackable extras if you already own all 55)!
+      (when (InputManager.action-pressed? input "debug-loot")
+        (let [gems (WandBelt.satchel-gems wb)
+              seq @(WandBelt.loot-seq wb)
+              added 0
+              showcase [108 107 106 105 104 102 103 101 60 59 58 57 56 55 54 53 52 51 50 49 48 46 47 44 45 42 43 41 36 37 38 39 40 34 35 31 32 33 29 28 27 26 21 22 23 24 25 8 7 1 2 3 4 5 6]
+              extras [60 59 58 57 56 55 54 53 52 51 50 49 48 46 47 44 45 42 43 41 36 37 38 39 40 35 34 31 32 33 29 28 27 26 21 22 23 24 25 8 7 1 2 3 4 5 6]]
+          (do
+            (WandBelt.set-wand-count! wb 3)
+            (WandBelt.set-relic-charges! wb 8)
+            (for [si 0 55]
+              (let [cand @(Array.unsafe-nth &showcase si)]
+                (when (not (WandSystem.wb-owns-item? wb cand))
+                  (when (WandBelt.grant-satchel-gem! wb cand)
+                    (set! added (+ added 1))))))
+            (when (= added 0)
+              (for [ei 0 3]
+                (let [pick @(Array.unsafe-nth &extras (Int.mod (+ seq ei) 47))]
+                  (when (not (WandBelt.grant-satchel-gem! wb pick))
+                    (Array.aset! gems (+ 61 ei) pick)))))
+            (WandBelt.set-loot-seq! wb (+ seq 3))
+            (ParticleSystem.emit-sparks! ps (+ rx (* fx 0.85f)) (+ ry (* fy 0.85f)) (+ rz (* fz 0.85f)) fx fy fz 20))))
+
+      ;; [Tab] Toggle Free-Swap Dual-Strip Workbench
+      (when (InputManager.action-pressed? input "toggle-satchel")
+        (let [next-open (not @(WandBelt.satchel-open wb))
+              wcnt (WandSystem.clamp-int 1 3 @(WandBelt.wand-count wb))]
+          (do
+            (WandBelt.set-satchel-open! wb next-open)
+            (set-js-satchel-open (if next-open 1 0))
+            (WandBelt.set-satchel-grab! wb -1)
+            (when next-open
+              (let [tgt (if (and (>= active-default 0) (< active-default wcnt)) active-default 0)]
+                (WandBelt.set-satchel-target! wb tgt))))))
+
+      ;; 2D 10-Row Cursor Navigation (`2` Wand Strips + `8x8` 64-Pocket Satchel Grid) + [E] Grab/Swap + [Shift+E]/[Backspace] Quick-Move
+      (let [scroll-d (consume-js-satchel-scroll!)]
+        (when @(WandBelt.satchel-open wb)
+          (let [wcnt (WandSystem.clamp-int 1 3 @(WandBelt.wand-count wb))
+                tgt (WandSystem.clamp-int 0 (- wcnt 1) @(WandBelt.satchel-target wb))
+                lcap @(Array.unsafe-nth (WandBelt.ch-mod-cap wb) tgt)
+                rcap @(Array.unsafe-nth (WandBelt.ch-rmb-cap wb) tgt)
+                wand-slots (+ lcap rcap)
+                tot-slots (+ wand-slots 64)
+                raw-cur (WandSystem.clamp-int 0 (- tot-slots 1) @(WandBelt.satchel-cursor wb))
+                scroll-v (Float.round (/ (Float.from-int scroll-d) 100.0f))
+                scroll-h (- scroll-d (* scroll-v 100))
+                h-step (+ scroll-h
+                          (+ (if (InputManager.action-pressed? input "satchel-left") -1 0)
+                             (if (InputManager.action-pressed? input "satchel-right") 1 0)))
+                v-step (+ scroll-v
+                          (+ (if (InputManager.action-pressed? input "satchel-up") -1 0)
+                             (if (InputManager.action-pressed? input "satchel-down") 1 0)))
+                cur-after-h (if (/= h-step 0)
+                              (Int.mod (+ (Int.mod (+ raw-cur h-step) tot-slots) tot-slots) tot-slots)
+                              raw-cur)
+                cur (if (= v-step 0)
+                      cur-after-h
+                      (let [row (if (< cur-after-h lcap)
+                                  0
+                                  (if (< cur-after-h wand-slots)
+                                    1
+                                    (+ 2 (/ (- cur-after-h wand-slots) 8))))
+                            col (if (= row 0)
+                                  cur-after-h
+                                  (if (= row 1)
+                                    (- cur-after-h lcap)
+                                    (Int.mod (- cur-after-h wand-slots) 8)))
+                            nrow (Int.mod (+ (Int.mod (+ row v-step) 10) 10) 10)]
+                        (if (= nrow 0)
+                          (WandSystem.clamp-int 0 (- lcap 1) col)
+                          (if (= nrow 1)
+                            (+ lcap (WandSystem.clamp-int 0 (- rcap 1) col))
+                            (+ wand-slots (+ (* (- nrow 2) 8) (WandSystem.clamp-int 0 7 col)))))))
+                shift? (InputManager.action-digital? input "mod-shift")
+                e-tap? (InputManager.action-pressed? input "weld-hold")
+                q-tap? (or (InputManager.action-pressed? input "satchel-quick")
+                           (and e-tap? shift?))
+                swap-tap? (and e-tap? (not shift?))]
+            (do
+              (WandBelt.set-satchel-target! wb tgt)
+              (WandBelt.set-satchel-cursor! wb cur)
+
+              ;; Quick-Transfer (`Shift + E` or `Backspace`): 1-tap equip/unequip without losing items!
+              (when q-tap?
+                (let [cval (WandSystem.wb-read-slot wb tgt lcap rcap cur)
+                      gems (WandBelt.satchel-gems wb)
+                      lmods (WandBelt.ch-mods wb)
+                      rmods (WandBelt.ch-rmb-mods wb)
+                      tbase (* tgt 5)]
+                  (do
+                    (WandBelt.set-satchel-grab! wb -1)
+                    (when (> cval 0)
+                      (if (< cur wand-slots)
+                        ;; From LMB or RMB Strip -> First Empty Bag Pocket (`0..63`)
+                        (let [empty-bag -1]
+                          (do
+                            (for [bi 0 64]
+                              (when (and (< empty-bag 0) (= @(Array.unsafe-nth gems bi) 0))
+                                (set! empty-bag bi)))
+                            (when (>= empty-bag 0)
+                              (let [old-v cval]
+                                (do
+                                  (WandSystem.wb-write-slot! wb tgt lcap rcap cur 0)
+                                  (if (WandSystem.wb-strips-valid? wb tgt lcap rcap)
+                                    (do
+                                      (Array.aset! gems empty-bag old-v)
+                                      (WandSystem.wb-touch-wand! wb ps rx ry rz fx fy fz tgt))
+                                    (WandSystem.wb-write-slot! wb tgt lcap rcap cur old-v)))))))
+                        ;; From Bag Pocket -> Active Wand (Power Spell -> RMB Strip; Rune -> LMB Empty, else RMB Empty, else LMB Last!)
+                        (if (WandSystem.power-core? cval)
+                          (let [placed? false]
+                            (do
+                              ;; 1) Swap with existing Power Core in RMB if present
+                              (for [ri 0 rcap]
+                                (when (and (not placed?) (WandSystem.power-core? @(Array.unsafe-nth rmods (+ tbase ri))))
+                                  (let [old-r @(Array.unsafe-nth rmods (+ tbase ri))]
+                                    (do
+                                      (Array.aset! rmods (+ tbase ri) cval)
+                                      (if (WandSystem.wb-strips-valid? wb tgt lcap rcap)
+                                        (do
+                                          (WandSystem.wb-write-slot! wb tgt lcap rcap cur old-r)
+                                          (WandSystem.wb-touch-wand! wb ps rx ry rz fx fy fz tgt)
+                                          (set! placed? true))
+                                        (Array.aset! rmods (+ tbase ri) old-r))))))
+                              ;; 2) First empty valid RMB socket
+                              (for [ri 0 rcap]
+                                (when (and (not placed?) (= @(Array.unsafe-nth rmods (+ tbase ri)) 0))
+                                  (do
+                                    (Array.aset! rmods (+ tbase ri) cval)
+                                    (if (WandSystem.wb-strips-valid? wb tgt lcap rcap)
+                                      (do
+                                        (WandSystem.wb-write-slot! wb tgt lcap rcap cur 0)
+                                        (WandSystem.wb-touch-wand! wb ps rx ry rz fx fy fz tgt)
+                                        (set! placed? true))
+                                      (Array.aset! rmods (+ tbase ri) 0)))))
+                              ;; 3) Fallback: swap into RMB Socket ① (`ri == 0`)
+                              (when (not placed?)
+                                (let [old0 @(Array.unsafe-nth rmods tbase)]
+                                  (do
+                                    (Array.aset! rmods tbase cval)
+                                    (if (WandSystem.wb-strips-valid? wb tgt lcap rcap)
+                                      (do
+                                        (WandSystem.wb-write-slot! wb tgt lcap rcap cur old0)
+                                        (WandSystem.wb-touch-wand! wb ps rx ry rz fx fy fz tgt))
+                                      (Array.aset! rmods tbase old0)))))))
+                          (let [placed? false
+                                pref? (WandSystem.prefix-rune? cval)]
+                            (do
+                              ;; 1) First empty LMB socket (Prefix Modifiers/Linkers insert at Socket ① in front of spells!)
+                              (for [li 0 lcap]
+                                (when (and (not placed?) (= @(Array.unsafe-nth lmods (+ tbase li)) 0))
+                                  (do
+                                    (if (and pref? (and (> li 0) (not (WandSystem.strip-needs-trig-spell? lmods tbase li))))
+                                      (let [sk li]
+                                        (do
+                                          (while (> sk 0)
+                                            (do
+                                              (Array.aset! lmods (+ tbase sk) @(Array.unsafe-nth lmods (+ tbase (- sk 1))))
+                                              (set! sk (- sk 1))))
+                                          (Array.aset! lmods tbase cval)))
+                                      (Array.aset! lmods (+ tbase li) cval))
+                                    (WandSystem.wb-write-slot! wb tgt lcap rcap cur 0)
+                                    (WandSystem.wb-touch-wand! wb ps rx ry rz fx fy fz tgt)
+                                    (set! placed? true))))
+                              ;; 2) First empty valid RMB socket
+                              (for [ri 0 rcap]
+                                (when (and (not placed?) (= @(Array.unsafe-nth rmods (+ tbase ri)) 0))
+                                  (if (and pref? (and (> ri 0) (not (WandSystem.strip-needs-trig-spell? rmods tbase ri))))
+                                    (let [sk ri]
+                                      (do
+                                        (while (> sk 0)
+                                          (do
+                                            (Array.aset! rmods (+ tbase sk) @(Array.unsafe-nth rmods (+ tbase (- sk 1))))
+                                            (set! sk (- sk 1))))
+                                        (Array.aset! rmods tbase cval)
+                                        (if (WandSystem.wb-strips-valid? wb tgt lcap rcap)
+                                          (do
+                                            (WandSystem.wb-write-slot! wb tgt lcap rcap cur 0)
+                                            (WandSystem.wb-touch-wand! wb ps rx ry rz fx fy fz tgt)
+                                            (set! placed? true))
+                                          (let [rk 0]
+                                            (do
+                                              (while (< rk ri)
+                                                (do
+                                                  (Array.aset! rmods (+ tbase rk) @(Array.unsafe-nth rmods (+ tbase (+ rk 1))))
+                                                  (set! rk (+ rk 1))))
+                                              (Array.aset! rmods (+ tbase ri) 0))))))
+                                    (do
+                                      (Array.aset! rmods (+ tbase ri) cval)
+                                      (if (WandSystem.wb-strips-valid? wb tgt lcap rcap)
+                                        (do
+                                          (WandSystem.wb-write-slot! wb tgt lcap rcap cur 0)
+                                          (WandSystem.wb-touch-wand! wb ps rx ry rz fx fy fz tgt)
+                                          (set! placed? true))
+                                        (Array.aset! rmods (+ tbase ri) 0))))))
+                              ;; 3) Fallback: swap into last LMB socket
+                              (when (not placed?)
+                                (let [last-s (- lcap 1)
+                                      old-l @(Array.unsafe-nth lmods (+ tbase last-s))]
+                                  (do
+                                    (Array.aset! lmods (+ tbase last-s) cval)
+                                    (WandSystem.wb-write-slot! wb tgt lcap rcap cur old-l)
+                                    (WandSystem.wb-touch-wand! wb ps rx ry rz fx fy fz tgt))))))))))))
+
+              ;; Grab / Swap (`[E]`): pick up any slot, move anywhere compatible, tap `[E]` to swap/reorder!
+              (when swap-tap?
+                (let [grab @(WandBelt.satchel-grab wb)]
+                  (if (< grab 0)
+                    (when (> (WandSystem.wb-read-slot wb tgt lcap rcap cur) 0)
+                      (WandBelt.set-satchel-grab! wb cur))
+                    (if (= grab cur)
+                      (WandBelt.set-satchel-grab! wb -1)
+                      (let [src (WandSystem.clamp-int 0 (- tot-slots 1) grab)
+                            val-a (WandSystem.wb-read-slot wb tgt lcap rcap src)
+                            rmods (WandBelt.ch-rmb-mods wb)
+                            tbase (* tgt 5)
+                            existing-pc-slot -1]
+                        (do
+                          (for [ri 0 rcap]
+                            (when (WandSystem.power-core? @(Array.unsafe-nth rmods (+ tbase ri)))
+                              (set! existing-pc-slot (+ lcap ri))))
+                          ;; Smart routing: dropping a `◆` Power Spell onto LMB targets RMB's existing `◆` or RMB Socket ①!
+                          (let [dst (if (and (WandSystem.power-core? val-a) (< cur lcap))
+                                      (if (>= existing-pc-slot 0) existing-pc-slot lcap)
+                                      cur)
+                                val-b (WandSystem.wb-read-slot wb tgt lcap rcap dst)]
+                            (do
+                              (WandSystem.wb-write-slot! wb tgt lcap rcap dst val-a)
+                              (WandSystem.wb-write-slot! wb tgt lcap rcap src val-b)
+                              (if (WandSystem.wb-strips-valid? wb tgt lcap rcap)
+                                (do
+                                  (WandBelt.set-satchel-grab! wb -1)
+                                  (when (or (< src wand-slots) (< dst wand-slots))
+                                    (WandSystem.wb-touch-wand! wb ps rx ry rz fx fy fz tgt)))
+                                ;; Invalid placement (e.g. `◆` placed after a Trigger): revert cleanly and keep grab active!
+                                (do
+                                  (WandSystem.wb-write-slot! wb tgt lcap rcap dst val-b)
+                                  (WandSystem.wb-write-slot! wb tgt lcap rcap src val-a)))))))))))))))))
+
+)

@@ -290,7 +290,7 @@ canvas.emscripten { border: 0px none; background-color: black; }
         <!-- 64-Pocket Satchel Bag (8x8 Grid) -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; padding: 0 2px;">
           <span style="font-size: 8.5px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: #8c99b0;">Satchel Rune Bag (64 Pockets)</span>
-          <span style="font-size: 8.5px; color: #78849b;">←→↑↓ / Scroll Navigate • [E] Grab / Swap • [&#8679;E / &#9003;] Quick-Move</span>
+          <span style="font-size: 8.5px; color: #78849b;">←→↑↓ / Wheel (<strong style="color:#b3e5fc;">&#8679;Wheel ×8 Row</strong>) • [E] Swap • [<strong style="color:#ffd54f;">&#8679;E</strong> / &#9003;] Quick-Move</span>
         </div>
         <div id="wb-gem-row" style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 3.5px; margin-bottom: 6px;"></div>
         <!-- Selected / Grabbed Rune Details + Action Pill -->
@@ -668,13 +668,15 @@ canvas.emscripten { border: 0px none; background-color: black; }
          if (canvasElement) canvasElement.focus();
       }
 
-      // Shift + Wheel cycles the sandbox reagent for the active tank's phase; plain Wheel scrolls [Tab] Satchel!
+      // In [Tab] Satchel: Wheel steps ±1 rune, Shift + Wheel rapid-jumps ±1 row (8 runes)! When closed: Shift + Wheel cycles sandbox reagents!
       window.addEventListener('wheel', (e) => {
          e.preventDefault();
          const rawDelta = (Math.abs(e.deltaY) >= Math.abs(e.deltaX)) ? e.deltaY : e.deltaX;
          if (rawDelta === 0) return;
          const step = rawDelta > 0 ? 1 : -1;
-         if (e.shiftKey) {
+         if (window.satchel_open && typeof Module !== 'undefined' && Module._satchel_scroll) {
+            Module._satchel_scroll(e.shiftKey ? (step * 100) : step);
+         } else if (e.shiftKey) {
             const slot = window.rig_slot || 0;
             if (slot === 1 && LIQUIDS.length > 0) {
                liq_idx = (liq_idx + step + LIQUIDS.length) % LIQUIDS.length;
@@ -686,8 +688,6 @@ canvas.emscripten { border: 0px none; background-color: black; }
                solid_idx = (solid_idx + step + SOLIDS.length) % SOLIDS.length;
                updateHUD(0);
             }
-         } else if (window.satchel_open && typeof Module !== 'undefined' && Module._satchel_scroll) {
-            Module._satchel_scroll(step);
          }
       }, { passive: false });
 
@@ -2195,9 +2195,9 @@ canvas.emscripten { border: 0px none; background-color: black; }
               ? ('Empty LMB Socket ' + (cur + 1) + '/' + lcap + ' • Drop Basic Spells, Linkers (💥/⏱/💀/2x/🔁), or Modifiers!')
               : ((cur < wandSlots)
                   ? ('Empty [4] RMB Socket ' + (cur - lcap + 1) + '/' + rcap + ' • Drop ◆ Rail-Lance / ◆ Gyre OR custom RMB Spells + Runes!')
-                  : 'Empty Satchel Pocket • Press [K] for all 18 Runes & 3 Wands, or slay Ecomancers!');
+                  : 'Empty Satchel Pocket • Press [K] for all 55 Runes & 3 Wands, or slay Ecomancers!');
             descEl.innerText        = emptyHint;
-            actEl.innerText         = '←→↑↓ NAVIGATE';
+            actEl.innerText         = 'WHEEL • ⇧WHEEL ×8';
             actEl.style.borderColor = 'rgba(255,255,255,0.22)';
             actEl.style.color       = '#9aa4b8';
             actEl.style.background  = 'rgba(255,255,255,0.06)';

@@ -236,7 +236,7 @@ The seeded biome stratigraphy (`Surface Meadow -> Mossy Karst -> Crystal Vaults 
 
 ## 9. Universal Rune-Strip Wand Grimoire — Shipped Roster & Idea Backlog
 
-### 9.1. Shipped Wand System (`src/systems/wands.carp`, 55 Items Live, 64-Pocket `8×8` Satchel)
+### 9.1. Shipped Wand System (`src/systems/wands.carp` + `src/systems/wands/*.carp`, 55 Items Live, 64-Pocket `8×8` Satchel)
 - **Dual-Strip Universal Chassis (`0=Conduit 4L/3R`, `1=Stinger 5L/2R`, `2=Artillery 3L/5R`) + Twin Lock-on-Fill Tanks (`[1]` & `[2]`) + `64`-Pocket (`8×8`) Satchel Bag + `8,192`-Bolt SoA Pool (`bolt-fx` + `bolt-fx2` + `bolt-fx3` + `bolt-fx4`)**.
 - **Shipped LMB Spell Runes (`1..8`)**: `1=Sparkbolt`, `2=Bullet`, `3=Minimortar`, `4=Luminous Drill` (`-0.18s`), `5=Buckshot`, `6=Spitter`, `7=Caltrop Mine` (3-pellet proximity floor mines; `+Trigger` = Claymores; `+Invert` = Ceiling Mines; `+Empower` = **⚡ Tesla Arc-Mines**), `8=Chakram` (waist-level razor ring with `+2` gyro wall bounces, creature cleave + smart target-banking, & return-catch `+5.5` Mana / `-0.10s` CD refund; `+Empower` = **✂️ Twin Scissor-Chakrams**).
 - **Shipped Linker & Volley Runes (`21..29`)**: `21=Impact Trigger`, `22=Airburst Timer`, `23=2x Twin`, `24=Expire Trigger`, `25=Echo Burst`, `26=Cast-on-Bounce` (`🏀BNC`: unleashes Payload on every wall bounce & Chakram bank!), `27=Double-Cast (×2)`, `28=Triple-Cast (×3)`, `29=Quad-Cast (×4)` (multiplicative Simple-Spell volley cloners up to `×16` with sublinear mana scaling; `+Invert` = **Wingman Crossfire / Fin-Funnel Shoulder Halo**!).

@@ -208,7 +208,7 @@
       }
       if (same) {
           for (int i = 0; i < 15; i++) {
-              if (lmods[i] != p_lmods[i] || rmods[i] != rmods[i] || rmods[i] != p_rmods[i]) { same = 0; break; }
+              if (lmods[i] != p_lmods[i] || rmods[i] != p_rmods[i]) { same = 0; break; }
           }
       }
       if (same) {

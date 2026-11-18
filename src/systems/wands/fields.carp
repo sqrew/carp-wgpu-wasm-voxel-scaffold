@@ -1,0 +1,976 @@
+;; =============================================================================
+;; wands/fields.carp — 6-State Electromagnetic Force-Fields & Nuclear/Pym Cascade
+;; =============================================================================
+
+(defmodule WandSystem
+  ;; 6-State 3D Electromagnetic Force-Field Engine (`53 = 🧲 Magnet`, `54 = 🛡️ Repulse`, & `42 = 🔄 Invert`):
+  ;;   1 = `🧲 Magnet` Solo (Tractor Comet: hijacks Mancer Orbs & drags boulders, 24k Gold, Slimes & Hoppers in wake!)
+  ;;   2 = `🛡️ Repulse` Solo (Deflector Dome: Return-to-Sender parries Mancer Orbs back at Mancers + parts Lava/Acid!)
+  ;;   3 = `⚡ Lorentz Rail-Slingshot` (`[Repulse + Invert]`: pinches debris/foes onto axis & rail-launches at Mach 3!)
+  ;;   4 = `🌀 Mag-Lev Wall-Skimmer` (`[Magnet + Invert]`: magnetically hugs & banks parallel to cave walls/floors/ceilings!)
+  ;;   5 = `🪐 Saturn Accretion Ring` (`[Magnet + Repulse]`: stabilizes captured boulders, Gold, Slimes & Orbs in a 2.5m chainsaw ring!)
+  ;;   6 = `🌩️ MAGNETAR` (`[Magnet + Repulse + Invert]`: 25m Mancer halo stripper, wrenches Gold/Boulders from walls & rail-fires them!)
+  (defn step-bolt-em-field! [state world ps ecs px py pz vx vy vz brad wid bmat bdmg stuck mgm mgs player-id fc bi fdt do-em?]
+    (let [spd (Float.sqrt (+ (+ (* vx vx) (* vy vy)) (* vz vz)))
+          sinv (if (> spd 0.05f) (/ 1.0f spd) 0.0f)
+          ux (if (> spd 0.05f) (* vx sinv) 0.0f)
+          uy (if (> spd 0.05f) (* vy sinv) 1.0f)
+          uz (if (> spd 0.05f) (* vz sinv) 0.0f)
+          st (Float.from-int (WandSystem.clamp-int 1 3 mgs))]
+      (if (= mgm 4)
+        ;; === Mode 4: `🌀 Mag-Lev Wall-Skimmer` (`[🧲 Magnet + 🔄 Invert]`) ===
+        (do
+          (when do-em?
+            (let [mbk4 (EngineState.mancers state)
+                  o-st4 (MancerBank.orb-state mbk4)
+                  o-id4 (MancerBank.orb-idx mbk4)
+                  o-gn4 (MancerBank.orb-gen mbk4)
+                  grab4 @(RigBelt.grab-idx (EngineState.rig state))
+                  dpx4 (Double.from-float px)
+                  dpy4 (Double.from-float py)
+                  dpz4 (Double.from-float pz)]
+              (for [ok 0 20]
+                (when (> @(Array.unsafe-nth o-st4 ok) 0)
+                  (let [oidx @(Array.unsafe-nth o-id4 ok)]
+                    (when (not (Uint64.= grab4 oidx))
+                      (let [oent (ECS.Entity.init (Handle.init oidx @(Array.unsafe-nth o-gn4 ok)))
+                            ocb-opt (the (Maybe CompBody) (get-component ecs &oent))]
+                        (match ocb-opt
+                          (Maybe.Nothing) ()
+                          (Maybe.Just ocb)
+                            (let [orb (CompBody.rb &ocb)
+                                  opos @(RigidBody.position orb)
+                                  odx (- @(Vector3.x &opos) dpx4)
+                                  ody (- @(Vector3.y &opos) dpy4)
+                                  odz (- @(Vector3.z &opos) dpz4)
+                                  od (Double.sqrt (+ (+ (* odx odx) (* ody ody)) (* odz odz)))]
+                              (when (< od 6.5)
+                                (let [ob (RigidBody.body orb)
+                                      oinv (if (> od 0.12) (/ 28.0 od) 0.0)]
+                                  (do
+                                    (MancerSystem.hijack-orb-by-idx! state oidx)
+                                    (Body.set-body-type! ob (BodyType.Dynamic))
+                                    (Body.set-inv-mass! ob 1.0)
+                                    (Body.set-is-sleeping! ob false)
+                                    (Body.set-velocity! ob (Vector3.init (* odx oinv) (+ (* ody oinv) 4.0) (* odz oinv)))
+                                    (RigidBody.set-body! orb @ob)
+                                    (ECS.add-component! ecs &oent (CompBody.init @orb))))))))))))))
+          (if (and (<= stuck 0) (> spd 0.5f))
+            (let [look-d (Float.clamp 1.25f 2.75f (+ (+ (* brad 1.4f) 0.65f) (* spd 0.036f)))
+                  probe (Vector3.init (Double.from-float (+ px (* ux look-d)))
+                                      (Double.from-float (+ py (* uy look-d)))
+                                      (Double.from-float (+ pz (* uz look-d))))
+                  near-p (Vector3.init (Double.from-float (+ px (* ux 0.35f)))
+                                       (Double.from-float (+ py (* uy 0.35f)))
+                                       (Double.from-float (+ pz (* uz 0.35f))))
+                  d-ahead (Physics.sample-sdf-trilinear world &probe)
+                  d-near (Physics.sample-sdf-trilinear world &near-p)
+                  d-min (if (< d-near d-ahead) d-near d-ahead)
+                  cushion (+ brad (+ 0.95f (* 0.30f st)))]
+              (if (and (< d-min cushion) (> d-min -900.0f))
+                (let [nrm (if (< d-near d-ahead)
+                            (Physics.estimate-sdf-normal world &near-p)
+                            (Physics.estimate-sdf-normal world &probe))
+                      wnx (Double.to-float @(Vector3.x &nrm))
+                      wny (Double.to-float @(Vector3.y &nrm))
+                      wnz (Double.to-float @(Vector3.z &nrm))
+                      vn (+ (+ (* vx wnx) (* vy wny)) (* vz wnz))]
+                  (if (< vn (* spd 0.14f))
+                    (let [cut (if (< vn 0.0f) (* vn 1.08f) 0.0f)
+                          push-away (if (< d-min (+ brad 0.55f)) (* spd 0.28f) (* spd 0.08f))
+                          tvx (+ (- vx (* cut wnx)) (* wnx push-away))
+                          tvy (+ (- vy (* cut wny)) (* wny push-away))
+                          tvz (+ (- vz (* cut wnz)) (* wnz push-away))
+                          tlen (Float.sqrt (+ (+ (* tvx tvx) (* tvy tvy)) (* tvz tvz)))
+                          tscale (if (> tlen 0.05f) (/ spd tlen) 1.0f)]
+                      (do
+                        (when (= (Int.mod (+ fc bi) 4) 0)
+                          (ParticleSystem.emit-sparks! ps px py pz wnx wny wnz 2))
+                        (Vector3.init (Double.from-float (* tvx tscale))
+                                      (Double.from-float (* tvy tscale))
+                                      (Double.from-float (* tvz tscale)))))
+                    (Vector3.init (Double.from-float vx) (Double.from-float vy) (Double.from-float vz))))
+                (Vector3.init (Double.from-float vx) (Double.from-float vy) (Double.from-float vz))))
+            (Vector3.init (Double.from-float vx) (Double.from-float vy) (Double.from-float vz))))
+
+        ;; === Modes 1, 2, 3, 5, 6: Active 3D Electromagnetic Field Sweep ===
+        (if (not do-em?)
+          (Vector3.init (Double.from-float vx) (Double.from-float vy) (Double.from-float vz))
+          (let [em-r (if (= mgm 6)
+                       25.0f
+                       (if (= mgm 5)
+                         (+ 8.5f (+ brad (* 1.8f st)))
+                         (if (= mgm 1)
+                           (+ 7.4f (+ brad (* 1.8f st)))
+                           (if (= mgm 3)
+                             (+ 6.8f (+ brad (* 1.6f st)))
+                             (+ 5.5f (+ brad (* 1.4f st)))))))
+                dem-r (Double.from-float em-r)
+                dpx (Double.from-float px)
+                dpy (Double.from-float py)
+                dpz (Double.from-float pz)
+                dvx (Double.from-float vx)
+                dvy (Double.from-float vy)
+                dvz (Double.from-float vz)
+                dux (Double.from-float ux)
+                duy (Double.from-float uy)
+                duz (Double.from-float uz)
+                uvec (Vector3.init dux duy duz)
+                nvec (if (and (= mgm 5) (> stuck 0)) (Vector3.init 0.0 1.0 0.0) @&uvec)
+                rv (WandSystem.ortho-right (Double.to-float @(Vector3.x &nvec))
+                                           (Double.to-float @(Vector3.y &nvec))
+                                           (Double.to-float @(Vector3.z &nvec)))
+                grab-idx @(RigBelt.grab-idx (EngineState.rig state))
+                mbk (EngineState.mancers state)
+                o-state (MancerBank.orb-state mbk)
+                o-owner (MancerBank.orb-owner mbk)
+                o-idx (MancerBank.orb-idx mbk)
+                o-gen (MancerBank.orb-gen mbk)
+                m-alive (MancerBank.alive mbk)
+                m-idx (MancerBank.idx mbk)
+                m-gen (MancerBank.gen mbk)
+                cbank (EngineState.critters state)
+                a-alive (CritterBank.alive cbank)
+                a-idx (CritterBank.idx cbank)
+                a-gen (CritterBank.gen cbank)
+                a-state (CritterBank.state cbank)
+                alpha (Physics.clamp 0.22 0.68 (* (Double.from-float fdt) 10.5))]
+            (do
+              ;; 1. Ecomancer Halo Orb Hijack (`mgm = 1, 3, 5, 6`) & Return-to-Sender Sniper Parry (`mgm = 2, 6`)!
+              (for [ok 0 20]
+                (when (> @(Array.unsafe-nth o-state ok) 0)
+                  (let [oidx @(Array.unsafe-nth o-idx ok)
+                        ogen @(Array.unsafe-nth o-gen ok)
+                        prev-owner @(Array.unsafe-nth o-owner ok)]
+                    (when (not (Uint64.= grab-idx oidx))
+                      (let [oent (ECS.Entity.init (Handle.init oidx ogen))
+                            ocb-opt (the (Maybe CompBody) (get-component ecs &oent))]
+                        (match ocb-opt
+                          (Maybe.Nothing) ()
+                          (Maybe.Just ocb)
+                            (let [orb (CompBody.rb &ocb)
+                                  opos @(RigidBody.position orb)
+                                  odx (- @(Vector3.x &opos) dpx)
+                                  ody (- @(Vector3.y &opos) dpy)
+                                  odz (- @(Vector3.z &opos) dpz)
+                                  od (Double.sqrt (+ (+ (* odx odx) (* ody ody)) (* odz odz)))]
+                              (when (< od (+ dem-r 1.4))
+                                (do
+                                  (MancerSystem.hijack-orb-by-idx! state oidx)
+                                  (when (or (= mgm 2) (and (= mgm 6) (= (Int.mod ok 2) 0)))
+                                    (let [tgt-m (if (and (>= prev-owner 0) (and (< prev-owner 4) @(Array.unsafe-nth m-alive prev-owner)))
+                                                  prev-owner
+                                                  (if @(Array.unsafe-nth m-alive 0) 0
+                                                  (if @(Array.unsafe-nth m-alive 1) 1
+                                                  (if @(Array.unsafe-nth m-alive 2) 2
+                                                  (if @(Array.unsafe-nth m-alive 3) 3 -1)))))
+                                          parry-spd (if (= mgm 6) 84.0 62.0)
+                                          ob (RigidBody.body orb)]
+                                      (if (>= tgt-m 0)
+                                        (let [ment (ECS.Entity.init (Handle.init @(Array.unsafe-nth m-idx tgt-m)
+                                                                                 @(Array.unsafe-nth m-gen tgt-m)))
+                                              mcb-opt (the (Maybe CompBody) (get-component ecs &ment))]
+                                          (match mcb-opt
+                                            (Maybe.Nothing) ()
+                                            (Maybe.Just mcb)
+                                              (let [mpos @(RigidBody.position (CompBody.rb &mcb))
+                                                    tdx (- @(Vector3.x &mpos) @(Vector3.x &opos))
+                                                    tdy (- (+ @(Vector3.y &mpos) 0.35) @(Vector3.y &opos))
+                                                    tdz (- @(Vector3.z &mpos) @(Vector3.z &opos))
+                                                    tlen (Double.sqrt (+ (+ (* tdx tdx) (* tdy tdy)) (* tdz tdz)))
+                                                    tinv (if (> tlen 0.08) (/ parry-spd tlen) 0.0)]
+                                                (do
+                                                  (Body.set-body-type! ob (BodyType.Dynamic))
+                                                  (Body.set-inv-mass! ob 1.0)
+                                                  (Body.set-is-sleeping! ob false)
+                                                  (Body.set-velocity! ob (Vector3.init (* tdx tinv) (* tdy tinv) (* tdz tinv)))
+                                                  (RigidBody.set-body! orb @ob)
+                                                  (ECS.add-component! ecs &oent (CompBody.init @orb))
+                                                  (ParticleSystem.emit-sparks! ps
+                                                    (Double.to-float @(Vector3.x &opos))
+                                                    (Double.to-float @(Vector3.y &opos))
+                                                    (Double.to-float @(Vector3.z &opos))
+                                                    ux uy uz 8)))))
+                                        (let [oinv (if (> od 0.10) (/ parry-spd od) 0.0)]
+                                          (do
+                                            (Body.set-body-type! ob (BodyType.Dynamic))
+                                            (Body.set-inv-mass! ob 1.0)
+                                            (Body.set-is-sleeping! ob false)
+                                            (Body.set-velocity! ob (Vector3.init (* odx oinv) (+ (* ody oinv) 3.5) (* odz oinv)))
+                                            (RigidBody.set-body! orb @ob)
+                                            (ECS.add-component! ecs &oent (CompBody.init @orb))))))))))))))))
+
+              ;; 2. Peel clinging wall/ceiling Slimes into dynamic magnetic flight (`mgm = 1, 3, 5, 6`)!
+              (when (/= mgm 2)
+                (for [ak 0 16]
+                  (when (and @(Array.unsafe-nth a-alive ak) (< @(Array.unsafe-nth a-state ak) 3))
+                    (let [aent (ECS.Entity.init (Handle.init @(Array.unsafe-nth a-idx ak) @(Array.unsafe-nth a-gen ak)))
+                          acb-opt (the (Maybe CompBody) (get-component ecs &aent))]
+                      (match acb-opt
+                        (Maybe.Nothing) ()
+                        (Maybe.Just acb)
+                          (let [apos @(RigidBody.position (CompBody.rb &acb))
+                                adx (- @(Vector3.x &apos) dpx)
+                                ady (- @(Vector3.y &apos) dpy)
+                                adz (- @(Vector3.z &apos) dpz)
+                                ad (Double.sqrt (+ (+ (* adx adx) (* ady ady)) (* adz adz)))]
+                            (when (< ad dem-r)
+                              (Array.aset! a-state ak 4))))))))
+
+              ;; 3. `🌩️ MAGNETAR` (`mgm == 6`): Wrenches live `24k` Gold Nuggets & Boulders directly out of nearby cave walls!
+              (when (and (= mgm 6) (= (Int.mod (+ fc (* bi 3)) 8) 0))
+                (let [ang (+ (* (Float.from-int fc) 0.83f) (* (Float.from-int bi) 2.1f))
+                      ca (WandSystem.fcos ang)
+                      sa (WandSystem.fsin ang)
+                      uv (Vector3.cross &rv &uvec)
+                      rx (+ (* (Double.to-float @(Vector3.x &rv)) ca) (* (Double.to-float @(Vector3.x &uv)) sa))
+                      ry (+ (* (Double.to-float @(Vector3.y &rv)) ca) (* (Double.to-float @(Vector3.y &uv)) sa))
+                      rz (+ (* (Double.to-float @(Vector3.z &rv)) ca) (* (Double.to-float @(Vector3.z &uv)) sa))
+                      wrenched? false]
+                  (for [ri 1 5]
+                    (when (not wrenched?)
+                      (let [rd (* 1.15f (Float.from-int ri))
+                            wx (+ px (* rx rd))
+                            wy (+ py (* ry rd))
+                            wz (+ pz (* rz rd))
+                            wvec (Vector3.init (Double.from-float wx) (Double.from-float wy) (Double.from-float wz))
+                            ds (Physics.sample-sdf-trilinear world &wvec)]
+                        (when (and (<= ds 0.35f) (> ds -900.0f))
+                          (let [near-m (CritterSystem.sample-solid-mat-near world &wvec)]
+                            (when (and (>= near-m 1.0f) (< near-m 250.0f))
+                              (let [sp-pos (Vector3.init (Double.from-float (- wx (* rx 0.55f)))
+                                                         (Double.from-float (- wy (* ry 0.55f)))
+                                                         (Double.from-float (- wz (* rz 0.55f))))
+                                    sp-vel (Vector3.init (+ (* (Double.from-float (- 0.0f rx)) 18.0) (* dux 12.0))
+                                                         (+ (* (Double.from-float (- 0.0f ry)) 18.0) 3.5)
+                                                         (+ (* (Double.from-float (- 0.0f rz)) 18.0) (* duz 12.0)))]
+                                (do
+                                  (set! wrenched? true)
+                                  (EngineState.push-voxel-action! state wx wy wz 0.78f near-m -1.0f 0.0f)
+                                  (MancerSystem.edit-bender-sdf! world &wvec 0.68 near-m true)
+                                  (if (= (Float.round near-m) 5)
+                                    (ignore (GoldSystem.spawn-nugget! state sp-pos sp-vel 0.34 25))
+                                    (ignore (EditingSystem.spawn-boulder! state sp-pos sp-vel 0.46 near-m 14000l)))
+                                  (ParticleSystem.emit-sparks! ps wx wy wz (- 0.0f rx) (- 0.0f ry) (- 0.0f rz) 10)))))))))))
+
+              ;; 4. Apply 3D Electromagnetic Tractor / Deflector / Lorentz Rail / Saturn Ring / Magnetar Forces!
+              (query ecs (e (cb CompBody))
+                (let [eidx (ECS.Entity.index &e)
+                      eid (Long.to-int (Uint64.to-long eidx))]
+                  (when (and (/= eid player-id) (not (Uint64.= grab-idx eidx)))
+                    (let [oslot (MancerSystem.orb-slot-by-idx state eidx)
+                          parried-orb? (and (>= oslot 0) (or (= mgm 2) (and (= mgm 6) (= (Int.mod oslot 2) 0))))]
+                      (when (not parried-orb?)
+                        (let [rb (CompBody.rb cb)
+                              epos (RigidBody.position rb)
+                              ex (- @(Vector3.x epos) dpx)
+                              ey (- @(Vector3.y epos) dpy)
+                              ez (- @(Vector3.z epos) dpz)
+                              dist (Double.sqrt (+ (+ (* ex ex) (* ey ey)) (* ez ez)))]
+                          (when (< dist dem-r)
+                            (let [b (RigidBody.body rb)
+                                  old-v @(Body.velocity b)
+                                  inv-d (if (> dist 0.10) (/ 1.0 dist) 0.0)
+                                  tv (if (= mgm 1)
+                                       ;; `🧲 Magnet` Solo: Tractor Comet!
+                                       (let [pull (if (< dist 1.15)
+                                                    (* dist 11.0)
+                                                    (+ 20.0 (* 6.5 (Double.from-float st))))
+                                             carry (if (<= stuck 0) 0.58 0.0)]
+                                         (Vector3.init (+ (* (* (- 0.0 ex) inv-d) pull) (* dvx carry))
+                                                       (+ (+ (* (* (- 0.0 ey) inv-d) pull) (* dvy carry)) 1.8)
+                                                       (+ (* (* (- 0.0 ez) inv-d) pull) (* dvz carry))))
+                                       (if (= mgm 2)
+                                         ;; `🛡️ Repulse` Solo: Deflection Cowcatcher!
+                                         (let [atten (Physics.clamp 0.35 1.0 (- 1.0 (/ dist (+ dem-r 1.2))))
+                                               push (* (+ 28.0 (* 7.0 (Double.from-float st))) atten)]
+                                           (Vector3.init (+ (* (* ex inv-d) push) (* dux 8.0))
+                                                         (+ (* (* ey inv-d) push) 4.2)
+                                                         (+ (* (* ez inv-d) push) (* duz 8.0))))
+                                         (if (= mgm 3)
+                                           ;; `⚡ Lorentz Rail-Slingshot` (`[Repulse + Invert]`): Mach-3 Rail Launch!
+                                           (let [along (+ (+ (* ex dux) (* ey duy)) (* ez duz))
+                                                 ppx (- ex (* dux along))
+                                                 ppy (- ey (* duy along))
+                                                 ppz (- ez (* duz along))
+                                                 rspd (+ 70.0 (* 8.5 (Double.from-float st)))]
+                                             (Vector3.init (+ (* dux rspd) (* (- 0.0 ppx) 11.0))
+                                                           (+ (+ (* duy rspd) (* (- 0.0 ppy) 11.0)) 1.6)
+                                                           (+ (* duz rspd) (* (- 0.0 ppz) 11.0))))
+                                           (if (= mgm 5)
+                                             ;; `🪐 Saturn Accretion Ring` (`[Magnet + Repulse]`): Self-Stabilizing Orbital Chainsaw!
+                                             (let [orb-r (+ 2.35 (+ (* (Double.from-float brad) 1.15) (* 0.35 (Double.from-float st))))
+                                                   nx-r @(Vector3.x &nvec)
+                                                   ny-r @(Vector3.y &nvec)
+                                                   nz-r @(Vector3.z &nvec)
+                                                   ax (+ (+ (* ex nx-r) (* ey ny-r)) (* ez nz-r))
+                                                   prx (- ex (* nx-r ax))
+                                                   pry (- ey (* ny-r ax))
+                                                   prz (- ez (* nz-r ax))
+                                                   plen (Double.sqrt (+ (+ (* prx prx) (* pry pry)) (* prz prz)))
+                                                   rhat (if (> plen 0.08)
+                                                          (Vector3.init (/ prx plen) (/ pry plen) (/ prz plen))
+                                                          @&rv)
+                                                   that (Vector3.cross &nvec &rhat)
+                                                   v-rad (Physics.clamp -28.0 28.0 (* (- orb-r plen) 9.5))
+                                                   v-ax (Physics.clamp -18.0 18.0 (* (- 0.0 ax) 7.5))
+                                                   v-tan (+ 32.0 (* 4.5 (Double.from-float st)))
+                                                   carry (if (<= stuck 0) 0.78 0.0)]
+                                               (Vector3.init
+                                                 (+ (+ (* @(Vector3.x &rhat) v-rad) (* @(Vector3.x &that) v-tan)) (+ (* nx-r v-ax) (* dvx carry)))
+                                                 (+ (+ (* @(Vector3.y &rhat) v-rad) (* @(Vector3.y &that) v-tan)) (+ (* ny-r v-ax) (* dvy carry)))
+                                                 (+ (+ (* @(Vector3.z &rhat) v-rad) (* @(Vector3.z &that) v-tan)) (+ (* nz-r v-ax) (* dvz carry)))))
+                                             ;; `🌩️ MAGNETAR` (`mgm == 6`): 25m Suction -> 3.9m Core Mach Railgun!
+                                             (if (> dist 3.9)
+                                               (Vector3.init (* (* (- 0.0 ex) inv-d) 44.0)
+                                                             (+ (* (* (- 0.0 ey) inv-d) 44.0) 2.5)
+                                                             (* (* (- 0.0 ez) inv-d) 44.0))
+                                               (let [along (+ (+ (* ex dux) (* ey duy)) (* ez duz))
+                                                     ppx (- ex (* dux along))
+                                                     ppy (- ey (* duy along))
+                                                     ppz (- ez (* duz along))]
+                                                 (Vector3.init (+ (* dux 68.0) (* (- 0.0 ppx) 12.0))
+                                                               (+ (+ (* duy 68.0) (* (- 0.0 ppy) 12.0)) 1.8)
+                                                               (+ (* duz 68.0) (* (- 0.0 ppz) 12.0)))))))))
+                                  blend (if (or (= mgm 3) (or (= mgm 5) (= mgm 6))) 0.74 alpha)
+                                  keep (- 1.0 blend)
+                                  nv (Vector3.init
+                                       (Physics.clamp -88.0 88.0 (+ (* @(Vector3.x &old-v) keep) (* @(Vector3.x &tv) blend)))
+                                       (Physics.clamp -72.0 72.0 (+ (* @(Vector3.y &old-v) keep) (* @(Vector3.y &tv) blend)))
+                                       (Physics.clamp -88.0 88.0 (+ (* @(Vector3.z &old-v) keep) (* @(Vector3.z &tv) blend))))
+                                  nspd (Double.to-float (Vector3.mag &nv))
+                                  hslot (EnemySystem.hopper-slot-by-idx state eidx)
+                                  mslot (if (>= hslot 0) -1 (MancerSystem.mancer-slot-by-idx state eidx))]
+                              (do
+                                (when (and (>= hslot 0) (> nspd 16.0f))
+                                  (do
+                                    (Array.aset! (EnemyBank.hurt-cd (EngineState.enemies state)) hslot 0.22f)
+                                    (Array.aset! (EnemyBank.prev-spd (EngineState.enemies state)) hslot nspd)))
+                                (when (and (>= mslot 0) (> nspd 16.0f))
+                                  (do
+                                    (Array.aset! (MancerBank.hurt-cd mbk) mslot 0.22f)
+                                    (Array.aset! (MancerBank.prev-spd mbk) mslot nspd)))
+                                (Body.set-body-type! b (BodyType.Dynamic))
+                                (Body.set-inv-mass! b 1.0)
+                                (Body.set-is-sleeping! b false)
+                                (Body.set-velocity! b nv)
+                                (RigidBody.set-body! rb @b)
+                                (ECS.add-component! ecs &e (CompBody.init @rb))
+                                (when (and (or (= mgm 3) (= mgm 6)) (= (Int.mod (+ fc eid) 4) 0))
+                                  (ParticleSystem.emit-sparks! ps
+                                    (Double.to-float @(Vector3.x epos))
+                                    (Double.to-float @(Vector3.y epos))
+                                    (Double.to-float @(Vector3.z epos))
+                                    ux uy uz 4)))))))))))
+
+              ;; 5. Electromagnetic Fluid/Gas Wakes & `🌩️ MAGNETAR` Galvanic `SHOCKING` (`elem-tag = 6`) EMP Arcs!
+              (if (= mgm 1)
+                (EngineState.push-wake-capsule! state
+                  px (- py 0.5f) pz px (+ py 0.5f) pz
+                  (* em-r 0.65f) -2.1f (* vx 0.08f) (* vy 0.08f) (* vz 0.08f) -1.35f)
+                (if (= mgm 2)
+                  (EngineState.push-wake-capsule! state
+                    px (- py 0.6f) pz (+ px (* ux 1.8f)) (+ py (+ (* uy 1.8f) 0.4f)) (+ pz (* uz 1.8f))
+                    (+ em-r 0.8f) 4.5f (* ux 12.0f) (+ (* uy 10.0f) 2.2f) (* uz 12.0f) 2.9f)
+                  (if (= mgm 3)
+                    (EngineState.push-wake-capsule! state
+                      px py pz (+ px (* ux 5.5f)) (+ py (* uy 5.5f)) (+ pz (* uz 5.5f))
+                      3.4f -1.4f (* ux 22.0f) (* uy 22.0f) (* uz 22.0f) 2.2f)
+                    (if (= mgm 5)
+                      (when (= (Int.mod (+ fc bi) 3) 0)
+                        (ParticleSystem.emit-sparks! ps px py pz ux uy uz 4))
+                      (when (= mgm 6)
+                        (do
+                          (when (= (Int.mod (+ fc bi) 3) 0)
+                            (WandSystem.apply-impact-forces-and-reactions-scaled! state world ps ecs
+                              px py pz ux uy uz 8.5f 5.6f 6 wid bmat (* bdmg 0.34f)))
+                          (EngineState.push-wake-capsule! state
+                            px py pz (+ px (* ux 6.5f)) (+ py (* uy 6.5f)) (+ pz (* uz 6.5f))
+                            6.2f -3.4f (* ux 24.0f) (* uy 24.0f) (* uz 24.0f) 2.8f)
+                          (ParticleSystem.emit-sparks! ps px py pz ux uy uz 10)))))))
+              (Vector3.init (Double.from-float vx) (Double.from-float vy) (Double.from-float vz))))))))
+
+
+
+  ;; Steps 6-State Nuclear (`49 = 🫧 Fission`, `50 = ☀️ Fusion`, `☢️🕳️ Demon Core`) & Pym-Scale (`51 = 🔬 Shrink`, `52 = 🦖 Embiggen`, `🪐 Snowball`, `☄️ Extinction Meteor`) Mechanics.
+  ;; Returns `true` ONLY when bolt `bi` fused into an earlier bolt `bj < bi` and retired itself via `retire-bolt-swap!`.
+  (defn step-bolt-nuclear! [state world ps ecs wb fc bi fdt]
+    (let [b-fx2 (WandBelt.bolt-fx2 wb)
+          fx2 @(Array.unsafe-nth b-fx2 bi)]
+      (if (<= fx2 0)
+        false
+        (let [b-fx3 (WandBelt.bolt-fx3 wb)
+              fx3-i @(Array.unsafe-nth b-fx3 bi)
+              b-fx4 (WandBelt.bolt-fx4 wb)
+              fx4-i @(Array.unsafe-nth b-fx4 bi)
+              fis (WandSystem.fx2-fis fx2)
+              fus (WandSystem.fx2-fus fx2)
+              emp (WandSystem.fx2-emp fx2)
+              merges (WandSystem.fx2-mrg fx2)
+              ntick (WandSystem.fx2-tick fx2)
+              szm (WandSystem.fx2-szm fx2)
+              szs (WandSystem.fx2-szs fx2)
+              b-pos (WandBelt.bolt-pos wb)
+              b-vel (WandBelt.bolt-vel wb)
+              b-lat (WandBelt.bolt-lat wb)
+              b-stuck (WandBelt.bolt-stuck wb)
+              b-col (WandBelt.bolt-col wb)
+              b-life (WandBelt.bolt-life wb)
+              b-rad (WandBelt.bolt-rad wb)
+              b-brad0 (WandBelt.bolt-base-rad wb)
+              b-grav (WandBelt.bolt-grav wb)
+              b-dmg (WandBelt.bolt-dmg wb)
+              b-blast (WandBelt.bolt-blast wb)
+              b-homing (WandBelt.bolt-homing wb)
+              b-bounces (WandBelt.bolt-bounces wb)
+              b-pierce (WandBelt.bolt-pierce wb)
+              b-split (WandBelt.bolt-split wb)
+              b-light (WandBelt.bolt-light wb)
+              b-style (WandBelt.bolt-style wb)
+              b-wand (WandBelt.bolt-wand wb)
+              b-mat (WandBelt.bolt-mat wb)
+              b-inf-wand (WandBelt.bolt-inf-wand wb)
+              b-inf-mat (WandBelt.bolt-inf-mat wb)
+              b-tkind (WandBelt.bolt-trig-kind wb)
+              b-ttimer (WandBelt.bolt-trig-timer wb)
+              b-tpack (WandBelt.bolt-trig-pack wb)
+              b-fx (WandBelt.bolt-fx wb)
+              b-tfx (WandBelt.bolt-trig-fx wb)
+              b-tfx2 (WandBelt.bolt-trig-fx2 wb)
+              b-phase (WandBelt.bolt-phase wb)
+              ph @(Array.unsafe-nth b-phase bi)
+              cur-t (+ (if (>= ph 500.0f) (- ph 1000.0f) ph) fdt)
+              ctick (Float.round (* cur-t 50.0f))
+              bsty @(Array.unsafe-nth b-style bi)
+              stuck @(Array.unsafe-nth b-stuck bi)
+              b3 (* bi 3)
+              px @(Array.unsafe-nth b-pos b3)
+              py @(Array.unsafe-nth b-pos (+ b3 1))
+              pz @(Array.unsafe-nth b-pos (+ b3 2))]
+          (do
+            ;; `🪐 Katamari Snowball Titan` (`[🔬 Shrink + 🔄 Invert]`, `szm == 4`): starts compact at muzzle & continuously embiggens across the cavern!
+            (when (and (= szm 4) (= stuck 0))
+              (let [grow-m (Float.clamp 0.85f 5.25f
+                             (+ 0.85f (* cur-t (+ 2.55f (* 1.10f (Float.from-int (WandSystem.clamp-int 1 3 szs)))))))
+                    new-r (Float.clamp 0.08f 4.65f (* @(Array.unsafe-nth b-brad0 bi) grow-m))]
+                (Array.aset! b-rad bi new-r)))
+
+            ;; `☄️ Extinction Meteor` (`[🔬 Shrink + 🦖 Embiggen + 🔄 Invert]`, `szm == 6`): ploughs a walk-through SDF subway tunnel straight through stone!
+            (when (and (= szm 6) (and (= stuck 0) (/= bsty 4)))
+              (let [m-stride (if (= bsty 5) 32 (if (> @(WandBelt.bolt-count wb) 12) 6 2))]
+                (when (= (Int.mod (+ fc bi) m-stride) 0)
+                  (let [mrad @(Array.unsafe-nth b-rad bi)
+                        vr (Float.clamp 1.35f 3.45f (+ mrad 0.42f))
+                        mvec (Vector3.init (Double.from-float px) (Double.from-float py) (Double.from-float pz))
+                        mw @(Array.unsafe-nth b-wand bi)
+                        mm @(Array.unsafe-nth b-mat bi)
+                        md @(Array.unsafe-nth b-dmg bi)
+                        mvx @(Array.unsafe-nth b-vel b3)
+                        mvy @(Array.unsafe-nth b-vel (+ b3 1))
+                        mvz @(Array.unsafe-nth b-vel (+ b3 2))
+                        mspd (Float.sqrt (+ (+ (* mvx mvx) (* mvy mvy)) (* mvz mvz)))
+                        minv (if (> mspd 0.05f) (/ 1.0f mspd) 1.0f)
+                        mdx (* mvx minv)
+                        mdy (* mvy minv)
+                        mdz (* mvz minv)
+                        near-m (CritterSystem.sample-solid-mat-near world &mvec)
+                        cmat (if (and (>= near-m 1.0f) (< near-m 250.0f)) near-m 1.0f)]
+                    (do
+                      (EngineState.push-voxel-action! state px py pz vr cmat -1.0f 0.0f)
+                      (MancerSystem.edit-bender-sdf! world &mvec (Double.from-float (- vr 0.12f)) cmat true)
+                      (WandSystem.apply-impact-forces-and-reactions-scaled! state world ps ecs
+                        px py pz mdx mdy mdz 26.0f (+ vr 2.6f) 2 mw mm (* md 0.36f))
+                      (WandSystem.apply-pym-slime-ray! state ps ecs px py pz (+ vr 1.6f) mm 6 szs)
+                      (EngineState.push-wake-capsule! state
+                        (- px (* mdx 1.4f)) py (- pz (* mdz 1.4f))
+                        (+ px (* mdx 1.8f)) py (+ pz (* mdz 1.8f))
+                        (+ vr 2.8f) 4.6f (* mdx 14.0f) (+ (* mdy 10.0f) 3.2f) (* mdz 14.0f) 3.8f)
+                      (when (> mm 255.5f)
+                        (WandSystem.inject-gpu-reagent! state px py pz (* vr 0.58f) mm 0.56f))
+                      (ParticleSystem.emit-sparks! ps px py pz (- 0.0f mdx) 0.4f (- 0.0f mdz) 10))))))
+
+            (when (and (= emp 4) (and (= stuck 0) (= (Int.mod (+ fc bi) 4) 0)))
+              (let [dw @(Array.unsafe-nth b-wand bi)
+                    dm @(Array.unsafe-nth b-mat bi)
+                    dd @(Array.unsafe-nth b-dmg bi)]
+                (do
+                  (WandSystem.apply-impact-forces-and-reactions-scaled! state world ps ecs
+                    px py pz 0.0f 1.0f 0.0f -14.5f 4.8f 5 dw dm (* dd 0.26f))
+                  (EngineState.push-wake-capsule! state
+                    px (- py 0.8f) pz px (+ py 0.8f) pz
+                    5.2f -4.6f 0.0f 0.8f 0.0f -2.8f))))
+            ;; === A. FUSION / THERMONUCLEAR PINCH / BREEDER / ☢️🕳️ DEMON-CORE KILONOVA (`bj < bi` strictly for swap-remove safety!) ===
+            (if (and (> fus 0)
+                   (and (= stuck 0)
+                        (and (if (>= emp 3) (= fis 0) true)
+                             (or (>= emp 3) (>= ctick (- ntick 2))))))
+            (let [pull-r (if (= emp 4)
+                           15.5f
+                           (if (= emp 2)
+                             (+ 8.0f (* 2.0f (Float.from-int fus)))
+                             (if (= emp 3)
+                               7.6f
+                               (+ 4.2f (* 1.15f (Float.from-int fus))))))
+                  j-start (WandSystem.clamp-int 0 bi (- bi 64))
+                  best-j -1
+                  best-d2 (* pull-r pull-r)]
+              (do
+                (for [bj j-start bi]
+                  (when (and (= @(Array.unsafe-nth b-style bj) bsty)
+                             (and (= @(Array.unsafe-nth b-stuck bj) 0)
+                                  (> @(Array.unsafe-nth b-life bj) 0.05f)))
+                    (let [fx2-j @(Array.unsafe-nth b-fx2 bj)
+                          mrg-j (WandSystem.fx2-mrg fx2-j)
+                          fis-j (WandSystem.fx2-fis fx2-j)]
+                      (when (and (< mrg-j 12) (or (< emp 3) (= fis-j 0)))
+                        (let [j3 (* bj 3)
+                              dx (- @(Array.unsafe-nth b-pos j3) px)
+                              dy (- @(Array.unsafe-nth b-pos (+ j3 1)) py)
+                              dz (- @(Array.unsafe-nth b-pos (+ j3 2)) pz)
+                              d2 (+ (+ (* dx dx) (* dy dy)) (* dz dz))]
+                          (when (< d2 best-d2)
+                            (do
+                              (set! best-d2 d2)
+                              (set! best-j bj))))))))
+                (if (< best-j 0)
+                  false
+                  (let [j3 (* best-j 3)
+                        jx @(Array.unsafe-nth b-pos j3)
+                        jy @(Array.unsafe-nth b-pos (+ j3 1))
+                        jz @(Array.unsafe-nth b-pos (+ j3 2))
+                        dist (Float.sqrt best-d2)
+                        brad @(Array.unsafe-nth b-rad bi)
+                        rad-j @(Array.unsafe-nth b-rad best-j)
+                        merge-r (+ (+ brad rad-j)
+                                   (if (= emp 4) 0.78f (if (= emp 2) 0.64f (if (= emp 3) 0.54f 0.42f))))
+                        cvx-i (- @(Array.unsafe-nth b-vel b3) @(Array.unsafe-nth b-lat b3))
+                        cvy-i (- @(Array.unsafe-nth b-vel (+ b3 1)) @(Array.unsafe-nth b-lat (+ b3 1)))
+                        cvz-i (- @(Array.unsafe-nth b-vel (+ b3 2)) @(Array.unsafe-nth b-lat (+ b3 2)))
+                        spdi (Float.sqrt (+ (+ (* cvx-i cvx-i) (* cvy-i cvy-i)) (* cvz-i cvz-i)))
+                        cvx-j (- @(Array.unsafe-nth b-vel j3) @(Array.unsafe-nth b-lat j3))
+                        cvy-j (- @(Array.unsafe-nth b-vel (+ j3 1)) @(Array.unsafe-nth b-lat (+ j3 1)))
+                        cvz-j (- @(Array.unsafe-nth b-vel (+ j3 2)) @(Array.unsafe-nth b-lat (+ j3 2)))
+                        spdj (Float.sqrt (+ (+ (* cvx-j cvx-j) (* cvy-j cvy-j)) (* cvz-j cvz-j)))]
+                    (if (and (>= ctick ntick) (<= dist merge-r))
+                      ;; === COALESCE `bi` INTO `best-j`! ===
+                      (let [mx (* 0.5f (+ px jx))
+                            my (* 0.5f (+ py jy))
+                            mz (* 0.5f (+ pz jz))
+                            svx (+ cvx-i cvx-j)
+                            svy (+ cvy-i cvy-j)
+                            svz (+ cvz-i cvz-j)
+                            slen (Float.sqrt (+ (+ (* svx svx) (* svy svy)) (* svz svz)))
+                            jinv (if (> spdj 0.05f) (/ 1.0f spdj) 1.0f)
+                            ux (if (> slen 0.08f) (/ svx slen) (* cvx-j jinv))
+                            uy (if (> slen 0.08f) (/ svy slen) (* cvy-j jinv))
+                            uz (if (> slen 0.08f) (/ svz slen) (* cvz-j jinv))
+                            mspd (Float.clamp 0.0f 155.0f
+                                   (* (* 0.5f (+ spdi spdj))
+                                      (if (= emp 2) 1.14f (if (= emp 4) 1.10f 1.02f))))
+                            dmg-i @(Array.unsafe-nth b-dmg bi)
+                            dmg-j @(Array.unsafe-nth b-dmg best-j)
+                            dmg-gain (if (= emp 2) 1.20f (if (= emp 4) 0.85f (if (= emp 3) 0.65f 0.85f)))
+                            new-dmg (Float.clamp 0.1f 58.0f (+ dmg-j (* dmg-i dmg-gain)))
+                            brad0-j @(Array.unsafe-nth b-brad0 best-j)
+                            rad-mult (if (= emp 2) 1.30f (if (= emp 3) 1.36f (if (= emp 4) 1.28f 1.24f)))
+                            new-brad0 (Float.clamp 0.09f 3.85f (* brad0-j rad-mult))
+                            life-i @(Array.unsafe-nth b-life bi)
+                            life-j @(Array.unsafe-nth b-life best-j)
+                            max-life (if (> life-j life-i) life-j life-i)
+                            wid-i @(Array.unsafe-nth b-wand bi)
+                            mat-i @(Array.unsafe-nth b-mat bi)
+                            iw-i @(Array.unsafe-nth b-inf-wand bi)
+                            im-i @(Array.unsafe-nth b-inf-mat bi)
+                            wid-j @(Array.unsafe-nth b-wand best-j)
+                            mat-j @(Array.unsafe-nth b-mat best-j)
+                            fx2-j @(Array.unsafe-nth b-fx2 best-j)
+                            fx3-j @(Array.unsafe-nth b-fx3 best-j)
+                            fx4-j @(Array.unsafe-nth b-fx4 best-j)
+                            mgm-i (WandSystem.fx3-mgm fx3-i)
+                            mgm-j (WandSystem.fx3-mgm fx3-j)
+                            mgs-i (WandSystem.fx3-mgs fx3-i)
+                            mgs-j (WandSystem.fx3-mgs fx3-j)
+                            mas-i (WandSystem.fx3-mas fx3-i)
+                            mas-j (WandSystem.fx3-mas fx3-j)
+                            lsm-i (WandSystem.fx3-lsm fx3-i)
+                            lsm-j (WandSystem.fx3-lsm fx3-j)
+                            lss-i (WandSystem.fx3-lss fx3-i)
+                            lss-j (WandSystem.fx3-lss fx3-j)
+                            dm-i (WandSystem.fx3-dist-dm fx3-i)
+                            dm-j (WandSystem.fx3-dist-dm fx3-j)
+                            new-mgm-j (if (or (= mgm-i 6) (= mgm-j 6))
+                                        6
+                                        (if (or (and (= mgm-i 1) (= mgm-j 2)) (and (= mgm-i 2) (= mgm-j 1)))
+                                          5
+                                          (if (> mgm-i mgm-j) mgm-i mgm-j)))
+                            new-mgs-j (if (> mgs-i mgs-j) mgs-i mgs-j)
+                            new-mas-j (if (> mas-i mas-j) mas-i mas-j)
+                            new-lsm-j (if (or (= lsm-i 6) (= lsm-j 6))
+                                        6
+                                        (if (or (and (= lsm-i 1) (= lsm-j 2)) (and (= lsm-i 2) (= lsm-j 1)))
+                                          5
+                                          (if (> lsm-i lsm-j) lsm-i lsm-j)))
+                            new-lss-j (if (> lss-i lss-j) lss-i lss-j)
+                            new-dm-j (if (> dm-i dm-j) dm-i dm-j)
+                            ovm-i (WandSystem.fx4-ovm fx4-i)
+                            ovm-j (WandSystem.fx4-ovm fx4-j)
+                            ovs-i (WandSystem.fx4-ovs fx4-i)
+                            ovs-j (WandSystem.fx4-ovs fx4-j)
+                            dgm-i (WandSystem.fx4-dgm fx4-i)
+                            dgm-j (WandSystem.fx4-dgm fx4-j)
+                            dgs-i (WandSystem.fx4-dgs fx4-i)
+                            dgs-j (WandSystem.fx4-dgs fx4-j)
+                            slm-i (WandSystem.fx4-slm fx4-i)
+                            slm-j (WandSystem.fx4-slm fx4-j)
+                            sls-i (WandSystem.fx4-sls fx4-i)
+                            sls-j (WandSystem.fx4-sls fx4-j)
+                            awk-i (WandSystem.fx4-awk fx4-i)
+                            awk-j (WandSystem.fx4-awk fx4-j)
+                            new-ovm-j (if (> ovm-i ovm-j) ovm-i ovm-j)
+                            new-ovs-j (if (> ovs-i ovs-j) ovs-i ovs-j)
+                            new-dgm-j (if (or (= dgm-i 6) (= dgm-j 6))
+                                        6
+                                        (if (or (and (= dgm-i 1) (= dgm-j 2)) (and (= dgm-i 2) (= dgm-j 1)))
+                                          (if (> new-ovm-j 0) 6 5)
+                                          (if (or (= dgm-i 5) (= dgm-j 5))
+                                            5
+                                            (if (= dgm-i 7)
+                                              dgm-j
+                                              (if (= dgm-j 7) dgm-i (if (> dgm-i dgm-j) dgm-i dgm-j))))))
+                            new-dgs-j (if (> dgs-i dgs-j) dgs-i dgs-j)
+                            new-slm-j (if (> slm-i slm-j) slm-i slm-j)
+                            new-sls-j (if (> sls-i sls-j) sls-i sls-j)
+                            new-awk-j (if (> awk-i awk-j) awk-i awk-j)
+                            mrg-j (WandSystem.fx2-mrg fx2-j)
+                            fis-j (WandSystem.fx2-fis fx2-j)
+                            fus-j (WandSystem.fx2-fus fx2-j)
+                            ntick-j (WandSystem.fx2-tick fx2-j)
+                            szm-j (WandSystem.fx2-szm fx2-j)
+                            szs-j (WandSystem.fx2-szs fx2-j)
+                            new-szm-j (if (> szm szm-j) szm szm-j)
+                            new-szs-j (if (> szs szs-j) szs szs-j)
+                            max-cyc (if (= emp 4) 9 6)
+                            new-mrg (WandSystem.clamp-int 0 14
+                                      (+ mrg-j (+ 1 (if (>= emp 3) 0 merges))))
+                            next-fis-j (if (and (>= emp 3) (< new-mrg max-cyc)) 1 fis-j)
+                            next-tick-j (if (and (>= emp 3) (< new-mrg max-cyc))
+                                          (+ ctick (if (and (= emp 4) (WandSystem.power-bolt-style? bsty)) 22 6))
+                                          ntick-j)
+                            new-fus-j (WandSystem.clamp-int 1 3 (if (> fus fus-j) fus fus-j))
+                            jc4 (* best-j 4)]
+                        (do
+                          (Array.aset! b-pos j3 mx)
+                          (Array.aset! b-pos (+ j3 1) my)
+                          (Array.aset! b-pos (+ j3 2) mz)
+                          (Array.aset! b-vel j3 (+ (* ux mspd) @(Array.unsafe-nth b-lat j3)))
+                          (Array.aset! b-vel (+ j3 1) (+ (* uy mspd) @(Array.unsafe-nth b-lat (+ j3 1))))
+                          (Array.aset! b-vel (+ j3 2) (+ (* uz mspd) @(Array.unsafe-nth b-lat (+ j3 2))))
+                          (Array.aset! b-dmg best-j new-dmg)
+                          (Array.aset! b-brad0 best-j new-brad0)
+                          (Array.aset! b-rad best-j new-brad0)
+                          (Array.aset! b-blast best-j (+ @(Array.unsafe-nth b-blast best-j) (if (>= emp 2) 0.46f 0.25f)))
+                          (Array.aset! b-life best-j (Float.clamp 0.35f 9.5f (+ max-life (if (= emp 4) 0.34f 0.22f))))
+                          (when (> @(Array.unsafe-nth b-bounces bi) @(Array.unsafe-nth b-bounces best-j))
+                            (Array.aset! b-bounces best-j @(Array.unsafe-nth b-bounces bi)))
+                          (Array.aset! b-pierce best-j
+                            (WandSystem.clamp-int 0 12 (+ @(Array.unsafe-nth b-pierce best-j) @(Array.unsafe-nth b-pierce bi))))
+                          (Array.aset! b-light best-j (if (or (= new-slm-j 1) (= new-slm-j 3)) 0 (if (= emp 4) 3 2)))
+                          ;; Dual-Reagent Alchemical Synthesis when two different Tank bolts fuse!
+                          (when (< @(Array.unsafe-nth b-inf-wand best-j) 0)
+                            (if (and (> mat-i 0.5f) (> (Float.abs (- mat-i mat-j)) 0.5f))
+                              (do
+                                (Array.aset! b-inf-wand best-j wid-i)
+                                (Array.aset! b-inf-mat best-j mat-i))
+                              (when (>= iw-i 0)
+                                (do
+                                  (Array.aset! b-inf-wand best-j iw-i)
+                                  (Array.aset! b-inf-mat best-j im-i)))))
+                          ;; Brighten core toward Solar Gold (`emp == 0`), Pinch Plasma (`emp == 2..3`), or Ultraviolet Demon Core (`emp == 4`)!
+                          (Array.aset! b-col jc4 (Float.clamp 0.3f 1.95f (+ (* @(Array.unsafe-nth b-col jc4) 0.70f) 0.56f)))
+                          (Array.aset! b-col (+ jc4 1)
+                            (Float.clamp 0.2f 1.95f (+ (* @(Array.unsafe-nth b-col (+ jc4 1)) 0.68f) (if (= emp 4) 0.14f (if (= emp 2) 0.36f 0.48f)))))
+                          (Array.aset! b-col (+ jc4 2)
+                            (Float.clamp 0.2f 1.98f (+ (* @(Array.unsafe-nth b-col (+ jc4 2)) 0.72f) (if (= emp 4) 0.85f (if (>= emp 2) 0.62f 0.16f)))))
+                          (Array.aset! b-col (+ jc4 3) 1.0f)
+                          (Array.aset! b-fx2 best-j
+                            (WandSystem.pack-live-fx2-full next-fis-j new-fus-j emp new-mrg next-tick-j new-szm-j new-szs-j))
+                          (when (or (> new-mgm-j 0) (or (> new-mas-j 0) (> new-lsm-j 0)))
+                            (Array.aset! b-fx3 best-j (WandSystem.pack-live-fx3-full new-mgm-j new-mgs-j new-mas-j new-lsm-j new-lss-j new-dm-j)))
+                          (when (or (> new-ovm-j 0) (or (> new-dgm-j 0) (or (> new-slm-j 0) (> new-awk-j 0))))
+                            (Array.aset! b-fx4 best-j
+                              (WandSystem.pack-live-fx4-full new-ovm-j new-ovs-j new-dgm-j new-dgs-j new-slm-j new-sls-j new-awk-j)))
+                          (ParticleSystem.emit-sparks! ps mx my mz ux uy uz (if (= emp 4) 20 (if (>= emp 2) 14 8)))
+                          (ParticleSystem.emit! ps mx my mz 0.0f 1.2f 0.0f (* new-brad0 (if (= emp 4) 1.85f 1.45f))
+                            (if (= emp 4) 20 (if (>= emp 2) 12 6)) PARTICLE-TYPE-MAGIC 0.34f 0.15f)
+                          ;; 🌟 Thermonuclear (`2`), ⚛️ Breeder (`3`), & ☢️🕳️ DEMON-CORE KILONOVA (`4`) Ignition Shockwaves!
+                          (when (>= emp 2)
+                            (let [shock-r (+ new-brad0 (if (= emp 4) 3.95f (if (= emp 2) 2.85f 2.10f)))
+                                  shock-f (if (= emp 4) -24.5f (if (= emp 2) 18.0f 11.5f))
+                                  shock-d (* new-dmg (if (= emp 4) 0.85f (if (= emp 2) 0.65f 0.42f)))]
+                              (do
+                                (when (and (= emp 4) (< new-mrg 10))
+                                  (let [vr (Float.clamp 1.05f 2.45f (+ new-brad0 1.10f))
+                                        mvec (Vector3.init (Double.from-float mx) (Double.from-float my) (Double.from-float mz))]
+                                    (do
+                                      (EngineState.push-voxel-action! state mx my mz vr 1.0f -1.0f 0.0f)
+                                      (MancerSystem.edit-bender-sdf! world &mvec (Double.from-float (- vr 0.12f)) 1.0f true))))
+                                (WandSystem.apply-impact-forces-and-reactions-scaled! state world ps ecs
+                                  mx my mz ux uy uz shock-f shock-r (if (= emp 4) 5 2) wid-j mat-j shock-d)
+                                (EngineState.push-wake-capsule! state
+                                  mx (- my 0.9f) mz mx (+ my 1.3f) mz
+                                  (* shock-r 1.65f) (if (= emp 4) -5.4f (if (= emp 2) 3.4f 2.1f))
+                                  (* ux 4.0f) 2.5f (* uz 4.0f) (if (= emp 4) -3.4f (if (= emp 2) 2.2f 1.3f)))
+                                (when (> mat-j 255.5f)
+                                  (WandSystem.inject-gpu-reagent! state mx (+ my 0.15f) mz (* shock-r 0.58f) mat-j 0.62f)))))
+                          (WandSystem.retire-bolt-swap! wb bi)
+                          true))
+                      ;; === MAGNETIC CONVERGENCE STEERING (`dist > merge-r` or `ctick < ntick`) ===
+                      (if (> dist 0.04f)
+                        (let [dinv (/ 1.0f dist)
+                              nx (* (- jx px) dinv)
+                              ny (* (- jy py) dinv)
+                              nz (* (- jz pz) dinv)
+                              base-acc (if (= emp 4) 108.0f (if (= emp 2) 78.0f (if (= emp 3) 56.0f 34.0f)))
+                              spd-k (if (= emp 4) 1.88f (if (= emp 2) 1.55f (if (= emp 3) 1.38f 0.95f)))
+                              dv-i (* (+ base-acc (* spdi spd-k)) fdt)
+                              nvx-i (+ cvx-i (* nx dv-i))
+                              nvy-i (+ cvy-i (* ny dv-i))
+                              nvz-i (+ cvz-i (* nz dv-i))
+                              nlen-i (Float.sqrt (+ (+ (* nvx-i nvx-i) (* nvy-i nvy-i)) (* nvz-i nvz-i)))
+                              iscale (if (and (> spdi 0.5f) (> nlen-i 0.05f)) (/ spdi nlen-i) 1.0f)
+                              dv-j (* (+ base-acc (* spdj spd-k)) (* fdt 0.85f))
+                              nvx-j (- cvx-j (* nx dv-j))
+                              nvy-j (- cvy-j (* ny dv-j))
+                              nvz-j (- cvz-j (* nz dv-j))
+                              nlen-j (Float.sqrt (+ (+ (* nvx-j nvx-j) (* nvy-j nvy-j)) (* nvz-j nvz-j)))
+                              jscale (if (and (> spdj 0.5f) (> nlen-j 0.05f)) (/ spdj nlen-j) 1.0f)]
+                          (do
+                            (Array.aset! b-vel b3 (+ (* nvx-i iscale) @(Array.unsafe-nth b-lat b3)))
+                            (Array.aset! b-vel (+ b3 1) (+ (* nvy-i iscale) @(Array.unsafe-nth b-lat (+ b3 1))))
+                            (Array.aset! b-vel (+ b3 2) (+ (* nvz-i iscale) @(Array.unsafe-nth b-lat (+ b3 2))))
+                            (Array.aset! b-vel j3 (+ (* nvx-j jscale) @(Array.unsafe-nth b-lat j3)))
+                            (Array.aset! b-vel (+ j3 1) (+ (* nvy-j jscale) @(Array.unsafe-nth b-lat (+ j3 1))))
+                            (Array.aset! b-vel (+ j3 2) (+ (* nvz-j jscale) @(Array.unsafe-nth b-lat (+ j3 2))))
+                            (when (= (Int.mod (+ fc bi) 3) 0)
+                              (ParticleSystem.emit! ps (* 0.5f (+ px jx)) (* 0.5f (+ py jy)) (* 0.5f (+ pz jz))
+                                0.0f 0.4f 0.0f 0.25f 1 PARTICLE-TYPE-MAGIC 0.16f 0.07f))
+                            false))
+                        false))))))
+
+            ;; === B. MITOTIC FISSION / ☢️ SUPERCRITICAL / ☢️🕳️ DEMON-CORE 3-WAY SHATTER (`fis > 0` & `ctick >= ntick`) ===
+            (if (and (> fis 0)
+                     (and (>= ctick ntick)
+                          (< @(WandBelt.bolt-count wb) (- MAX-BOLTS 32))))
+              (let [rem-life (- @(Array.unsafe-nth b-life bi) fdt)]
+                (if (<= rem-life 0.06f)
+                  false
+                  (let [tri? (or (= emp 1) (= emp 4))
+                        next-fis (if (>= emp 3) 0 (- fis 1))
+                        next-tick (+ ctick (if (= bsty 13)
+                                             40
+                                             (if (= emp 4)
+                                               (if (WandSystem.power-bolt-style? bsty) 22 7)
+                                               (if (= emp 3) 6 14))))
+                        child-fx2 (WandSystem.pack-live-fx2-full next-fis fus emp merges next-tick szm szs)
+                        wid @(Array.unsafe-nth b-wand bi)
+                        bmat @(Array.unsafe-nth b-mat bi)
+                        biw @(Array.unsafe-nth b-inf-wand bi)
+                        bim @(Array.unsafe-nth b-inf-mat bi)
+                        brad0 @(Array.unsafe-nth b-brad0 bi)
+                        bgrav @(Array.unsafe-nth b-grav bi)
+                        bdmg @(Array.unsafe-nth b-dmg bi)
+                        bblast @(Array.unsafe-nth b-blast bi)
+                        bhom @(Array.unsafe-nth b-homing bi)
+                        bbnc @(Array.unsafe-nth b-bounces bi)
+                        bprc @(Array.unsafe-nth b-pierce bi)
+                        bspl @(Array.unsafe-nth b-split bi)
+                        blgt @(Array.unsafe-nth b-light bi)
+                        fxp @(Array.unsafe-nth b-fx bi)
+                        tkind @(Array.unsafe-nth b-tkind bi)
+                        ttimer @(Array.unsafe-nth b-ttimer bi)
+                        tpack @(Array.unsafe-nth b-tpack bi)
+                        tfx @(Array.unsafe-nth b-tfx bi)
+                        tfx2 @(Array.unsafe-nth b-tfx2 bi)
+                        flip-ph (if (>= ph 500.0f) (- ph 1000.0f) (+ ph 1000.0f))]
+                    ;; 1. Settled Caltrop Mine (`bsty == 13` & `stuck > 0`): hops baby Caltrop mines outward into a self-seeding minefield!
+                    (if (and (= bsty 13) (> stuck 0))
+                      (let [az (+ (* (Float.from-int fc) 0.71f) (* (Float.from-int bi) 2.39996f))
+                            c1 (WandSystem.fcos az)
+                            s1 (WandSystem.fsin az)
+                            ndmg (Float.clamp 0.1f 58.0f (* bdmg (if (= emp 4) 0.85f (if (= emp 1) 0.70f 0.76f))))
+                            nrad (Float.clamp 0.14f 0.72f (* brad0 0.88f))
+                            nlife (Float.clamp 1.5f 12.0f (+ rem-life 0.9f))]
+                        (do
+                          (Array.aset! b-dmg bi ndmg)
+                          (Array.aset! b-brad0 bi nrad)
+                          (Array.aset! b-rad bi nrad)
+                          (Array.aset! b-fx2 bi child-fx2)
+                          (WandBelt.set-pending-fx3! wb fx3-i)
+                          (WandSystem.spawn-bolt-trig2! state
+                            (+ px (* c1 0.22f)) (+ py 0.24f) (+ pz (* s1 0.22f))
+                            (* c1 4.8f) 5.8f (* s1 4.8f) wid bmat biw bim
+                            nrad bgrav nlife 0 bprc bspl 2 13 ndmg bblast bhom
+                            fxp child-fx2 tkind ttimer tpack tfx tfx2)
+                          (when tri?
+                            (let [az2 (+ az 3.1415927f)
+                                  c2 (WandSystem.fcos az2)
+                                  s2 (WandSystem.fsin az2)]
+                              (do
+                                (WandSystem.spawn-bolt-trig2! state
+                                  (+ px (* c2 0.22f)) (+ py 0.24f) (+ pz (* s2 0.22f))
+                                  (* c2 4.8f) 5.8f (* s2 4.8f) wid bmat biw bim
+                                  nrad bgrav nlife 0 bprc bspl 2 13 ndmg bblast bhom
+                                  fxp child-fx2 tkind ttimer tpack tfx tfx2)
+                                (WandSystem.apply-impact-forces-and-reactions-scaled! state world ps ecs
+                                  px (+ py 0.2f) pz 0.0f 1.0f 0.0f (if (= emp 4) -18.0f 12.0f) 3.2f 5 wid bmat (* bdmg 0.62f)))))
+                          (WandBelt.set-pending-fx3! wb 0)
+                          (ParticleSystem.emit-sparks! ps px (+ py 0.2f) pz 0.0f 1.0f 0.0f (if tri? 14 6))
+                          false))
+                      ;; 2. `◆` Power Spells (`Maelstrom / Aegis / Black Hole / Sun`): Binary Twin Cores OR 3-Core Kilonova Triplets!
+                      (if (WandSystem.power-bolt-style? bsty)
+                        (let [p-fx2 (WandSystem.pack-live-fx2-full 0 fus emp merges (+ ctick (if (= emp 4) 22 60)) szm szs)
+                              vx @(Array.unsafe-nth b-vel b3)
+                              vy @(Array.unsafe-nth b-vel (+ b3 1))
+                              vz @(Array.unsafe-nth b-vel (+ b3 2))
+                              hlen (Float.sqrt (+ (* vx vx) (* vz vz)))
+                              rx (if (> hlen 0.1f) (/ (- 0.0f vz) hlen) 1.0f)
+                              rz (if (> hlen 0.1f) (/ vx hlen) 0.0f)
+                              nrad (Float.clamp 0.22f 4.20f (* brad0 (if (= emp 4) 0.88f 0.82f)))
+                              ndmg (Float.clamp 0.2f 58.0f (* bdmg (if (= emp 4) 0.90f 0.82f)))
+                              cnt0 @(WandBelt.bolt-count wb)]
+                          (do
+                            (Array.aset! b-brad0 bi nrad)
+                            (Array.aset! b-rad bi nrad)
+                            (Array.aset! b-dmg bi ndmg)
+                            (Array.aset! b-fx2 bi p-fx2)
+                            (WandBelt.set-pending-fx3! wb fx3-i)
+                            (if tri?
+                              (do
+                                (WandSystem.spawn-bolt-trig2! state
+                                  (+ px (* rx 0.72f)) py (+ pz (* rz 0.72f))
+                                  (+ vx (* rx 6.4f)) vy (+ vz (* rz 6.4f)) wid bmat biw bim
+                                  nrad bgrav rem-life bbnc bprc bspl 3 bsty ndmg bblast bhom
+                                  fxp p-fx2 tkind ttimer tpack tfx tfx2)
+                                (WandSystem.spawn-bolt-trig2! state
+                                  (- px (* rx 0.72f)) py (- pz (* rz 0.72f))
+                                  (- vx (* rx 6.4f)) vy (- vz (* rz 6.4f)) wid bmat biw bim
+                                  nrad bgrav rem-life bbnc bprc bspl 3 bsty ndmg bblast bhom
+                                  fxp p-fx2 tkind ttimer tpack tfx tfx2)
+                                (WandSystem.apply-impact-forces-and-reactions-scaled! state world ps ecs
+                                  px py pz 0.0f 1.0f 0.0f (if (= emp 4) -22.0f 18.0f) (+ nrad 4.2f) 5 wid bmat (* bdmg 0.75f)))
+                              (do
+                                (Array.aset! b-pos b3 (- px (* rx 0.45f)))
+                                (Array.aset! b-pos (+ b3 2) (- pz (* rz 0.45f)))
+                                (Array.aset! b-vel b3 (- vx (* rx 4.2f)))
+                                (Array.aset! b-vel (+ b3 2) (- vz (* rz 4.2f)))
+                                (WandSystem.spawn-bolt-trig2! state
+                                  (+ px (* rx 0.45f)) py (+ pz (* rz 0.45f))
+                                  (+ vx (* rx 4.2f)) vy (+ vz (* rz 4.2f)) wid bmat biw bim
+                                  nrad bgrav rem-life bbnc bprc bspl 2 bsty ndmg bblast bhom
+                                  fxp p-fx2 tkind ttimer tpack tfx tfx2)))
+                            (WandBelt.set-pending-fx3! wb 0)
+                            (when (< cnt0 @(WandBelt.bolt-count wb))
+                              (Array.aset! b-phase cnt0 flip-ph))
+                            (ParticleSystem.emit-sparks! ps px py pz 0.0f 1.0f 0.0f 16)
+                            false))
+                        ;; 3. Ballistic / Chakram / Gyre / Rail-Lance: Mitotic 2-Way Fan OR 3-Way Supercritical / Demon-Core Shatter!
+                        (let [lx @(Array.unsafe-nth b-lat b3)
+                              ly @(Array.unsafe-nth b-lat (+ b3 1))
+                              lz @(Array.unsafe-nth b-lat (+ b3 2))
+                              cvx (- @(Array.unsafe-nth b-vel b3) lx)
+                              cvy (- @(Array.unsafe-nth b-vel (+ b3 1)) ly)
+                              cvz (- @(Array.unsafe-nth b-vel (+ b3 2)) lz)
+                              spd (Float.sqrt (+ (+ (* cvx cvx) (* cvy cvy)) (* cvz cvz)))
+                              sinv (if (> spd 0.05f) (/ 1.0f spd) 0.0f)
+                              dx (if (> spd 0.05f) (* cvx sinv) 1.0f)
+                              dy (if (> spd 0.05f) (* cvy sinv) 0.0f)
+                              dz (if (> spd 0.05f) (* cvz sinv) 0.0f)
+                              hlen (Float.sqrt (+ (* dx dx) (* dz dz)))
+                              vlen (Float.sqrt (+ (* dx dx) (* dy dy)))
+                              rx (if (> hlen 0.12f)
+                                   (/ (- 0.0f dz) hlen)
+                                   (if (> vlen 0.05f) (/ dy vlen) 1.0f))
+                              ry (if (> hlen 0.12f)
+                                   0.0f
+                                   (if (> vlen 0.05f) (/ (- 0.0f dx) vlen) 0.0f))
+                              rz (if (> hlen 0.12f) (/ dx hlen) 0.0f)
+                              spd-m (if (= emp 1) 1.28f (if (= emp 4) 1.18f 1.0f))
+                              new-spd (Float.clamp 2.5f 155.0f (* (if (> spd 0.5f) spd 14.0f) spd-m))
+                              nrad (Float.clamp 0.042f 4.20f (* brad0 (if (= emp 4) 0.82f (if (= emp 1) 0.76f 0.78f))))
+                              ndmg (Float.clamp 0.08f 58.0f (* bdmg (if (= emp 4) 0.82f (if (= emp 1) 0.68f 0.72f))))
+                              nlife (Float.clamp 0.25f 9.5f (+ rem-life (if (>= emp 3) 0.36f 0.22f)))
+                              ang (if (= emp 1) 0.35f (if (= emp 4) 0.31f (if (= emp 3) 0.24f 0.26f)))
+                              ca (WandSystem.fcos ang)
+                              sa (WandSystem.fsin ang)
+                              p1x (* (+ (* dx ca) (* rx sa)) new-spd)
+                              p1y (* (+ (* dy ca) (* ry sa)) new-spd)
+                              p1z (* (+ (* dz ca) (* rz sa)) new-spd)
+                              m1x (* (- (* dx ca) (* rx sa)) new-spd)
+                              m1y (* (- (* dy ca) (* ry sa)) new-spd)
+                              m1z (* (- (* dz ca) (* rz sa)) new-spd)
+                              nudge (* nrad 0.38f)
+                              cnt0 @(WandBelt.bolt-count wb)]
+                          (do
+                            (Array.aset! b-brad0 bi nrad)
+                            (Array.aset! b-rad bi nrad)
+                            (Array.aset! b-dmg bi ndmg)
+                            (Array.aset! b-life bi nlife)
+                            (Array.aset! b-light bi (if (or (= (WandSystem.fx4-slm fx4-i) 1) (= (WandSystem.fx4-slm fx4-i) 3)) 0 (if (= emp 4) 3 2)))
+                            (Array.aset! b-fx2 bi child-fx2)
+                            (WandBelt.set-pending-fx3! wb fx3-i)
+                            (if tri?
+                              ;; ☢️ SUPERCRITICAL (`emp=1`) & ☢️🕳️ DEMON CORE (`emp=4`): `1 -> 3` Trifurcation + Cherenkov / Orion Void Blast!
+                              (let [cnt1 (+ cnt0 1)]
+                                (do
+                                  (Array.aset! b-vel b3 (+ (* dx new-spd) lx))
+                                  (Array.aset! b-vel (+ b3 1) (+ (* dy new-spd) ly))
+                                  (Array.aset! b-vel (+ b3 2) (+ (* dz new-spd) lz))
+                                  (WandSystem.spawn-bolt-trig2! state
+                                    (+ px (* rx nudge)) (+ py (* ry nudge)) (+ pz (* rz nudge))
+                                    p1x p1y p1z wid bmat biw bim
+                                    nrad bgrav nlife bbnc bprc bspl (if (= emp 4) 3 2) bsty ndmg bblast bhom
+                                    fxp child-fx2 tkind ttimer tpack tfx tfx2)
+                                  (when (< cnt0 @(WandBelt.bolt-count wb))
+                                    (Array.aset! b-phase cnt0 flip-ph))
+                                  (WandSystem.spawn-bolt-trig2! state
+                                    (- px (* rx nudge)) (- py (* ry nudge)) (- pz (* rz nudge))
+                                    m1x m1y m1z wid bmat biw bim
+                                    nrad bgrav nlife bbnc bprc bspl (if (= emp 4) 3 2) bsty ndmg bblast bhom
+                                    fxp child-fx2 tkind ttimer tpack tfx tfx2)
+                                  (when (< cnt1 @(WandBelt.bolt-count wb))
+                                    (Array.aset! b-phase cnt1 ph))
+                                  (when (and (= emp 4) (< merges 8))
+                                    (let [vr (Float.clamp 0.85f 1.75f (+ nrad 0.92f))
+                                          pvec (Vector3.init (Double.from-float px) (Double.from-float py) (Double.from-float pz))]
+                                      (do
+                                        (EngineState.push-voxel-action! state px py pz vr 1.0f -1.0f 0.0f)
+                                        (MancerSystem.edit-bender-sdf! world &pvec (Double.from-float (- vr 0.10f)) 1.0f true))))
+                                  (WandSystem.apply-impact-forces-and-reactions-scaled! state world ps ecs
+                                    px py pz dx dy dz (if (= emp 4) -19.5f 15.5f) (+ nrad (if (= emp 4) 3.45f 2.65f))
+                                    5 wid bmat (* bdmg (if (= emp 4) 0.72f 0.58f)))
+                                  (EngineState.push-wake-capsule! state
+                                    px (- py 0.6f) pz px (+ py 0.9f) pz
+                                    (+ nrad 4.2f) (if (= emp 4) -3.8f 2.6f)
+                                    (* dx 5.5f) 1.8f (* dz 5.5f) (if (= emp 4) -2.4f 1.65f))
+                                  (ParticleSystem.emit! ps px py pz 0.0f 1.1f 0.0f (* (+ nrad 0.9f) 1.65f)
+                                    (if (= emp 4) 18 14) PARTICLE-TYPE-MAGIC 0.32f 0.14f)))
+                              ;; 🫧 CLEAN FISSION / ⚛️ BREEDER SPLIT: `1 -> 2` counter-phased daughters!
+                              (do
+                                (Array.aset! b-pos b3 (- px (* rx nudge)))
+                                (Array.aset! b-pos (+ b3 1) (- py (* ry nudge)))
+                                (Array.aset! b-pos (+ b3 2) (- pz (* rz nudge)))
+                                (Array.aset! b-vel b3 (+ m1x lx))
+                                (Array.aset! b-vel (+ b3 1) (+ m1y ly))
+                                (Array.aset! b-vel (+ b3 2) (+ m1z lz))
+                                (WandSystem.spawn-bolt-trig2! state
+                                  (+ px (* rx nudge)) (+ py (* ry nudge)) (+ pz (* rz nudge))
+                                  p1x p1y p1z wid bmat biw bim
+                                  nrad bgrav nlife bbnc bprc bspl 2 bsty ndmg bblast bhom
+                                  fxp child-fx2 tkind ttimer tpack tfx tfx2)
+                                (when (< cnt0 @(WandBelt.bolt-count wb))
+                                  (Array.aset! b-phase cnt0 flip-ph))))
+                            (WandBelt.set-pending-fx3! wb 0)
+                            (ParticleSystem.emit-sparks! ps px py pz dx dy dz (if tri? 16 6))
+                            false)))))))
+              false)))))))
+)
