@@ -159,10 +159,122 @@
       wgpuRenderPassEncoderRelease(pass);
   }")
 
+;; Create opaque depth-writing render pipeline for 4-segment curved botanical ribbons
+(deftemplate particle-create-flora-pipeline (Fn [(Ptr WGPUContext) (Ptr CChar) (Ptr CChar)] WGPURenderPipeline)
+  "WGPURenderPipeline $NAME(WGPUContext* ctx, const char* src, const char* fmt_str)"
+  "$DECL {
+      if (!ctx || !ctx->device || !src || !fmt_str) return NULL;
+      WGPUTextureFormat fmt = WGPUTextureFormat_BGRA8Unorm;
+      if (fmt_str && (strcmp(fmt_str, \"rgba8unorm\") == 0 || strcmp(fmt_str, \"rgba8unorm-srgb\") == 0)) {
+          fmt = WGPUTextureFormat_RGBA8Unorm;
+      } else if (fmt_str && (strcmp(fmt_str, \"bgra8unorm\") == 0 || strcmp(fmt_str, \"bgra8unorm-srgb\") == 0)) {
+          fmt = WGPUTextureFormat_BGRA8Unorm;
+      }
+
+      WGPUShaderSourceWGSL wgsl = {
+          .chain = { .sType = WGPUSType_ShaderSourceWGSL },
+          .code = { .data = src, .length = strlen(src) },
+      };
+      WGPUShaderModuleDescriptor sm_desc = { .nextInChain = &wgsl.chain };
+      WGPUShaderModule shader = wgpuDeviceCreateShaderModule(ctx->device, &sm_desc);
+      if (!shader) return NULL;
+
+      WGPUColorTargetState color_target = {
+          .format = fmt,
+          .blend = NULL,
+          .writeMask = WGPUColorWriteMask_All,
+      };
+
+      WGPUFragmentState fragment = {
+          .module = shader,
+          .entryPoint = { .data = \"fs_main\", .length = 7 },
+          .targetCount = 1,
+          .targets = &color_target,
+      };
+
+      WGPUDepthStencilState depth_stencil = {
+          .format = WGPUTextureFormat_Depth24Plus,
+          .depthWriteEnabled = true,
+          .depthCompare = WGPUCompareFunction_LessEqual,
+          .stencilFront = { .compare = WGPUCompareFunction_Always },
+          .stencilBack = { .compare = WGPUCompareFunction_Always },
+      };
+
+      WGPURenderPipelineDescriptor pipe_desc = {
+          .vertex = {
+              .module = shader,
+              .entryPoint = { .data = \"vs_main\", .length = 7 },
+              .bufferCount = 0,
+              .buffers = NULL,
+          },
+          .primitive = {
+              .topology = WGPUPrimitiveTopology_TriangleList,
+              .frontFace = WGPUFrontFace_CCW,
+              .cullMode = WGPUCullMode_None,
+          },
+          .depthStencil = &depth_stencil,
+          .multisample = {
+              .count = 1,
+              .mask = 0xFFFFFFFF,
+              .alphaToCoverageEnabled = 0,
+          },
+          .fragment = &fragment,
+      };
+
+      WGPURenderPipeline pipeline = wgpuDeviceCreateRenderPipeline(ctx->device, &pipe_desc);
+      wgpuShaderModuleRelease(shader);
+      return pipeline;
+  }")
+
+;; Execute 4-segment (24-vertex) curved botanical ribbon pass (writes Depth24Plus before transparent passes!)
+(deftemplate particle-run-flora-pass (Fn [(Ptr WGPUFrameState) WGPURenderPipeline WGPUBindGroup (Ptr WGPUDepthTexture) Uint32] ())
+  "void $NAME(WGPUFrameState* frame, WGPURenderPipeline pipeline, WGPUBindGroup bind_group, WGPUDepthTexture* depth, uint32_t flora_count)"
+  "$DECL {
+      if (!frame || !pipeline || !depth) return;
+      WGPUTextureView target_view = frame->swapchain_view;
+
+      WGPURenderPassColorAttachment color_att = {
+          .view = target_view,
+          .loadOp = WGPULoadOp_Load,
+          .storeOp = WGPUStoreOp_Store,
+          .clearValue = { .r = 0.0, .g = 0.0, .b = 0.0, .a = 1.0 },
+          .depthSlice = WGPU_DEPTH_SLICE_UNDEFINED,
+      };
+
+      WGPURenderPassDepthStencilAttachment depth_att = {
+          .view = depth->view,
+          .depthLoadOp = WGPULoadOp_Load,
+          .depthStoreOp = WGPUStoreOp_Store,
+          .depthClearValue = 1.0f,
+          .stencilLoadOp = WGPULoadOp_Undefined,
+          .stencilStoreOp = WGPUStoreOp_Undefined,
+          .depthReadOnly = false,
+          .stencilReadOnly = false,
+      };
+
+      WGPURenderPassDescriptor pass_desc = {
+          .colorAttachmentCount = 1,
+          .colorAttachments = &color_att,
+          .depthStencilAttachment = &depth_att,
+      };
+
+      WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(frame->encoder, &pass_desc);
+      if (!pass) return;
+
+      wgpuRenderPassEncoderSetPipeline(pass, pipeline);
+      if (bind_group) {
+          wgpuRenderPassEncoderSetBindGroup(pass, 0, bind_group, 0, NULL);
+      }
+      wgpuRenderPassEncoderDraw(pass, flora_count * 24, 1, 0, 0);
+      wgpuRenderPassEncoderEnd(pass);
+      wgpuRenderPassEncoderRelease(pass);
+  }")
+
 ;; Constants
 (def PARTICLE-MAX 262144)
 (def PARTICLE-MAX-SPAWN-REQUESTS 4096)
 (def BOLT-RENDER-MAX 8192)
+(def FLORA-MAX 65536)
 
 ;; Particle types
 (def PARTICLE-TYPE-SPARKS 0.0f)
@@ -175,30 +287,39 @@
   compute-pipeline WGPUComputePipeline
   render-pipeline WGPURenderPipeline
   bolt-pipeline WGPURenderPipeline
+  flora-compute-pipeline WGPUComputePipeline
+  flora-render-pipeline WGPURenderPipeline
   particle-buffer (Ptr WGPUVertexBufferWrapper)     ;; storage + vertex (256K * 32 bytes)
   bolt-buffer (Ptr WGPUVertexBufferWrapper)         ;; storage: 8192 * 48 bytes (BoltGPU)
+  flora-buffer (Ptr WGPUVertexBufferWrapper)        ;; storage: 65536 * 32 bytes (FloraStrand)
   write-head-buf (Ptr WGPUVertexBufferWrapper)       ;; storage: atomic u32
   spawn-queue-buf (Ptr WGPUVertexBufferWrapper)      ;; storage: SpawnRequest array (4096 * 48 bytes)
   spawn-count-buf (Ptr WGPUVertexBufferWrapper)      ;; storage: f32 (spawn count)
-  dt-buf (Ptr WGPUVertexBufferWrapper)               ;; storage: f32 (delta time)
-  vp-buffer (Ptr WGPUUniformBufferWrapper)           ;; render: 96 bytes (view_proj + cam_right + cam_up)
+  dt-buf (Ptr WGPUVertexBufferWrapper)               ;; storage: 8 x f32 (dt, cam_pos, env_time, player_vxz, frame)
+  vp-buffer (Ptr WGPUUniformBufferWrapper)           ;; render: 112 bytes (view_proj + cam_right + cam_up + cam_pos)
   compute-bg WGPUBindGroup
   render-bg WGPUBindGroup
   bolt-bg WGPUBindGroup
+  flora-compute-bg WGPUBindGroup
+  flora-render-bg WGPUBindGroup
   spawn-queue (Array Float)                          ;; CPU-side staging for spawn requests
   spawn-count Int
   active-frames Int                                  ;; frames remaining to simulate before sleep
   bolt-count Int
   bolt-time Float
+  env-time Float
+  lantern-on Float
+  prev-cx Float
+  prev-cz Float
+  frame-step Int
 ])
 
 (defmodule ParticleSystem
 
   ;; -------------------------------------------------------------------------
-  ;; Create the particle system: allocates all GPU buffers, pipelines, bind groups
-  ;; solid-tex: 3D voxel texture view for collision detection
+  ;; Create the particle + tethered flora system: allocates all GPU buffers, pipelines, bind groups
   ;; -------------------------------------------------------------------------
-  (defn create [ctx format solid-tex vel-tex]
+  (defn create [ctx format solid-tex vel-tex light-tex liquid-tex]
     ;; 1. Allocate initial particle data (all zeros = all dead)
     (let [particle-floats (* PARTICLE-MAX 8)  ;; 8 floats per particle (32 bytes)
           initial-particles (the (Array Float) (Array.replicate particle-floats &0.0f))
@@ -209,6 +330,10 @@
           ;; 2b. Create 8,192-bolt GPU storage buffer (8192 * 12 floats = 393,216 bytes)
           initial-bolts (the (Array Float) (Array.replicate (* BOLT-RENDER-MAX 12) &0.0f))
           bolt-buf-ptr (Result.unsafe-from-success (WGPURender.create-storage-vertex-buffer ctx &initial-bolts))
+
+          ;; 2c. Create 65,536-strand toroidal flora buffer (65536 * 8 floats = 2,097,152 bytes)
+          initial-flora (the (Array Float) (Array.replicate (* FLORA-MAX 8) &0.0f))
+          flora-buf-ptr (Result.unsafe-from-success (WGPURender.create-storage-vertex-buffer ctx &initial-flora))
 
           ;; 3. Write head buffer (single u32, initialized to 0, 16-byte aligned)
           write-head-data (the (Array Float) [0.0f 0.0f 0.0f 0.0f])
@@ -222,18 +347,19 @@
           spawn-count-data (the (Array Float) [0.0f 0.0f 0.0f 0.0f])
           spawn-count-ptr (Result.unsafe-from-success (WGPURender.create-storage-vertex-buffer ctx &spawn-count-data))
 
-          ;; 6. Delta-time + camera world origin buffer (4 x f32 = 16 bytes)
-          dt-data (the (Array Float) [0.016f 0.0f 0.0f 0.0f])
+          ;; 6. Delta-time + camera world origin + time + player velocity buffer (8 x f32 = 32 bytes)
+          dt-data (the (Array Float) [0.016f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f])
           dt-ptr (Result.unsafe-from-success (WGPURender.create-storage-vertex-buffer ctx &dt-data))
 
-          ;; 7. VP + Camera basis uniform buffer for billboard render (96 bytes)
-          vp-ptr (Result.unsafe-from-success (WGPURender.create-uniform-buffer ctx 96))
+          ;; 7. VP + Camera basis + Camera pos uniform buffer (28 x f32 = 112 bytes)
+          vp-ptr (Result.unsafe-from-success (WGPURender.create-uniform-buffer ctx 112))
 
-          ;; 8. Create unified compute pipeline (single entry point compute_main)
+          ;; 8. Create compute pipelines (transient particles + toroidal tethered flora)
           compute-pipe (Result.unsafe-from-success (WGPU.create-pipeline ctx particle-compute-wgsl "compute_main"))
+          flora-compute-pipe (Result.unsafe-from-success (WGPU.create-pipeline ctx flora-compute-wgsl "compute_main"))
 
-          ;; 9. Build compute bind group using the Builder pattern
-          ;;    bindings: 0=particles, 1=write_head, 2=spawn_queue, 3=spawn_count, 4=dt+cam, 5=solid_texture, 6=vel_texture
+          ;; 9. Build particle compute bind group:
+          ;;    0=particles, 1=write_head, 2=spawn_queue, 3=spawn_count, 4=dt+cam, 5=solid_texture, 6=vel_texture
           b (builder-new)
           _ (do
               (builder-add-buffer b (particle-get-v-buffer particle-buf-ptr))
@@ -246,9 +372,24 @@
           compute-bg (builder-build-compute ctx compute-pipe b)
           _free (builder-free b)
 
-          ;; 10. Create billboard render pipelines (particles + 8,192-bolt analytical sphere/lance impostors)
+          ;; 9b. Build flora compute bind group:
+          ;;     0=flora, 1=particles, 2=write_head, 3=time_params, 4=solid_texture, 5=vel_texture, 6=liquid_texture
+          b-fc (builder-new)
+          _fc (do
+              (builder-add-buffer b-fc (particle-get-v-buffer flora-buf-ptr))
+              (builder-add-buffer b-fc (particle-get-v-buffer particle-buf-ptr))
+              (builder-add-buffer b-fc (particle-get-v-buffer write-head-ptr))
+              (builder-add-buffer b-fc (particle-get-v-buffer dt-ptr))
+              (builder-add-texture b-fc solid-tex)
+              (builder-add-texture b-fc vel-tex)
+              (builder-add-texture b-fc liquid-tex))
+          flora-compute-bg (builder-build-compute ctx flora-compute-pipe b-fc)
+          _free-fc (builder-free b-fc)
+
+          ;; 10. Create render pipelines (flora opaque depth-write + bolts + particles)
           render-pipe (particle-create-billboard-pipeline ctx (String.cstr particle-render-wgsl) (String.cstr format))
           bolt-pipe (particle-create-billboard-pipeline ctx (String.cstr bolt-render-wgsl) (String.cstr format))
+          flora-render-pipe (particle-create-flora-pipeline ctx (String.cstr flora-render-wgsl) (String.cstr format))
 
           ;; 11. Create billboard render bind group: 0=uniforms, 1=particles storage
           b-ren (builder-new)
@@ -266,6 +407,16 @@
           bolt-bg (builder-build-render ctx bolt-pipe b-blt)
           _free-blt (builder-free b-blt)
 
+          ;; 11c. Create flora ribbon render bind group: 0=uniforms, 1=flora, 2=light_texture, 3=liquid_texture
+          b-fren (builder-new)
+          _fren (do
+              (builder-add-buffer b-fren (particle-get-u-buffer vp-ptr))
+              (builder-add-buffer b-fren (particle-get-v-buffer flora-buf-ptr))
+              (builder-add-texture b-fren light-tex)
+              (builder-add-texture b-fren liquid-tex))
+          flora-render-bg (builder-build-render ctx flora-render-pipe b-fren)
+          _free-fren (builder-free b-fren)
+
           ;; 12. CPU-side spawn queue (pre-allocate)
           cpu-spawn-queue (the (Array Float) [])]
 
@@ -273,8 +424,11 @@
         compute-pipe
         render-pipe
         bolt-pipe
+        flora-compute-pipe
+        flora-render-pipe
         particle-buf-ptr
         bolt-buf-ptr
+        flora-buf-ptr
         write-head-ptr
         spawn-queue-ptr
         spawn-count-ptr
@@ -283,11 +437,18 @@
         compute-bg
         render-bg
         bolt-bg
+        flora-compute-bg
+        flora-render-bg
         cpu-spawn-queue
         0
         0
         0
-        0.0f)))
+        0.0f
+        0.0f
+        0.0f
+        0.0f
+        0.0f
+        0)))
 
   ;; -------------------------------------------------------------------------
   ;; Queue a particle emission event (CPU side, flushed to GPU once per frame)
@@ -369,43 +530,65 @@
         (ParticleSystem.emit! ps x (+ y 0.35f) z 0.0f (* 3.2f sc) 0.0f 3.60f n-smk PARTICLE-TYPE-SMOKE (* 1.6f sc) 0.0f))))
 
   ;; -------------------------------------------------------------------------
-  ;; Flush CPU spawn queue to GPU and dispatch compute passes
-  ;; If no particles are alive and no spawn requests are queued, skips entirely!
+  ;; Sync world day/night sun time and [L] shoulder flashlight flag from EngineState
+  ;; -------------------------------------------------------------------------
+  (defn set-env-light! [ps time-sec lantern]
+    (do
+      (ParticleSystem.set-env-time! ps time-sec)
+      (ParticleSystem.set-lantern-on! ps lantern)))
+
+  ;; -------------------------------------------------------------------------
+  ;; Flush CPU spawn queue to GPU and dispatch flora + transient particle passes
   ;; -------------------------------------------------------------------------
   (defn flush-and-dispatch! [ctx ps dt cam-pos]
     (let [sc @(ParticleSystem.spawn-count ps)
-          af @(ParticleSystem.active-frames ps)]
-      (when (or (> sc 0) (> af 0))
-        (let [batch-encoder (GPUBatcher.begin-batch ctx)]
+          af @(ParticleSystem.active-frames ps)
+          fdt (Float.clamp 0.001f 0.05f (Double.to-float dt))
+          cx (Double.to-float @(Vector3.x cam-pos))
+          cy (Double.to-float @(Vector3.y cam-pos))
+          cz (Double.to-float @(Vector3.z cam-pos))
+          fstep @(ParticleSystem.frame-step ps)
+          old-cx @(ParticleSystem.prev-cx ps)
+          old-cz @(ParticleSystem.prev-cz ps)
+          pvx (if (= fstep 0) 0.0f (Float.clamp -18.0f 18.0f (/ (- cx old-cx) fdt)))
+          pvz (if (= fstep 0) 0.0f (Float.clamp -18.0f 18.0f (/ (- cz old-cz) fdt)))
+          dt-arr [fdt cx cy cz @(ParticleSystem.env-time ps) pvx pvz (Float.from-int fstep)]
+          batch-encoder (GPUBatcher.begin-batch ctx)]
+      (do
+        (ParticleSystem.set-prev-cx! ps cx)
+        (ParticleSystem.set-prev-cz! ps cz)
+        (ParticleSystem.set-frame-step! ps (Int.mod (+ fstep 1) 1000000))
+
+        ;; Upload 8-float time/camera/slipstream buffer (32 bytes)
+        (WGPURender.update-vertex-buffer ctx @(ParticleSystem.dt-buf ps) &dt-arr)
+
+        ;; 1. Always dispatch lightweight 65,536-slot toroidal tethered flora compute (1,024 workgroups)
+        (GPUBatcher.batch-dispatch batch-encoder
+          @(ParticleSystem.flora-compute-pipeline ps)
+          @(ParticleSystem.flora-compute-bg ps)
+          (/ (+ FLORA-MAX 63) 64))
+
+        ;; 2. Dispatch transient 262,144-particle pool only when active or spawning
+        (when (or (> sc 0) (> af 0))
           (do
-            ;; Decrement active frames countdown toward sleep
             (if (> af 0)
               (ParticleSystem.set-active-frames! ps (dec af))
               ())
-
-            ;; Upload delta time + camera world origin (16 bytes)
-            (let [cx (Double.to-float @(Vector3.x cam-pos))
-                  cy (Double.to-float @(Vector3.y cam-pos))
-                  cz (Double.to-float @(Vector3.z cam-pos))
-                  dt-arr [(Double.to-float dt) cx cy cz]]
-              (WGPURender.update-vertex-buffer ctx @(ParticleSystem.dt-buf ps) &dt-arr))
-
-            ;; Upload spawn count (16 bytes)
             (let [sc-arr [(Float.from-int sc) 0.0f 0.0f 0.0f]]
               (WGPURender.update-vertex-buffer ctx @(ParticleSystem.spawn-count-buf ps) &sc-arr))
-
-            ;; If we have spawn requests, upload them to GPU queue buffer (no console spam)
             (when (> sc 0)
               (let [sq (ParticleSystem.spawn-queue ps)]
                 (WGPURender.update-vertex-buffer ctx @(ParticleSystem.spawn-queue-buf ps) sq)))
+            (GPUBatcher.batch-dispatch batch-encoder
+              @(ParticleSystem.compute-pipeline ps)
+              @(ParticleSystem.compute-bg ps)
+              (/ (+ PARTICLE-MAX 63) 64))))
 
-            ;; Dispatch unified compute shader (spawn on thread 0 + update all with collision, full pool)
-            (GPUBatcher.batch-dispatch batch-encoder @(ParticleSystem.compute-pipeline ps) @(ParticleSystem.compute-bg ps) (/ (+ PARTICLE-MAX 63) 64))
+        ;; Submit combined compute batch
+        (GPUBatcher.end-batch ctx batch-encoder)
 
-            ;; Submit batch
-            (GPUBatcher.end-batch ctx batch-encoder)
-
-            ;; Clear CPU spawn queue
+        (when (> sc 0)
+          (do
             (let [sq (ParticleSystem.spawn-queue ps)]
               (while (not (Array.empty? sq))
                 (ignore (Array.pop-back! sq))))
@@ -426,46 +609,56 @@
             (Uint64.from-long (Long.from-int (* cnt 48))))))))
 
   ;; -------------------------------------------------------------------------
-  ;; Render 8,192-bolt analytical impostors + particles with premultiplied alpha
-  ;; If both bolts and particles are idle, skips draw calls completely!
+  ;; Render opaque depth-writing 3D flora ribbons, followed by bolts + particles!
   ;; -------------------------------------------------------------------------
   (defn render [frame ctx ps cam depth]
     (let [af @(ParticleSystem.active-frames ps)
-          bc @(ParticleSystem.bolt-count ps)]
-      (when (or (> af 0) (> bc 0))
-        (let [vp (Camera.view-projection cam)
-              vp-data (CameraMat4.data &vp)
-              right (Camera.right cam)
-              up (Camera.up cam)
-              rx (Double.to-float @(Vector3.x right))
-              ry (Double.to-float @(Vector3.y right))
-              rz (Double.to-float @(Vector3.z right))
-              ux (Double.to-float @(Vector3.x up))
-              uy (Double.to-float @(Vector3.y up))
-              uz (Double.to-float @(Vector3.z up))
-              u-data (the (Array Float) (Array.replicate 24 &0.0f))]
-          (do
-            ;; Pack 16 floats of view_proj
-            (for [i 0 16]
-              (Array.aset! &u-data i @(Array.unsafe-nth vp-data i)))
-            ;; Pack cam_right (indices 16, 17, 18) + bolt-time (index 19)
-            (Array.aset! &u-data 16 rx)
-            (Array.aset! &u-data 17 ry)
-            (Array.aset! &u-data 18 rz)
-            (Array.aset! &u-data 19 @(ParticleSystem.bolt-time ps))
-            ;; Pack cam_up (indices 20, 21, 22, 23)
-            (Array.aset! &u-data 20 ux)
-            (Array.aset! &u-data 21 uy)
-            (Array.aset! &u-data 22 uz)
-            (Array.aset! &u-data 23 0.0f)
-            ;; Update shared uniform buffer (96 bytes)
-            (WGPURender.update-uniform-buffer ctx @(ParticleSystem.vp-buffer ps) &u-data)
-            ;; 1. Draw active bolts (1 hardware draw call for up to 8,192 bolts!)
-            (when (> bc 0)
-              (particle-run-billboard-pass frame @(ParticleSystem.bolt-pipeline ps) @(ParticleSystem.bolt-bg ps) depth (Uint32.from-long (Long.from-int bc))))
-            ;; 2. Draw active particles (6 vertices per particle)
-            (when (> af 0)
-              (particle-run-billboard-pass frame @(ParticleSystem.render-pipeline ps) @(ParticleSystem.render-bg ps) depth (Uint32.from-long (Long.from-int PARTICLE-MAX)))))))))
+          bc @(ParticleSystem.bolt-count ps)
+          vp (Camera.view-projection cam)
+          vp-data (CameraMat4.data &vp)
+          c-pos (Camera.pos cam)
+          right (Camera.right cam)
+          up (Camera.up cam)
+          rx (Double.to-float @(Vector3.x right))
+          ry (Double.to-float @(Vector3.y right))
+          rz (Double.to-float @(Vector3.z right))
+          ux (Double.to-float @(Vector3.x up))
+          uy (Double.to-float @(Vector3.y up))
+          uz (Double.to-float @(Vector3.z up))
+          cx (Double.to-float @(Vector3.x c-pos))
+          cy (Double.to-float @(Vector3.y c-pos))
+          cz (Double.to-float @(Vector3.z c-pos))
+          u-data (the (Array Float) (Array.replicate 28 &0.0f))]
+      (do
+        ;; Pack 16 floats of view_proj
+        (for [i 0 16]
+          (Array.aset! &u-data i @(Array.unsafe-nth vp-data i)))
+        ;; Pack cam_right (16..18) + bolt-time (19)
+        (Array.aset! &u-data 16 rx)
+        (Array.aset! &u-data 17 ry)
+        (Array.aset! &u-data 18 rz)
+        (Array.aset! &u-data 19 @(ParticleSystem.bolt-time ps))
+        ;; Pack cam_up (20..22) + env-time (23)
+        (Array.aset! &u-data 20 ux)
+        (Array.aset! &u-data 21 uy)
+        (Array.aset! &u-data 22 uz)
+        (Array.aset! &u-data 23 @(ParticleSystem.env-time ps))
+        ;; Pack cam_pos (24..26) + lantern-on (27)
+        (Array.aset! &u-data 24 cx)
+        (Array.aset! &u-data 25 cy)
+        (Array.aset! &u-data 26 cz)
+        (Array.aset! &u-data 27 @(ParticleSystem.lantern-on ps))
+        ;; Update shared 112-byte uniform buffer
+        (WGPURender.update-uniform-buffer ctx @(ParticleSystem.vp-buffer ps) &u-data)
+        ;; 1. Draw opaque depth-writing 4-segment flora ribbons FIRST so bolts & sparks depth-test against grass/vines!
+        (particle-run-flora-pass frame @(ParticleSystem.flora-render-pipeline ps) @(ParticleSystem.flora-render-bg ps) depth (Uint32.from-long (Long.from-int FLORA-MAX)))
+        ;; 2. Draw active bolts (1 hardware draw call for up to 8,192 bolts!)
+        (when (> bc 0)
+          (particle-run-billboard-pass frame @(ParticleSystem.bolt-pipeline ps) @(ParticleSystem.bolt-bg ps) depth (Uint32.from-long (Long.from-int bc))))
+        ;; 3. Draw active particles (6 vertices per particle)
+        (when (> af 0)
+          (particle-run-billboard-pass frame @(ParticleSystem.render-pipeline ps) @(ParticleSystem.render-bg ps) depth (Uint32.from-long (Long.from-int PARTICLE-MAX)))))))
 
 )
+
 

@@ -622,7 +622,9 @@
                           surf-format (WGPURender.surface-format @(M-WGPUSurface.p (Engine.surf &platform-eng)))
                           solid-tex @(M-RenderTexture.p (Renderer.voxel-texture &ren))
                           vel-tex @(M-RenderTexture.p (Renderer.vel-texture &ren))
-                          ps (ParticleSystem.create ps-ctx &surf-format solid-tex vel-tex)
+                          light-tex @(M-RenderTexture.p (Renderer.light-texture &ren))
+                          liquid-tex @(M-RenderTexture.p (Renderer.liquid-texture &ren))
+                          ps (ParticleSystem.create ps-ctx &surf-format solid-tex vel-tex light-tex liquid-tex)
                           w-seed (Double.to-int (* (Double.abs spawn-foot-y) 13.0))]
                       (Result.Success (EngineState.init
                         platform-eng ren world player uniforms
@@ -1520,6 +1522,7 @@
         (Array.aset! uniforms 5 (Double.to-float @(Vector3.y c-pos)))
         (Array.aset! uniforms 6 (Double.to-float @(Vector3.z c-pos)))
         (Array.aset! uniforms 7 (if @(Player.flashlight-on player) 1.0f 0.0f))
+        (ParticleSystem.set-env-light! (EngineState.particles state) time (if @(Player.flashlight-on player) 1.0f 0.0f))
         
         (Array.aset! uniforms 8 (Double.to-float @(Vector3.x c-dir)))
         (Array.aset! uniforms 9 (Double.to-float @(Vector3.y c-dir)))

@@ -331,6 +331,7 @@ struct Uniforms {
     view_proj: mat4x4<f32>,
     cam_right: vec4<f32>,
     cam_up:    vec4<f32>,
+    cam_pos:   vec4<f32>,
 }
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(0) @binding(1) var<storage, read> particles: array<Particle>;
@@ -406,7 +407,13 @@ fn solid_visual(sidx: u32) -> vec4<f32> {
         case 22u: { return vec4<f32>(0.96, 0.78, 0.86, 0.0); } // Soap
         case 23u: { return vec4<f32>(0.95, 0.88, 0.12, 0.0); } // Sulfur
         case 24u: { return vec4<f32>(0.38, 0.42, 0.48, 0.0); } // Carbide
-        default:  { return vec4<f32>(0.96, 0.98, 0.70, 1.0); } // Phosphorus (luminescent)
+        case 25u: { return vec4<f32>(0.96, 0.98, 0.70, 1.0); } // Phosphorus (luminescent)
+        case 26u: { return vec4<f32>(0.18, 0.70, 0.28, 0.0); } // Moss
+        case 27u: { return vec4<f32>(0.24, 0.56, 0.20, 0.0); } // Vine
+        case 28u: { return vec4<f32>(0.66, 0.24, 0.58, 0.0); } // Fungus
+        case 29u: { return vec4<f32>(1.00, 0.58, 0.24, 1.0); } // Glow-Bulb (luminescent)
+        case 30u: { return vec4<f32>(0.30, 0.78, 0.24, 0.0); } // Foliage
+        default:  { return vec4<f32>(0.54, 0.16, 0.18, 0.0); } // Thorn-Briar
     }
 }
 
@@ -588,6 +595,7 @@ struct Uniforms {
     view_proj: mat4x4<f32>,
     cam_right: vec4<f32>,
     cam_up:    vec4<f32>,
+    cam_pos:   vec4<f32>,
 }
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(0) @binding(1) var<storage, read> bolts: array<BoltGPU>;
@@ -1034,4 +1042,788 @@ struct BoltVertexOut {
     return vec4<f32>(hot_core * body_a + base_col * halo, body_a);
 }
 ")
+
+;; ---------------------------------------------------------------------------
+;; 65,536-Slot Camera-Centered Toroidal Tethered Flora & Waving Vines Compute
+;;   - 32 x 16 x 32 cells of 2x2x2m (64m x 32m x 64m around camera) x 4 column slots
+;;   - Discovers Soil/Moss/Fungus/Spore/Briar/Vine/Leaf/Glow-Bulb surfaces on GPU
+;;   - 2nd-order Hookean spring-damper + vel_texture wind/cyclones/currents + boot parting
+;;   - Ejects severed tumbling clippings into particles[] when root voxel is destroyed!
+;; ---------------------------------------------------------------------------
+(def flora-compute-wgsl
+  "const FLORA_MAX: u32 = 65536u;
+const MAX_PARTICLES: u32 = 262144u;
+
+struct FloraStrand {
+    root_pos: vec3<f32>,
+    len_kind: u32,
+    disp_xz: u32,
+    vel_xz: u32,
+    cell_hash: u32,
+    mat_packed: u32,
+}
+
+struct Particle {
+    pos: vec3<f32>,
+    life: f32,
+    vel: vec3<f32>,
+    max_life_type: f32,
+}
+
+@group(0) @binding(0) var<storage, read_write> flora: array<FloraStrand>;
+@group(0) @binding(1) var<storage, read_write> particles: array<Particle>;
+@group(0) @binding(2) var<storage, read_write> write_head: atomic<u32>;
+@group(0) @binding(3) var<storage, read> time_params: array<f32>;
+@group(0) @binding(4) var solid_texture: texture_3d<f32>;
+@group(0) @binding(5) var vel_texture: texture_3d<f32>;
+@group(0) @binding(6) var liquid_texture: texture_3d<f32>;
+
+fn pcg_u32(v_in: u32) -> u32 {
+    let state = v_in * 747796405u + 2891336453u;
+    let word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+
+fn cell_pcg(wc: vec3<i32>, sub_k: u32) -> u32 {
+    let hx = bitcast<u32>(wc.x) * 374761393u;
+    let hy = bitcast<u32>(wc.y) * 668265263u;
+    let hz = bitcast<u32>(wc.z) * 2246822519u;
+    return pcg_u32(hx ^ hy ^ hz ^ (sub_k * 3266489917u + 1013904223u)) | 1u;
+}
+
+fn hash01(h: u32) -> f32 {
+    return f32(h & 0xFFFFu) / 65535.0;
+}
+
+fn wrap_i160(v: vec3<i32>) -> vec3<i32> {
+    return ((v % vec3<i32>(160)) + vec3<i32>(160)) % vec3<i32>(160);
+}
+
+fn wrap_f160(p: vec3<f32>) -> vec3<i32> {
+    let w = p - floor(p / 160.0) * 160.0;
+    return vec3<i32>(clamp(w, vec3<f32>(0.0), vec3<f32>(159.0)));
+}
+
+fn sample_wind_trilinear(pos: vec3<f32>, cam_pos: vec3<f32>) -> vec4<f32> {
+    if (any(abs(pos - cam_pos) > vec3<f32>(77.0))) {
+        return vec4<f32>(0.0);
+    }
+    let b = pos - vec3<f32>(0.5);
+    let b0 = floor(b);
+    let f = b - b0;
+    let c000 = textureLoad(vel_texture, wrap_f160(b0 + vec3<f32>(0.0, 0.0, 0.0)), 0);
+    let c100 = textureLoad(vel_texture, wrap_f160(b0 + vec3<f32>(1.0, 0.0, 0.0)), 0);
+    let c010 = textureLoad(vel_texture, wrap_f160(b0 + vec3<f32>(0.0, 1.0, 0.0)), 0);
+    let c110 = textureLoad(vel_texture, wrap_f160(b0 + vec3<f32>(1.0, 1.0, 0.0)), 0);
+    let c001 = textureLoad(vel_texture, wrap_f160(b0 + vec3<f32>(0.0, 0.0, 1.0)), 0);
+    let c101 = textureLoad(vel_texture, wrap_f160(b0 + vec3<f32>(1.0, 0.0, 1.0)), 0);
+    let c011 = textureLoad(vel_texture, wrap_f160(b0 + vec3<f32>(0.0, 1.0, 1.0)), 0);
+    let c111 = textureLoad(vel_texture, wrap_f160(b0 + vec3<f32>(1.0, 1.0, 1.0)), 0);
+    let cx00 = mix(c000, c100, f.x);
+    let cx10 = mix(c010, c110, f.x);
+    let cx01 = mix(c001, c101, f.x);
+    let cx11 = mix(c011, c111, f.x);
+    let cxy0 = mix(cx00, cx10, f.y);
+    let cxy1 = mix(cx01, cx11, f.y);
+    return mix(cxy0, cxy1, f.z);
+}
+
+// Attempt to spawn an upward (+Y) floor strand at integer voxel `v`
+fn try_floor_anchor(v: vec3<i32>, h_base: u32, out_len: ptr<function, f32>, out_kind: ptr<function, u32>, out_mat: ptr<function, u32>, out_w_mm: ptr<function, u32>, out_sub: ptr<function, u32>, out_y: ptr<function, f32>) -> bool {
+    if (v.y <= -191) { return false; }
+    let vox = textureLoad(solid_texture, wrap_i160(v), 0);
+    if (vox.g > 0.0 || abs(vox.r) < 0.5) { return false; }
+    let mat_u = u32(round(abs(vox.r)));
+    let is_floor_mat = (mat_u == 2u) || (mat_u == 26u) || (mat_u == 28u) || (mat_u == 13u) || (mat_u == 10u) || (mat_u == 31u);
+    if (!is_floor_mat) { return false; }
+
+    let v_up = v + vec3<i32>(0, 1, 0);
+    let vox_up = textureLoad(solid_texture, wrap_i160(v_up), 0);
+    if (vox_up.g <= 0.08) { return false; }
+
+    let liq_up = textureLoad(liquid_texture, wrap_i160(v_up), 0);
+    let liq_id = u32(round(max(0.0, liq_up.r)));
+    // Corrosive Acid (259) or Lava (258) suppresses floor sprouts
+    if (liq_up.g > 0.25 && (liq_id == 258u || liq_id == 259u)) { return false; }
+    let is_sub = select(0u, 1u, liq_up.g > 0.35);
+    if (is_sub == 1u && mat_u != 26u && mat_u != 2u) { return false; }
+
+    let h_prob = hash01(pcg_u32(h_base + 17u));
+    let h_len = hash01(pcg_u32(h_base + 53u));
+    let h_wid = hash01(pcg_u32(h_base + 97u));
+
+    var kind: u32 = 0u;
+    var slen: f32 = 0.0;
+    var w_mm: u32 = 55u;
+
+    if (mat_u == 2u) {
+        if (h_prob > select(0.88, 0.55, is_sub == 1u)) { return false; }
+        kind = 1u;
+        slen = mix(0.38, 0.92, h_len * h_len * 0.45 + h_len * 0.55);
+        w_mm = u32(mix(44.0, 72.0, h_wid));
+    } else if (mat_u == 26u) {
+        if (h_prob > 0.85) { return false; }
+        kind = 2u;
+        if (is_sub == 1u) {
+            // Submerged Moss -> swaying underwater Kelp frond (probe upward clearance!)
+            var max_kelp: f32 = 2.30;
+            for (var ky: i32 = 2; ky <= 3; ky = ky + 1) {
+                let kv = textureLoad(solid_texture, wrap_i160(v + vec3<i32>(0, ky, 0)), 0);
+                if (kv.g <= 0.05) {
+                    max_kelp = min(max_kelp, f32(ky) - 0.35);
+                }
+            }
+            slen = min(max_kelp, mix(0.95, 2.30, h_len));
+            w_mm = u32(mix(78.0, 118.0, h_wid));
+        } else {
+            slen = mix(0.28, 0.60, h_len);
+            w_mm = u32(mix(58.0, 88.0, h_wid));
+        }
+    } else if (mat_u == 31u) {
+        if (h_prob > 0.78) { return false; }
+        kind = 4u;
+        slen = mix(0.45, 0.95, h_len);
+        w_mm = u32(mix(56.0, 86.0, h_wid));
+    } else {
+        // Fungus (28), Spore Pod (13), Slime (10) -> Bioluminescent Spore-Stalk!
+        if (h_prob > 0.68) { return false; }
+        kind = 3u;
+        slen = mix(0.30, 0.72, h_len);
+        w_mm = u32(mix(46.0, 74.0, h_wid));
+    }
+
+    let t_zero = clamp(-vox.g / max(vox_up.g - vox.g, 0.01), 0.0, 0.92);
+    *out_len = slen;
+    *out_kind = kind;
+    *out_mat = mat_u;
+    *out_w_mm = w_mm;
+    *out_sub = is_sub;
+    *out_y = f32(v.y) + 0.5 + t_zero - 0.06;
+    return true;
+}
+
+// Attempt to spawn a hanging (-Y) ceiling/canopy strand at integer voxel `v`
+fn try_ceil_anchor(v: vec3<i32>, h_base: u32, out_len: ptr<function, f32>, out_kind: ptr<function, u32>, out_mat: ptr<function, u32>, out_w_mm: ptr<function, u32>, out_sub: ptr<function, u32>, out_y: ptr<function, f32>) -> bool {
+    if (v.y <= -189) { return false; }
+    let vox = textureLoad(solid_texture, wrap_i160(v), 0);
+    if (vox.g > 0.0 || abs(vox.r) < 0.5) { return false; }
+    let mat_u = u32(round(abs(vox.r)));
+    let is_vine_mat = (mat_u == 27u) || (mat_u == 30u) || (mat_u == 26u);
+    let is_glow_mat = (mat_u == 29u) || (mat_u == 13u);
+    if (!is_vine_mat && !is_glow_mat) { return false; }
+
+    let v_dn = v + vec3<i32>(0, -1, 0);
+    let vox_dn = textureLoad(solid_texture, wrap_i160(v_dn), 0);
+    if (vox_dn.g <= 0.12) { return false; }
+
+    let h_prob = hash01(pcg_u32(h_base + 31u));
+    var chance: f32 = 0.36;
+    if (mat_u == 27u) { chance = 0.72; }
+    else if (mat_u == 29u) { chance = 0.78; }
+    else if (mat_u == 26u) { chance = 0.42; }
+    else if (mat_u == 30u) { chance = 0.34; }
+    if (h_prob > chance) { return false; }
+
+    // Probe 1..5 voxels downward so hanging vines/tendrils never poke into cave floors!
+    var max_clear: f32 = 5.0;
+    for (var step_d: i32 = 2; step_d <= 5; step_d = step_d + 1) {
+        let pv = textureLoad(solid_texture, wrap_i160(v + vec3<i32>(0, -step_d, 0)), 0);
+        if (pv.g <= 0.05) {
+            max_clear = f32(step_d) - 0.25;
+            break;
+        }
+    }
+    if (max_clear < 1.05) { return false; }
+
+    let h_len = hash01(pcg_u32(h_base + 71u));
+    let h_wid = hash01(pcg_u32(h_base + 113u));
+    let liq_dn = textureLoad(liquid_texture, wrap_i160(v_dn), 0);
+    let is_sub = select(0u, 1u, liq_dn.g > 0.35);
+
+    var kind: u32 = 5u;
+    var raw_l: f32 = 1.2;
+    var w_mm: u32 = 75u;
+    if (is_glow_mat) {
+        kind = 6u;
+        raw_l = mix(0.85, 3.20, h_len);
+        w_mm = u32(mix(48.0, 74.0, h_wid));
+    } else {
+        kind = 5u;
+        raw_l = mix(1.10, 4.60, h_len);
+        w_mm = u32(mix(72.0, 112.0, h_wid));
+    }
+    let clamped_l = min(raw_l, max_clear - 0.20);
+    if (clamped_l < 0.75) { return false; }
+
+    let t_zero = clamp(-vox.g / max(vox_dn.g - vox.g, 0.01), 0.0, 0.92);
+    *out_len = -clamped_l;
+    *out_kind = kind;
+    *out_mat = mat_u;
+    *out_w_mm = w_mm;
+    *out_sub = is_sub;
+    *out_y = f32(v.y) + 0.5 - t_zero + 0.06;
+    return true;
+}
+
+@compute @workgroup_size(64)
+fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let i = global_id.x;
+    if (i >= FLORA_MAX) { return; }
+
+    let dt = clamp(time_params[0], 0.001, 0.05);
+    let cam_pos = vec3<f32>(time_params[1], time_params[2], time_params[3]);
+    let time_sec = time_params[4];
+    let player_vxz = vec2<f32>(time_params[5], time_params[6]);
+    let frame_u = u32(max(0.0, time_params[7]));
+
+    // Keep all 7 bindings live in WebGPU auto-layout
+    if (i == 0u && (textureLoad(vel_texture, vec3<i32>(0), 0).x < -999999.0 || textureLoad(liquid_texture, vec3<i32>(0), 0).x < -999999.0)) {
+        let dummy_idx = atomicAdd(&write_head, 0u) % MAX_PARTICLES;
+        particles[dummy_idx].life = particles[dummy_idx].life;
+    }
+
+    let cell_idx = i >> 2u;
+    let sub_k = i & 3u;
+    let lx = i32(cell_idx & 31u);
+    let lz = i32((cell_idx >> 5u) & 31u);
+    let ly = i32((cell_idx >> 10u) & 15u);
+
+    let grid_dim = vec3<i32>(32, 16, 32);
+    let base_c = vec3<i32>(floor(cam_pos * 0.5)) - vec3<i32>(16, 8, 16);
+    let rem_c = ((base_c % grid_dim) + grid_dim) % grid_dim;
+    let off_c = ((vec3<i32>(lx, ly, lz) - rem_c) + grid_dim) % grid_dim;
+    let wc = base_c + off_c;
+    let expected_hash = cell_pcg(wc, sub_k);
+
+    var s = flora[i];
+    let same_cell = (s.cell_hash == expected_hash);
+
+    // Case 2: Active strand in unchanged world cell -> verify root & step 2nd-order spring-damper!
+    if (same_cell && s.len_kind != 0u) {
+        let lk = unpack2x16float(s.len_kind);
+        let signed_len = lk.x;
+        let kind = u32(lk.y + 0.5);
+        let mp = s.mat_packed;
+        let mat_id = mp & 255u;
+        let oct = (mp >> 17u) & 7u;
+        let anchor_v = wc * 2 + vec3<i32>(i32(oct & 1u), i32((oct >> 1u) & 1u), i32((oct >> 2u) & 1u));
+        let vox = textureLoad(solid_texture, wrap_i160(anchor_v), 0);
+        let dir_y = select(-1, 1, signed_len > 0.0);
+        let vox_air = textureLoad(solid_texture, wrap_i160(anchor_v + vec3<i32>(0, dir_y, 0)), 0);
+
+        // Root mined, blasted, burned, or dissolved -> eject severed clipping into particles[]!
+        if (abs(vox.r) < 0.5 || vox.g > 0.05) {
+            var vel2 = unpack2x16float(s.vel_xz);
+            let wind_cut = sample_wind_trilinear(s.root_pos, cam_pos);
+            let slot_p = atomicAdd(&write_head, 1u) % MAX_PARTICLES;
+            var np: Particle;
+            np.pos = s.root_pos + vec3<f32>(0.0, signed_len * 0.38, 0.0);
+            let j1 = hash01(pcg_u32(expected_hash + frame_u * 19u)) - 0.5;
+            let j2 = hash01(pcg_u32(expected_hash + frame_u * 37u)) - 0.5;
+            np.vel = vec3<f32>(vel2.x * 0.75 + wind_cut.x * 5.0 + j1 * 3.2, 2.4 + abs(j1) * 2.5 + max(0.0, wind_cut.y * 4.0), vel2.y * 0.75 + wind_cut.z * 5.0 + j2 * 3.2);
+            np.life = 1.65 + abs(j2) * 0.75;
+            let is_hot = wind_cut.w > 0.75;
+            let clip_ptype = select(f32(400u + clamp(mat_id, 1u, 31u)), 0.0, is_hot);
+            np.max_life_type = bitcast<f32>(pack2x16float(vec2<f32>(np.life, clip_ptype)));
+            particles[slot_p] = np;
+
+            s.len_kind = 0u;
+            s.disp_xz = 0u;
+            s.vel_xz = 0u;
+            flora[i] = s;
+            return;
+        }
+
+        // Buried under newly poured sand/stone -> quietly tuck away
+        if (vox_air.g <= -0.05) {
+            s.len_kind = 0u;
+            s.disp_xz = 0u;
+            s.vel_xz = 0u;
+            flora[i] = s;
+            return;
+        }
+
+        // Update submergence bit live so flooded Moss shifts smoothly to underwater drag!
+        let liq_now = textureLoad(liquid_texture, wrap_i160(anchor_v + vec3<i32>(0, dir_y, 0)), 0);
+        let sub_now = select(0u, 1u, liq_now.g > 0.35);
+        s.mat_packed = (mp & ~(1u << 16u)) | (sub_now << 16u);
+
+        var disp = unpack2x16float(s.disp_xz);
+        var vel = unpack2x16float(s.vel_xz);
+        let abs_l = abs(signed_len);
+
+        var k_spring: f32 = 22.0;
+        var damp: f32 = 3.8;
+        var wind_gain: f32 = 5.2;
+        if (kind == 2u) {
+            k_spring = select(18.0, 6.5, sub_now == 1u);
+            damp = select(4.2, 5.5, sub_now == 1u);
+            wind_gain = select(4.8, 7.5, sub_now == 1u);
+        } else if (kind == 3u) {
+            k_spring = 28.0;
+            damp = 3.2;
+            wind_gain = 3.8;
+        } else if (kind == 4u) {
+            k_spring = 42.0;
+            damp = 5.0;
+            wind_gain = 2.8;
+        } else if (kind == 5u) {
+            k_spring = 9.5;
+            damp = 2.4;
+            wind_gain = 6.2;
+        } else if (kind == 6u) {
+            k_spring = 7.5;
+            damp = 2.1;
+            wind_gain = 5.8;
+        }
+
+        let probe_p = s.root_pos + vec3<f32>(disp.x * 0.6, signed_len * 0.65, disp.y * 0.6);
+        let wind = sample_wind_trilinear(probe_p, cam_pos);
+        let ph = f32((mp >> 20u) & 4095u) * 0.001534;
+        let gust_amp = select(0.42, 1.05, sub_now == 1u) * (0.65 + 0.35 * abs_l);
+        let breeze = vec2<f32>(
+            sin(time_sec * 1.85 + s.root_pos.x * 0.23 + s.root_pos.z * 0.17 + ph),
+            cos(time_sec * 1.48 + s.root_pos.z * 0.27 - s.root_pos.x * 0.14 + ph)
+        ) * gust_amp;
+
+        // Radial shockwave pressure kick from explosions / wands (vel_texture.w)
+        var force_xz = vec2<f32>(wind.x, wind.z) * wind_gain + breeze;
+        if (abs(wind.w) > 0.25) {
+            let out_v = vec2<f32>(disp.x + cos(ph) * 0.2, disp.y + sin(ph) * 0.2);
+            let out_l = max(length(out_v), 0.05);
+            force_xz += (out_v / out_l) * clamp(wind.w * 4.5, -14.0, 18.0);
+        }
+
+        // Player boot / body parting & sprint slipstream!
+        let body_p = cam_pos - vec3<f32>(0.0, 0.85, 0.0);
+        let d_vec = s.root_pos + vec3<f32>(0.0, clamp(signed_len * 0.35, -1.2, 0.5), 0.0) - body_p;
+        let dist_b = length(d_vec);
+        if (dist_b < 1.38) {
+            let h_dir = vec2<f32>(d_vec.x, d_vec.z);
+            let h_len = length(h_dir);
+            let push_dir = select(vec2<f32>(cos(ph), sin(ph)), h_dir / max(h_len, 0.001), h_len > 0.02);
+            let push_w = (1.0 - dist_b / 1.38);
+            force_xz += push_dir * (push_w * push_w * 16.5) + player_vxz * (push_w * 0.85);
+        }
+
+        let accel = force_xz - disp * k_spring - vel * damp;
+        vel = clamp(vel + accel * dt, vec2<f32>(-14.0), vec2<f32>(14.0));
+        disp = disp + vel * dt;
+        let max_d = 0.86 * abs_l;
+        let d_len = length(disp);
+        if (d_len > max_d && d_len > 0.0001) {
+            disp = disp * (max_d / d_len);
+            vel = vel * 0.65;
+        }
+
+        s.disp_xz = pack2x16float(disp);
+        s.vel_xz = pack2x16float(vel);
+        flora[i] = s;
+        return;
+    }
+
+    // Empty slot in unchanged cell: stagger re-probe once every 16 frames (handles async chunk stream-in & newly placed Soil/Moss!)
+    if (same_cell && ((frame_u + i) & 15u) != 0u) {
+        return;
+    }
+
+    // Case 1: Newly wrapped cell (or staggered empty-slot check) -> deterministic column probe!
+    // Each sub_k (0..3) owns its own 1m x 1m column (dx, dz) in the 2x2x2m cell for 100% meadow/canopy coverage!
+    let dx = i32(sub_k & 1u);
+    let dz = i32((sub_k >> 1u) & 1u);
+    let dy_first = i32((expected_hash >> 3u) & 1u);
+    let prefer_ceil = (sub_k >= 2u);
+
+    var spawned = false;
+    var out_len: f32 = 0.0;
+    var out_kind: u32 = 0u;
+    var out_mat: u32 = 0u;
+    var out_w_mm: u32 = 55u;
+    var out_sub: u32 = 0u;
+    var out_y: f32 = 0.0;
+    var chosen_dy: i32 = 0;
+
+    for (var pass_i: i32 = 0; pass_i < 2; pass_i = pass_i + 1) {
+        let dy = select(1 - dy_first, dy_first, pass_i == 0);
+        let cand_v = wc * 2 + vec3<i32>(dx, dy, dz);
+        let h_cand = pcg_u32(expected_hash + u32(dy) * 7919u);
+        if (prefer_ceil) {
+            if (try_ceil_anchor(cand_v, h_cand, &out_len, &out_kind, &out_mat, &out_w_mm, &out_sub, &out_y)) {
+                spawned = true;
+                chosen_dy = dy;
+                break;
+            }
+            if (try_floor_anchor(cand_v, h_cand, &out_len, &out_kind, &out_mat, &out_w_mm, &out_sub, &out_y)) {
+                spawned = true;
+                chosen_dy = dy;
+                break;
+            }
+        } else {
+            if (try_floor_anchor(cand_v, h_cand, &out_len, &out_kind, &out_mat, &out_w_mm, &out_sub, &out_y)) {
+                spawned = true;
+                chosen_dy = dy;
+                break;
+            }
+            if (try_ceil_anchor(cand_v, h_cand, &out_len, &out_kind, &out_mat, &out_w_mm, &out_sub, &out_y)) {
+                spawned = true;
+                chosen_dy = dy;
+                break;
+            }
+        }
+    }
+
+    var ns: FloraStrand;
+    ns.cell_hash = expected_hash;
+    ns.disp_xz = 0u;
+    ns.vel_xz = 0u;
+    if (spawned) {
+        let jx = (hash01(pcg_u32(expected_hash + 211u)) - 0.5) * 0.76;
+        let jz = (hash01(pcg_u32(expected_hash + 307u)) - 0.5) * 0.76;
+        let vx = wc.x * 2 + dx;
+        let vz = wc.z * 2 + dz;
+        ns.root_pos = vec3<f32>(f32(vx) + 0.5 + jx, out_y, f32(vz) + 0.5 + jz);
+        ns.len_kind = pack2x16float(vec2<f32>(out_len, f32(out_kind)));
+        let oct_u = u32(dx) | (u32(chosen_dy) << 1u) | (u32(dz) << 2u);
+        let phase_u = (pcg_u32(expected_hash + 509u) >> 4u) & 4095u;
+        ns.mat_packed = (out_mat & 255u)
+                      | ((out_w_mm & 255u) << 8u)
+                      | ((out_sub & 1u) << 16u)
+                      | (oct_u << 17u)
+                      | (phase_u << 20u);
+    } else {
+        ns.root_pos = vec3<f32>(0.0);
+        ns.len_kind = 0u;
+        ns.mat_packed = 0u;
+    }
+    flora[i] = ns;
+}
+")
+
+;; ---------------------------------------------------------------------------
+;; 4-Segment Curved Botanical Ribbon Render Pass (Opaque, DepthWrite = true)
+;;   24 vertices per strand, length-preserving bending arcs, voxel GI + sun/moon
+;;   + shoulder lantern + Beer-Lambert underwater kelp absorption!
+;; ---------------------------------------------------------------------------
+(def flora-render-wgsl
+  "struct FloraStrand {
+    root_pos: vec3<f32>,
+    len_kind: u32,
+    disp_xz: u32,
+    vel_xz: u32,
+    cell_hash: u32,
+    mat_packed: u32,
+}
+
+struct FloraUniforms {
+    view_proj: mat4x4<f32>,
+    cam_right: vec4<f32>,
+    cam_up:    vec4<f32>,
+    cam_pos:   vec4<f32>,
+}
+
+@group(0) @binding(0) var<uniform> u: FloraUniforms;
+@group(0) @binding(1) var<storage, read> flora: array<FloraStrand>;
+@group(0) @binding(2) var light_texture: texture_3d<f32>;
+@group(0) @binding(3) var liquid_texture: texture_3d<f32>;
+
+struct FloraVertexOut {
+    @builtin(position) clip_position: vec4<f32>,
+    @location(0) world_pos: vec3<f32>,
+    @location(1) ribbon_n: vec3<f32>,
+    @location(2) uv_phase: vec3<f32>,
+    @location(3) @interpolate(flat) kind_mat: vec2<u32>,
+}
+
+fn wrap_f160(p: vec3<f32>) -> vec3<i32> {
+    let w = p - floor(p / 160.0) * 160.0;
+    return vec3<i32>(clamp(w, vec3<f32>(0.0), vec3<f32>(159.0)));
+}
+
+fn sample_gi_trilinear(pos: vec3<f32>) -> vec3<f32> {
+    let b = pos - vec3<f32>(0.5);
+    let b0 = floor(b);
+    let f = b - b0;
+    let c000 = textureLoad(light_texture, wrap_f160(b0 + vec3<f32>(0.0, 0.0, 0.0)), 0).rgb;
+    let c100 = textureLoad(light_texture, wrap_f160(b0 + vec3<f32>(1.0, 0.0, 0.0)), 0).rgb;
+    let c010 = textureLoad(light_texture, wrap_f160(b0 + vec3<f32>(0.0, 1.0, 0.0)), 0).rgb;
+    let c110 = textureLoad(light_texture, wrap_f160(b0 + vec3<f32>(1.0, 1.0, 0.0)), 0).rgb;
+    let c001 = textureLoad(light_texture, wrap_f160(b0 + vec3<f32>(0.0, 0.0, 1.0)), 0).rgb;
+    let c101 = textureLoad(light_texture, wrap_f160(b0 + vec3<f32>(1.0, 0.0, 1.0)), 0).rgb;
+    let c011 = textureLoad(light_texture, wrap_f160(b0 + vec3<f32>(0.0, 1.0, 1.0)), 0).rgb;
+    let c111 = textureLoad(light_texture, wrap_f160(b0 + vec3<f32>(1.0, 1.0, 1.0)), 0).rgb;
+    let cx00 = mix(c000, c100, f.x);
+    let cx10 = mix(c010, c110, f.x);
+    let cx01 = mix(c001, c101, f.x);
+    let cx11 = mix(c011, c111, f.x);
+    let cxy0 = mix(cx00, cx10, f.y);
+    let cxy1 = mix(cx01, cx11, f.y);
+    return mix(cxy0, cxy1, f.z);
+}
+
+fn eval_strand_pt(s: f32, root: vec3<f32>, signed_len: f32, disp: vec2<f32>, t: f32, ph: f32, kind: u32, sub_u: u32) -> vec3<f32> {
+    let abs_l = abs(signed_len);
+    if (signed_len > 0.0) {
+        let s2 = s * s;
+        var flutter_amp = 0.018 * abs_l * s2;
+        if (kind == 2u && sub_u == 1u) {
+            flutter_amp = 0.075 * abs_l * s;
+        }
+        let flutter = vec2<f32>(
+            sin(t * 3.4 + ph + s * 3.2),
+            cos(t * 2.8 + ph * 1.3 + s * 2.7)
+        ) * flutter_amp;
+        let lean = select(vec2<f32>(0.0), vec2<f32>(cos(ph * 6.28318), sin(ph * 6.28318)) * (0.24 * abs_l * s), kind == 4u);
+        let h_xz = disp * s2 + flutter + lean;
+        let h2 = dot(h_xz, h_xz);
+        let seg_l = s * abs_l;
+        let y_s = sqrt(max(0.04 * seg_l * seg_l, seg_l * seg_l - h2 * 0.82));
+        return root + vec3<f32>(h_xz.x, y_s, h_xz.y);
+    } else {
+        let wave_amp = select(0.045, 0.026, kind == 6u) * abs_l * s;
+        let wave = vec2<f32>(
+            sin(s * 5.0 - t * 3.1 + ph * 6.28318),
+            cos(s * 4.2 - t * 2.6 + ph * 4.71238)
+        ) * wave_amp;
+        let h_xz = disp * pow(max(s, 0.0), 1.32) + wave;
+        let h2 = dot(h_xz, h_xz);
+        let seg_l = s * abs_l;
+        let y_s = -sqrt(max(0.04 * seg_l * seg_l, seg_l * seg_l - h2 * 0.82));
+        return root + vec3<f32>(h_xz.x, y_s, h_xz.y);
+    }
+}
+
+fn strand_width_scale(s: f32, kind: u32, sub_u: u32) -> f32 {
+    if (kind == 1u) {
+        // Grass Blade: crisp parabolic taper to pointed tip
+        return max(0.07, 1.0 - s * s * 0.94);
+    } else if (kind == 2u) {
+        // Moss Fern / Underwater Kelp: swells across mid-blade, tapers at tip
+        return select(sin(clamp(s * 2.55 + 0.32, 0.32, 3.00)), 0.55 + 0.55 * sin(clamp(s * 2.4 + 0.35, 0.35, 2.98)), sub_u == 1u);
+    } else if (kind == 3u) {
+        // Bioluminescent Spore-Stalk: slender stalk swelling into a bulbous spore cap at s >= 0.72!
+        let cap_swell = exp(-pow((s - 0.84) * 5.8, 2.0)) * 1.45;
+        return 0.44 * (1.0 - 0.35 * s) + cap_swell;
+    } else if (kind == 4u) {
+        // Briar Thorn: woody spine tapering to a sharp needle
+        return max(0.08, 1.08 - 0.86 * s);
+    } else if (kind == 5u) {
+        // Hanging Vine / Liana: broad leaflet envelope tapering gently toward tip
+        return max(0.22, 1.05 - 0.38 * s);
+    } else {
+        // Glow-Tendril: fine cave-worm silk thread swelling into a glowing lantern bead at tip!
+        let bead = exp(-pow((s - 0.90) * 7.2, 2.0)) * 1.35;
+        return 0.28 + bead;
+    }
+}
+
+@vertex fn vs_main(@builtin(vertex_index) vi: u32) -> FloraVertexOut {
+    var out: FloraVertexOut;
+    let strand_idx = vi / 24u;
+    if (strand_idx >= 65536u) {
+        out.clip_position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
+        return out;
+    }
+
+    let st = flora[strand_idx];
+    if (st.len_kind == 0u) {
+        out.clip_position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
+        return out;
+    }
+
+    // Smooth Chebyshev rim scale-down inside the 64m x 32m x 64m (+/-32m XZ, +/-16m Y) toroidal window!
+    let rel_cam = abs(st.root_pos - u.cam_pos.xyz);
+    let edge_fade = smoothstep(31.5, 24.5, max(rel_cam.x, rel_cam.z)) * smoothstep(15.5, 11.2, rel_cam.y);
+    if (edge_fade <= 0.015) {
+        out.clip_position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
+        return out;
+    }
+
+    // Fast camera behind-plane cull
+    let root_clip = u.view_proj * vec4<f32>(st.root_pos, 1.0);
+    if (root_clip.w < -4.8) {
+        out.clip_position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
+        return out;
+    }
+
+    let lk = unpack2x16float(st.len_kind);
+    let signed_len = lk.x * edge_fade;
+    if (abs(signed_len) < 0.04) {
+        out.clip_position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
+        return out;
+    }
+    let kind = u32(lk.y + 0.5);
+    let mp = st.mat_packed;
+    let mat_id = mp & 255u;
+    let base_w = f32((mp >> 8u) & 255u) * 0.001 * mix(0.45, 1.0, edge_fade);
+    let sub_u = (mp >> 16u) & 1u;
+    let ph = f32((mp >> 20u) & 4095u) / 4095.0;
+    let env_t = u.cam_up.w;
+
+    let local_v = vi % 24u;
+    let seg_idx = local_v / 6u;
+    let tri_v = local_v % 6u;
+
+    var joint_u: u32 = seg_idx;
+    var side_sgn: f32 = -1.0;
+    if (tri_v == 1u) { joint_u = seg_idx; side_sgn = 1.0; }
+    else if (tri_v == 2u) { joint_u = seg_idx + 1u; side_sgn = -1.0; }
+    else if (tri_v == 3u) { joint_u = seg_idx + 1u; side_sgn = -1.0; }
+    else if (tri_v == 4u) { joint_u = seg_idx; side_sgn = 1.0; }
+    else if (tri_v == 5u) { joint_u = seg_idx + 1u; side_sgn = 1.0; }
+
+    let s = f32(joint_u) * 0.25;
+    let disp = unpack2x16float(st.disp_xz) * edge_fade;
+
+    let pt = eval_strand_pt(s, st.root_pos, signed_len, disp, env_t, ph, kind, sub_u);
+    let pt_a = eval_strand_pt(max(0.0, s - 0.12), st.root_pos, signed_len, disp, env_t, ph, kind, sub_u);
+    let pt_b = eval_strand_pt(min(1.0, s + 0.12), st.root_pos, signed_len, disp, env_t, ph, kind, sub_u);
+
+    let tang = normalize((pt_b - pt_a) + vec3<f32>(0.0, select(-0.0001, 0.0001, signed_len > 0.0), 0.0));
+    let view_v = pt - u.cam_pos.xyz;
+    let c_tv = cross(tang, view_v);
+    let c_len = length(c_tv);
+    let side = select(u.cam_right.xyz, c_tv / max(c_len, 0.0001), c_len > 0.001);
+    let half_w = base_w * strand_width_scale(s, kind, sub_u);
+    let wpos = pt + side * (side_sgn * half_w);
+
+    // Curved across-ribbon botanical normal for 3D cylindrical relief!
+    let face_n = normalize(cross(side, tang) * select(-1.0, 1.0, dot(cross(side, tang), -view_v) >= 0.0));
+    let rib_n = normalize(face_n * 0.80 + side * (side_sgn * 0.60) + vec3<f32>(0.0, 0.35, 0.0));
+
+    out.clip_position = u.view_proj * vec4<f32>(wpos, 1.0);
+    out.world_pos = wpos;
+    out.ribbon_n = rib_n;
+    out.uv_phase = vec3<f32>(side_sgn, s, ph);
+    out.kind_mat = vec2<u32>(kind | (sub_u << 8u), mat_id);
+    return out;
+}
+
+@fragment fn fs_main(in: FloraVertexOut) -> @location(0) vec4<f32> {
+    let side_u = in.uv_phase.x;
+    let s = clamp(in.uv_phase.y, 0.0, 1.0);
+    let ph = in.uv_phase.z;
+    let kind = in.kind_mat.x & 255u;
+    let sub_u = (in.kind_mat.x >> 8u) & 1u;
+    let mat_id = in.kind_mat.y;
+    let env_t = u.cam_up.w;
+
+    // Keep @binding(2) and @binding(3) unconditionally live for WebGPU auto-layout
+    let frag_liq = textureLoad(liquid_texture, wrap_f160(in.world_pos), 0);
+    let gi_sample = sample_gi_trilinear(in.world_pos + vec3<f32>(0.0, select(-0.25, 0.25, kind <= 4u), 0.0));
+
+    // Species silhouette cutouts (depthWrite = true gives razor-crisp thorns, kelp ruffles & vine leaflets!)
+    let au = abs(side_u);
+    if (kind == 2u && sub_u == 1u) {
+        let ruffle = 0.70 + 0.28 * sin(s * 18.0 + ph * 6.28318);
+        if (au > ruffle) { discard; }
+    } else if (kind == 4u) {
+        let barb = 0.42 + 0.58 * fract(s * 5.5 + ph * 2.0);
+        if (au > barb) { discard; }
+    } else if (kind == 5u) {
+        let leaflet = 0.28 + 0.72 * abs(sin(s * 13.5 + ph * 6.28318));
+        if (au > leaflet) { discard; }
+    } else if (kind == 6u) {
+        let silk_env = select(0.52, 0.98, s > 0.78);
+        if (au > silk_env) { discard; }
+    }
+
+    let hue_jit = (ph - 0.5) * 0.14;
+    let midrib = 1.0 - au;
+    var albedo = vec3<f32>(0.22, 0.62, 0.25);
+    var emissive = vec3<f32>(0.0);
+
+    if (kind == 1u) {
+        // Grass Blade: matches Soil (0.20, 0.60, 0.25) at root -> warm sunlit chartreuse tip!
+        let root_c = vec3<f32>(0.15 + hue_jit * 0.2, 0.48 + hue_jit * 0.3, 0.18);
+        let tip_c = vec3<f32>(0.36 + hue_jit * 0.4, 0.80 + hue_jit * 0.25, 0.22);
+        albedo = mix(root_c, tip_c, pow(s, 0.85)) * (0.90 + 0.16 * midrib);
+    } else if (kind == 2u) {
+        if (sub_u == 1u) {
+            // Submerged Kelp: deep olive-teal base -> golden-emerald translucent frond!
+            let k_root = vec3<f32>(0.08, 0.36, 0.24);
+            let k_tip = vec3<f32>(0.24, 0.70, 0.36 + hue_jit * 0.3);
+            albedo = mix(k_root, k_tip, s) * (0.86 + 0.22 * midrib);
+        } else {
+            // Dry Moss Fern: velvety emerald carpet frond
+            let m_root = vec3<f32>(0.12, 0.52, 0.22);
+            let m_tip = vec3<f32>(0.26 + hue_jit * 0.3, 0.76, 0.34);
+            albedo = mix(m_root, m_tip, s) * (0.88 + 0.18 * midrib);
+        }
+    } else if (kind == 3u) {
+        // Bioluminescent Spore-Stalk: pale mycelium stalk + glowing Fungus/Spore bulb!
+        let is_green = (mat_id == 13u || mat_id == 10u);
+        let stem_c = select(vec3<f32>(0.48, 0.34, 0.52), vec3<f32>(0.28, 0.52, 0.30), is_green);
+        let cap_c = select(vec3<f32>(0.86, 0.28, 0.78), vec3<f32>(0.38, 0.98, 0.36), is_green);
+        let cap_t = smoothstep(0.66, 0.84, s);
+        albedo = mix(stem_c, cap_c, cap_t);
+        let pulse = 0.82 + 0.18 * sin(env_t * 3.2 + ph * 6.28318);
+        emissive = cap_c * (cap_t * (0.55 + 0.65 * midrib) * pulse);
+    } else if (kind == 4u) {
+        // Briar Thorn: dark olive-bark base -> crimson-burgundy razor barbs!
+        let b_stem = vec3<f32>(0.34, 0.22, 0.16);
+        let b_thorn = vec3<f32>(0.68, 0.14, 0.18);
+        albedo = mix(b_stem, b_thorn, clamp(s * 0.7 + au * 0.5, 0.0, 1.0));
+    } else if (kind == 5u) {
+        // Hanging Vine / Liana: woody central cord + lush forest-green scalloped leaves
+        let v_cord = vec3<f32>(0.26, 0.34, 0.16);
+        let v_leaf = vec3<f32>(0.22 + hue_jit * 0.25, 0.66 + hue_jit * 0.2, 0.20);
+        albedo = mix(v_cord, v_leaf, smoothstep(0.18, 0.55, au));
+    } else {
+        // Glow-Tendril: translucent silk thread + HDR cyan-amber bioluminescent lure bead!
+        let bead_t = smoothstep(0.74, 0.94, s);
+        let glow_tint = mix(vec3<f32>(1.0, 0.66, 0.26), vec3<f32>(0.28, 0.95, 0.88), clamp(ph * 1.1, 0.15, 0.88));
+        albedo = mix(vec3<f32>(0.42, 0.58, 0.56), glow_tint, bead_t);
+        let pulse6 = 0.80 + 0.20 * sin(env_t * 4.1 + ph * 6.28318);
+        emissive = glow_tint * (bead_t * 2.10 * pulse6 + 0.18 * midrib);
+    }
+
+    // Match terrain daylight + underground depth curve + voxel GI + [L] shoulder lantern!
+    let n = normalize(in.ribbon_n);
+    let view_vec = u.cam_pos.xyz - in.world_pos;
+    let dist_cam = length(view_vec);
+    let view_dir = view_vec / max(dist_cam, 0.001);
+
+    let sun_ang = env_t * 0.15;
+    let sun_dir = normalize(vec3<f32>(cos(sun_ang), sin(sun_ang), 0.3));
+    let sky_exposure = clamp((in.world_pos.y - 6.0) / 18.0, 0.0, 1.0);
+    let sun_int = clamp(sun_dir.y * 4.0, 0.0, 1.0) * sky_exposure;
+    // Translucent botanical wrap-diffuse + backlit sun subsurface scatter!
+    let wrap_diff = clamp(dot(n, sun_dir) * 0.55 + 0.45, 0.0, 1.0);
+    let sss = pow(clamp(dot(-view_dir, sun_dir), 0.0, 1.0), 3.0) * (0.35 + 0.45 * s);
+    let direct = vec3<f32>(1.0, 0.95, 0.85) * (wrap_diff * 0.82 + sss * 0.55) * sun_int;
+
+    let moon_int = clamp(-sun_dir.y * 4.0, 0.0, 1.0) * 0.15 * sky_exposure;
+    let moon_light = vec3<f32>(0.7, 0.8, 1.0) * clamp(dot(n, -sun_dir) * 0.5 + 0.5, 0.0, 1.0) * moon_int;
+
+    let root_ao = mix(0.54, 1.06, s);
+    let surf_amb = clamp(sun_dir.y * 3.0 + 0.3, 0.2, 1.0);
+    let amb_int = mix(0.22, surf_amb, sky_exposure);
+    let ambient = vec3<f32>(0.15, 0.18, 0.25) * root_ao * amb_int;
+
+    let pos_gi = max(vec3<f32>(0.0), gi_sample);
+    let neg_gi = min(vec3<f32>(0.0), gi_sample);
+    let block_light = pos_gi * mix(0.75, 1.0, root_ao) + neg_gi;
+
+    var player_glow = vec3<f32>(0.0);
+    if (u.cam_pos.w > 0.5) {
+        let atten = 1.0 / (1.0 + 0.04 * dist_cam + 0.009 * dist_cam * dist_cam);
+        player_glow = vec3<f32>(1.0, 0.96, 0.88) * (atten * 2.35 * (0.55 + 0.45 * max(dot(n, view_dir), 0.0)));
+    }
+
+    let total_light = max(vec3<f32>(0.0), direct + ambient + moon_light + block_light + player_glow);
+    var col = albedo * total_light + emissive;
+
+    // Beer-Lambert underwater absorption & teal scatter when submerged in water while camera is above (or deeper)!
+    if (frag_liq.g > 0.22) {
+        let cam_liq = textureLoad(liquid_texture, wrap_f160(u.cam_pos.xyz), 0);
+        let sub_path = select(clamp(dist_cam * 0.28, 0.3, 4.5), clamp(1.15 + (1.0 - s) * 1.35, 0.6, 3.6), cam_liq.g < 0.25);
+        let absorb = exp(-vec3<f32>(0.42, 0.11, 0.07) * sub_path);
+        let scatter = vec3<f32>(0.03, 0.13, 0.18) * min(length(total_light), 1.6) * (1.0 - exp(-sub_path * 0.35));
+        col = col * absorb + scatter;
+    }
+
+    return vec4<f32>(col, 1.0);
+}
+")
+
 
