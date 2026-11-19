@@ -570,8 +570,9 @@
                               crag-gate (+ 0.08 (* 0.92 (Terrain.smooth01 0.24 0.78 (+ slope (* 0.26 (Double.max 0.0 crag-2d))))))
                               surf-env (- 1.0 (Terrain.smooth01 2.2 6.0 (Double.abs surf-sdf)))
                               protrude (* crag-gate (* surf-env (+ (* -1.10 c0) (+ (* 0.68 r1) (* 0.34 r2)))))
-                              damp-s (- 1.0 (* 0.26 surf-env))]
-                          (Double.clamp -12.0 12.0 (* damp-s (- surf-sdf protrude))))
+                              raw-s (- surf-sdf protrude)
+                              damp-s (- 1.0 (* 0.24 surf-env))]
+                          (Double.clamp -12.0 12.0 (if (> raw-s 0.0) (* damp-s raw-s) raw-s)))
                         (Double.clamp -12.0 12.0 surf-sdf))
           cave-shaped (if (and (< surf-sdf -3.2)
                                (and (< (Double.abs cave-sdf) 5.4)
@@ -609,8 +610,8 @@
                                             (* w-geo (+ (* 1.35 c-base) (* 0.95 sp))))
                                           0.0)
                                   raw-sum (+ cave-sdf (* env (+ (+ (+ d-sed d-rim) (+ d-hex d-geo)) cave-ribs)))
-                                  damp-c (- 1.0 (* 0.24 env))]
-                              (Double.clamp -12.0 12.0 (* damp-c raw-sum)))))
+                                  damp-c (- 1.0 (* 0.22 env))]
+                              (Double.clamp -12.0 12.0 (if (> raw-sum 0.0) (* damp-c raw-sum) raw-sum)))))
                         cave-sdf)]
       (if (and (= seg 0) (> surf-shaped cave-shaped)) surf-shaped cave-shaped)))
 
@@ -629,9 +630,11 @@
               crag-2d @(SurfProfile.crag &prof)
               slope2 (+ (* dhx dhx) (* dhz dhz))
               slope (Double.sqrt slope2)
-              inv-grad (/ 0.88 (Double.sqrt (+ 1.0 (+ slope2 (* 0.55 (* crag-2d crag-2d))))))
-              surf-sdf (* (- fdy surface-h) inv-grad)
-              sky-cutoff (+ surface-h (/ 6.8 inv-grad))]
+              inv-grad-sol (/ 1.0 (Double.sqrt (+ 1.0 slope2)))
+              inv-grad-air (/ 0.88 (Double.sqrt (+ 1.0 (+ slope2 (* 0.45 (* crag-2d crag-2d))))))
+              dy-h (- fdy surface-h)
+              surf-sdf (* dy-h (if (> dy-h 0.0) inv-grad-air inv-grad-sol))
+              sky-cutoff (+ surface-h (/ 6.8 inv-grad-air))]
           (if (and (= seg 0) (> fdy sky-cutoff))
             (if (> surf-sdf 12.0) 12.0 surf-sdf)
             (let [b0 (StrataConfig.biome-for strata seg 0)
@@ -1058,8 +1061,9 @@
                   crag-2d @(SurfProfile.crag &prof)
                   slope2 (+ (* dhx dhx) (* dhz dhz))
                   slope (Double.sqrt slope2)
-                  inv-grad (/ 0.88 (Double.sqrt (+ 1.0 (+ slope2 (* 0.55 (* crag-2d crag-2d))))))
-                  sky-cutoff (+ surface-h (/ 6.8 inv-grad))
+                  inv-grad-sol (/ 1.0 (Double.sqrt (+ 1.0 slope2)))
+                  inv-grad-air (/ 0.88 (Double.sqrt (+ 1.0 (+ slope2 (* 0.45 (* crag-2d crag-2d))))))
+                  sky-cutoff (+ surface-h (/ 6.8 inv-grad-air))
                   ;; Geological folding/faulting warps stratum boundaries by +-14m across (x, z)
                   fold-y (+ (* 10.5 (Noise.noise2d noise-state (+ (* fdx 0.011) 131.0) (- (* fdz 0.011) 83.0)))
                             (* 4.0 (Noise.noise2d noise-state (- (* fdx 0.029) 41.0) (+ (* fdz 0.029) 67.0))))
@@ -1082,7 +1086,8 @@
                           (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) seal-sdf)
                           (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
                           (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 10.0f)))
-                      (let [surf-sdf (* (- fdy surface-h) inv-grad)]
+                      (let [dy-h (- fdy surface-h)
+                            surf-sdf (* dy-h (if (> dy-h 0.0) inv-grad-air inv-grad-sol))]
                         (if (and (= seg 0)
                                  (and (> fdy sky-cutoff)
                                       (and (not (and (/= (Int.bit-and col-mask 1) 0)
