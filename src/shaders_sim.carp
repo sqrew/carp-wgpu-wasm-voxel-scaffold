@@ -348,10 +348,10 @@ fn eval_law_tg_liq(world_p: vec3<f32>, active_tg: bool) -> vec2<f32> {
         let rs_b = abs(bp.w);
         if (rs_b > 0.02) {
             let db = distance(world_p, bp.xyz);
-            if (db < rs_b * 12.5 + 4.5) {
-                tau = max(tau, 0.66);
-                if (world_p.y < bp.y + rs_b * 0.85) {
-                    g_val = min(g_val, 0.10);
+            if (db < rs_b * 28.0 + 11.0) {
+                tau = max(tau, 0.72);
+                if (world_p.y < bp.y + rs_b * 1.15) {
+                    g_val = min(g_val, 0.08);
                 }
             }
         }
@@ -1006,7 +1006,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         for (var bk: u32 = 0u; bk < 4u; bk = bk + 1u) {
             let bp = u.bh_pos[bk];
             let rs_l = abs(bp.w);
-            if (rs_l > 0.02 && distance(wp_self, bp.xyz) <= rs_l * 1.45) {
+            if (rs_l > 0.02 && distance(wp_self, bp.xyz) <= rs_l * 2.15 + 0.85) {
                 next_id = 0.0;
                 next_vol = 0.0;
                 next_age = 0.0;
@@ -1766,12 +1766,24 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         for (var bk: u32 = 0u; bk < 4u; bk = bk + 1u) {
             let bp = u.bh_pos[bk];
             let rs_g = abs(bp.w);
-            if (rs_g > 0.02 && distance(wp_self, bp.xyz) <= rs_g * 1.45) {
-                next_id = 0.0;
-                next_vol = 0.0;
-                next_age = 0.0;
-                next_sleep = 0.0;
-                break;
+            if (rs_g > 0.02) {
+                let dg = distance(wp_self, bp.xyz);
+                let r_vac = rs_g * 22.0 + 9.5;
+                if (dg <= rs_g * 3.8 + 1.6) {
+                    next_id = 0.0;
+                    next_vol = 0.0;
+                    next_age = 0.0;
+                    next_sleep = 0.0;
+                    break;
+                } else if (dg < r_vac) {
+                    next_vol *= mix(0.76, 0.96, dg / r_vac);
+                    if (next_vol < 0.015) {
+                        next_id = 0.0;
+                        next_vol = 0.0;
+                        next_age = 0.0;
+                    }
+                    next_sleep = 0.0;
+                }
             }
         }
     }
@@ -1881,6 +1893,7 @@ fn effective_grain_vel(base_ip: vec3<i32>, win_min: vec3<i32>) -> vec4<f32> {
 }
 
 fn has_law_tg_sol() -> bool {
+    if (abs(u.bh_pos[0].w) > 0.02) { return true; }
     for (var mk: u32 = 0u; mk < 4u; mk = mk + 1u) {
         if (u.mancer_pos[mk].w > 0.05 && u.mancer_mat[mk].x >= 768.5) {
             let m_id = i32(round(u.mancer_mat[mk].x));
@@ -1900,6 +1913,19 @@ fn eval_law_tg_sol(world_p: vec3<f32>, active_tg: bool) -> vec2<f32> {
     if (!active_tg) { return vec2<f32>(0.50, 0.50); }
     var tau: f32 = 0.50;
     var g_val: f32 = 0.50;
+    for (var bk: u32 = 0u; bk < 4u; bk = bk + 1u) {
+        let bp = u.bh_pos[bk];
+        let rs_b = abs(bp.w);
+        if (rs_b > 0.02) {
+            let db = distance(world_p, bp.xyz);
+            if (db < rs_b * 26.0 + 10.5) {
+                tau = max(tau, 0.72);
+                if (world_p.y < bp.y + rs_b * 1.10) {
+                    g_val = min(g_val, 0.08);
+                }
+            }
+        }
+    }
     for (var mk: u32 = 0u; mk < 4u; mk = mk + 1u) {
         let mp = u.mancer_pos[mk];
         let mm = u.mancer_mat[mk];
@@ -1956,17 +1982,36 @@ fn grain_desired_step(s_ip: vec3<i32>, win_min: vec3<i32>, tick: f32, active_tg:
         // Chronomancer -Stasis freezes airborne sand, gunpowder dust, & falling rubble motionless in mid-air!
         return vec3<i32>(0);
     }
-    let gv = effective_grain_vel(s_ip, win_min);
+    var gv = effective_grain_vel(s_ip, win_min);
+    var bh_pull = false;
+    if (abs(u.bh_pos[0].w) > 0.02) {
+        for (var bkg: u32 = 0u; bkg < 4u; bkg = bkg + 1u) {
+            let bpg = u.bh_pos[bkg];
+            let rsg = abs(bpg.w);
+            if (rsg > 0.02) {
+                let rel_g = wp - bpg.xyz;
+                let dg = length(rel_g);
+                let r_pull_g = rsg * 26.0 + 10.5;
+                if (dg < r_pull_g && dg > 0.15) {
+                    let fg = clamp(1.0 - dg / r_pull_g, 0.0, 1.0);
+                    let tang_g = normalize(vec3<f32>(-rel_g.z, 0.0, rel_g.x) + vec3<f32>(0.001, 0.0, 0.001));
+                    let bh_v = (-rel_g / dg) * (3.8 + 6.5 * fg) + tang_g * (4.2 + 5.5 * fg) + vec3<f32>(0.0, clamp(-rel_g.y * 0.95, -4.5, 4.5), 0.0);
+                    gv = vec4<f32>(gv.xyz + bh_v, min(gv.w, -3.5));
+                    bh_pull = true;
+                }
+            }
+        }
+    }
     let w_spd = length(gv.xyz);
     let anti_g = tg.y < 0.30;
-    if (!is_falling && !anti_g && w_spd < 1.35 && abs(gv.w) < 1.65) {
+    if (!is_falling && !anti_g && !bh_pull && w_spd < 1.35 && abs(gv.w) < 1.65) {
         return vec3<i32>(0);
     }
 
     let h1 = fract(sin(dot(vec3<f32>(s_ip), vec3<f32>(12.9898, 78.233, 37.719)) + tick * 1.37) * 43758.5453);
-    let wind_lifts = select(w_spd > 3.20 || abs(gv.w) > 2.25, w_spd > 1.65 || abs(gv.w) > 1.85, is_granular);
+    let wind_lifts = bh_pull || select(w_spd > 3.20 || abs(gv.w) > 2.25, w_spd > 1.65 || abs(gv.w) > 1.85, is_granular);
     if (wind_lifts) {
-        let lift_y = clamp(max(0.0, abs(gv.w) - 1.15) * 0.36 + max(0.0, w_spd - 1.65) * 0.24, 0.0, 0.95);
+        let lift_y = select(clamp(max(0.0, abs(gv.w) - 1.15) * 0.36 + max(0.0, w_spd - 1.65) * 0.24, 0.0, 0.95), 0.0, bh_pull);
         let tv = gv.xyz + vec3<f32>(0.0, lift_y, 0.0);
         let ax = abs(tv.x);
         let ay = abs(tv.y);
@@ -2092,7 +2137,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         var law_near = false;
         if (active_tg) {
             let tg_s = eval_law_tg_sol(wp_s, true);
-            if (tg_s.y < 0.30 || tg_s.x < 0.20) { law_near = true; }
+            if (tg_s.y < 0.30 || tg_s.x < 0.20 || tg_s.x > 0.65) { law_near = true; }
         }
         var vox_near = false;
         let vox_cnt_s = min(u32(round(u.match_info.z)), 64u);
@@ -2378,6 +2423,40 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_age = 0.0;
         next_sleep = 0.0;
     }
+
+    if (next_vol <= 0.0 && abs(next_id) > 0.5 && next_id != 255.0 && abs(next_id) != 18.0 && abs(u.bh_pos[0].w) > 0.02) {
+        let wp_bh = get_world_pos(ip, u.cam_pos.xyz) + vec3<f32>(0.5);
+        for (var bks: u32 = 0u; bks < 4u; bks = bks + 1u) {
+            let bps = u.bh_pos[bks];
+            let rss = abs(bps.w);
+            if (rss > 0.02) {
+                let d_bh = distance(wp_bh, bps.xyz);
+                if ((next_id < -0.5 || abs(next_vol + 0.5) < 0.05) && d_bh <= rss * 2.15 + 0.85) {
+                    next_id = 0.0;
+                    next_vol = 2.2;
+                    next_age = 0.0;
+                    next_sleep = 0.0;
+                    break;
+                } else if (next_id > 0.5 && d_bh < rss * 24.0 + 9.5) {
+                    let is_gran_bh = (get_mat_tags(abs(next_id), 0u) & TAG_GRANULAR) != 0u;
+                    if (is_gran_bh) {
+                        let has_air = get_solid(ip, vec3<i32>(0, 1, 0), win_min).y > 0.0
+                                   || get_solid(ip, vec3<i32>(0, -1, 0), win_min).y > 0.0
+                                   || get_solid(ip, vec3<i32>(1, 0, 0), win_min).y > 0.0
+                                   || get_solid(ip, vec3<i32>(-1, 0, 0), win_min).y > 0.0
+                                   || get_solid(ip, vec3<i32>(0, 0, 1), win_min).y > 0.0
+                                   || get_solid(ip, vec3<i32>(0, 0, -1), win_min).y > 0.0;
+                        if (has_air) {
+                            next_id = -abs(next_id);
+                            next_vol = -0.5;
+                            next_sleep = 0.0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     if (abs(next_id) < 0.5 && next_vol <= 0.0) {
         next_vol = 0.5;
     }
@@ -2880,6 +2959,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         var touches_acid_liq: bool = false;
         var touches_miasma: bool = false;
         var adj_stain_liq: f32 = 0.0;
+        var has_air_face: bool = false;
         if (raw_vel.w >= 4.2) { law_flare = max(law_flare, 1.35); }
         if (liq_id_u > 0u && liq_id_u != 2u && raw_liq.g > 0.03) {
             adj_stain_liq = f32(liq_id_u);
@@ -2902,7 +2982,11 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             if (n_sol.y <= 0.0 && (n_sol.x > 0.0 || (nd.y == -1 && abs(n_sol.x) > 0.5))) { // Rigid solid neighbor or supporting grain directly below
                 let n_field = field_in[n_idx];
                 var decay = 1.0;
-                if (nd.y == -1) { decay = 0.0; }
+                if (nd.y == -1) {
+                    decay = 0.0;
+                } else if (nd.y == 1) {
+                    decay = 2.5;
+                }
                 // If neighbor just turned from Air/Sand into Solid this frame (n_field.w <= 0.0), treat its support as 96.0!
                 let nw = select(96.0, n_field.w, n_field.w > 0.0);
                 let supported_w = max(0.0, nw - decay);
@@ -2929,6 +3013,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     }
                 }
             } else {
+                has_air_face = true;
                 let nf = field_in[n_idx];
                 if (nf.w <= -0.5) {
                     let ntp = unpack_air_tp(nf);
@@ -2964,8 +3049,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 }
             }
         }
-        if (sol.x == 255.0 || abs(sol.x) == 18.0 || lp.y <= 32 || lp.x <= 32 || lp.x >= 127 || lp.z <= 32 || lp.z >= 127) {
-            my_w = 96.0; // Anchor at True Bedrock, Abyssal Seal & outer streaming shell of active 5x5x5 window
+        if (sol.x == 255.0 || abs(sol.x) == 18.0 || lp.y <= 8 || lp.x <= 8 || lp.x >= 151 || lp.z <= 8 || lp.z >= 151) {
+            my_w = 96.0; // Anchor at True Bedrock, Abyssal Seal & 8m outer streaming border of active 5x5x5 window
         } else {
             my_w = max_neighbor_w;
         }
@@ -3031,6 +3116,32 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let limit_s = struct_t * 60.0;
         
         if (sol.x != 255.0 && abs(sol.x) != 18.0) {
+            if (abs(u.bh_pos[0].w) > 0.02) {
+                let spall_hash = fract(sin(dot(vec3<f32>(ip), vec3<f32>(12.9898, 78.233, 37.719)) + floor(u.time * 60.0) * 1.618) * 43758.5453);
+                for (var bk: u32 = 0u; bk < 4u; bk = bk + 1u) {
+                    let bp = u.bh_pos[bk];
+                    let rs_f = abs(bp.w);
+                    if (rs_f > 0.02) {
+                        let df_b = distance(world_p, bp.xyz);
+                        let r_roche = rs_f * 28.0 + 12.5;
+                        if (df_b < r_roche) {
+                            let wave_t = 0.85 + 0.15 * sin(df_b * 1.15 - u.time * 8.2);
+                            let tidal_drive = smoothstep(r_roche, rs_f * 5.0 + 2.6, df_b) * wave_t;
+                            shear = max(shear, limit_s * tidal_drive * 0.96);
+                            tensile = max(tensile, limit_t * tidal_drive * 0.94);
+                            // Cleavage-guided GPU surface spalling inside the inner Roche Peel Zone (~9m -> 17m):
+                            let r_peel = rs_f * 13.5 + 5.4;
+                            if (has_air_face && sol.x > 0.5 && df_b < r_peel) {
+                                let peel_f = smoothstep(r_peel, rs_f * 2.2 + 1.0, df_b) * select(1.0, 1.75, bp.w < 0.0);
+                                let weak_k = clamp(1.55 / sqrt(max(struct_t, 1.4)), 0.16, 1.35) * select(1.0, 1.45, is_brittle);
+                                if (spall_hash < peel_f * weak_k * 0.18) {
+                                    shear = limit_s * 1.35;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             if (compressive > limit_c || tensile > limit_t || shear > limit_s) {
                 broken = true;
             }
@@ -3046,20 +3157,6 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     load_ratio = max(load_ratio, clamp(load_ratio * (1.0 + span * 0.16) + span * 0.022, 0.0, 0.98));
                 }
                 solid_stress = clamp(load_ratio, 0.0, 1.0);
-            }
-            if (abs(u.bh_pos[0].w) > 0.02) {
-                for (var bk: u32 = 0u; bk < 4u; bk = bk + 1u) {
-                    let bp = u.bh_pos[bk];
-                    let rs_f = abs(bp.w);
-                    if (rs_f > 0.02) {
-                        let df_b = distance(world_p, bp.xyz);
-                        let r_roche = rs_f * 7.5 + 3.5;
-                        if (df_b < r_roche) {
-                            let tidal_s = smoothstep(r_roche, rs_f * 1.35, df_b) * 0.96;
-                            solid_stress = max(solid_stress, tidal_s);
-                        }
-                    }
-                }
             }
         }
 
@@ -3805,21 +3902,21 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             if (rs_v > 0.02) {
                 let rel_b = world_p - bp.xyz;
                 let db = length(rel_b);
-                let r_vel = rs_v * 15.0 + 5.5;
+                let r_vel = rs_v * 28.0 + 11.5;
                 if (db < r_vel && db > 0.08) {
                     let fall_b = clamp(1.0 - db / r_vel, 0.0, 1.0);
-                    let az_v = u.bh_col[bk].w + u.time * 0.22;
-                    let n_disk = normalize(vec3<f32>(cos(az_v) * 0.30, 0.954, sin(az_v) * 0.30));
+                    let az_v = u.bh_col[bk].w + u.time * 0.14;
+                    let n_disk = normalize(vec3<f32>(cos(az_v) * 0.268, 0.963, sin(az_v) * 0.268));
                     let h_dv = dot(rel_b, n_disk);
                     let q_pv = rel_b - n_disk * h_dv;
                     let tang_v = normalize(cross(n_disk, q_pv + vec3<f32>(0.001, 0.0, 0.001)));
                     let pinch_mul = select(1.0, 1.85, bp.w < 0.0);
-                    let in_spd = (2.2 + 4.4 * fall_b) * pinch_mul;
-                    let orb_spd = (3.4 + 3.2 * sqrt(rs_v / max(db, 0.5))) * fall_b;
-                    let eq_push = -n_disk * clamp(h_dv / max(rs_v * 1.1, 0.45), -1.0, 1.0) * (2.6 * fall_b);
+                    let in_spd = (3.4 + 6.4 * fall_b) * pinch_mul;
+                    let orb_spd = (4.8 + 5.2 * sqrt(rs_v / max(db, 0.45))) * fall_b;
+                    let eq_push = -n_disk * clamp(h_dv / max(rs_v * 1.1, 0.45), -1.0, 1.0) * (3.6 * fall_b);
                     let bh_vel = (-rel_b / db) * in_spd + tang_v * orb_spd + eq_push;
-                    next_v = mix(next_v, bh_vel, clamp(0.45 * fall_b + 0.18 * fall_b * fall_b, 0.0, 0.68));
-                    next_p = min(next_p, -2.95 * fall_b * pinch_mul);
+                    next_v = mix(next_v, bh_vel, clamp(0.52 * fall_b + 0.22 * fall_b * fall_b, 0.0, 0.78));
+                    next_p = min(next_p, -3.65 * fall_b * pinch_mul);
                 }
             }
         }

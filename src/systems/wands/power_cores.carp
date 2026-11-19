@@ -283,10 +283,10 @@
           dpz (Double.from-float pz)
           brad-d (Double.from-float brad)
           r-well (if (or is-bh? pinch?)
-                   (Physics.clamp 12.5 25.0 (+ 11.0 (* brad-d 2.85)))
+                   (Physics.clamp 18.5 35.0 (+ 15.0 (* brad-d 4.25)))
                    (Physics.clamp 4.5 14.5 (+ 2.4 (* brad-d 1.95))))
           r-eat (if is-bh?
-                  (+ (* brad-d 0.38) 0.34)
+                  (+ (* brad-d 0.44) 0.52)
                   (+ (* brad-d 0.72) 0.95))
           mbk (EngineState.mancers state)
           o-state (MancerBank.orb-state mbk)
@@ -308,7 +308,19 @@
           eat2-gen (Uint32.from-long 0l)
           eat2-x px
           eat2-y py
-          eat2-z pz]
+          eat2-z pz
+          eat3? false
+          eat3-idx (Uint64.from-long 0l)
+          eat3-gen (Uint32.from-long 0l)
+          eat3-x px
+          eat3-y py
+          eat3-z pz
+          eat4? false
+          eat4-idx (Uint64.from-long 0l)
+          eat4-gen (Uint32.from-long 0l)
+          eat4-x px
+          eat4-y py
+          eat4-z pz]
       (do
         ;; A. Peel wall/ceiling-clinging Slimes inside `r-well`!
         (when (= (Int.mod fc 4) 0)
@@ -370,7 +382,7 @@
                           (set! eaten (+ eaten 1)))
                         (when (and (> gd 0.20) (< gd (+ r-well 1.5)))
                           (let [inv-g (/ 1.0 gd)
-                                pull-s (* (if (or is-bh? pinch?) (* 38.0 (Double.from-float inv-m)) 18.0)
+                                pull-s (* (if (or is-bh? pinch?) (* 42.0 (Double.from-float inv-m)) 18.0)
                                           (Double.from-float imp-w))
                                 nv (Vector3.init (* (* gx inv-g) pull-s)
                                                  (* (* gy inv-g) pull-s)
@@ -383,8 +395,8 @@
                               (RigidBody.set-body! orb @ob)
                               (ECS.add-component! ecs &oent (CompBody.init @orb))))))))))))
 
-        ;; C. Accretion Spiral / Stellar Gravity on `CompBody` + Devour up to 2 Boulders per frame!
-        (let [k-bl (Physics.clamp 0.0 0.54 (Double.from-float (* (if (or is-bh? pinch?) 11.5f 6.8f) fdt)))
+        ;; C. Accretion Spiral / Stellar Gravity on `CompBody` + Devour up to 4 Boulders per frame!
+        (let [k-bl (Physics.clamp 0.0 0.58 (Double.from-float (* (if (or is-bh? pinch?) 12.5f 6.8f) fdt)))
               imp-d (Double.from-float imp-w)
               invm-d (Double.from-float (if (> inv-m 0.1f) inv-m 1.0f))]
           (query ecs (e (cb CompBody))
@@ -398,74 +410,104 @@
                           gx (- dpx @(Vector3.x &epos))
                           gy (- dpy @(Vector3.y &epos))
                           gz (- dpz @(Vector3.z &epos))
-                          gd (Double.sqrt (+ (+ (* gx gx) (* gy gy)) (* gz gz)))]
+                          gd (Double.sqrt (+ (+ (* gx gx) (* gy gy)) (* gz gz)))
+                          is-bldr? (WandSystem.boulder-entity? state e-idx)]
                       (when (and (> gd 0.12) (< gd r-well))
-                        (if (and (or is-bh? pinch?) (and (< gd r-eat) (WandSystem.boulder-entity? state e-idx)))
-                          (if (not eat1?)
-                            (do
-                              (set! eat1? true)
-                              (set! eat1-idx e-idx)
-                              (set! eat1-gen (ECS.Entity.generation &e))
-                              (set! eat1-x (Double.to-float @(Vector3.x &epos)))
-                              (set! eat1-y (Double.to-float @(Vector3.y &epos)))
-                              (set! eat1-z (Double.to-float @(Vector3.z &epos))))
-                            (when (not eat2?)
+                        (do
+                          (if (and (or is-bh? pinch?) (and (< gd r-eat) is-bldr?))
+                            (if (not eat1?)
                               (do
-                                (set! eat2? true)
-                                (set! eat2-idx e-idx)
-                                (set! eat2-gen (ECS.Entity.generation &e))
-                                (set! eat2-x (Double.to-float @(Vector3.x &epos)))
-                                (set! eat2-y (Double.to-float @(Vector3.y &epos)))
-                                (set! eat2-z (Double.to-float @(Vector3.z &epos))))))
-                          (let [inv-g (/ 1.0 gd)
-                                gh (Double.sqrt (+ (* gx gx) (* gz gz)))
-                                inv-h (if (> gh 0.08) (/ 1.0 gh) 0.0)
-                                tx-s (* (- 0.0 gz) inv-h)
-                                tz-s (* gx inv-h)
-                                in-plunge? (< gd (* r-eat 2.35))
-                                pull-m (if pinch?
-                                         (* (* (+ 28.0 (* 20.0 (- 1.0 (/ gd r-well)))) invm-d) imp-d)
-                                         (if is-bh?
-                                           ;; Outside 2.35*r_eat, gentle spiral infall lets boulders orbit visibly in a fast Keplerian ring before plunging in!
-                                           (* (* (if in-plunge? 28.5 (+ 9.5 (* 11.5 (- 1.0 (/ gd r-well))))) invm-d) imp-d)
-                                           (* (+ 9.5 (* 8.5 (- 1.0 (/ gd r-well)))) imp-d)))
-                                swirl-m (if is-bh?
-                                          (* (* (+ 26.0 (* 10.5 (Double.sqrt (/ (Physics.clamp 0.5 4.0 r-eat) (if (> gd 0.4) gd 0.4))))) invm-d) imp-d)
-                                          (* 6.5 imp-d))
-                                old-v @(Body.velocity b)
-                                tvx (+ (* (* gx inv-g) pull-m) (* tx-s swirl-m))
-                                tvy (if is-bh?
-                                      ;; Pinch vertically into the flattened equatorial Accretion Disk plane!
-                                      (+ (* gy (Physics.clamp 2.5 9.5 (* 4.2 invm-d))) 1.8)
-                                      (+ (* (* gy inv-g) (* pull-m 1.20)) 4.2))
-                                tvz (+ (* (* gz inv-g) pull-m) (* tz-s swirl-m))
-                                nv (Vector3.init
-                                     (Physics.clamp -46.0 46.0 (+ @(Vector3.x &old-v) (* (- tvx @(Vector3.x &old-v)) k-bl)))
-                                     (Physics.clamp -38.0 38.0 (+ @(Vector3.y &old-v) (* (- tvy @(Vector3.y &old-v)) k-bl)))
-                                     (Physics.clamp -46.0 46.0 (+ @(Vector3.z &old-v) (* (- tvz @(Vector3.z &old-v)) k-bl))))
-                                hslot (EnemySystem.hopper-slot-by-idx state e-idx)]
-                            (do
-                              (when (and (>= hslot 0) (< @(Array.unsafe-nth h-hurt hslot) 0.22f))
+                                (set! eat1? true)
+                                (set! eat1-idx e-idx)
+                                (set! eat1-gen (ECS.Entity.generation &e))
+                                (set! eat1-x (Double.to-float @(Vector3.x &epos)))
+                                (set! eat1-y (Double.to-float @(Vector3.y &epos)))
+                                (set! eat1-z (Double.to-float @(Vector3.z &epos))))
+                              (if (not eat2?)
                                 (do
-                                  (Array.aset! h-hurt hslot 0.22f)
-                                  (Array.aset! h-pspd hslot (Double.to-float (Vector3.mag &nv)))))
-                              (Body.set-is-sleeping! b false)
-                              (Body.set-velocity! b nv)
-                              (RigidBody.set-body! rb @b)
-                              (ECS.add-component! ecs &e (CompBody.init @rb)))))))))))))
+                                  (set! eat2? true)
+                                  (set! eat2-idx e-idx)
+                                  (set! eat2-gen (ECS.Entity.generation &e))
+                                  (set! eat2-x (Double.to-float @(Vector3.x &epos)))
+                                  (set! eat2-y (Double.to-float @(Vector3.y &epos)))
+                                  (set! eat2-z (Double.to-float @(Vector3.z &epos))))
+                                (if (not eat3?)
+                                  (do
+                                    (set! eat3? true)
+                                    (set! eat3-idx e-idx)
+                                    (set! eat3-gen (ECS.Entity.generation &e))
+                                    (set! eat3-x (Double.to-float @(Vector3.x &epos)))
+                                    (set! eat3-y (Double.to-float @(Vector3.y &epos)))
+                                    (set! eat3-z (Double.to-float @(Vector3.z &epos))))
+                                  (when (not eat4?)
+                                    (do
+                                      (set! eat4? true)
+                                      (set! eat4-idx e-idx)
+                                      (set! eat4-gen (ECS.Entity.generation &e))
+                                      (set! eat4-x (Double.to-float @(Vector3.x &epos)))
+                                      (set! eat4-y (Double.to-float @(Vector3.y &epos)))
+                                      (set! eat4-z (Double.to-float @(Vector3.z &epos))))))))
+                            (let [inv-g (/ 1.0 gd)
+                                  gh (Double.sqrt (+ (* gx gx) (* gz gz)))
+                                  inv-h (if (> gh 0.08) (/ 1.0 gh) 0.0)
+                                  tx-s (* (- 0.0 gz) inv-h)
+                                  tz-s (* gx inv-h)
+                                  in-plunge? (< gd (* r-eat 2.45))
+                                  pull-m (if pinch?
+                                           (* (* (+ 32.0 (* 22.0 (- 1.0 (/ gd r-well)))) invm-d) imp-d)
+                                           (if is-bh?
+                                             ;; Outside 2.45*r_eat, brisk spiral infall pulls boulders from 35m into a fast Keplerian ring before plunging in!
+                                             (* (* (if in-plunge? 32.0 (+ 13.5 (* 14.5 (- 1.0 (/ gd r-well))))) invm-d) imp-d)
+                                             (* (+ 9.5 (* 8.5 (- 1.0 (/ gd r-well)))) imp-d)))
+                                  swirl-m (if is-bh?
+                                            (* (* (+ 28.0 (* 12.0 (Double.sqrt (/ (Physics.clamp 0.5 4.0 r-eat) (if (> gd 0.4) gd 0.4))))) invm-d) imp-d)
+                                            (* 6.5 imp-d))
+                                  old-v @(Body.velocity b)
+                                  tvx (+ (* (* gx inv-g) pull-m) (* tx-s swirl-m))
+                                  tvy (if is-bh?
+                                        ;; Pinch vertically into the flattened equatorial Accretion Disk plane!
+                                        (+ (* gy (Physics.clamp 3.0 10.5 (* 4.8 invm-d))) 2.1)
+                                        (+ (* (* gy inv-g) (* pull-m 1.20)) 4.2))
+                                  tvz (+ (* (* gz inv-g) pull-m) (* tz-s swirl-m))
+                                  nv (Vector3.init
+                                       (Physics.clamp -50.0 50.0 (+ @(Vector3.x &old-v) (* (- tvx @(Vector3.x &old-v)) k-bl)))
+                                       (Physics.clamp -40.0 40.0 (+ @(Vector3.y &old-v) (* (- tvy @(Vector3.y &old-v)) k-bl)))
+                                       (Physics.clamp -50.0 50.0 (+ @(Vector3.z &old-v) (* (- tvz @(Vector3.z &old-v)) k-bl))))
+                                  hslot (EnemySystem.hopper-slot-by-idx state e-idx)]
+                              (do
+                                (when (and (>= hslot 0) (< @(Array.unsafe-nth h-hurt hslot) 0.22f))
+                                  (do
+                                    (Array.aset! h-hurt hslot 0.22f)
+                                    (Array.aset! h-pspd hslot (Double.to-float (Vector3.mag &nv)))))
+                                (Body.set-is-sleeping! b false)
+                                (Body.set-velocity! b nv)
+                                (RigidBody.set-body! rb @b)
+                                (ECS.add-component! ecs &e (CompBody.init @rb))))))))))))))
 
         ;; Safely despawn devoured Boulders outside `(query ecs ...)`!
         (when eat1?
           (let [sent1 (ECS.Entity.init (Handle.init eat1-idx eat1-gen))]
             (do
               (GameWorld.destroy-entity! ecs &sent1)
-              (ParticleSystem.emit-sparks! ps eat1-x eat1-y eat1-z 0.0f 1.0f 0.0f 18)
+              (ParticleSystem.emit-sparks! ps eat1-x eat1-y eat1-z 0.0f 1.0f 0.0f 14)
               (set! eaten (+ eaten 1)))))
         (when eat2?
           (let [sent2 (ECS.Entity.init (Handle.init eat2-idx eat2-gen))]
             (do
               (GameWorld.destroy-entity! ecs &sent2)
-              (ParticleSystem.emit-sparks! ps eat2-x eat2-y eat2-z 0.0f 1.0f 0.0f 18)
+              (ParticleSystem.emit-sparks! ps eat2-x eat2-y eat2-z 0.0f 1.0f 0.0f 14)
+              (set! eaten (+ eaten 1)))))
+        (when eat3?
+          (let [sent3 (ECS.Entity.init (Handle.init eat3-idx eat3-gen))]
+            (do
+              (GameWorld.destroy-entity! ecs &sent3)
+              (ParticleSystem.emit-sparks! ps eat3-x eat3-y eat3-z 0.0f 1.0f 0.0f 14)
+              (set! eaten (+ eaten 1)))))
+        (when eat4?
+          (let [sent4 (ECS.Entity.init (Handle.init eat4-idx eat4-gen))]
+            (do
+              (GameWorld.destroy-entity! ecs &sent4)
+              (ParticleSystem.emit-sparks! ps eat4-x eat4-y eat4-z 0.0f 1.0f 0.0f 14)
               (set! eaten (+ eaten 1)))))
         eaten)))
 
@@ -1801,8 +1843,8 @@
               (do
                 (EngineState.push-wake-capsule! state
                   px (- py (* 1.8f brad)) pz px (+ py (* 1.8f brad)) pz
-                  (- 0.0f (Float.clamp 8.5f 16.0f (+ 7.5f (* brad 1.85f))))
-                  (* (* -11.5f inv-m) imp-w) 0.0f 0.8f 0.0f (* -3.65f inv-m))
+                  (- 0.0f (Float.clamp 14.0f 24.5f (+ 12.0f (* brad 2.6f))))
+                  (* (* -14.5f inv-m) imp-w) 0.0f 1.1f 0.0f (* -4.15f inv-m))
                 (when (= (Int.mod (+ fc bi) 2) 0)
                   (let [da (+ (* (Float.from-int fc) 0.54f) (Float.from-int bi))
                         dr (* brad 1.45f)
@@ -1814,10 +1856,10 @@
                 (when (= (Int.mod (+ fc bi) 3) 0)
                   (let [pay-bh (WandSystem.get-coupled-payload wid bmat biw bim)
                         btag @(SpellPayload.elem-tag &pay-bh)
-                        hor-r (+ (* brad 1.32f) 0.95f)
+                        hor-r (+ (* brad 1.45f) 1.15f)
                         cvec-bh (Vector3.init (Double.from-float px) (Double.from-float py) (Double.from-float pz))
                         d-core (Physics.sample-sdf-trilinear world &cvec-bh)
-                        eat-core-r (Float.clamp 0.85f 2.85f (+ (* brad 0.56f) 0.42f))]
+                        eat-core-r (Float.clamp 0.95f 3.15f (+ (* brad 0.62f) 0.52f))]
                     (do
                       ;; Event Horizon rock annihilation: devours any cave rock/pillar crossing the horizon!
                       (when (and (<= d-core eat-core-r) (> d-core -900.0f))
@@ -1828,66 +1870,70 @@
                                 (EngineState.push-voxel-action! state px py pz eat-core-r cm-ok -1.0f 2.0f)
                                 (MancerSystem.carve-blast-sdf! world &cvec-bh (Double.from-float (* eat-core-r 0.92f))))))))
                       (WandSystem.apply-impact-forces-and-reactions-scaled! state world ps ecs
-                        px py pz 0.0f -1.0f 0.0f (* -9.5f inv-m) hor-r btag wid bmat (* bdmg 0.96f))
+                        px py pz 0.0f -1.0f 0.0f (* -11.5f inv-m) hor-r 0 wid 0.0f (* bdmg 0.96f))
                       (when has-dual?
                         (WandSystem.apply-impact-forces-and-reactions-scaled! state world ps ecs
-                          px py pz 0.0f 1.0f 0.0f (* -7.5f inv-m) (* hor-r 0.92f) (WandSystem.mat-elem-tag bim biw) biw bim (* bdmg 0.68f))))))
-                ;; Roche-Limit Tidal Wall Spallation: rips real rock slabs off nearby walls/floors/pillars into Keplerian Accretion Orbit!
-                (when (= (Int.mod (+ fc (* bi 3)) 7) 0)
-                  (let [ang-sp (+ (* (Float.from-int fc) 0.91f) (* (Float.from-int bi) 2.1f))
-                        rx-d (WandSystem.fcos ang-sp)
-                        rz-d (WandSystem.fsin ang-sp)
-                        ry-d (* 0.48f (WandSystem.fsin (* (Float.from-int fc) 0.37f)))
-                        r-roche (Float.clamp 3.6f 9.6f (+ (* brad 1.95f) 2.2f))
-                        spalled? false]
-                    ;; March 2 samples along the rotating Roche ray to find the nearest cave wall/floor/pillar within r-roche!
-                    (for [rk 1 3]
-                      (when (not spalled?)
-                        (let [rt (* r-roche (* 0.50f (Float.from-int rk)))
-                              wx (+ px (* rx-d rt))
-                              wy (+ py (* ry-d rt))
-                              wz (+ pz (* rz-d rt))
-                              wvec (Vector3.init (Double.from-float wx) (Double.from-float wy) (Double.from-float wz))
-                              wd (Physics.sample-sdf-trilinear world &wvec)]
-                          (when (and (<= wd 0.55f) (> wd -900.0f))
-                            (let [wm-raw (CritterSystem.sample-solid-mat-near world &wvec)]
-                              (when (and (/= wm-raw 255.0f) (/= (Float.abs wm-raw) 18.0f))
-                                (let [wm (if (and (>= wm-raw 1.0f) (< wm-raw 250.0f)) wm-raw 1.0f)
-                                      wnrm (Physics.estimate-sdf-normal world &wvec)
-                                      wnx (Double.to-float @(Vector3.x &wnrm))
-                                      wny (Double.to-float @(Vector3.y &wnrm))
-                                      wnz (Double.to-float @(Vector3.z &wnrm))
-                                      spall-r (Float.clamp 1.15f 1.85f (+ 0.95f (* brad 0.22f)))
-                                      bx (+ wx (* wnx 0.68f))
-                                      by (+ wy (* wny 0.68f))
-                                      bz (+ wz (* wnz 0.68f))
-                                      bpos (Vector3.init (Double.from-float bx) (Double.from-float by) (Double.from-float bz))
-                                      ;; Launch tangentially + inward into the Keplerian Accretion Ring!
-                                      tv-x (- (* (- 0.0f rz-d) 20.0f) (* rx-d 8.5f))
-                                      tv-y (* (- py by) 3.8f)
-                                      tv-z (- (* rx-d 20.0f) (* rz-d 8.5f))
-                                      bvel (Vector3.init (Double.from-float tv-x) (Double.from-float tv-y) (Double.from-float tv-z))
-                                      ptype-c (Float.from-int (+ 400 (WandSystem.clamp-int 1 31 (Float.to-int (+ wm 0.5f)))))]
-                                  (do
-                                    (set! spalled? true)
-                                    (EngineState.push-voxel-action! state wx wy wz spall-r wm -1.0f 2.0f)
-                                    (if (= (Float.to-int (+ wm 0.5f)) 5)
-                                      (ignore (World.edit-sdf! world &wvec (Double.from-float (* spall-r 0.90f)) 0.0f true))
-                                      (MancerSystem.carve-blast-sdf! world &wvec (Double.from-float (* spall-r 0.90f))))
-                                    (ignore (EditingSystem.spawn-boulder! state bpos bvel (Double.from-float (Float.clamp 0.28f 0.44f (* brad 0.12f))) wm 4200l))
-                                    (ParticleSystem.emit! ps bx by bz tv-x tv-y tv-z 1.35f 5 ptype-c 0.28f 0.25f)
-                                    (ParticleSystem.emit-sparks! ps bx by bz wnx wny wnz 6)))))))))))
-                (when (= (Int.mod (+ fc bi) 5) 0)
+                          px py pz 0.0f 1.0f 0.0f (* -9.0f inv-m) (* hor-r 0.92f) 0 biw 0.0f (* bdmg 0.68f))))))
+                ;; Cataclysmic 30Hz Dual-Ray Roche-Limit Tidal Wall Spallation (11.5m -> 23.5m sphere across walls, ceilings, pillars & floors!):
+                (when (= (Int.mod (+ fc bi) 2) 0)
+                  (let [r-roche (Float.clamp 11.5f 23.5f (+ (* brad 3.65f) 8.2f))]
+                    (for [ray-k 0 2]
+                      (let [seed-f (+ (* (Float.from-int fc) 1.19998f) (+ (* (Float.from-int ray-k) 3.14159f) (* (Float.from-int bi) 2.1f)))
+                            ry-d (* 0.80f (WandSystem.fsin (+ (* (Float.from-int fc) 0.43f) (* (Float.from-int ray-k) 1.95f))))
+                            rh-m (Float.sqrt (Float.clamp 0.12f 1.0f (- 1.0f (* ry-d ry-d))))
+                            rx-d (* (WandSystem.fcos seed-f) rh-m)
+                            rz-d (* (WandSystem.fsin seed-f) rh-m)
+                            spalled? false]
+                        ;; March 6 samples along each 3D Roche ray to catch thin pillars, ceilings, side walls & cave floors!
+                        (for [rk 1 7]
+                          (when (not spalled?)
+                            (let [rt (* r-roche (* 0.1667f (Float.from-int rk)))
+                                  wx (+ px (* rx-d rt))
+                                  wy (+ py (* ry-d rt))
+                                  wz (+ pz (* rz-d rt))
+                                  wvec (Vector3.init (Double.from-float wx) (Double.from-float wy) (Double.from-float wz))
+                                  wd (Physics.sample-sdf-trilinear world &wvec)]
+                              (when (and (<= wd 0.62f) (> wd -900.0f))
+                                (let [wm-raw (CritterSystem.sample-solid-mat-near world &wvec)]
+                                  (when (and (/= wm-raw 255.0f) (/= (Float.abs wm-raw) 18.0f))
+                                    (let [wm (if (and (>= wm-raw 1.0f) (< wm-raw 250.0f)) wm-raw 1.0f)
+                                          wnrm (Physics.estimate-sdf-normal world &wvec)
+                                          wnx (Double.to-float @(Vector3.x &wnrm))
+                                          wny (Double.to-float @(Vector3.y &wnrm))
+                                          wnz (Double.to-float @(Vector3.z &wnrm))
+                                          spall-r (Float.clamp 1.25f 2.15f (+ 1.05f (* brad 0.25f)))
+                                          bx (+ wx (* wnx 0.72f))
+                                          by (+ wy (* wny 0.72f))
+                                          bz (+ wz (* wnz 0.72f))
+                                          bpos (Vector3.init (Double.from-float bx) (Double.from-float by) (Double.from-float bz))
+                                          ;; Rip slab off wall & hurl tangentially + inward into the Keplerian Accretion Ring!
+                                          tv-x (- (* (- 0.0f rz-d) 24.0f) (* rx-d 13.5f))
+                                          tv-y (* (- py by) 4.4f)
+                                          tv-z (- (* rx-d 24.0f) (* rz-d 13.5f))
+                                          bvel (Vector3.init (Double.from-float tv-x) (Double.from-float tv-y) (Double.from-float tv-z))
+                                          ptype-c (Float.from-int (+ 400 (WandSystem.clamp-int 1 31 (Float.to-int (+ wm 0.5f)))))]
+                                      (do
+                                        (set! spalled? true)
+                                        (EngineState.push-voxel-action! state wx wy wz spall-r wm -1.0f 2.0f)
+                                        (if (= (Float.to-int (+ wm 0.5f)) 5)
+                                          (ignore (World.edit-sdf! world &wvec (Double.from-float (* spall-r 0.90f)) 0.0f true))
+                                          (MancerSystem.carve-blast-sdf! world &wvec (Double.from-float (* spall-r 0.90f))))
+                                        (when (< @(EngineState.fsi-count state) 74)
+                                          (ignore (EditingSystem.spawn-boulder! state bpos bvel (Double.from-float (Float.clamp 0.30f 0.48f (* brad 0.13f))) wm 8500l)))
+                                        (ParticleSystem.emit! ps bx by bz tv-x tv-y tv-z 2.15f 10 ptype-c 0.32f 0.25f)
+                                        (ParticleSystem.emit-sparks! ps bx by bz wnx wny wnz 6)))))))))))))
+                (when (= (Int.mod (+ fc bi) 6) 0)
                   (let [m2 (if has-dual? bim bmat)
                         ang-r (* (Float.from-int fc) 0.41f)
-                        rx-r (+ px (* (* brad 1.25f) (WandSystem.fcos ang-r)))
-                        rz-r (+ pz (* (* brad 1.25f) (WandSystem.fsin ang-r)))]
+                        rx-r (+ px (* (* brad 1.55f) (WandSystem.fcos ang-r)))
+                        rz-r (+ pz (* (* brad 1.55f) (WandSystem.fsin ang-r)))]
                     (do
-                      (when (> bmat 255.0f)
-                        (WandSystem.inject-gpu-reagent! state rx-r py rz-r (Float.clamp 1.15f 2.45f (* brad 0.55f)) bmat 0.68f))
-                      (when (and has-dual? (> m2 255.0f))
+                      ;; Only feed non-gaseous liquid reagents (< 512) into the outer accretion ring—never spew opaque Steam/Smoke clouds!
+                      (when (and (> bmat 255.0f) (< bmat 511.5f))
+                        (WandSystem.inject-gpu-reagent! state rx-r py rz-r (Float.clamp 0.95f 1.75f (* brad 0.42f)) bmat 0.52f))
+                      (when (and has-dual? (and (> m2 255.0f) (< m2 511.5f)))
                         (WandSystem.inject-gpu-reagent! state (- (* 2.0f px) rx-r) py (- (* 2.0f pz) rz-r)
-                          (Float.clamp 1.15f 2.45f (* brad 0.55f)) m2 0.68f))))))
+                          (Float.clamp 0.95f 1.75f (* brad 0.42f)) m2 0.52f))))))
               ;; ACTIVE ROILING SOLAR STAR (`bsty == 10`): Expanding Photosphere Burn + Prominence Flares + Wall Melting!
               (let [ang-s (+ (* (Float.from-int fc) 0.52f) (Float.from-int bi))
                     sdx (WandSystem.fcos ang-s)

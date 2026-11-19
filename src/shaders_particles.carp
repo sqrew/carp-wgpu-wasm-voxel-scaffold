@@ -321,19 +321,19 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             particles[i] = p;
             return;
         }
-        let r_reach = rs_p * 16.0 + 6.5;
+        let r_reach = rs_p * 34.0 + 13.5;
         if (dp_bh < r_reach) {
-            let az_p = time_params[4] * 0.22;
-            let n_disk = normalize(vec3<f32>(cos(az_p) * 0.30, 0.954, sin(az_p) * 0.30));
+            let az_p = time_params[4] * 0.14;
+            let n_disk = normalize(vec3<f32>(cos(az_p) * 0.268, 0.963, sin(az_p) * 0.268));
             let h_dp = dot(rel_p, n_disk);
             let q_pl = rel_p - n_disk * h_dp;
             let tang_p = normalize(cross(n_disk, q_pl + vec3<f32>(0.0005, 0.0, 0.0005)));
             let fall_p = clamp(1.0 - dp_bh / r_reach, 0.0, 1.0);
-            let grav_p = (28.0 + 95.0 * rs_p / max(dp_bh, 0.65)) * fall_p * select(1.0, 2.2, bh_r_signed < 0.0);
-            let swirl_p = (24.0 + 48.0 * sqrt(rs_p / max(dp_bh, 0.65))) * fall_p;
-            let plane_push = -n_disk * clamp(h_dp * 14.0, -24.0, 24.0) * fall_p;
+            let grav_p = (32.0 + 105.0 * rs_p / max(dp_bh, 0.55)) * fall_p * select(1.0, 2.2, bh_r_signed < 0.0);
+            let swirl_p = (28.0 + 54.0 * sqrt(rs_p / max(dp_bh, 0.55))) * fall_p;
+            let plane_push = -n_disk * clamp(h_dp * 16.0, -28.0, 28.0) * fall_p;
             p.vel += ((-rel_p / dp_bh) * grav_p + tang_p * swirl_p + plane_push) * dt;
-            grav *= (1.0 - fall_p * 0.92);
+            grav *= (1.0 - fall_p * 0.94);
         }
     }
 
@@ -1500,20 +1500,20 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     flora[i] = s;
                     return;
                 }
-                let r_pull_f = rs_f * 15.0 + 6.0;
+                let r_pull_f = rs_f * 32.0 + 13.0;
                 if (df_bh < r_pull_f) {
                     let fall_f = clamp(1.0 - df_bh / r_pull_f, 0.0, 1.0);
-                    let az_f = time_sec * 0.22;
-                    let n_disk_f = normalize(vec3<f32>(cos(az_f) * 0.30, 0.954, sin(az_f) * 0.30));
+                    let az_f = time_sec * 0.14;
+                    let n_disk_f = normalize(vec3<f32>(cos(az_f) * 0.268, 0.963, sin(az_f) * 0.268));
                     let h_df = dot(rel_f, n_disk_f);
                     let q_pf = rel_f - n_disk_f * h_df;
                     let tang_f = normalize(cross(n_disk_f, q_pf + vec3<f32>(0.001, 0.0, 0.001)));
-                    let pull_v = (-rel_f / df_bh) * (22.0 + 48.0 * rs_f / max(df_bh, 0.6)) * fall_f
-                               + tang_f * (24.0 + 36.0 * fall_f)
-                               - n_disk_f * clamp(h_df * 10.0, -18.0, 18.0) * fall_f;
-                    let k_bh = clamp(7.5 * fall_f * dt, 0.0, 0.72);
+                    let pull_v = (-rel_f / df_bh) * (24.0 + 54.0 * rs_f / max(df_bh, 0.55)) * fall_f
+                               + tang_f * (26.0 + 40.0 * fall_f)
+                               - n_disk_f * clamp(h_df * 12.0, -22.0, 22.0) * fall_f;
+                    let k_bh = clamp(8.2 * fall_f * dt, 0.0, 0.76);
                     vxz = mix(vxz, vec2<f32>(pull_v.x, pull_v.z), k_bh);
-                    vy = clamp(mix(vy, pull_v.y, k_bh), -28.0, 28.0);
+                    vy = clamp(mix(vy, pull_v.y, k_bh), -30.0, 30.0);
                 }
             }
 
@@ -1527,7 +1527,7 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             }
 
             let abs_l = abs(signed_len);
-            let shrink = select(0.72, 1.18, burn_u == 1u) * (0.45 + 0.55 * abs_l) * select(1.0, 0.30, bh_active);
+            let shrink = select(0.72, 1.18, burn_u == 1u) * (0.45 + 0.55 * abs_l) * select(1.0, 0.24, bh_active);
             let next_abs = abs_l - shrink * dt;
             if (next_abs < 0.06) {
                 s.len_kind = 0u;
@@ -1556,7 +1556,7 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let vox_air = textureLoad(solid_texture, wrap_i160(anchor_v + vec3<i32>(0, dir_y, 0)), 0);
 
         let bh_dist_root = select(999.0, length(s.root_pos - bh_c), bh_active);
-        let roche_rip = bh_active && (bh_dist_root < (rs_f * 4.5 + 2.4));
+        let roche_rip = bh_active && (bh_dist_root < (rs_f * 18.0 + 8.5));
 
         // Root mined, blasted, burned, dissolved, OR torn free by a Gargantua Black Hole's Roche limit!
         if (abs(vox.r) < 0.5 || vox.g > 0.05 || roche_rip) {
