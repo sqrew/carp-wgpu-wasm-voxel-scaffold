@@ -1629,6 +1629,267 @@ fn resolve_solid_voxel(p: vec3<f32>, wrapped_p: vec3<f32>, raw_normal: vec3<f32>
     return best_vox;
 }
 
+fn mat_crag_weight(mid: u32) -> f32 {
+    if (mid == 5u || mid == 9u || mid == 10u || mid == 18u || mid == 22u) { return 0.0; }
+    if (mid == 2u || mid == 6u || mid == 7u || mid == 11u || mid == 26u || mid == 28u || mid == 29u || mid == 30u) { return 0.42; }
+    return 1.0;
+}
+
+fn is_crisp_vein_mat(mid: u32) -> bool {
+    return (mid == 4u || mid == 5u || mid == 8u || mid == 9u || mid == 13u || mid == 14u || mid == 15u || mid == 16u || mid == 17u || mid == 18u);
+}
+
+struct SolidSurfaceMat {
+    dom_vox: vec4<f32>,
+    dom_id: u32,
+    stained_albedo: vec3<f32>,
+    raw_base_color: vec3<f32>,
+    emissive_base: vec3<f32>,
+    stain_emissive: vec3<f32>,
+    stain_spec_tint: vec3<f32>,
+    voltage_glow: f32,
+    crag_weight: f32,
+    seam_ao: f32,
+}
+
+// Field-Oriented Material Seam Warping & 2x2x2 Partition-of-Unity Blending:
+// Erases 1x1x1 Minecraft-square material borders via 2-octave tangent-projected spectral domain warp,
+// blending earthy/botanical mats softly (pow 1.4) and crystal/ore veins crisply (pow 3.0) with 0% MAT_AIR risk!
+fn resolve_blended_solid_material(p: vec3<f32>, wrapped_p: vec3<f32>, raw_dist: f32, raw_normal: vec3<f32>, t_ray: f32) -> SolidSurfaceMat {
+    let p_macro = p + raw_normal * clamp(-raw_dist * 2.0, -0.08, 0.24);
+    let seg_m = select(0.0, floor((-192.0 - p.y) / 192.0) + 1.0, p.y < -192.0);
+    let local_ym = p.y + seg_m * 192.0;
+    let seal_guard_m = smoothstep(-186.8, -184.8, local_ym);
+
+    // 2-octave spectral coordinate warp (78% tangent-projected so 1m Moss carpets stay lush without digging into sub-soil!)
+    let warp_fade = smoothstep(74.0, 14.0, t_ray) * seal_guard_m;
+    var tan_off = vec3<f32>(0.0);
+    if (warp_fade > 0.005) {
+        let sw1 = sample_spectral_3d(p * 3.15 + vec3<f32>(11.3, 4.7, 23.9));
+        let sw2 = sample_spectral_3d(p * 11.8 + vec3<f32>(sw1.b, sw1.g, sw1.r) * 1.35);
+        let raw_off = sw1.rgb * 0.46 + vec3<f32>(sw2.r, sw2.a, sw2.b) * 0.16;
+        tan_off = (raw_off - raw_normal * (dot(raw_off, raw_normal) * 0.78)) * warp_fade;
+    }
+
+    var vox_arr: array<vec4<f32>, 8>;
+    var w_arr: array<f32, 8>;
+    var id_arr: array<u32, 8>;
+    var lin_sum: f32 = 0.0;
+    var first_id: u32 = 0u;
+    var all_same: bool = true;
+    var any_vein: bool = false;
+    var any_special_b: bool = false;
+
+    // Pass 1: Surface-skin depth (0.30m inside macro hull) preserves 1-voxel Moss/Stain skins while blending lateral neighbors
+    let b_skin = (p_macro + tan_off - raw_normal * 0.30) - vec3<f32>(0.5);
+    let b0_s = floor(b_skin);
+    let f_s = b_skin - b0_s;
+    var idx_c: u32 = 0u;
+    for (var dz = 0; dz <= 1; dz = dz + 1) {
+        let wz = select(1.0 - f_s.z, f_s.z, dz == 1);
+        for (var dy = 0; dy <= 1; dy = dy + 1) {
+            let wy = select(1.0 - f_s.y, f_s.y, dy == 1);
+            for (var dx = 0; dx <= 1; dx = dx + 1) {
+                let wx = select(1.0 - f_s.x, f_s.x, dx == 1);
+                let q = b0_s + vec3<f32>(f32(dx), f32(dy), f32(dz));
+                let wq = q - floor(q / 160.0) * 160.0;
+                let tc = vec3<i32>(clamp(wq, vec3<f32>(0.0), vec3<f32>(159.0)));
+                let tv = textureLoad(solid_texture, tc, 0);
+                let cid = u32(round(abs(tv.r)));
+                if (cid >= 1u) {
+                    let w = wx * wy * wz;
+                    vox_arr[idx_c] = tv;
+                    w_arr[idx_c] = w;
+                    id_arr[idx_c] = cid;
+                    lin_sum += w;
+                    if (first_id == 0u) {
+                        first_id = cid;
+                    } else if (cid != first_id) {
+                        all_same = false;
+                    }
+                    if (is_crisp_vein_mat(cid)) { any_vein = true; }
+                    if (tv.b >= 2.5 || tv.b < -0.08) { any_special_b = true; }
+                } else {
+                    vox_arr[idx_c] = vec4<f32>(0.0);
+                    w_arr[idx_c] = 0.0;
+                    id_arr[idx_c] = 0u;
+                }
+                idx_c = idx_c + 1u;
+            }
+        }
+    }
+
+    // Pass 2: If tangent warp stepped past a sharp convex corner into Air (lin_sum < 0.04), step deeper (0.62m) into hull!
+    if (lin_sum < 0.04) {
+        lin_sum = 0.0;
+        first_id = 0u;
+        all_same = true;
+        any_vein = false;
+        any_special_b = false;
+        let b_deep = (p_macro + tan_off * 0.35 - raw_normal * 0.62) - vec3<f32>(0.5);
+        let b0_d = floor(b_deep);
+        let f_d = b_deep - b0_d;
+        idx_c = 0u;
+        for (var dz = 0; dz <= 1; dz = dz + 1) {
+            let wz = select(1.0 - f_d.z, f_d.z, dz == 1);
+            for (var dy = 0; dy <= 1; dy = dy + 1) {
+                let wy = select(1.0 - f_d.y, f_d.y, dy == 1);
+                for (var dx = 0; dx <= 1; dx = dx + 1) {
+                    let wx = select(1.0 - f_d.x, f_d.x, dx == 1);
+                    let q = b0_d + vec3<f32>(f32(dx), f32(dy), f32(dz));
+                    let wq = q - floor(q / 160.0) * 160.0;
+                    let tc = vec3<i32>(clamp(wq, vec3<f32>(0.0), vec3<f32>(159.0)));
+                    let tv = textureLoad(solid_texture, tc, 0);
+                    let cid = u32(round(abs(tv.r)));
+                    if (cid >= 1u) {
+                        let w = wx * wy * wz;
+                        vox_arr[idx_c] = tv;
+                        w_arr[idx_c] = w;
+                        id_arr[idx_c] = cid;
+                        lin_sum += w;
+                        if (first_id == 0u) {
+                            first_id = cid;
+                        } else if (cid != first_id) {
+                            all_same = false;
+                        }
+                        if (is_crisp_vein_mat(cid)) { any_vein = true; }
+                        if (tv.b >= 2.5 || tv.b < -0.08) { any_special_b = true; }
+                    } else {
+                        vox_arr[idx_c] = vec4<f32>(0.0);
+                        w_arr[idx_c] = 0.0;
+                        id_arr[idx_c] = 0u;
+                    }
+                    idx_c = idx_c + 1u;
+                }
+            }
+        }
+    }
+
+    var res: SolidSurfaceMat;
+    // Rare <0.001% grazing tip fallback: guaranteed non-air, non-ring 3x3x3 nearest solid lookup
+    if (lin_sum <= 0.0001) {
+        let fb_vox = resolve_solid_voxel(p, wrapped_p, raw_normal);
+        let fb_id = clamp(u32(round(abs(fb_vox.r))), 1u, 255u);
+        let fb_m = materials[fb_id];
+        let fb_col = vec3<f32>(fb_m.r, fb_m.g, fb_m.b);
+        res.dom_vox = fb_vox;
+        res.dom_id = fb_id;
+        res.stained_albedo = fb_col;
+        res.raw_base_color = fb_col;
+        res.emissive_base = select(vec3<f32>(0.0), fb_col * min(fb_m.a * 0.6, 1.5), (fb_m.tags & 2097152u) != 0u);
+        res.stain_emissive = vec3<f32>(0.0);
+        res.stain_spec_tint = vec3<f32>(0.0);
+        res.voltage_glow = select(0.0, clamp(-fb_vox.b, 0.0, 1.0), fb_vox.b < -0.08);
+        res.crag_weight = mat_crag_weight(fb_id);
+        res.seam_ao = 1.0;
+        return res;
+    }
+
+    // Fast path (~80% of screen pixels): homogeneous unstained cell — 1 material lookup, zero pow() calls!
+    if (all_same && !any_special_b) {
+        let m0 = materials[first_id];
+        let c0 = vec3<f32>(m0.r, m0.g, m0.b);
+        var best_v = vec4<f32>(f32(first_id), -0.5, 0.0, 10.0);
+        var best_w: f32 = -1.0;
+        for (var i: u32 = 0u; i < 8u; i = i + 1u) {
+            if (id_arr[i] > 0u && w_arr[i] > best_w) {
+                best_w = w_arr[i];
+                best_v = vox_arr[i];
+            }
+        }
+        res.dom_vox = best_v;
+        res.dom_id = first_id;
+        res.stained_albedo = c0;
+        res.raw_base_color = c0;
+        res.emissive_base = select(vec3<f32>(0.0), c0 * min(m0.a * 0.6, 1.5), (m0.tags & 2097152u) != 0u);
+        res.stain_emissive = vec3<f32>(0.0);
+        res.stain_spec_tint = vec3<f32>(0.0);
+        res.voltage_glow = 0.0;
+        res.crag_weight = mat_crag_weight(first_id);
+        res.seam_ao = 1.0;
+        return res;
+    }
+
+    // Heterogeneous seam / stained cell: symmetric power-weighted partition of unity across all solid corners!
+    let p_exp = select(1.40, 3.00, any_vein);
+    var sum_pw: f32 = 0.0;
+    var max_pw: f32 = -1.0;
+    var dom_id: u32 = first_id;
+    var dom_vox = vec4<f32>(f32(first_id), -0.5, 0.0, 10.0);
+    var acc_stained = vec3<f32>(0.0);
+    var acc_raw = vec3<f32>(0.0);
+    var acc_em = vec3<f32>(0.0);
+    var acc_st_em = vec3<f32>(0.0);
+    var acc_st_spec = vec3<f32>(0.0);
+    var acc_volt: f32 = 0.0;
+    var acc_crag: f32 = 0.0;
+
+    for (var i: u32 = 0u; i < 8u; i = i + 1u) {
+        let cid = id_arr[i];
+        if (cid >= 1u) {
+            let pw = pow(max(w_arr[i] / lin_sum, 0.0001), p_exp);
+            let tv = vox_arr[i];
+            let cm = materials[cid];
+            let c_rgb = vec3<f32>(cm.r, cm.g, cm.b);
+            var c_alb = c_rgb;
+            var c_st_em = vec3<f32>(0.0);
+            var c_st_sp = vec3<f32>(0.0);
+
+            if (tv.b >= 2.5) {
+                let slid = clamp(u32(round(tv.b)) - 2u, 1u, 8u);
+                let smat = materials[256u + slid];
+                let scol = vec3<f32>(smat.r, smat.g, smat.b);
+                if (slid == 1u) {
+                    c_alb = c_rgb * 0.68;
+                    c_st_sp = vec3<f32>(0.20, 0.23, 0.28);
+                } else if (slid == 4u) {
+                    c_alb = mix(c_rgb * 0.42, scol, 0.55);
+                    c_st_sp = vec3<f32>(0.26, 0.19, 0.32);
+                } else if (slid == 5u) {
+                    c_alb = mix(c_rgb, vec3<f32>(0.50, 0.03, 0.05), 0.65);
+                    c_st_sp = vec3<f32>(0.22, 0.03, 0.04);
+                } else {
+                    c_alb = mix(c_rgb, scol, 0.55);
+                    c_st_em = scol * select(0.16, 0.30, slid == 6u);
+                    c_st_sp = scol * 0.24;
+                }
+            }
+            if (tv.b < -0.08) {
+                acc_volt += clamp(-tv.b, 0.0, 1.0) * pw;
+            }
+            if ((cm.tags & 2097152u) != 0u) {
+                acc_em += c_rgb * min(cm.a * 0.6, 1.5) * pw;
+            }
+
+            acc_stained += c_alb * pw;
+            acc_raw += c_rgb * pw;
+            acc_st_em += c_st_em * pw;
+            acc_st_spec += c_st_sp * pw;
+            acc_crag += mat_crag_weight(cid) * pw;
+            sum_pw += pw;
+            if (pw > max_pw) {
+                max_pw = pw;
+                dom_id = cid;
+                dom_vox = tv;
+            }
+        }
+    }
+
+    let inv_pw = 1.0 / max(sum_pw, 0.00001);
+    let seam_mix = select(0.0, clamp(1.0 - (max_pw * inv_pw), 0.0, 0.5) * 2.0, !all_same);
+    res.dom_vox = dom_vox;
+    res.dom_id = dom_id;
+    res.stained_albedo = acc_stained * inv_pw;
+    res.raw_base_color = acc_raw * inv_pw;
+    res.emissive_base = acc_em * inv_pw;
+    res.stain_emissive = acc_st_em * inv_pw;
+    res.stain_spec_tint = acc_st_spec * inv_pw;
+    res.voltage_glow = acc_volt * inv_pw;
+    res.crag_weight = acc_crag * inv_pw;
+    res.seam_ao = mix(1.0, select(0.94, 0.85, any_vein), seam_mix);
+    return res;
+}
+
 // Exact discrete gas ID lookup across the 2x2x2 trilinear footprint (never snaps to 1x1x1 cube walls or Air 0 on cloud fringes!)
 fn resolve_gas_id(p_ws: vec3<f32>) -> u32 {
     let b0 = floor(p_ws - vec3<f32>(0.5));
@@ -2071,14 +2332,12 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 let raw_normal = normalize(n);
                 var normal = raw_normal;
                 
-                // Fetch discrete solid voxel across the 2x2x2 trilinear SDF cell (never returns MAT_AIR = 0 black patches!)
-                let raw_voxel = resolve_solid_voxel(p, wrapped_p, raw_normal);
-                let mat_id = raw_voxel.r;
-                
-                // Color based on material ID
-                let mat_id_u = u32(round(abs(mat_id)));
+                // Spectrally-warped 2x2x2 solid partition-of-unity material blend (erases 1x1x1 cube borders + 0% MAT_AIR!)
+                let smat_b = resolve_blended_solid_material(p, wrapped_p, raw_dist, raw_normal, t);
+                let raw_voxel = smat_b.dom_vox;
+                let mat_id_u = smat_b.dom_id;
                 let mat = materials[mat_id_u];
-                let base_color = vec3<f32>(mat.r, mat.g, mat.b);
+                let base_color = smat_b.raw_base_color;
 
                 // Unpack light_texture: .rgb = GI block light (signed for Darklight!), .a = smoothed structural stress [0..1]
                 let light_sample = textureSampleLevel(light_texture, voxel_sampler, uvw, 0.0);
@@ -2095,12 +2354,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
 
                 let detail_fade = smoothstep(62.0, 12.0, t);
                 var geom_normal = raw_normal;
-                var crag_n_weight: f32 = 1.0;
-                if (mat_id_u == 5u || mat_id_u == 9u || mat_id_u == 10u || mat_id_u == 18u || mat_id_u == 22u) {
-                    crag_n_weight = 0.0;
-                } else if (mat_id_u == 2u || mat_id_u == 6u || mat_id_u == 7u || mat_id_u == 11u || mat_id_u == 26u || mat_id_u == 28u || mat_id_u == 29u || mat_id_u == 30u) {
-                    crag_n_weight = 0.42;
-                }
+                let crag_n_weight = smat_b.crag_weight;
                 if (t < 44.0 && crag_n_weight > 0.01) {
                     let eps_g = 0.075;
                     let d0_g = sample_displaced_solid_sdf(p, t);
@@ -2147,9 +2401,9 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 let moon_diffuse = max(dot(normal, moon_dir), 0.0);
                 let moon_light = vec3<f32>(0.7, 0.8, 1.0) * moon_diffuse * moon_intensity;
                 
-                // Ambient Occlusion (macro AO + sub-voxel cleft self-occlusion + structural fissures + micro crevices)
+                // Ambient Occlusion (macro AO + sub-voxel cleft + mineral-seam contact AO + structural fissures + micro crevices)
                 let shell_ao = mix(1.0, clamp(1.0 - surf_lift * 2.10, 0.58, 1.0), crag_n_weight);
-                let ao = getAO(p + raw_normal * surf_lift, raw_normal) * shell_ao * mix(1.0, 0.10, crack_core) * mix(1.0, 0.52, surf_imp.micro_cavity);
+                let ao = getAO(p + raw_normal * surf_lift, raw_normal) * shell_ao * smat_b.seam_ao * mix(1.0, 0.10, crack_core) * mix(1.0, 0.52, surf_imp.micro_cavity);
                 
                 // Sky-Hemisphere + Ground-Bounce Ambient blended with moody deep-subterranean ambient
                 let hemi = clamp(normal.y * 0.5 + 0.5, 0.0, 1.0);
@@ -2177,12 +2431,13 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 }
 
                 var emissive = vec3<f32>(0.0);
-                if ((mat.tags & 2097152u) != 0u) {
+                let em_peak = max(smat_b.emissive_base.r, max(smat_b.emissive_base.g, smat_b.emissive_base.b));
+                if (em_peak > 0.001) {
                     let v_rim = 1.0 - max(dot(normal, -cur_rd), 0.0);
                     let lum_sculpt = clamp(0.68 + surf_imp.albedo_grain * 1.65 - surf_imp.micro_cavity * 0.55 + pow(v_rim, 2.4) * 0.36, 0.34, 1.32);
-                    emissive = base_color * min(mat.a * 0.6, 1.5) * mix(1.0, lum_sculpt, clamp(detail_fade * 1.15, 0.0, 1.0));
+                    emissive = smat_b.emissive_base * mix(1.0, lum_sculpt, clamp(detail_fade * 1.15, 0.0, 1.0));
                     // Luminescent crystals/ores bleed intense inner light through stress fissures!
-                    emissive += base_color * crack_core * (1.25 + 1.5 * strain);
+                    emissive += smat_b.emissive_base * crack_core * (1.25 + 1.5 * strain);
                     if (mat_id_u == 18u) {
                         // Abyssal Seal (18): ancient pulsing 24k golden runic veins etched across dark violet stone!
                         let rg = abs(fract(p.x * 0.28 + sin(p.z * 0.36) * 0.35) - 0.5) + abs(fract(p.z * 0.28 - cos(p.x * 0.36) * 0.35) - 0.5);
@@ -2194,37 +2449,14 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                     emissive += vec3<f32>(0.55, 0.20, 0.05) * pow(crack_core, 2.0) * smoothstep(0.72, 0.98, strain) * 0.55;
                 }
                 // Piezoelectric & Galvanic voltage glow along stressed Crystals / Gold veins!
-                if (raw_voxel.b < -0.08) {
-                    let v_glow = clamp(-raw_voxel.b, 0.0, 1.0);
-                    emissive += vec3<f32>(0.35, 0.85, 2.45) * (v_glow * (0.35 + 1.45 * crack_core));
+                if (smat_b.voltage_glow > 0.005) {
+                    emissive += vec3<f32>(0.35, 0.85, 2.45) * (smat_b.voltage_glow * (0.35 + 1.45 * crack_core));
                 }
+                emissive += smat_b.stain_emissive;
 
-                var stained_base = base_color;
-                var stain_spec = vec3<f32>(0.0);
-                if (raw_voxel.b >= 2.5) {
-                    let stain_lid = clamp(u32(round(raw_voxel.b)) - 2u, 1u, 8u);
-                    let stain_mat = materials[256u + stain_lid];
-                    let stain_col = vec3<f32>(stain_mat.r, stain_mat.g, stain_mat.b);
-                    let v_dot = max(dot(normal, -cur_rd), 0.0);
-                    if (stain_lid == 1u) {
-                        // [WET] Water stain: darkened wet rock/wood/soil with crisp specular sheen
-                        stained_base = base_color * 0.68;
-                        stain_spec = vec3<f32>(0.20, 0.23, 0.28) * pow(v_dot, 7.0);
-                    } else if (stain_lid == 4u) {
-                        // [OILED] Slick dark oil coating with iridescent sheen
-                        stained_base = mix(base_color * 0.42, stain_col, 0.55);
-                        stain_spec = vec3<f32>(0.26, 0.19, 0.32) * pow(v_dot, 5.0);
-                    } else if (stain_lid == 5u) {
-                        // [BLOOD] Deep crimson blood stain
-                        stained_base = mix(base_color, vec3<f32>(0.50, 0.03, 0.05), 0.65);
-                        stain_spec = vec3<f32>(0.22, 0.03, 0.04) * pow(v_dot, 6.0);
-                    } else {
-                        // Ambrosia (6), Acid (3), Volatile Gel (7), Toxic Sludge (8)
-                        stained_base = mix(base_color, stain_col, 0.55);
-                        emissive += stain_col * select(0.16, 0.30, stain_lid == 6u);
-                        stain_spec = stain_col * 0.24 * pow(v_dot, 6.0);
-                    }
-                }
+                var stained_base = smat_b.stained_albedo;
+                let v_dot = max(dot(normal, -cur_rd), 0.0);
+                var stain_spec = smat_b.stain_spec_tint * pow(v_dot, 6.0);
 
                 stained_base = stained_base * clamp(1.0 + surf_imp.albedo_grain, 0.76, 1.22);
                 var caustic_add = vec3<f32>(0.0);
