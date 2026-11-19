@@ -52,6 +52,8 @@ struct Uniforms {
     wake_vel: array<vec4<f32>, 32>,
     spell_lights: array<vec4<f32>, 32>,
     spell_colors: array<vec4<f32>, 32>,
+    bh_pos: array<vec4<f32>, 4>,
+    bh_col: array<vec4<f32>, 4>,
 }
 
 struct FragmentOutput {
@@ -2116,12 +2118,40 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         var caustic_col_acc = meniscus_caustic;
         var hit_sky_exp: f32 = 1.0;
         var shell_steps: i32 = 0;
+        var bh_mask: u32 = 0u;
+        var bh_min_ratio: f32 = 999.0;
+        var bh_captured: bool = false;
+        var bh_lens_t: f32 = 100000.0;
+        var bh_lens_p = ray_p;
+        var bh_lens_rd = rd;
+        var bh_lens_trans = vec3<f32>(1.0);
+        var bh_lens_scatter = vec3<f32>(0.0);
+        if (abs(u.bh_pos[0].w) > 0.02) {
+            for (var bk: u32 = 0u; bk < 4u; bk = bk + 1u) {
+                let bp = u.bh_pos[bk];
+                let rs_c = abs(bp.w);
+                if (rs_c > 0.02) {
+                    let oc_b = bp.xyz - ro;
+                    let proj_b = dot(oc_b, rd);
+                    let r_inf = rs_c * 20.0 + 6.0;
+                    if (proj_b + r_inf > 0.0) {
+                        let perp2_b = max(0.0, dot(oc_b, oc_b) - proj_b * proj_b);
+                        if (perp2_b < r_inf * r_inf) {
+                            bh_mask = bh_mask | (1u << bk);
+                        }
+                    }
+                }
+            }
+        }
         
         for (var step = 0; step < 288; step = step + 1) {
-            if (t > min(t_far, 88.0)) {
+            if ((bh_mask == 0u && (t > 88.0 || t > t_far)) || t > 124.0) {
                 break;
             }
             let p = ray_p;
+            if (bh_mask != 0u && step > 1 && (any(p < box_min + vec3<f32>(0.05)) || any(p > box_max - vec3<f32>(0.05)))) {
+                break;
+            }
             let hit_eps = 0.008 + 0.00065 * t;
             
             // Clamp normalized coordinates slightly inside [0, 1] to avoid border interpolation artifacts
@@ -2147,8 +2177,23 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 }
             }
 
-            // 3D Eikonal Schlieren Ray-Bending in open air (strictly outside 1-voxel trilinear footprint of stained/piezo solids!)
-            if (t > 1.5 && raw_dist > 0.95 && abs(val.r) < 0.001 && abs(val.b) > 0.0025 && abs(val.b) < 0.065) {
+            if (bh_mask != 0u) {
+                for (var bk: u32 = 0u; bk < 4u; bk = bk + 1u) {
+                    if ((bh_mask & (1u << bk)) != 0u) {
+                        let bp = u.bh_pos[bk];
+                        let rs_s = abs(bp.w);
+                        let rb_s = length(p - bp.xyz);
+                        let r_inf_s = rs_s * 20.0 + 6.0;
+                        if (rb_s < r_inf_s) {
+                            let bh_step = clamp(max(0.048, rs_s * 0.11) + max(0.0, rb_s - rs_s * 1.15) * 0.20, 0.048, 0.68);
+                            step_len = min(step_len, bh_step);
+                        }
+                    }
+                }
+            }
+
+            // 3D Eikonal Schlieren Ray-Bending in open air (strictly outside 1-voxel trilinear footprint of stained/piezo solids, skipped on lensed Black Hole geodesics!)
+            if (bh_mask == 0u && t > 1.5 && raw_dist > 0.95 && abs(val.r) < 0.001 && abs(val.b) > 0.0025 && abs(val.b) < 0.065) {
                 let dn0 = val.b;
                 let eps_u = 1.0 / 160.0;
                 let sx = textureSampleLevel(solid_texture, voxel_sampler, clamp(uvw + vec3<f32>(eps_u, 0.0, 0.0), vec3<f32>(0.002), vec3<f32>(0.998)), 0.0);
@@ -2353,14 +2398,25 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
             }
 
             let sp1 = sample_spectral_3d(p * 2.45 - vec3<f32>(0.0, u.time * 0.82, u.time * 0.32));
-            let p_gas = p + sp1.rgb * 0.58;
+            let c_gas = sample_curl_3d(p * 1.85 - vec3<f32>(0.0, u.time * 0.65, u.time * 0.24));
+            let p_gas = p + sp1.rgb * 0.84 + c_gas.rgb * 0.52;
             let uvw_gas = wrap_world_uvw(p_gas);
             let gas_val = textureSampleLevel(gas_texture, voxel_sampler, uvw_gas, 0.0);
-            if (gas_val.g > 0.025) {
+            if (gas_val.g > 0.032) {
+                var bh_gas_vac: f32 = 1.0;
+                if (bh_mask != 0u) {
+                    for (var bkg: u32 = 0u; bkg < 4u; bkg = bkg + 1u) {
+                        if ((bh_mask & (1u << bkg)) != 0u) {
+                            let bpg = u.bh_pos[bkg];
+                            let rsg = abs(bpg.w);
+                            bh_gas_vac = min(bh_gas_vac, smoothstep(rsg * 1.35, rsg * 3.5, length(p - bpg.xyz)));
+                        }
+                    }
+                }
                 let gid = resolve_gas_id(p_gas);
-                if (gid >= 1u) {
+                if (gid >= 1u && bh_gas_vac > 0.02) {
                     let sp2 = sample_spectral_3d(p * 6.8 + vec3<f32>(u.time * 0.45, -u.time * 1.35, 0.0));
-                    let dens_mod = clamp(0.74 + 0.56 * (sp1.a * 0.60 + sp2.r * 0.40), 0.25, 1.48) * smoothstep(0.025, 0.15, gas_val.g);
+                    let dens_mod = clamp(0.74 + 0.56 * (sp1.a * 0.60 + sp2.r * 0.40), 0.25, 1.48) * smoothstep(0.032, 0.36, gas_val.g) * bh_gas_vac;
                     let mat = materials[gid + 512u];
                     var gas_color = vec3<f32>(mat.r, mat.g, mat.b);
                     var absorb = mat.density;
@@ -2399,6 +2455,159 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                     let alpha = clamp((1.0 - exp(-gas_val.g * step_size * absorb * dens_mod)) * 0.42, 0.0, 0.98);
                     in_scatter_rgb += trans_rgb * gas_color * alpha;
                     trans_rgb *= (1.0 - alpha);
+                }
+            }
+
+            if (bh_mask != 0u) {
+                var hit_horizon = false;
+                for (var bk: u32 = 0u; bk < 4u; bk = bk + 1u) {
+                    if ((bh_mask & (1u << bk)) != 0u) {
+                        let bp = u.bh_pos[bk];
+                        let bc = u.bh_col[bk];
+                        let rs = abs(bp.w);
+                        let is_pinch = bp.w < 0.0;
+                        let rel_b = p - bp.xyz;
+                        let rb = length(rel_b);
+                        let r_inf = rs * 20.0 + 6.0;
+                        let cam_dist = length(ro - bp.xyz);
+
+                        if (rb < r_inf && rb > 0.02) {
+                            let u_rad = rel_b / rb;
+                            // Exact r_ph = 1.50 * rs Schwarzschild curvature: kappa(1.50*rs)*(1.50*rs) = (1.05/1.50)*(1 + 0.96/2.25) = 1.00!
+                            let cam_safe = smoothstep(rs * 1.15 + 0.30, rs * 2.6 + 1.55, cam_dist);
+                            let edge_w = smoothstep(r_inf, r_inf * 0.34, rb);
+                            let perp_in = cur_rd * dot(cur_rd, u_rad) - u_rad;
+                            let r2_safe = max(rb * rb, rs * rs * 0.68);
+                            let bend_k = (1.05 * rs / r2_safe) * (1.0 + 0.96 * (rs * rs) / r2_safe) * (edge_w * edge_w) * cam_safe;
+                            let next_rd = normalize(cur_rd + perp_in * min(bend_k * step_len, 0.56));
+                            cur_rd = next_rd;
+                            let p_next = p + next_rd * step_len;
+                            let rel_next = p_next - bp.xyz;
+
+                            // Exact segment closest-approach to the singularity along [p, p_next] (horizon break strictly at 1.03*rs so front disk at 1.32*rs is never clipped!)
+                            let proj_seg = dot(bp.xyz - p, next_rd);
+                            let seg_t = clamp(proj_seg, 0.0, step_len);
+                            let p_closest = p + next_rd * seg_t;
+                            let d_seg = length(p_closest - bp.xyz);
+                            if (cam_dist > rs * 1.15) {
+                                bh_min_ratio = min(bh_min_ratio, d_seg / max(rs, 0.12));
+                            }
+                            let hit_hor_seg = (cam_dist > rs * 1.15) && (d_seg <= rs * 1.03);
+
+                            let az = bc.w + u.time * 0.14;
+                            let n_disk = normalize(vec3<f32>(cos(az) * 0.268, 0.963, sin(az) * 0.268));
+                            let e1_d = normalize(vec3<f32>(n_disk.y, -n_disk.x, 0.0));
+                            let e2_d = cross(n_disk, e1_d);
+                            let disk_outer = rs * select(6.2, 8.5, is_pinch);
+                            let pinch_boost = select(1.0, 2.8, is_pinch);
+                            let tint_arc = max(bc.rgb, vec3<f32>(0.55, 0.35, 0.92));
+
+                            // 1. Watertight Analytical Geodesic-Plane Accretion Disk Crossing (0 step-aliasing, 0 Moire rings!)
+                            let h0 = dot(rel_b, n_disk);
+                            let h1 = dot(rel_next, n_disk);
+                            let crossed_plane = (h0 > 0.0 && h1 <= 0.0) || (h0 < 0.0 && h1 >= 0.0);
+                            if (crossed_plane) {
+                                let t_cross = step_len * abs(h0) / max(abs(h0 - h1), 0.00001);
+                                if (!hit_hor_seg || t_cross <= seg_t) {
+                                    let q_pl = rel_b + next_rd * t_cross;
+                                    let q_in_plane = q_pl - n_disk * dot(q_pl, n_disk);
+                                    let rho = length(q_in_plane);
+                                    if (rho > rs * 1.32 && rho < disk_outer) {
+                                        let r_ratio = rho / max(rs, 0.20);
+                                        let r_prof = smoothstep(rs * 1.32, rs * 1.66, rho)
+                                                   * exp(-max(0.0, rho - rs * 1.95) / (rs * 1.90))
+                                                   * smoothstep(disk_outer, disk_outer * 0.70, rho);
+                                        let phi_d = atan2(dot(q_in_plane, e2_d), dot(q_in_plane, e1_d));
+                                        let kep_spin = u.time * 4.8 * pow(max(r_ratio, 1.05), -1.35);
+                                        let wound_phi = phi_d - kep_spin + 3.1 * log(max(r_ratio, 1.0));
+                                        let c_sp1 = sample_curl_3d(vec3<f32>(cos(wound_phi) * r_ratio * 3.6, sin(wound_phi) * r_ratio * 3.6, r_ratio * 3.2 - u.time * 1.2));
+                                        let c_sp2 = sample_curl_3d(vec3<f32>(cos(wound_phi * 2.0 + 1.1) * r_ratio * 5.4, sin(wound_phi * 2.0 + 1.1) * r_ratio * 5.4, r_ratio * 4.8 + u.time * 1.6));
+                                        let soft_band = 0.80 + 0.20 * sin(r_ratio * 5.4 + c_sp1.r * 2.1);
+                                        let fil = clamp((0.64 + 0.62 * abs(c_sp1.g) + 0.38 * abs(c_sp2.b)) * soft_band, 0.28, 1.88);
+
+                                        // Relativistic Doppler Beaming (D^3) + Gargantua Blackbody Spectrum!
+                                        let v_orb = normalize(cross(n_disk, q_in_plane + e1_d * 0.0004));
+                                        let dop_cos = dot(v_orb, -next_rd);
+                                        let beta_los = 0.54 * dop_cos * sqrt(clamp(1.65 / max(r_ratio, 1.15), 0.20, 1.0));
+                                        let beam = clamp(pow(1.0 + beta_los, 3.2), 0.20, 4.2);
+                                        let isco_hot = exp(-max(0.0, r_ratio - 1.38) * 1.10);
+                                        let col_recede = mix(vec3<f32>(1.18, 0.25, 0.05), tint_arc * 0.72, smoothstep(3.5, 6.0, r_ratio) * 0.38);
+                                        let col_mid = vec3<f32>(1.72, 0.94, 0.35);
+                                        let col_approach = vec3<f32>(1.22, 1.38, 1.85);
+                                        let temp_t = clamp(beta_los * 1.25 + 0.48 + isco_hot * 0.42, 0.0, 1.0);
+                                        let disk_col = mix(mix(col_recede, col_mid, smoothstep(0.0, 0.56, temp_t)), col_approach, smoothstep(0.52, 1.0, temp_t));
+
+                                        let graze_boost = clamp(0.46 / max(abs(dot(next_rd, n_disk)), 0.18), 0.82, 2.20);
+                                        let disk_alpha = clamp(r_prof * fil * graze_boost * 0.82, 0.0, 0.95);
+                                        let disk_emit = disk_col * (disk_alpha * beam * pinch_boost * 1.48);
+                                        in_scatter_rgb += trans_rgb * disk_emit;
+                                        trans_rgb *= (1.0 - disk_alpha * 0.90);
+                                    }
+                                }
+                            } else if (abs(h0) < rs * 0.085 && abs(dot(next_rd, n_disk)) < 0.20) {
+                                // Shallow-angle equatorial corona bridge so 0-degree edge-on crossings never drop a 1px seam!
+                                let q0 = rel_b - n_disk * h0;
+                                let rho0 = length(q0);
+                                if (rho0 > rs * 1.34 && rho0 < disk_outer) {
+                                    let edge_fade = (1.0 - abs(h0) / (rs * 0.085)) * smoothstep(0.20, 0.04, abs(dot(next_rd, n_disk)));
+                                    let r_p0 = smoothstep(rs * 1.34, rs * 1.70, rho0) * exp(-max(0.0, rho0 - rs * 1.95) / (rs * 1.90));
+                                    let v_orb0 = normalize(cross(n_disk, q0 + e1_d * 0.0004));
+                                    let beam0 = clamp(pow(1.0 + 0.48 * dot(v_orb0, -next_rd), 3.0), 0.22, 3.6);
+                                    let c_a0 = clamp(edge_fade * r_p0 * (step_len / max(rs, 0.28)) * 0.95, 0.0, 0.65);
+                                    in_scatter_rgb += trans_rgb * vec3<f32>(1.62, 0.90, 0.36) * (c_a0 * beam0 * pinch_boost);
+                                    trans_rgb *= (1.0 - c_a0 * 0.78);
+                                }
+                            }
+
+                            // 2. Analytical Periapsis Photon-Sphere Ring + Post-Flyby Entity Lensing Anchor!
+                            let passed_periapsis = proj_seg > 0.0 && dot(bp.xyz - p_next, next_rd) <= 0.0;
+                            if (passed_periapsis) {
+                                if (!hit_hor_seg && d_seg > rs * 1.03 && d_seg < rs * 1.88) {
+                                    let ph_ring = exp(-pow((d_seg - rs * 1.48) / max(rs * 0.072, 0.022), 2.0));
+                                    let ph_col = mix(vec3<f32>(1.85, 1.35, 0.78), vec3<f32>(1.25, 1.45, 1.95), 0.35);
+                                    in_scatter_rgb += trans_rgb * ph_col * (ph_ring * 1.55 * pinch_boost);
+                                }
+                                if (bh_lens_t > 99999.0) {
+                                    bh_lens_t = t + seg_t;
+                                    bh_lens_p = p_closest;
+                                    bh_lens_rd = next_rd;
+                                    bh_lens_trans = trans_rgb;
+                                    bh_lens_scatter = in_scatter_rgb;
+                                }
+                            }
+
+                            // 3. Relativistic Polar Quasar Jets along +/- n_disk (subtle magnetic spine while feeding, blazing 5.5x during Pinch!)
+                            let abs_h = abs(h0);
+                            let jet_reach = rs * select(5.2, 14.0, is_pinch);
+                            if (abs_h > rs * 0.92 && abs_h < jet_reach) {
+                                let rho_j = length(rel_b - n_disk * h0);
+                                let jet_rad = rs * (0.14 + 0.055 * (abs_h / max(rs, 0.25)));
+                                if (rho_j < jet_rad * 2.1) {
+                                    let j_core = exp(-(rho_j * rho_j) / max(jet_rad * jet_rad, 0.0004));
+                                    let j_len = smoothstep(jet_reach, rs * 1.25, abs_h) * smoothstep(rs * 0.88, rs * 1.40, abs_h);
+                                    let j_curl = 0.65 + 0.45 * sample_curl_3d(p * 3.8 - n_disk * sign(h0) * (u.time * 9.5)).b;
+                                    let j_gain = select(0.26, 5.2, is_pinch);
+                                    let j_col = mix(tint_arc, vec3<f32>(0.82, 0.95, 1.58), 0.72);
+                                    in_scatter_rgb += trans_rgb * j_col * (j_core * j_len * j_curl * j_gain * step_len / max(rs, 0.30));
+                                }
+                            }
+
+                            // 4. Event Horizon Capture (pure [0,0,0] abyssal singularity behind foreground accretion plasma!)
+                            if (hit_hor_seg) {
+                                t = t + seg_t;
+                                hit_color = in_scatter_rgb;
+                                trans_rgb = vec3<f32>(0.0);
+                                hit_sky_exp = 0.0;
+                                bh_captured = true;
+                                hit = true;
+                                hit_horizon = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (hit_horizon) {
+                    break;
                 }
             }
 
@@ -2584,6 +2793,28 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
             t = t + step_len;
         }
         
+        var bh_still_trapped = false;
+        if (!hit && bh_mask != 0u) {
+            for (var bkt: u32 = 0u; bkt < 4u; bkt = bkt + 1u) {
+                if ((bh_mask & (1u << bkt)) != 0u) {
+                    let bpt = u.bh_pos[bkt];
+                    let rst = abs(bpt.w);
+                    if (length(ray_p - bpt.xyz) < rst * 5.0 && length(ro - bpt.xyz) > rst * 1.15) {
+                        bh_still_trapped = true;
+                    }
+                }
+            }
+        }
+        if (!hit && (bh_min_ratio < 1.58 || bh_still_trapped)) {
+            hit = true;
+            bh_captured = true;
+            if (bh_lens_t < 99999.0) {
+                t = bh_lens_t;
+            }
+            hit_color = in_scatter_rgb;
+            trans_rgb = vec3<f32>(0.0);
+            hit_sky_exp = 0.0;
+        }
 
         var voxel_hit_t = t;
         if (!hit) {
@@ -2594,7 +2825,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
             var active_mask: u32 = 0u;
             var min_ent_t: f32 = voxel_hit_t;
             var max_ent_t: f32 = t_start;
-            let refr_pad = select(0.0, 0.55, meniscus_t < voxel_hit_t);
+            let refr_pad = select(0.0, 0.55, meniscus_t < voxel_hit_t) + select(0.0, 3.8, bh_mask != 0u);
             let ent_count = u32(u.entity_count);
             for (var ei: u32 = 0u; ei < ent_count; ei = ei + 1u) {
                 let e = s_entities[ei];
@@ -2637,7 +2868,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
 
                 for (var step = 0; step < 38; step = step + 1) {
                     if (ent_t > max_ent_t) { break; }
-                    let p = select(ro + rd * ent_t, meniscus_p + meniscus_rd * (ent_t - meniscus_t), ent_t > meniscus_t);
+                    let p_base_e = select(ro + rd * ent_t, bh_lens_p + bh_lens_rd * (ent_t - bh_lens_t), bh_mask != 0u && ent_t > bh_lens_t);
+                    let p = select(p_base_e, meniscus_p + meniscus_rd * (ent_t - meniscus_t), ent_t > meniscus_t);
 
                     var ent_c = vec3<f32>(0.0);
                     var ent_kind: f32 = 0.0;
@@ -2937,8 +3169,12 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 }
                 if (ent_hit) {
                     hit = true;
+                    bh_captured = false;
                     t = ent_t;
-                    if (ent_t <= meniscus_t) {
+                    if (bh_mask != 0u && ent_t > bh_lens_t && ent_t <= meniscus_t) {
+                        // Orbiting boulder / creature on the far side of the Black Hole: composite behind the foreground Accretion Disk!
+                        hit_color = final_ent_color * bh_lens_trans + bh_lens_scatter;
+                    } else if (ent_t <= meniscus_t) {
                         // Dry / above-waterline half of floating log or boulder (with dark capillary wet collar near meniscus_t!)
                         let wet_ring = smoothstep(0.14, 0.0, meniscus_t - ent_t);
                         let above_col = final_ent_color * mix(1.0, 0.70, wet_ring);
@@ -2965,19 +3201,49 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         }
         
         if (hit) {
-            // Smooth 2-stage exponential aerial-perspective haze (gated by hit_sky_exp so enclosed mountain caves stay dark!)
-            let haze_d = max(0.0, t - 10.0);
-            let fog_factor = clamp((1.0 - exp(-0.00038 * haze_d * haze_d)) * 0.65 + smoothstep(56.0, 87.5, t), 0.0, 1.0);
-            let depth_fade = clamp(((ro.y + rd.y * t) - 4.0) / 20.0, 0.0, 1.0) * hit_sky_exp;
-            let base_haze = mix(horizon_color, space_color, pow(max(0.0, rd.y), 0.60));
-            let mie_sun = vec3<f32>(0.55, 0.40, 0.22) * pow(max(dot(rd, light_dir), 0.0), 8.0) * clamp(sun_h * 4.0 + 0.4, 0.0, 1.0);
-            let cave_mist = vec3<f32>(0.004, 0.006, 0.010) * clamp(((ro.y + rd.y * t) + 16.0) / 40.0, 0.0, 1.0);
-            let fog_color = mix(cave_mist, base_haze + mie_sun, depth_fade);
-            color = mix(hit_color, fog_color, fog_factor);
+            if (bh_captured) {
+                // Keep the Event Horizon stark [0,0,0] abyssal black behind foreground Accretion Disk plasma!
+                let clip_fade = smoothstep(58.0, 87.5, t);
+                let base_haze = mix(horizon_color, space_color, pow(max(0.0, rd.y), 0.60));
+                color = mix(hit_color, base_haze * clamp((ro.y - 4.0) / 20.0, 0.0, 1.0), clip_fade);
+            } else {
+                // Smooth 2-stage exponential aerial-perspective haze (Euclidean fog_dist so coiled Black Hole rays never paint a dark ring on nearby cave walls!)
+                let fog_dist = select(t, distance(ro, ray_p), bh_mask != 0u);
+                let fog_y = select(ro.y + rd.y * t, ray_p.y, bh_mask != 0u);
+                let haze_d = max(0.0, fog_dist - 10.0);
+                let fog_factor = clamp((1.0 - exp(-0.00038 * haze_d * haze_d)) * 0.65 + smoothstep(56.0, 87.5, fog_dist), 0.0, 1.0);
+                let depth_fade = clamp((fog_y - 4.0) / 20.0, 0.0, 1.0) * hit_sky_exp;
+                let base_haze = mix(horizon_color, space_color, pow(max(0.0, cur_rd.y), 0.60));
+                let mie_sun = vec3<f32>(0.55, 0.40, 0.22) * pow(max(dot(cur_rd, light_dir), 0.0), 8.0) * clamp(sun_h * 4.0 + 0.4, 0.0, 1.0);
+                let cave_mist = vec3<f32>(0.004, 0.006, 0.010) * clamp((fog_y + 16.0) / 40.0, 0.0, 1.0);
+                let fog_color = mix(cave_mist, base_haze + mie_sun, depth_fade);
+                color = mix(hit_color, fog_color, fog_factor);
+            }
         } else {
-            let far_y = ro.y + rd.y * min(t_far, 88.0);
-            let bg_sky_vis = clamp((max(ro.y, far_y) - 6.0) / 18.0, 0.0, 1.0);
-            color = (color * bg_sky_vis) * trans_rgb + in_scatter_rgb;
+            var sky_miss_col = color;
+            var cave_sky_gate: f32 = 1.0;
+            if (bh_mask != 0u) {
+                // Gravitationally lens the sky gradient, horizon, Sun, and Moon along the deflected exit geodesic cur_rd!
+                sky_miss_col = mix(horizon_color, space_color, pow(max(0.0, cur_rd.y), 0.60));
+                let b_sun_cos = dot(cur_rd, light_dir);
+                if (sun_h > -0.2 && b_sun_cos > 0.0) {
+                    let s_fade = clamp(sun_h * 5.0 + 1.0, 0.0, 1.0);
+                    sky_miss_col += vec3<f32>(1.0, 0.9, 0.7) * (pow(b_sun_cos, 120.0) * 1.5 + pow(b_sun_cos, 1200.0) * 4.0) * s_fade;
+                }
+                let b_moon_cos = dot(cur_rd, moon_dir);
+                if (sun_h < 0.2 && b_moon_cos > 0.0) {
+                    let m_fade = clamp(-sun_h * 5.0 + 1.0, 0.0, 1.0);
+                    sky_miss_col += vec3<f32>(0.7, 0.8, 1.0) * (pow(b_moon_cos, 160.0) * 0.4 + pow(b_moon_cos, 2000.0) * 1.2) * m_fade;
+                }
+                let stalled_inside = all(ray_p > box_min + vec3<f32>(1.5)) && all(ray_p < box_max - vec3<f32>(1.5));
+                if (stalled_inside) {
+                    cave_sky_gate = eval_sky_exposure(ray_p, normalize(vec3<f32>(cur_rd.x * 0.25, max(cur_rd.y, 0.35), cur_rd.z * 0.25)), box_max.y);
+                }
+            }
+            let far_y = ro.y + cur_rd.y * min(t_far, 88.0);
+            let bg_sky_vis = clamp((max(ro.y, far_y) - 6.0) / 18.0, 0.0, 1.0) * cave_sky_gate;
+            let miss_bg = mix(vec3<f32>(0.005, 0.007, 0.012), sky_miss_col, cave_sky_gate) * max(bg_sky_vis, (1.0 - cave_sky_gate));
+            color = miss_bg * trans_rgb + in_scatter_rgb;
         }
 
         // Lawmancer 3D Personal Forcefield Bubble (r = 2.75m) & Radiating Spherical Wavefront Shell + Wall-Slice Ring!

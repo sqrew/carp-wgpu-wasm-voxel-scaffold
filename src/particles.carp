@@ -313,6 +313,10 @@
   prev-cx Float
   prev-cz Float
   frame-step Int
+  bh-x Float
+  bh-y Float
+  bh-z Float
+  bh-r Float
 ])
 
 (defmodule ParticleSystem
@@ -348,8 +352,8 @@
           spawn-count-data (the (Array Float) [0.0f 0.0f 0.0f 0.0f])
           spawn-count-ptr (Result.unsafe-from-success (WGPURender.create-storage-vertex-buffer ctx &spawn-count-data))
 
-          ;; 6. Delta-time + camera world origin + time + player velocity + entity count buffer (12 x f32 = 48 bytes)
-          dt-data (the (Array Float) [0.016f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f])
+          ;; 6. Delta-time + camera world origin + time + player velocity + entity count + Black Hole buffer (16 x f32 = 64 bytes)
+          dt-data (the (Array Float) [0.016f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f 0.0f])
           dt-ptr (Result.unsafe-from-success (WGPURender.create-storage-vertex-buffer ctx &dt-data))
 
           ;; 7. VP + Camera basis + Camera pos uniform buffer (28 x f32 = 112 bytes)
@@ -456,7 +460,11 @@
         0.0f
         0.0f
         0.0f
-        0)))
+        0
+        0.0f
+        0.0f
+        0.0f
+        0.0f)))
 
   ;; -------------------------------------------------------------------------
   ;; Queue a particle emission event (CPU side, flushed to GPU once per frame)
@@ -545,6 +553,15 @@
       (ParticleSystem.set-env-time! ps time-sec)
       (ParticleSystem.set-lantern-on! ps lantern)))
 
+  (defn set-black-hole! [ps x y z r]
+    (do
+      (ParticleSystem.set-bh-x! ps x)
+      (ParticleSystem.set-bh-y! ps y)
+      (ParticleSystem.set-bh-z! ps z)
+      (ParticleSystem.set-bh-r! ps r)
+      (when (and (> (Float.abs r) 0.02f) (< @(ParticleSystem.active-frames ps) 90))
+        (ParticleSystem.set-active-frames! ps 90))))
+
   ;; -------------------------------------------------------------------------
   ;; Flush CPU spawn queue to GPU and dispatch flora + transient particle passes
   ;; -------------------------------------------------------------------------
@@ -561,14 +578,15 @@
           pvx (if (= fstep 0) 0.0f (Float.clamp -18.0f 18.0f (/ (- cx old-cx) fdt)))
           pvz (if (= fstep 0) 0.0f (Float.clamp -18.0f 18.0f (/ (- cz old-cz) fdt)))
           awake-f (if (or (> sc 0) (> af 0)) 1.0f 0.0f)
-          dt-arr [fdt cx cy cz @(ParticleSystem.env-time ps) pvx pvz (Float.from-int fstep) @(ParticleSystem.entity-count ps) awake-f 0.0f 0.0f]
+          dt-arr [fdt cx cy cz @(ParticleSystem.env-time ps) pvx pvz (Float.from-int fstep) @(ParticleSystem.entity-count ps) awake-f 0.0f 0.0f
+                  @(ParticleSystem.bh-x ps) @(ParticleSystem.bh-y ps) @(ParticleSystem.bh-z ps) @(ParticleSystem.bh-r ps)]
           batch-encoder (GPUBatcher.begin-batch ctx)]
       (do
         (ParticleSystem.set-prev-cx! ps cx)
         (ParticleSystem.set-prev-cz! ps cz)
         (ParticleSystem.set-frame-step! ps (Int.mod (+ fstep 1) 1000000))
 
-        ;; Upload 12-float time/camera/slipstream/entity-count buffer (48 bytes)
+        ;; Upload 16-float time/camera/slipstream/entity-count/black-hole buffer (64 bytes)
         (WGPURender.update-vertex-buffer ctx @(ParticleSystem.dt-buf ps) &dt-arr)
 
         ;; 1. Always dispatch lightweight 65,536-slot toroidal tethered flora compute (1,024 workgroups)

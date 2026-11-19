@@ -597,8 +597,8 @@
                 ux (* fx inv-f)
                 uy (* raw-fy inv-f)
                 uz (* fz inv-f)
-                spd (* (* 26.5f (WandSystem.mod-spd-mul acc hvy)) spd-stagger)
-                base-life (* 4.35f (if (> hvy 0) 1.28f 1.0f))
+                spd (* (* (if (> inv 0) 19.5f 26.5f) (WandSystem.mod-spd-mul acc hvy)) spd-stagger)
+                base-life (* (if (> inv 0) 6.40f 4.35f) (if (> hvy 0) 1.28f 1.0f))
                 life (* base-life (WandSystem.mod-life-mul hvr bmg))
                 brad (* (* 1.08f (if superfill? 1.25f 1.0f)) (WandSystem.mod-rad-mul hvy))
                 bounces ric
@@ -609,13 +609,15 @@
                 s-pack (+ (if (> hvy 0) 110 100) (WandSystem.clamp-int 0 7 acc))
                 s-sty (if (> inv 0) 11 10)
                 ttimer (if (= trig-kind 2) 0.45f 0.0f)
-                ox (+ sx (* ux 0.62f))
-                oy (+ sy (* uy 0.62f))
-                oz (+ sz (* uz 0.62f))
+                spawn-d (if (> inv 0) 1.65f 0.62f)
+                ox (+ sx (* ux spawn-d))
+                oy (+ sy (* uy spawn-d))
+                oz (+ sz (* uz spawn-d))
                 wpol (if (> inv 0) (- 0.0f inv-s) 1.0f)]
             (do
-              (ParticleSystem.emit-sparks! ps ox oy oz ux uy uz 36)
-              (ParticleSystem.emit! ps ox oy oz (* ux 16.0f) (+ (* uy 16.0f) 2.2f) (* uz 16.0f) 1.95f 32 PARTICLE-TYPE-MAGIC 0.48f 0.22f)
+              (ParticleSystem.emit-sparks! ps ox oy oz ux uy uz (if (> inv 0) 18 36))
+              (when (<= inv 0)
+                (ParticleSystem.emit! ps ox oy oz (* ux 16.0f) (+ (* uy 16.0f) 2.2f) (* uz 16.0f) 1.95f 32 PARTICLE-TYPE-MAGIC 0.48f 0.22f))
               (EngineState.push-wake-capsule! state
                 sx sy sz (+ ox (* ux 5.0f)) (+ oy (* uy 5.0f)) (+ oz (* uz 5.0f))
                 4.95f (* 3.25f wpol) (* ux (* 9.5f wpol)) (* uy (* 9.5f wpol)) (* uz (* 9.5f wpol)) (* 2.95f wpol))

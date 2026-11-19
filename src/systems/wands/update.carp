@@ -894,7 +894,7 @@
                                         px py pz (* vx inv0) (* vy inv0) (* vz inv0) (= stuck 1) wid bmat biw bim tpack tfx tfx2))))
 
                                 ;; Strided In-Flight Particle & CA Reagent Trails (`💧 Trail` `36` skywrites full Tank reagent!)
-                                (when (= (Int.mod (+ fc bi) trail-stride) 0)
+                                (when (and (/= bsty 11) (= (Int.mod (+ fc bi) trail-stride) 0))
                                   (do
                                     (when (or (> bsty 0) (or (>= wid 8) (or (= wid 2) (= (Int.mod (+ fc bi) 2) 0))))
                                       (ParticleSystem.emit! ps px py pz (* vx -0.05f) (+ (* vy -0.05f) 0.4f) (* vz -0.05f)
@@ -1304,15 +1304,32 @@
                                                             (set! frame-bnc-trigs (+ frame-bnc-trigs 1))
                                                             (WandSystem.unleash-trig-payload2! state world ps ecs wb fc
                                                               px py pz (* vx bi0) (* vy bi0) (* vz bi0) true wid bmat biw bim tpack tfx tfx2)))))
-                                                    (do
-                                                      (when (> spd 3.0f)
-                                                        (ParticleSystem.emit-dust! ps nx ny nz 12))
-                                                      (set! vx (* vx 0.06f))
-                                                      (set! vy (* vy 0.06f))
-                                                      (set! vz (* vz 0.06f))
-                                                      (set! px (+ nx (* wnx (if (or (= bsty 10) (= bsty 11)) 1.95f (if (= bsty 9) 1.85f 1.45f)))))
-                                                      (set! py (+ ny (* wny (if (or (= bsty 10) (= bsty 11)) 1.95f (if (= bsty 9) 1.85f 1.45f)))))
-                                                      (set! pz (+ nz (* wnz (if (or (= bsty 10) (= bsty 11)) 1.95f (if (= bsty 9) 1.85f 1.45f))))))))
+                                                    (let [bh-wall-m (if (= bsty 11) (CritterSystem.sample-solid-mat-near world &pvec) 255.0f)
+                                                          bh-bore? (and (= bsty 11)
+                                                                        (and (/= bh-wall-m 255.0f)
+                                                                             (/= (Float.abs bh-wall-m) 18.0f)))]
+                                                      (if bh-bore?
+                                                        (let [bite-r (Float.clamp 1.45f 3.25f (* brad 0.82f))
+                                                              cmat-b (if (and (>= bh-wall-m 1.0f) (< bh-wall-m 250.0f)) bh-wall-m 1.0f)]
+                                                          (do
+                                                            (EngineState.push-voxel-action! state nx ny nz bite-r cmat-b -1.0f 2.0f)
+                                                            (MancerSystem.carve-blast-sdf! world &pvec (Double.from-float (* bite-r 0.92f)))
+                                                            (ParticleSystem.emit-debris! ps nx ny nz wnx wny wnz 8)
+                                                            (set! vx (* vx 0.82f))
+                                                            (set! vy (* vy 0.82f))
+                                                            (set! vz (* vz 0.82f))
+                                                            (set! px nx)
+                                                            (set! py ny)
+                                                            (set! pz nz)))
+                                                        (do
+                                                          (when (> spd 3.0f)
+                                                            (ParticleSystem.emit-dust! ps nx ny nz 12))
+                                                          (set! vx (* vx 0.06f))
+                                                          (set! vy (* vy 0.06f))
+                                                          (set! vz (* vz 0.06f))
+                                                          (set! px (+ nx (* wnx (if (or (= bsty 10) (= bsty 11)) 1.95f (if (= bsty 9) 1.85f 1.45f)))))
+                                                          (set! py (+ ny (* wny (if (or (= bsty 10) (= bsty 11)) 1.95f (if (= bsty 9) 1.85f 1.45f)))))
+                                                          (set! pz (+ nz (* wnz (if (or (= bsty 10) (= bsty 11)) 1.95f (if (= bsty 9) 1.85f 1.45f))))))))))
                                                 (do
                                                   (when (and (and (>= bsty 9) (<= bsty 11)) (> spd 2.5f))
                                                     (let [pay-op (WandSystem.get-coupled-payload wid bmat biw bim)

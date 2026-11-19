@@ -590,7 +590,7 @@
                   spawn-foot-pos (Vector3.init 32.0 spawn-foot-y 32.0)
                   spawn-eye-pos (Vector3.init 32.0 (+ spawn-foot-y 1.2) 32.0)
                   player (Player.create spawn-eye-pos)
-                  uniforms (Array.replicate 1488 &0.0f)
+                  uniforms (Array.replicate 1520 &0.0f)
                   diag (Diagnostics.new @"diagnostics.log")
                   ecs-world (GameWorld.new)
                   grid (SpatialGrid.new-with-origin 8.0 24 36 24 (Vector3.init -64.0 (- spawn-foot-y 144.0) -64.0))
@@ -2117,92 +2117,151 @@
                 ;; Pack 32-slot Dedicated 3D GI Spell Lights (`u.pad3` = `uniforms[39]`, `1228..1483`) & Upload 8,192-Bolt Impostor Buffer!
                 (let [bcnt @(WandBelt.bolt-count wb)
                       b-pos (WandBelt.bolt-pos wb)
-                      b-col (WandBelt.bolt-col wb)
-                      b-rad (WandBelt.bolt-rad wb)
-                      b-light (WandBelt.bolt-light wb)
-                      b-style (WandBelt.bolt-style wb)
-                      b-wand (WandBelt.bolt-wand wb)
-                      stride (if (> bcnt 64) (/ bcnt 32) 1)
-                      spell-cnt 0
-                      bi 0]
-                  (do
-                    ;; Pass 1: Bright Light-rune / Power-Core / Glowing-Reagent / Relic bolts
-                    (while (and (< bi bcnt) (< spell-cnt 32))
-                      (let [bl @(Array.unsafe-nth b-light bi)
-                            bs @(Array.unsafe-nth b-style bi)
-                            bw @(Array.unsafe-nth b-wand bi)
-                            c4 (* bi 4)
-                            gflg @(Array.unsafe-nth b-col (+ c4 3))]
-                        (do
-                          (when (or (> bl 0) (or (> bs 0) (or (>= bw 8) (>= gflg 0.5f))))
-                            (let [b3 (* bi 3)
-                                  brad @(Array.unsafe-nth b-rad bi)
-                                  sl-base (+ 1228 (* spell-cnt 4))
-                                  sc-base (+ 1356 (* spell-cnt 4))
-                                  gi-rad (if (> bl 0)
-                                           (Float.clamp 4.8f 16.0f (+ 4.5f (* 3.2f (Float.from-int bl))))
-                                           (if (or (> bs 0) (>= bw 8))
-                                             3.8f
-                                             (Float.clamp 2.2f 6.5f (* brad 12.0f))))
-                                  escale (if (> bl 0)
-                                           (+ 1.35f (* 0.55f (Float.from-int bl)))
-                                           (if (or (> bs 0) (>= bw 8)) 0.95f 0.72f))]
+                          b-col (WandBelt.bolt-col wb)
+                          b-rad (WandBelt.bolt-rad wb)
+                          b-life (WandBelt.bolt-life wb)
+                          b-light (WandBelt.bolt-light wb)
+                          b-style (WandBelt.bolt-style wb)
+                          b-wand (WandBelt.bolt-wand wb)
+                          stride (if (> bcnt 64) (/ bcnt 32) 1)
+                          spell-cnt 0
+                          bi 0
+                          bh-cnt 0
+                          bh0-x 0.0f
+                          bh0-y 0.0f
+                          bh0-z 0.0f
+                          bh0-r 0.0f]
+                      (do
+                        ;; Pack up to 4 active Gargantua Black Holes (`b-style == 11`) into `u.bh_pos[0..3]` (`1484..1499`) & `u.bh_col[0..3]` (`1500..1515`)!
+                        (for [bk 0 bcnt]
+                          (when (and (< bh-cnt 4) (= @(Array.unsafe-nth b-style bk) 11))
+                            (let [b3 (* bk 3)
+                                  c4 (* bk 4)
+                                  bx @(Array.unsafe-nth b-pos b3)
+                                  by @(Array.unsafe-nth b-pos (+ b3 1))
+                                  bz @(Array.unsafe-nth b-pos (+ b3 2))
+                                  brad @(Array.unsafe-nth b-rad bk)
+                                  blife @(Array.unsafe-nth b-life bk)
+                                  rs-raw (Float.clamp 0.24f 0.85f (* brad 0.18f))
+                                  rs-out (if (<= blife 0.36f) (- 0.0f rs-raw) rs-raw)
+                                  p-off (+ 1484 (* bh-cnt 4))
+                                  c-off (+ 1500 (* bh-cnt 4))]
                               (do
-                                (Array.aset! uniforms sl-base @(Array.unsafe-nth b-pos b3))
-                                (Array.aset! uniforms (+ sl-base 1) (+ @(Array.unsafe-nth b-pos (+ b3 1)) (if (= bs 6) 3.2f 0.0f)))
-                                (Array.aset! uniforms (+ sl-base 2) @(Array.unsafe-nth b-pos (+ b3 2)))
-                                (Array.aset! uniforms (+ sl-base 3) gi-rad)
-                                (Array.aset! uniforms sc-base (* @(Array.unsafe-nth b-col c4) escale))
-                                (Array.aset! uniforms (+ sc-base 1) (* @(Array.unsafe-nth b-col (+ c4 1)) escale))
-                                (Array.aset! uniforms (+ sc-base 2) (* @(Array.unsafe-nth b-col (+ c4 2)) escale))
-                                (Array.aset! uniforms (+ sc-base 3) 0.0f)
-                                (set! spell-cnt (+ spell-cnt 1)))))
-                          (set! bi (+ bi stride)))))
-                    ;; Pass 2: Fill remaining GI light budget with subtle arcane/kinetic bolt glints when count is modest
-                    (when (and (< spell-cnt 16) (> bcnt 0))
-                      (let [bi2 0
-                            stride2 (if (> bcnt 32) (/ bcnt 16) 1)]
-                        (while (and (< bi2 bcnt) (< spell-cnt 24))
-                          (let [bl @(Array.unsafe-nth b-light bi2)
-                                bs @(Array.unsafe-nth b-style bi2)
-                                bw @(Array.unsafe-nth b-wand bi2)
-                                c4 (* bi2 4)
+                                (Array.aset! uniforms p-off bx)
+                                (Array.aset! uniforms (+ p-off 1) by)
+                                (Array.aset! uniforms (+ p-off 2) bz)
+                                (Array.aset! uniforms (+ p-off 3) rs-out)
+                                (Array.aset! uniforms c-off @(Array.unsafe-nth b-col c4))
+                                (Array.aset! uniforms (+ c-off 1) @(Array.unsafe-nth b-col (+ c4 1)))
+                                (Array.aset! uniforms (+ c-off 2) @(Array.unsafe-nth b-col (+ c4 2)))
+                                (Array.aset! uniforms (+ c-off 3) (* (Float.from-int (Int.mod bk 16)) 0.785398f))
+                                (when (= bh-cnt 0)
+                                  (do
+                                    (set! bh0-x bx)
+                                    (set! bh0-y by)
+                                    (set! bh0-z bz)
+                                    (set! bh0-r rs-out)))
+                                (set! bh-cnt (+ bh-cnt 1))))))
+                        (for [zk bh-cnt 4]
+                          (let [p-off (+ 1484 (* zk 4))
+                                c-off (+ 1500 (* zk 4))]
+                            (do
+                              (Array.aset! uniforms p-off 0.0f)
+                              (Array.aset! uniforms (+ p-off 1) 0.0f)
+                              (Array.aset! uniforms (+ p-off 2) 0.0f)
+                              (Array.aset! uniforms (+ p-off 3) 0.0f)
+                              (Array.aset! uniforms c-off 0.0f)
+                              (Array.aset! uniforms (+ c-off 1) 0.0f)
+                              (Array.aset! uniforms (+ c-off 2) 0.0f)
+                              (Array.aset! uniforms (+ c-off 3) 0.0f))))
+                        (ParticleSystem.set-black-hole! (EngineState.particles state) bh0-x bh0-y bh0-z bh0-r)
+
+                        ;; Pass 1: Bright Light-rune / Power-Core / Glowing-Reagent / Relic bolts
+                        (while (and (< bi bcnt) (< spell-cnt 32))
+                          (let [bl @(Array.unsafe-nth b-light bi)
+                                bs @(Array.unsafe-nth b-style bi)
+                                bw @(Array.unsafe-nth b-wand bi)
+                                c4 (* bi 4)
                                 gflg @(Array.unsafe-nth b-col (+ c4 3))]
                             (do
-                              (when (and (<= bl 0) (and (<= bs 0) (and (< bw 8) (< gflg 0.5f))))
-                                (let [b3 (* bi2 3)
+                              (when (or (> bl 0) (or (> bs 0) (or (>= bw 8) (>= gflg 0.5f))))
+                                (let [b3 (* bi 3)
+                                      brad @(Array.unsafe-nth b-rad bi)
                                       sl-base (+ 1228 (* spell-cnt 4))
-                                      sc-base (+ 1356 (* spell-cnt 4))]
+                                      sc-base (+ 1356 (* spell-cnt 4))
+                                      gi-rad (if (= bs 10)
+                                               16.0f
+                                               (if (= bs 11)
+                                                 11.5f
+                                                 (if (> bl 0)
+                                                   (Float.clamp 4.8f 16.0f (+ 4.5f (* 3.2f (Float.from-int bl))))
+                                                   (if (or (> bs 0) (>= bw 8))
+                                                     3.8f
+                                                     (Float.clamp 2.2f 6.5f (* brad 12.0f))))))
+                                      escale (if (= bs 11)
+                                               0.62f
+                                               (if (> bl 0)
+                                                 (+ 1.35f (* 0.55f (Float.from-int bl)))
+                                                 (if (or (> bs 0) (>= bw 8)) 0.95f 0.72f)))
+                                      cr0 @(Array.unsafe-nth b-col c4)
+                                      cg0 @(Array.unsafe-nth b-col (+ c4 1))
+                                      cb0 @(Array.unsafe-nth b-col (+ c4 2))]
                                   (do
                                     (Array.aset! uniforms sl-base @(Array.unsafe-nth b-pos b3))
-                                    (Array.aset! uniforms (+ sl-base 1) @(Array.unsafe-nth b-pos (+ b3 1)))
+                                    (Array.aset! uniforms (+ sl-base 1) (+ @(Array.unsafe-nth b-pos (+ b3 1)) (if (= bs 6) 3.2f 0.0f)))
                                     (Array.aset! uniforms (+ sl-base 2) @(Array.unsafe-nth b-pos (+ b3 2)))
-                                    (Array.aset! uniforms (+ sl-base 3) 1.85f)
-                                    (Array.aset! uniforms sc-base (* @(Array.unsafe-nth b-col c4) 0.28f))
-                                    (Array.aset! uniforms (+ sc-base 1) (* @(Array.unsafe-nth b-col (+ c4 1)) 0.28f))
-                                    (Array.aset! uniforms (+ sc-base 2) (* @(Array.unsafe-nth b-col (+ c4 2)) 0.28f))
+                                    (Array.aset! uniforms (+ sl-base 3) gi-rad)
+                                    (Array.aset! uniforms sc-base (* (if (= bs 11) 0.98f cr0) escale))
+                                    (Array.aset! uniforms (+ sc-base 1) (* (if (= bs 11) 0.68f cg0) escale))
+                                    (Array.aset! uniforms (+ sc-base 2) (* (if (= bs 11) 0.28f cb0) escale))
                                     (Array.aset! uniforms (+ sc-base 3) 0.0f)
                                     (set! spell-cnt (+ spell-cnt 1)))))
-                              (set! bi2 (+ bi2 stride2)))))))
-                    (for [zi spell-cnt 32]
-                      (let [sl-base (+ 1228 (* zi 4))
-                            sc-base (+ 1356 (* zi 4))]
-                        (do
-                          (Array.aset! uniforms sl-base 0.0f)
-                          (Array.aset! uniforms (+ sl-base 1) 0.0f)
-                          (Array.aset! uniforms (+ sl-base 2) 0.0f)
-                          (Array.aset! uniforms (+ sl-base 3) 0.0f)
-                          (Array.aset! uniforms sc-base 0.0f)
-                          (Array.aset! uniforms (+ sc-base 1) 0.0f)
-                          (Array.aset! uniforms (+ sc-base 2) 0.0f)
-                          (Array.aset! uniforms (+ sc-base 3) 0.0f))))
-                    (Array.aset! uniforms 39 (Float.from-int spell-cnt))
-                    (ParticleSystem.upload-bolts!
-                      @(M-WGPUContext.p (Engine.ctx eng))
-                      (EngineState.particles state)
-                      (WandBelt.bolt-gpu-staging wb)
-                      bcnt
-                      (* (Float.from-int fc) 0.01667f))))
+                              (set! bi (+ bi stride)))))
+                        ;; Pass 2: Fill remaining GI light budget with subtle arcane/kinetic bolt glints when count is modest
+                        (when (and (< spell-cnt 16) (> bcnt 0))
+                          (let [bi2 0
+                                stride2 (if (> bcnt 32) (/ bcnt 16) 1)]
+                            (while (and (< bi2 bcnt) (< spell-cnt 24))
+                              (let [bl @(Array.unsafe-nth b-light bi2)
+                                    bs @(Array.unsafe-nth b-style bi2)
+                                    bw @(Array.unsafe-nth b-wand bi2)
+                                    c4 (* bi2 4)
+                                    gflg @(Array.unsafe-nth b-col (+ c4 3))]
+                                (do
+                                  (when (and (<= bl 0) (and (<= bs 0) (and (< bw 8) (< gflg 0.5f))))
+                                    (let [b3 (* bi2 3)
+                                          sl-base (+ 1228 (* spell-cnt 4))
+                                          sc-base (+ 1356 (* spell-cnt 4))]
+                                      (do
+                                        (Array.aset! uniforms sl-base @(Array.unsafe-nth b-pos b3))
+                                        (Array.aset! uniforms (+ sl-base 1) @(Array.unsafe-nth b-pos (+ b3 1)))
+                                        (Array.aset! uniforms (+ sl-base 2) @(Array.unsafe-nth b-pos (+ b3 2)))
+                                        (Array.aset! uniforms (+ sl-base 3) 1.85f)
+                                        (Array.aset! uniforms sc-base (* @(Array.unsafe-nth b-col c4) 0.28f))
+                                        (Array.aset! uniforms (+ sc-base 1) (* @(Array.unsafe-nth b-col (+ c4 1)) 0.28f))
+                                        (Array.aset! uniforms (+ sc-base 2) (* @(Array.unsafe-nth b-col (+ c4 2)) 0.28f))
+                                        (Array.aset! uniforms (+ sc-base 3) 0.0f)
+                                        (set! spell-cnt (+ spell-cnt 1)))))
+                                  (set! bi2 (+ bi2 stride2)))))))
+                        (for [zi spell-cnt 32]
+                          (let [sl-base (+ 1228 (* zi 4))
+                                sc-base (+ 1356 (* zi 4))]
+                            (do
+                              (Array.aset! uniforms sl-base 0.0f)
+                              (Array.aset! uniforms (+ sl-base 1) 0.0f)
+                              (Array.aset! uniforms (+ sl-base 2) 0.0f)
+                              (Array.aset! uniforms (+ sl-base 3) 0.0f)
+                              (Array.aset! uniforms sc-base 0.0f)
+                              (Array.aset! uniforms (+ sc-base 1) 0.0f)
+                              (Array.aset! uniforms (+ sc-base 2) 0.0f)
+                              (Array.aset! uniforms (+ sc-base 3) 0.0f))))
+                        (Array.aset! uniforms 39 (Float.from-int spell-cnt))
+                        (ParticleSystem.upload-bolts!
+                          @(M-WGPUContext.p (Engine.ctx eng))
+                          (EngineState.particles state)
+                          (WandBelt.bolt-gpu-staging wb)
+                          bcnt
+                          (* (Float.from-int fc) 0.01667f))))
                 ))
             
             (ParticleSystem.set-entity-count! (EngineState.particles state) (Float.from-int num-entities))

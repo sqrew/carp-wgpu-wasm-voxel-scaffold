@@ -181,6 +181,8 @@ struct Uniforms {
     wake_vel: array<vec4<f32>, 32>,
     spell_lights: array<vec4<f32>, 32>,
     spell_colors: array<vec4<f32>, 32>,
+    bh_pos: array<vec4<f32>, 4>,
+    bh_col: array<vec4<f32>, 4>,
 }
 ")
 
@@ -221,6 +223,8 @@ struct Uniforms {
     wake_vel: array<vec4<f32>, 32>,
     spell_lights: array<vec4<f32>, 32>,
     spell_colors: array<vec4<f32>, 32>,
+    bh_pos: array<vec4<f32>, 4>,
+    bh_col: array<vec4<f32>, 4>,
 }
 ")
 
@@ -319,6 +323,7 @@ fn get_vel(base_ip: vec3<i32>, delta: vec3<i32>, win_min: vec3<i32>) -> vec4<f32
 }
 
 fn has_law_tg_liq() -> bool {
+    if (abs(u.bh_pos[0].w) > 0.02) { return true; }
     for (var mk: u32 = 0u; mk < 4u; mk = mk + 1u) {
         if (u.mancer_pos[mk].w > 0.05 && u.mancer_mat[mk].x >= 768.5) {
             let m_id = i32(round(u.mancer_mat[mk].x));
@@ -338,6 +343,19 @@ fn eval_law_tg_liq(world_p: vec3<f32>, active_tg: bool) -> vec2<f32> {
     if (!active_tg) { return vec2<f32>(0.50, 0.50); }
     var tau: f32 = 0.50;
     var g_val: f32 = 0.50;
+    for (var bk: u32 = 0u; bk < 4u; bk = bk + 1u) {
+        let bp = u.bh_pos[bk];
+        let rs_b = abs(bp.w);
+        if (rs_b > 0.02) {
+            let db = distance(world_p, bp.xyz);
+            if (db < rs_b * 12.5 + 4.5) {
+                tau = max(tau, 0.66);
+                if (world_p.y < bp.y + rs_b * 0.85) {
+                    g_val = min(g_val, 0.10);
+                }
+            }
+        }
+    }
     for (var mk: u32 = 0u; mk < 4u; mk = mk + 1u) {
         let mp = u.mancer_pos[mk];
         let mm = u.mancer_mat[mk];
@@ -982,6 +1000,20 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_vol = 0.0;
         next_age = 0.0;
         next_sleep = 0.0;
+    }
+
+    if (next_vol > 0.0 && abs(u.bh_pos[0].w) > 0.02) {
+        for (var bk: u32 = 0u; bk < 4u; bk = bk + 1u) {
+            let bp = u.bh_pos[bk];
+            let rs_l = abs(bp.w);
+            if (rs_l > 0.02 && distance(wp_self, bp.xyz) <= rs_l * 1.45) {
+                next_id = 0.0;
+                next_vol = 0.0;
+                next_age = 0.0;
+                next_sleep = 0.0;
+                break;
+            }
+        }
     }
 
     output_buffer[idx] = vec4<f32>(next_id, next_vol, next_age, next_sleep);
@@ -1728,6 +1760,20 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         next_age = next_age + tau_self;
     } else {
         next_age = 0.0;
+    }
+
+    if (next_vol > 0.0 && abs(u.bh_pos[0].w) > 0.02) {
+        for (var bk: u32 = 0u; bk < 4u; bk = bk + 1u) {
+            let bp = u.bh_pos[bk];
+            let rs_g = abs(bp.w);
+            if (rs_g > 0.02 && distance(wp_self, bp.xyz) <= rs_g * 1.45) {
+                next_id = 0.0;
+                next_vol = 0.0;
+                next_age = 0.0;
+                next_sleep = 0.0;
+                break;
+            }
+        }
     }
 
     output_buffer[idx] = vec4<f32>(next_id, next_vol, next_age, next_sleep);
@@ -3001,6 +3047,20 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 }
                 solid_stress = clamp(load_ratio, 0.0, 1.0);
             }
+            if (abs(u.bh_pos[0].w) > 0.02) {
+                for (var bk: u32 = 0u; bk < 4u; bk = bk + 1u) {
+                    let bp = u.bh_pos[bk];
+                    let rs_f = abs(bp.w);
+                    if (rs_f > 0.02) {
+                        let df_b = distance(world_p, bp.xyz);
+                        let r_roche = rs_f * 7.5 + 3.5;
+                        if (df_b < r_roche) {
+                            let tidal_s = smoothstep(r_roche, rs_f * 1.35, df_b) * 0.96;
+                            solid_stress = max(solid_stress, tidal_s);
+                        }
+                    }
+                }
+            }
         }
 
         // Solid Thermal, Piezoelectric/Galvanic, & Surface Stain State in solid_buffer[idx].z
@@ -3733,6 +3793,34 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 let dir_m = rel_m / dm;
                 next_v = mix(next_v, dir_m * (w_pol * 2.65 * s_fall), 0.38 * s_fall);
                 next_p = mix(next_p, w_pol * 1.55 * s_fall, 0.35 * s_fall);
+            }
+        }
+    }
+
+    // 4.1. Gargantua Black Hole 3D Keplerian Accretion Whirlpool + Relativistic Radial Sink!
+    if (abs(u.bh_pos[0].w) > 0.02) {
+        for (var bk: u32 = 0u; bk < 4u; bk = bk + 1u) {
+            let bp = u.bh_pos[bk];
+            let rs_v = abs(bp.w);
+            if (rs_v > 0.02) {
+                let rel_b = world_p - bp.xyz;
+                let db = length(rel_b);
+                let r_vel = rs_v * 15.0 + 5.5;
+                if (db < r_vel && db > 0.08) {
+                    let fall_b = clamp(1.0 - db / r_vel, 0.0, 1.0);
+                    let az_v = u.bh_col[bk].w + u.time * 0.22;
+                    let n_disk = normalize(vec3<f32>(cos(az_v) * 0.30, 0.954, sin(az_v) * 0.30));
+                    let h_dv = dot(rel_b, n_disk);
+                    let q_pv = rel_b - n_disk * h_dv;
+                    let tang_v = normalize(cross(n_disk, q_pv + vec3<f32>(0.001, 0.0, 0.001)));
+                    let pinch_mul = select(1.0, 1.85, bp.w < 0.0);
+                    let in_spd = (2.2 + 4.4 * fall_b) * pinch_mul;
+                    let orb_spd = (3.4 + 3.2 * sqrt(rs_v / max(db, 0.5))) * fall_b;
+                    let eq_push = -n_disk * clamp(h_dv / max(rs_v * 1.1, 0.45), -1.0, 1.0) * (2.6 * fall_b);
+                    let bh_vel = (-rel_b / db) * in_spd + tang_v * orb_spd + eq_push;
+                    next_v = mix(next_v, bh_vel, clamp(0.45 * fall_b + 0.18 * fall_b * fall_b, 0.0, 0.68));
+                    next_p = min(next_p, -2.95 * fall_b * pinch_mul);
+                }
             }
         }
     }

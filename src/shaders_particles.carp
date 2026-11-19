@@ -309,6 +309,34 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         p.vel += (c0 * 0.72 + c1 * 0.36) * (eddy_gain * dt);
     }
 
+    // Gargantua Black Hole relativistic Keplerian accretion spiral & Event Horizon capture!
+    let bh_r_signed = time_params[15];
+    if (abs(bh_r_signed) > 0.02) {
+        let bh_c = vec3<f32>(time_params[12], time_params[13], time_params[14]);
+        let rs_p = abs(bh_r_signed);
+        let rel_p = p.pos - bh_c;
+        let dp_bh = length(rel_p);
+        if (dp_bh <= rs_p * 0.96) {
+            p.life = 0.0;
+            particles[i] = p;
+            return;
+        }
+        let r_reach = rs_p * 16.0 + 6.5;
+        if (dp_bh < r_reach) {
+            let az_p = time_params[4] * 0.22;
+            let n_disk = normalize(vec3<f32>(cos(az_p) * 0.30, 0.954, sin(az_p) * 0.30));
+            let h_dp = dot(rel_p, n_disk);
+            let q_pl = rel_p - n_disk * h_dp;
+            let tang_p = normalize(cross(n_disk, q_pl + vec3<f32>(0.0005, 0.0, 0.0005)));
+            let fall_p = clamp(1.0 - dp_bh / r_reach, 0.0, 1.0);
+            let grav_p = (28.0 + 95.0 * rs_p / max(dp_bh, 0.65)) * fall_p * select(1.0, 2.2, bh_r_signed < 0.0);
+            let swirl_p = (24.0 + 48.0 * sqrt(rs_p / max(dp_bh, 0.65))) * fall_p;
+            let plane_push = -n_disk * clamp(h_dp * 14.0, -24.0, 24.0) * fall_p;
+            p.vel += ((-rel_p / dp_bh) * grav_p + tang_p * swirl_p + plane_push) * dt;
+            grav *= (1.0 - fall_p * 0.92);
+        }
+    }
+
     // Apply gravity & air resistance
     p.vel.y += grav * dt;
     p.vel *= pow(drag, dt * 60.0);
@@ -563,11 +591,21 @@ fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32) -> vec4<f32> {
 }
 
 @fragment fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let d = length(in.uv - vec2<f32>(0.5));
-    if (d > 0.5) { discard; }
+    let uv_c = in.uv - vec2<f32>(0.5);
+    let d_raw = length(uv_c);
+    if (d_raw >= 0.5) { discard; }
+
+    var d = d_raw;
+    if (in.ptype == 1u || in.ptype == 3u || (in.ptype >= 201u && in.ptype <= 232u)) {
+        let ang_p = atan2(uv_c.y, uv_c.x);
+        let wisp = 1.0 + 0.13 * sin(ang_p * 3.0 + in.t * 4.2) * cos(ang_p * 5.0 - in.t * 2.8);
+        d = d_raw * wisp;
+        if (d >= 0.5) { discard; }
+    }
 
     let radial = clamp(1.0 - d * 2.0, 0.0, 1.0);
-    let core = pow(radial, 2.0);
+    let soft_rad = radial * radial * (3.0 - 2.0 * radial);
+    let core = radial * radial * soft_rad;
 
     if (in.ptype == 0u) {
         // 0: Sparks - burning ember with self-attenuating luminous glow
@@ -575,10 +613,10 @@ fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32) -> vec4<f32> {
         let g = mix(0.05, 0.95, in.t * in.t);
         let b = mix(0.0, 0.45, in.t * in.t * in.t);
         let rgb = vec3<f32>(r, g, b) * (core * 2.0);
-        return pack_luminous_premul(rgb, 0.0);
+        return pack_luminous_premul(rgb, 0.0) * soft_rad;
     } else if (in.ptype == 1u) {
         // 1: Dust - soft earthy sandstone puff (premultiplied alpha)
-        let alpha = in.t * radial * 0.55;
+        let alpha = in.t * soft_rad * 0.52;
         let rgb = mix(vec3<f32>(0.42, 0.38, 0.33), vec3<f32>(0.74, 0.67, 0.56), in.t);
         return vec4<f32>(rgb * alpha, alpha);
     } else if (in.ptype == 2u) {
@@ -588,7 +626,7 @@ fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32) -> vec4<f32> {
         return vec4<f32>(rgb * alpha, alpha);
     } else if (in.ptype == 3u) {
         // 3: Smoke - soft rising translucent vapor
-        let alpha = in.t * radial * 0.40;
+        let alpha = in.t * soft_rad * 0.38;
         let rgb = mix(vec3<f32>(0.22, 0.22, 0.24), vec3<f32>(0.58, 0.58, 0.60), in.t);
         return vec4<f32>(rgb * alpha, alpha);
     } else if (in.ptype >= 101u && in.ptype <= 132u) {
@@ -597,7 +635,7 @@ fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32) -> vec4<f32> {
         let spec = pow(clamp(1.0 - length(in.uv - vec2<f32>(0.36, 0.64)) * 3.0, 0.0, 1.0), 3.0) * 0.35;
         if (vis.w > 0.5) {
             let rgb = (vis.rgb + vec3<f32>(spec)) * (core * 2.1);
-            return pack_luminous_premul(rgb, clamp(core * 0.45, 0.0, 0.85));
+            return pack_luminous_premul(rgb, clamp(core * 0.45, 0.0, 0.85)) * soft_rad;
         }
         let alpha = clamp(smoothstep(0.05, 0.42, radial) * (0.35 + 0.6 * in.t), 0.0, 0.92);
         let rgb = vis.rgb * (0.75 + 0.35 * radial) + vec3<f32>(spec);
@@ -607,9 +645,9 @@ fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32) -> vec4<f32> {
         let vis = gas_visual(in.ptype - 200u);
         if (vis.w > 0.5) {
             let rgb = vis.rgb * (core * 2.1 * in.t);
-            return pack_luminous_premul(rgb, 0.0);
+            return pack_luminous_premul(rgb, 0.0) * soft_rad;
         }
-        let alpha = in.t * radial * 0.48;
+        let alpha = in.t * soft_rad * 0.46;
         return vec4<f32>(vis.rgb * alpha, alpha);
     } else if (in.ptype >= 301u && in.ptype <= 390u) {
         // Big Succ / Bellows Siphon Streak (301..349 Liquids, 351..390 Gases)
@@ -617,9 +655,9 @@ fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32) -> vec4<f32> {
         let spec = pow(radial, 3.0) * 0.3;
         if (vis.w > 0.5) {
             let rgb = (vis.rgb + vec3<f32>(spec)) * (core * 2.2);
-            return pack_luminous_premul(rgb, clamp(core * 0.35, 0.0, 0.80));
+            return pack_luminous_premul(rgb, clamp(core * 0.35, 0.0, 0.80)) * soft_rad;
         }
-        let alpha = clamp(radial * 0.85, 0.0, 0.9);
+        let alpha = clamp(soft_rad * 0.85, 0.0, 0.9);
         let rgb = vis.rgb + vec3<f32>(spec);
         return vec4<f32>(rgb * alpha, alpha);
     } else if ((in.ptype >= 401u && in.ptype <= 432u) || (in.ptype >= 501u && in.ptype <= 532u)) {
@@ -629,7 +667,7 @@ fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32) -> vec4<f32> {
         let shade = 0.68 + 0.38 * clamp(1.0 - length(in.uv - vec2<f32>(0.35, 0.65)) * 1.6, 0.0, 1.0);
         if (vis.w > 0.5) {
             let rgb = vis.rgb * (core * 2.0 + 0.35);
-            return pack_luminous_premul(rgb, smoothstep(0.22, 0.44, radial) * 0.65);
+            return pack_luminous_premul(rgb, smoothstep(0.22, 0.44, radial) * 0.65) * soft_rad;
         }
         let alpha = smoothstep(0.22, 0.44, radial);
         let rgb = vis.rgb * shade;
@@ -638,7 +676,7 @@ fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32) -> vec4<f32> {
         // 4: Magic - electric cyan/magenta plasma with self-attenuating luminous glow
         let c = mix(vec3<f32>(0.85, 0.15, 0.95), vec3<f32>(0.12, 0.92, 1.0), in.t);
         let rgb = c * (core * 2.5);
-        return pack_luminous_premul(rgb, 0.0);
+        return pack_luminous_premul(rgb, 0.0) * soft_rad;
     }
 }
 ")
@@ -867,21 +905,48 @@ fn tonemap_glow(color_in: vec3<f32>) -> vec3<f32> {
     return mix(c, vec3<f32>(new_peak), g);
 }
 
-fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32) -> vec4<f32> {
-    let tm = tonemap_glow(raw_rgb * 0.85) * 1.05;
+fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32, rim_fade: f32) -> vec4<f32> {
+    let rf = clamp(rim_fade, 0.0, 1.0);
+    let tm = tonemap_glow(raw_rgb * (0.85 * rf)) * (1.05 * rf);
     let peak = max(tm.r, max(tm.g, tm.b));
     let halo_a = peak * mix(0.28, 0.84, clamp(peak, 0.0, 1.0));
-    let out_a = clamp(max(body_a, halo_a), 0.0, 0.95);
+    let out_a = clamp(max(body_a * rf, halo_a), 0.0, 0.95);
     return vec4<f32>(tm, out_a);
 }
 
 @fragment fn fs_main(in: BoltVertexOut) -> @location(0) vec4<f32> {
+    // Style 11: Gargantua Black Hole (`Invert` + `Supernova`) — rendered in true 3D Schwarzschild geodesic raymarching in `shaders_render.carp`!
+    if (in.style == 11u) {
+        discard;
+    }
+
     let half_seg = max(0.0, in.stretch_time.x - 1.0);
     let cx = clamp(in.local_xy.x, -half_seg, half_seg);
     let q = vec2<f32>(in.local_xy.x - cx, in.local_xy.y);
     let r = length(q);
-    let max_r = select(1.58, 2.55, in.style == 1u || in.style >= 7u);
-    if (r > max_r) { discard; }
+
+    // Exact per-style inscribed quad boundary + C2 compact-support rim_fade -> 0.000 at quad edge (zero square corners even at 100x HDR!)
+    var r_lim: f32 = select(1.22, 1.58, in.col_glow.w >= 0.5 || in.style == 3u || in.style == 5u);
+    if (in.style == 1u)       { r_lim = 2.10; }
+    else if (in.style == 4u)  { r_lim = 1.50; }
+    else if (in.style == 6u)  { r_lim = 1.48; }
+    else if (in.style == 7u)  { r_lim = 1.85; }
+    else if (in.style == 9u)  { r_lim = 2.48; }
+    else if (in.style == 10u) { r_lim = 2.52; }
+    else if (in.style == 12u) { r_lim = 1.92; }
+    else if (in.style == 13u) { r_lim = 1.78; }
+
+    var rim_fade: f32 = 1.0;
+    if (in.style == 8u) {
+        let box_m = min(1.48 - abs(in.local_xy.x), 2.15 - abs(in.local_xy.y));
+        if (box_m <= 0.0) { discard; }
+        let u8 = clamp(box_m / 0.44, 0.0, 1.0);
+        rim_fade = u8 * u8 * (3.0 - 2.0 * u8);
+    } else {
+        if (r >= r_lim) { discard; }
+        let ur = clamp((r_lim - r) / (r_lim * 0.38), 0.0, 1.0);
+        rim_fade = ur * ur * (3.0 - 2.0 * ur);
+    }
 
     let base_col = max(in.col_glow.rgb, vec3<f32>(0.02));
     let glow_amt = in.col_glow.w;
@@ -900,11 +965,10 @@ fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32) -> vec4<f32> {
         let glint = pow(max(0.0, cos(cang * 2.0 + t * 24.0)), 4.0) * blade_band;
         let ring_sum = blade_band * 0.78 + inner_bevel * 0.95 + saw_rim;
         let alpha = clamp(ring_sum * 0.94, 0.0, 0.97);
-        if (alpha < 0.015) { discard; }
         let steel_tint = mix(base_col, vec3<f32>(0.68, 0.96, 1.0), 0.35);
         let hot_edge = mix(steel_tint, vec3<f32>(1.0, 0.995, 0.98), clamp(inner_bevel * 0.85 + saw_rim * 0.72 + glint * 0.65, 0.0, 1.0));
         let corona = steel_tint * (saw_rim * 1.55 + inner_bevel * 1.15 + exp(-abs(rc - 0.95) * 2.8) * 0.48);
-        return pack_luminous_premul(hot_edge * alpha + corona, alpha);
+        return pack_luminous_premul(hot_edge * alpha + corona, alpha, rim_fade);
     }
 
     // Style 13: Caltrop Proximity Mine — tumbling 4-prong tetrahedral steel spikes + pulsing armed sensor beacon!
@@ -923,12 +987,11 @@ fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32) -> vec4<f32> {
         let prox_ring = armed * exp(-pow((r - 1.24) * 7.5, 2.0)) * (0.28 + 0.52 * strobe);
         let metal_body = clamp(prongs4 * 1.15 + diag_x * 0.58 + hub * 0.95, 0.0, 1.0);
         let alpha = clamp(metal_body * 0.96 + prox_ring * 0.65, 0.0, 0.98);
-        if (alpha < 0.015) { discard; }
         let iron_col = mix(vec3<f32>(0.52, 0.56, 0.64), base_col, 0.52);
         let beacon_col = mix(base_col, vec3<f32>(1.0, 0.28, 0.12), armed * 0.62);
         let surf_rgb = mix(iron_col * (0.55 + 0.65 * prongs4), vec3<f32>(1.0, 0.97, 0.92), clamp(hub * (0.55 + 0.45 * strobe) + prongs4 * 0.35, 0.0, 1.0));
         let glow_rgb = beacon_col * (hub * (0.85 + 1.35 * armed * strobe) + prox_ring * 1.65 + prongs4 * 0.55);
-        return pack_luminous_premul(surf_rgb * metal_body + glow_rgb, alpha);
+        return pack_luminous_premul(surf_rgb * metal_body + glow_rgb, alpha, rim_fade);
     }
 
     // Style 10: Supernova Solar Star — roiling convective photosphere + whipping prominence loops + blue-white core-collapse flash!
@@ -941,40 +1004,16 @@ fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32) -> vec4<f32> {
         let sphere_mask = smoothstep(1.06, 0.86, r);
         let limb = exp(-pow((r - 0.95) * 7.2, 2.0));
         let prom_wave = sin(ang * 7.0 + t * 5.6 + sin(r * 4.8 - t * 9.5) * 1.4);
-        let prom = pow(max(0.0, prom_wave), 3.0) * exp(-max(0.0, r - 0.88) * 2.15) * smoothstep(0.55, 0.96, r);
-        let rays = (0.55 + 0.45 * sin(ang * 13.0 - t * 3.8)) * exp(-max(0.0, r - 0.85) * 1.65);
-        let alpha = clamp(sphere_mask * 0.97 + limb * 0.65 + prom * 0.78 + rays * 0.32, 0.0, 0.99);
-        if (alpha < 0.012) { discard; }
+        let prom = pow(max(0.0, prom_wave), 3.0) * exp(-max(0.0, r - 0.88) * 2.35) * smoothstep(0.55, 0.96, r);
+        let ray_mod = 0.58 + 0.26 * sin(ang * 5.0 - t * 2.9 + sin(r * 3.1 - t * 4.2)) + 0.16 * cos(ang * 11.0 + t * 3.7);
+        let rays = ray_mod * exp(-max(0.0, r - 0.85) * 1.95);
+        let alpha = clamp(sphere_mask * 0.97 + limb * 0.65 + prom * 0.78 + rays * 0.28, 0.0, 0.99);
         let sun_base = mix(base_col, vec3<f32>(1.0, 0.66, 0.16), 0.42);
         let pinch_col = mix(sun_base, vec3<f32>(0.68, 0.90, 1.0), pinch * 0.85);
         let surf_hot = clamp(gran * 0.75 + (1.0 - min(r, 1.0)) * 0.62 + limb * 0.55 + pinch * 0.75, 0.0, 1.0);
         let surf_rgb = mix(pinch_col * 0.82, vec3<f32>(1.0, 0.99, 0.94), surf_hot);
-        let corona = pinch_col * (limb * 1.65 + prom * 2.10 + rays * 0.95 + exp(-r * 1.15) * (0.72 + pinch * 1.25));
-        return pack_luminous_premul(surf_rgb * sphere_mask + corona, alpha);
-    }
-
-    // Style 11: Gargantua Black Hole (`Invert` + `Supernova`) — opaque pitch-black Event Horizon + Einstein ring + Doppler accretion disk!
-    if (in.style == 11u) {
-        let horizon = smoothstep(0.82, 0.72, r);
-        let einstein = exp(-pow((r - 0.80) * 14.5, 2.0));
-        let dq = vec2<f32>(q.x * 0.948 - q.y * 0.318, q.x * 0.318 + q.y * 0.948);
-        let r_disk = length(vec2<f32>(dq.x, dq.y * 3.65));
-        let disk_ang = atan2(dq.y * 3.65, dq.x);
-        let swirl = 0.62 + 0.38 * sin(disk_ang * 5.0 - t * 18.0 + r_disk * 7.5);
-        let disk_band = exp(-pow((r_disk - 1.38) * 2.55, 2.0)) * swirl * smoothstep(0.68, 0.86, r);
-        let r_lens = length(vec2<f32>(dq.x * 0.96, abs(dq.y) * 1.22));
-        let lens_arch = exp(-pow((r_lens - 0.94) * 5.2, 2.0)) * smoothstep(0.74, 0.84, r) * 0.82;
-        let doppler = 1.0 + 0.52 * clamp(dq.x * 0.85, -1.0, 1.0);
-        let glow_ring = (einstein * 1.55 + disk_band * 1.45 + lens_arch * 1.15) * doppler;
-        let void_alpha = clamp(horizon * 0.994 + clamp(glow_ring * 0.52, 0.0, 0.85), 0.0, 0.996);
-        if (void_alpha < 0.012 && glow_ring < 0.015) { discard; }
-        let bh_tint = mix(base_col, vec3<f32>(0.78, 0.42, 1.0), 0.40);
-        let hot_disk = mix(bh_tint, vec3<f32>(1.0, 0.97, 0.92), clamp(einstein * 0.88 + disk_band * 0.55 * doppler, 0.0, 1.0));
-        let rgb_out = hot_disk * glow_ring * (1.0 - horizon * 0.97);
-        let tm_bh = tonemap_glow(rgb_out * 0.86) * 1.05;
-        let bh_peak = max(tm_bh.r, max(tm_bh.g, tm_bh.b));
-        let bh_alpha = clamp(max(void_alpha, bh_peak * mix(0.28, 0.84, clamp(bh_peak, 0.0, 1.0))), 0.0, 0.996);
-        return vec4<f32>(tm_bh, bh_alpha);
+        let corona = pinch_col * (limb * 1.65 + prom * 2.10 + rays * 0.92 + exp(-r * 1.35) * (0.72 + pinch * 1.25));
+        return pack_luminous_premul(surf_rgb * sphere_mask + corona, alpha, rim_fade);
     }
 
     // Style 9: Ophanim Gyro-Mill — two +/-45 deg counter-rotating 20-tooth diamond saw-wheels + inner gimbal + blazing shear eye!
@@ -997,12 +1036,11 @@ fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32) -> vec4<f32> {
         let slit = smoothstep(0.26, 0.05, length(vec2<f32>(q.x * 2.7, q.y * 0.90)));
         let rings = wheel1 + wheel2 + gimbal * 0.72 + x_slash * 0.78;
         let alpha = clamp(rings * 0.92 + iris * 0.95 + eye_core * 0.92, 0.0, 0.98);
-        if (alpha < 0.015) { discard; }
         let gold_tint = mix(base_col, vec3<f32>(1.0, 0.92, 0.55), 0.35);
         let hot = mix(gold_tint, vec3<f32>(1.0, 0.995, 0.97), clamp(rings * 0.68 + iris * 0.90 + eye_core * 0.72, 0.0, 1.0));
         let eye_rgb = mix(hot, base_col * 0.06, slit * 0.88);
         let corona = gold_tint * (rings * 1.75 + iris * 1.75 + exp(-r * 1.25) * 0.65) * (1.0 - 0.62 * slit);
-        return pack_luminous_premul(eye_rgb * alpha + corona, alpha);
+        return pack_luminous_premul(eye_rgb * alpha + corona, alpha, rim_fade);
     }
 
     // Style 8: Phase-Wave Crest — foaming parabolic bow-wave crescent + turbulent trailing surf ribs!
@@ -1017,10 +1055,9 @@ fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32) -> vec4<f32> {
         let foam = crest_edge * (0.82 + 0.25 * sin(yn * 9.0 - t * 22.0));
         let wake_body = wake_mask * ribs * 0.62;
         let alpha = clamp(foam * 0.94 + wake_body * 0.72, 0.0, 0.94);
-        if (alpha < 0.015) { discard; }
         let hot = mix(base_col, vec3<f32>(1.0, 0.99, 0.97), clamp(foam * 0.88 + wake_body * 0.22, 0.0, 1.0));
         let corona = base_col * (crest_edge * 1.45 + wake_body * 0.95);
-        return pack_luminous_premul(hot * alpha + corona, alpha);
+        return pack_luminous_premul(hot * alpha + corona, alpha, rim_fade);
     }
 
     // Style 6: Maelstrom Storm-Eye Seed — visible compressed storm pearl during throw, vanishing into a faint eye shimmer once anchored!
@@ -1033,7 +1070,7 @@ fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32) -> vec4<f32> {
         let alpha = clamp(seed_core * 0.85 + eye_ring * 0.72, 0.0, 0.88);
         let hot = mix(base_col, vec3<f32>(1.0, 0.99, 0.96), clamp(seed_core * 0.75 + eye_ring * 0.25, 0.0, 0.90));
         let corona = base_col * (eye_ring * (0.28 + 0.95 * throw_t) + exp(-r * 2.4) * 0.45 * throw_t);
-        return pack_luminous_premul(hot * alpha + corona, alpha);
+        return pack_luminous_premul(hot * alpha + corona, alpha, rim_fade);
     }
 
     // Style 7: Starburst Seed — blazing 8-ray comet during throw, collapsing into an inward-sucking singularity star during THE BIG SUCC!
@@ -1041,30 +1078,30 @@ fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32) -> vec4<f32> {
         let succ_t = clamp(1.0 - in.stretch_time.z / 6.0, 0.0, 1.0);
         let ang = atan2(q.y, q.x);
         let swirl_ang = ang + succ_t * (1.35 / (r + 0.22));
-        let rays8 = pow(0.5 + 0.5 * cos(swirl_ang * 8.0 - t * (26.0 + 22.0 * succ_t)), 3.0) * exp(-r * mix(1.15, 0.78, succ_t));
+        let rays8 = pow(0.5 + 0.5 * cos(swirl_ang * 8.0 - t * (26.0 + 22.0 * succ_t)), 3.0) * exp(-r * mix(1.35, 1.05, succ_t));
         let in_wave1 = fract(r * 0.72 + t * 3.8);
         let in_wave2 = fract(r * 0.72 + t * 3.8 + 0.5);
-        let succ_rings = succ_t * (exp(-pow((r - in_wave1 * 1.75) * 5.5, 2.0)) * (1.0 - in_wave1)
-                                 + exp(-pow((r - in_wave2 * 1.75) * 5.5, 2.0)) * (1.0 - in_wave2));
+        let succ_rings = succ_t * (exp(-pow((r - in_wave1 * 1.55) * 5.5, 2.0)) * (1.0 - in_wave1)
+                                 + exp(-pow((r - in_wave2 * 1.55) * 5.5, 2.0)) * (1.0 - in_wave2));
         let horizon_rim = succ_t * exp(-pow((r - 0.42) * 7.5, 2.0));
         let dark_throat = succ_t * smoothstep(0.40, 0.10, r);
         let star_core = exp(-r * r * 4.8) * (1.0 - 0.88 * dark_throat);
         let alpha = clamp(star_core * 0.95 + dark_throat * 0.92 + rays8 * 0.76 + succ_rings * 0.78 + horizon_rim * 0.88, 0.0, 0.97);
         let bright = mix(base_col, vec3<f32>(1.0, 0.99, 0.96), clamp(star_core * 0.90 + horizon_rim * 0.78 + rays8 * 0.42, 0.0, 1.0));
         let core_rgb = mix(bright, base_col * 0.06, dark_throat * 0.92);
-        let corona = base_col * (rays8 * 1.55 + succ_rings * 1.65 + horizon_rim * 1.85 + exp(-r * 1.55) * 0.85) * (1.0 - 0.75 * dark_throat);
-        return pack_luminous_premul(core_rgb * alpha + corona, alpha);
+        let corona = base_col * (rays8 * 1.55 + succ_rings * 1.65 + horizon_rim * 1.85 + exp(-r * 1.65) * 0.85) * (1.0 - 0.75 * dark_throat);
+        return pack_luminous_premul(core_rgb * alpha + corona, alpha, rim_fade);
     }
 
     // Style 1: Rail-Lance — incandescent white-hot sabot core + pulsing supersonic Mach shock-rings!
     if (in.style == 1u) {
         let core_spear = exp(-r * r * 3.1);
         let mach_ring = exp(-pow((r - 1.05) * 3.4, 2.0)) * (0.78 + 0.35 * sin(t * 42.0 - r * 9.0));
-        let outer_flare = exp(-r * 1.45);
+        let outer_flare = exp(-r * 1.65);
         let alpha = clamp(core_spear * 0.96 + mach_ring * 0.62 + outer_flare * 0.32, 0.0, 0.96);
         let hot = mix(base_col, vec3<f32>(1.0, 0.99, 0.97), clamp(core_spear * 0.92 + mach_ring * 0.38, 0.0, 1.0));
         let corona = base_col * (outer_flare * 1.55 + mach_ring * 1.35);
-        return pack_luminous_premul(hot * alpha + corona, alpha);
+        return pack_luminous_premul(hot * alpha + corona, alpha, rim_fade);
     }
 
     // Style 4: Luminous Drill — high-frequency humming laser needle + reagent plasma sheath!
@@ -1074,7 +1111,7 @@ fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32) -> vec4<f32> {
         let sheath = exp(-r * 2.25) * hum;
         let alpha = clamp(needle * 0.92 + sheath * 0.48, 0.0, 0.95);
         let hot = mix(base_col, vec3<f32>(1.0, 0.99, 0.97), clamp(needle * 0.85, 0.0, 1.0));
-        return pack_luminous_premul(hot * alpha + base_col * sheath * 1.15, alpha);
+        return pack_luminous_premul(hot * alpha + base_col * sheath * 1.15, alpha, rim_fade);
     }
 
     // Style 3: Gyre Vortex — swirling cyclone torus + blazing eye-wall!
@@ -1085,8 +1122,8 @@ fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32) -> vec4<f32> {
         let core_eye = clamp(1.0 - r * 1.35, 0.0, 1.0);
         let alpha = clamp(ring * 0.78 + core_eye * 0.65, 0.0, 0.90);
         let hot = mix(base_col, vec3<f32>(1.0, 0.98, 0.95), core_eye * 0.55 + ring * 0.35);
-        let corona = base_col * (exp(-r * 1.85) * (0.95 + 0.55 * spiral) + ring * 1.15);
-        return pack_luminous_premul(hot * alpha + corona, alpha);
+        let corona = base_col * (exp(-r * 1.95) * (0.95 + 0.55 * spiral) + ring * 1.15);
+        return pack_luminous_premul(hot * alpha + corona, alpha, rim_fade);
     }
 
     // Style 5: Nova / Bulwark — incandescent star-core + rotating hexagonal prism shield-ring!
@@ -1095,11 +1132,11 @@ fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32) -> vec4<f32> {
         let facets = 0.5 + 0.5 * cos(ang * 6.0 + t * 8.5);
         let star_core = exp(-r * r * 4.2);
         let prism_ring = exp(-pow((r - 0.78) * 4.8, 2.0)) * (0.68 + 0.48 * facets);
-        let corona_glow = exp(-r * 1.95);
+        let corona_glow = exp(-r * 2.05);
         let alpha = clamp(star_core * 0.94 + prism_ring * 0.72 + corona_glow * 0.28, 0.0, 0.95);
         let hot = mix(base_col, vec3<f32>(1.0, 0.99, 0.96), clamp(star_core * 0.88 + prism_ring * 0.35, 0.0, 1.0));
         let corona = base_col * (corona_glow * 1.20 + prism_ring * 1.15);
-        return pack_luminous_premul(hot * alpha + corona, alpha);
+        return pack_luminous_premul(hot * alpha + corona, alpha, rim_fade);
     }
 
     // Matte / Solid Mineral Slug (glow < 0.5): crisp analytical 3D sphere + subtle kinetic rim
@@ -1125,8 +1162,8 @@ fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32) -> vec4<f32> {
     let body_a = smoothstep(1.04, 0.78, r) * clamp(0.68 + 0.16 * glow_amt, 0.68, 0.92);
     let warhead_pulse = select(1.0, 0.85 + 0.30 * sin(t * 22.0 + r * 8.0), in.style == 2u);
     let hot_core = mix(base_col, vec3<f32>(1.0, 0.99, 0.96), pow(nz, 2.1) * 0.72);
-    let halo = exp(-max(0.0, r - 0.35) * 2.55) * (0.75 + 0.45 * glow_amt) * warhead_pulse;
-    return pack_luminous_premul(hot_core * body_a + base_col * halo, body_a);
+    let halo = exp(-max(0.0, r - 0.35) * 2.65) * (0.75 + 0.45 * glow_amt) * warhead_pulse;
+    return pack_luminous_premul(hot_core * body_a + base_col * halo, body_a, rim_fade);
 }
 ")
 
@@ -1437,6 +1474,11 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let raw_kind = u32(lk.y + 0.5);
         let mp = s.mat_packed;
 
+        let bh_r_s = time_params[15];
+        let bh_active = abs(bh_r_s) > 0.02;
+        let bh_c = vec3<f32>(time_params[12], time_params[13], time_params[14]);
+        let rs_f = abs(bh_r_s);
+
         // Case 2a: Detached Falling / Burning Ribbon (`raw_kind >= 9u`) — animates even when particles[] is asleep!
         if (raw_kind >= 9u) {
             var curl_vy = unpack2x16float(s.disp_xz);
@@ -1447,17 +1489,45 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
             var vy = clamp(curl_vy.y - 9.2 * dt + (wind_f.y * 4.5 + eddy3.y * 3.4) * dt, -14.0, 8.0);
             vxz = mix(vxz, vec2<f32>(wind_f.x, wind_f.z) * 11.5 + vec2<f32>(eddy3.x, eddy3.z) * 2.8, clamp(3.6 * dt, 0.0, 0.48));
+
+            if (bh_active) {
+                let rel_f = s.root_pos - bh_c;
+                let df_bh = length(rel_f);
+                if (df_bh <= rs_f * 1.05) {
+                    s.len_kind = 0u;
+                    s.disp_xz = 0u;
+                    s.vel_xz = 0u;
+                    flora[i] = s;
+                    return;
+                }
+                let r_pull_f = rs_f * 15.0 + 6.0;
+                if (df_bh < r_pull_f) {
+                    let fall_f = clamp(1.0 - df_bh / r_pull_f, 0.0, 1.0);
+                    let az_f = time_sec * 0.22;
+                    let n_disk_f = normalize(vec3<f32>(cos(az_f) * 0.30, 0.954, sin(az_f) * 0.30));
+                    let h_df = dot(rel_f, n_disk_f);
+                    let q_pf = rel_f - n_disk_f * h_df;
+                    let tang_f = normalize(cross(n_disk_f, q_pf + vec3<f32>(0.001, 0.0, 0.001)));
+                    let pull_v = (-rel_f / df_bh) * (22.0 + 48.0 * rs_f / max(df_bh, 0.6)) * fall_f
+                               + tang_f * (24.0 + 36.0 * fall_f)
+                               - n_disk_f * clamp(h_df * 10.0, -18.0, 18.0) * fall_f;
+                    let k_bh = clamp(7.5 * fall_f * dt, 0.0, 0.72);
+                    vxz = mix(vxz, vec2<f32>(pull_v.x, pull_v.z), k_bh);
+                    vy = clamp(mix(vy, pull_v.y, k_bh), -28.0, 28.0);
+                }
+            }
+
             var next_p = s.root_pos + vec3<f32>(vxz.x, vy, vxz.y) * dt;
 
             let hit_vox = textureLoad(solid_texture, wrap_f160(next_p), 0);
-            if (abs(hit_vox.r) > 0.5 && hit_vox.g <= 0.0) {
+            if (!bh_active && abs(hit_vox.r) > 0.5 && hit_vox.g <= 0.0) {
                 vy = max(0.0, -vy * 0.25);
                 vxz = vxz * 0.55;
                 next_p = vec3<f32>(next_p.x, s.root_pos.y + 0.02, next_p.z);
             }
 
             let abs_l = abs(signed_len);
-            let shrink = select(0.72, 1.18, burn_u == 1u) * (0.45 + 0.55 * abs_l);
+            let shrink = select(0.72, 1.18, burn_u == 1u) * (0.45 + 0.55 * abs_l) * select(1.0, 0.30, bh_active);
             let next_abs = abs_l - shrink * dt;
             if (next_abs < 0.06) {
                 s.len_kind = 0u;
@@ -1485,8 +1555,11 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let dir_y = select(-1, 1, signed_len > 0.0);
         let vox_air = textureLoad(solid_texture, wrap_i160(anchor_v + vec3<i32>(0, dir_y, 0)), 0);
 
-        // Root mined, blasted, burned, or dissolved -> detach into falling/burning 3D ribbon (+ sparks if awake)!
-        if (abs(vox.r) < 0.5 || vox.g > 0.05) {
+        let bh_dist_root = select(999.0, length(s.root_pos - bh_c), bh_active);
+        let roche_rip = bh_active && (bh_dist_root < (rs_f * 4.5 + 2.4));
+
+        // Root mined, blasted, burned, dissolved, OR torn free by a Gargantua Black Hole's Roche limit!
+        if (abs(vox.r) < 0.5 || vox.g > 0.05 || roche_rip) {
             let disp0 = unpack2x16float(s.disp_xz);
             let vel2 = unpack2x16float(s.vel_xz);
             let wind_cut = sample_wind_trilinear(s.root_pos, cam_pos);
@@ -1495,15 +1568,15 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             let l0 = textureLoad(liquid_texture, wrap_i160(anchor_v), 0);
             let gid0 = u32(round(max(0.0, g0.r)));
             let gid1 = u32(round(max(0.0, g1.r)));
-            let is_burned = (g0.g > 0.05 && (gid0 == 3u || gid0 == 7u))
+            let is_burned = !roche_rip && ((g0.g > 0.05 && (gid0 == 3u || gid0 == 7u))
                          || (g1.g > 0.05 && (gid1 == 3u || gid1 == 7u))
                          || (l0.g > 0.15 && u32(round(max(0.0, l0.r))) == 2u)
-                         || (wind_cut.w > 0.68);
+                         || (wind_cut.w > 0.68));
 
             let j1 = hash01(pcg_u32(expected_hash + frame_u * 19u)) - 0.5;
             let j2 = hash01(pcg_u32(expected_hash + frame_u * 37u)) - 0.5;
 
-            if (particles_awake) {
+            if (particles_awake && (!roche_rip || (i & 3u) == 0u)) {
                 let slot_p = atomicAdd(&write_head, 1u) % MAX_PARTICLES;
                 var np: Particle;
                 np.pos = s.root_pos + vec3<f32>(0.0, signed_len * 0.45, 0.0);
@@ -1514,8 +1587,10 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 particles[slot_p] = np;
             }
 
-            let vy0 = select(-0.35, 1.55 + abs(j1) * 1.5, signed_len > 0.0) + wind_cut.y * 3.5;
-            let vxz0 = vec2<f32>(vel2.x * 0.65 + wind_cut.x * 4.2 + j1 * 2.2, vel2.y * 0.65 + wind_cut.z * 4.2 + j2 * 2.2);
+            let to_bh = select(vec3<f32>(0.0), normalize(bh_c - s.root_pos + vec3<f32>(0.001)) * 12.5, roche_rip);
+            let vy0 = select(-0.35, 1.55 + abs(j1) * 1.5, signed_len > 0.0) + wind_cut.y * 3.5 + to_bh.y;
+            let vxz0 = vec2<f32>(vel2.x * 0.65 + wind_cut.x * 4.2 + j1 * 2.2 + to_bh.x - to_bh.z * 0.75,
+                                 vel2.y * 0.65 + wind_cut.z * 4.2 + j2 * 2.2 + to_bh.z + to_bh.x * 0.75);
             s.len_kind = pack2x16float(vec2<f32>(signed_len, f32(kind + 8u)));
             s.mat_packed = (mp & ~(1u << 16u)) | (select(0u, 1u, is_burned) << 16u);
             s.disp_xz = pack2x16float(vec2<f32>(disp0.x, vy0));
@@ -1578,8 +1653,16 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             cos(time_sec * 1.48 + s.root_pos.z * 0.27 - s.root_pos.x * 0.14 + ph)
         ) * 0.58 + vec2<f32>(gust3.x, gust3.z) * 1.65) * gust_amp;
 
-        // Radial shockwave pressure kick from explosions / wands (vel_texture.w)
+        // Radial shockwave pressure kick from explosions / wands (vel_texture.w) + Black Hole tidal lean!
         var force_xz = vec2<f32>(wind.x, wind.z) * wind_gain + breeze;
+        if (bh_active && bh_dist_root < (rs_f * 15.0 + 6.0)) {
+            let to_b2 = bh_c.xz - s.root_pos.xz;
+            let lb2 = max(length(to_b2), 0.1);
+            let dir_b2 = to_b2 / lb2;
+            let sw_b2 = vec2<f32>(-dir_b2.y, dir_b2.x);
+            let f_w = clamp(1.0 - bh_dist_root / (rs_f * 15.0 + 6.0), 0.0, 1.0);
+            force_xz += (dir_b2 * 18.0 + sw_b2 * 11.0) * (f_w * f_w);
+        }
         if (abs(wind.w) > 0.25) {
             let out_v = vec2<f32>(disp.x + cos(ph) * 0.2, disp.y + sin(ph) * 0.2);
             let out_l = max(length(out_v), 0.05);
