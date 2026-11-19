@@ -244,7 +244,7 @@
                 hy (Structures.kind-hy kind)
                 sx 32.0
                 sz 11.0
-                surf-h (+ 32.0 (* 10.0 (Noise.noise2d noise-state (* sx 0.015) (* sz 0.015))))
+                surf-h (Terrain.surface-height-at noise-state strata sx sz)
                 sy (+ surf-h (if (or (= kind 3) (= kind 6)) -1.5 2.2))
                 b0 @(Array.unsafe-nth (StrataConfig.biomes strata) 0)]
             (StructureDesc.init true kind 0 variant b0 sx sy sz hx hy hx))

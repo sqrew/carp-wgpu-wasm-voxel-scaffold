@@ -1,14 +1,22 @@
 ;; =============================================================================
-;; src/spectral_detail.carp — 3D Spectral IFFT Surface & SDF Imperfections
+;; src/spectral_detail.carp — 2D & 3D Spectral IFFT Landforms, Caves & Surfaces
 ;;   Powered by `carp-math/fft.carp` (`Complex` + `FFT.fft!`).
-;;   Synthesizes C-infinity seamlessly periodic 64x64x64 zero-mean fields:
-;;     - Band A (`make-sdf-volume`): Near-Nyquist geometric SDF facets & crags
-;;     - Band B (`make-gpu-rgba-volume`): 4 sculpted above-Nyquist micro-surface
-;;       channels (.r granular pits, .g fibrous/strata flutes, .b cleavage
-;;       facets, .a micro-cavity pores & Voronoi crack toothiness).
+;;   Synthesizes C-infinity seamlessly periodic zero-mean spectral fields:
+;;     1. `make-landform-atlas-2d`: 256x256x4 Tessendorf Riesz-pinched mountain
+;;        ridges, U-shaped valley meadows & escarpments (`[h, dh_du, dh_dv, crag]`)
+;;     2. `make-sdf-bank-3d`: 64x64x64x4 Hermitian Re+Im dual-channel geological
+;;        SDF bank (`[crag, hex_col, strata_step, spinodal]`) from 2x 3D iFFTs
+;;     3. `make-gpu-rgba-volume`: 64x64x64x4 micro-surface PBR & cloud-warp LUT
 ;; =============================================================================
 
 (load "../../carp-math/fft.carp")
+
+(deftype LandformSample [
+  h Double
+  dhx Double
+  dhz Double
+  crag Double
+])
 
 (defmodule SpectralDetail
   (defn lcg-next [s]
@@ -16,6 +24,9 @@
 
   (defn k-coord [i]
     (Double.from-int (if (< i 32) i (- i 64))))
+
+  (defn k-coord-256 [i]
+    (Double.from-int (if (< i 128) i (- i 256))))
 
   (defn band-weight [band kx ky kz]
     (if (= band 1)
@@ -46,17 +57,234 @@
                     kr3 (Double.max 1.0 (* kr (* kr kr)))
                     oct-lobe (+ 0.55 (* 0.45 (/ cube-sum kr3)))]
                 (* (Double.pow kr -1.35) oct-lobe)))
-            (if (= band 3)
-              ;; Channel .a: Ultra-high-k micro-cavity & pre-fracture crackle
-              (if (or (< kr 12.0) (> kr 28.0))
+            ;; Channel .a: Ultra-high-k micro-cavity & pre-fracture crackle
+            (if (or (< kr 12.0) (> kr 28.0))
+              0.0
+              (let [d (/ (- kr 19.5) 3.6)]
+                (Double.exp (* -0.5 (* d d))))))))))
+
+  ;; 4-Channel Geological SDF Spectrum Weights:
+  ;;   0 = `crag` (polyhedral boulder/cliff noses, kr in [2.0, 7.5])
+  ;;   1 = `hex_col` (6-fold Giant's Causeway basalt/ice/amethyst columns)
+  ;;   2 = `strata_step` (horizontal sedimentary mine galleries & rimstone terraces)
+  ;;   3 = `spinodal` (Cahn-Hilliard geode blisters & percolating 3D ore dendrites)
+  (defn geol-weight [ch kx ky kz]
+    (let [kxz2 (+ (* kx kx) (* kz kz))
+          kxz (Double.sqrt kxz2)
+          aky (Double.abs ky)]
+      (if (= ch 1)
+        (if (or (< kxz 5.0) (or (> kxz 12.0) (> aky 2.0)))
+          0.0
+          (let [dr (- kxz 8.2)
+                ang (Double.atan2 kz kx)]
+            (* (* (Double.exp (/ (* -1.0 (* dr dr)) 5.0))
+                  (Double.exp (/ (* -1.0 (* ky ky)) 1.8)))
+               (+ 1.0 (* 0.80 (Double.cos (* 6.0 ang)))))))
+        (if (= ch 2)
+          (if (or (< aky 4.0) (or (> aky 13.0) (> kxz 4.5)))
+            0.0
+            (let [dy (- aky 8.0)]
+              (* (Double.exp (/ (* -1.0 (* dy dy)) 6.5))
+                 (Double.exp (/ (* -1.0 kxz2) 6.0)))))
+          (let [kr (Double.sqrt (+ kxz2 (* ky ky)))]
+            (if (= ch 0)
+              (if (or (< kr 2.0) (> kr 7.5))
                 0.0
-                (let [d (/ (- kr 19.5) 3.6)]
-                  (Double.exp (* -0.5 (* d d)))))
-              ;; Band 4 (CPU SDF): Near-Nyquist geometric rock facets & crags
-              (if (or (< kr 5.0) (> kr 16.0))
+                (let [ax (Double.abs kx)
+                      ay aky
+                      az (Double.abs kz)
+                      cube-sum (+ (* ax (* ax ax)) (+ (* ay (* ay ay)) (* az (* az az))))
+                      kr3 (Double.max 1.0 (* kr (* kr kr)))]
+                  (* (Double.pow kr -1.25) (+ 0.45 (* 0.55 (/ cube-sum kr3))))))
+              ;; ch == 3: spinodal shell kr in [5.5, 9.2]
+              (if (or (< kr 5.5) (> kr 9.2))
                 0.0
-                (let [d (/ (- kr 9.5) 3.0)]
-                  (Double.exp (* -0.5 (* d d)))))))))))
+                (let [dr (- kr 7.2)]
+                  (Double.exp (/ (* -1.0 (* dr dr)) 1.4))))))))))
+
+  ;; Zero-inner-allocation 2D 256^2 inverse FFT using a single reusable 256-complex pencil
+  (defn ifft2d-256! [vol line]
+    (do
+      ;; 1. U-rows (256 lines)
+      (for [v 0 256]
+        (let [row-off (* v 256)]
+          (do
+            (for [u 0 256]
+              (Array.aset! line u @(Array.unsafe-nth vol (+ row-off u))))
+            (FFT.fft! line true)
+            (for [u 0 256]
+              (Array.aset! vol (+ row-off u) @(Array.unsafe-nth line u))))))
+      ;; 2. V-columns (256 lines)
+      (for [u 0 256]
+        (do
+          (for [v 0 256]
+            (Array.aset! line v @(Array.unsafe-nth vol (+ (* v 256) u))))
+          (FFT.fft! line true)
+          (for [v 0 256]
+            (Array.aset! vol (+ (* v 256) u) @(Array.unsafe-nth line v)))))))
+
+  (defn bilerp-grid-256 [grid su sv]
+    (let [uw (- su (* 256.0 (Double.floor (/ su 256.0))))
+          vw (- sv (* 256.0 (Double.floor (/ sv 256.0))))
+          flu (Double.floor uw)
+          flv (Double.floor vw)
+          u0 (Int.bit-and (Double.to-int flu) 255)
+          v0 (Int.bit-and (Double.to-int flv) 255)
+          u1 (Int.bit-and (+ u0 1) 255)
+          v1 (Int.bit-and (+ v0 1) 255)
+          fu (- uw flu)
+          fv (- vw flv)
+          r0 (* v0 256)
+          r1 (* v1 256)
+          c00 @(Array.unsafe-nth grid (+ r0 u0))
+          c10 @(Array.unsafe-nth grid (+ r0 u1))
+          c01 @(Array.unsafe-nth grid (+ r1 u0))
+          c11 @(Array.unsafe-nth grid (+ r1 u1))
+          c0 (+ c00 (* fu (- c10 c00)))
+          c1 (+ c01 (* fu (- c11 c01)))]
+      (+ c0 (* fv (- c1 c0)))))
+
+  ;; Synthesizes 256x256x4 `[h_pinch, dh_du, dh_dv, crag]` Tessendorf Pinched-Ridge & Meadow Atlas
+  (defn make-landform-atlas-2d [seed]
+    (let [vol (Array.replicate 65536 &(Complex.zero))
+          line (Array.replicate 256 &(Complex.zero))
+          h0 (Array.allocate 65536)
+          c0 (Array.allocate 65536)
+          h-pinch (Array.allocate 65536)
+          out (Array.allocate 262144)
+          s0 (Double.mod (* (Double.from-int (Int.abs seed)) 2654435761.0) 4294967296.0)
+          s (SpectralDetail.lcg-next (SpectralDetail.lcg-next s0))
+          theta-strike (* Double.pi (/ s 4294967296.0))
+          two-pi (* 2.0 Double.pi)]
+      (do
+        (for [iv 0 256]
+          (let [kv (SpectralDetail.k-coord-256 iv)
+                row (* iv 256)]
+            (for [iu 0 256]
+              (let [ku (SpectralDetail.k-coord-256 iu)
+                    kr (Double.sqrt (+ (* ku ku) (* kv kv)))
+                    idx (+ row iu)]
+                (do
+                  (set! s (SpectralDetail.lcg-next s))
+                  (if (or (< kr 1.0) (> kr 42.0))
+                    (Array.aset! &vol idx (Complex.zero))
+                    (let [tk (Double.atan2 kv ku)
+                          aniso (+ 1.0 (* 0.48 (Double.cos (* 2.0 (- tk theta-strike)))))
+                          w (* (* (Double.pow kr -1.85) (Double.exp (/ (* -1.0 (* kr kr)) 484.0))) aniso)
+                          phi (* two-pi (/ s 4294967296.0))]
+                      (Array.aset! &vol idx (Complex.from-polar w phi)))))))))
+
+        (SpectralDetail.ifft2d-256! &vol &line)
+
+        (let [sum-h2 0.0
+              sum-c2 0.0]
+          (do
+            (for [i 0 65536]
+              (let [z (Array.unsafe-nth &vol i)
+                    re @(Complex.real z)
+                    im @(Complex.imag z)]
+                (do
+                  (set! sum-h2 (+ sum-h2 (* re re)))
+                  (set! sum-c2 (+ sum-c2 (* im im))))))
+            (let [inv-h (/ 1.0 (Double.max (Double.sqrt (/ sum-h2 65536.0)) 0.000000001))
+                  inv-c (/ 0.85 (Double.max (Double.sqrt (/ sum-c2 65536.0)) 0.000000001))]
+              (for [i 0 65536]
+                (let [z (Array.unsafe-nth &vol i)]
+                  (do
+                    (Array.aset! &h0 i (* @(Complex.real z) inv-h))
+                    (Array.aset! &c0 i (Double.tanh (* @(Complex.imag z) inv-c)))))))))
+
+        ;; Riesz / Tessendorf choppiness warp: pinches mountain crests & flattens wide U-shaped valley meadows!
+        (let [sum-hp 0.0]
+          (do
+            (for [iv 0 256]
+              (let [vm4 (Int.bit-and (- iv 4) 255)
+                    vp4 (Int.bit-and (+ iv 4) 255)
+                    vm2 (Int.bit-and (- iv 2) 255)
+                    vp2 (Int.bit-and (+ iv 2) 255)
+                    row (* iv 256)]
+                (for [iu 0 256]
+                  (let [um4 (Int.bit-and (- iu 4) 255)
+                        up4 (Int.bit-and (+ iu 4) 255)
+                        um2 (Int.bit-and (- iu 2) 255)
+                        up2 (Int.bit-and (+ iu 2) 255)
+                        raw-du (+ (* 0.35 (- @(Array.unsafe-nth &h0 (+ row um4)) @(Array.unsafe-nth &h0 (+ row up4))))
+                                  (* 0.45 (- @(Array.unsafe-nth &h0 (+ row um2)) @(Array.unsafe-nth &h0 (+ row up2)))))
+                        raw-dv (+ (* 0.35 (- @(Array.unsafe-nth &h0 (+ (* vm4 256) iu)) @(Array.unsafe-nth &h0 (+ (* vp4 256) iu))))
+                                  (* 0.45 (- @(Array.unsafe-nth &h0 (+ (* vm2 256) iu)) @(Array.unsafe-nth &h0 (+ (* vp2 256) iu)))))
+                        inv-d (/ 1.0 (Double.sqrt (+ 1.0 (+ (* raw-du raw-du) (* raw-dv raw-dv)))))
+                        u-w (+ (Double.from-int iu) (* 3.6 (* raw-du inv-d)))
+                        v-w (+ (Double.from-int iv) (* 3.6 (* raw-dv inv-d)))
+                        hw (SpectralDetail.bilerp-grid-256 &h0 u-w v-w)
+                        idx (+ row iu)
+                        cr @(Array.unsafe-nth &c0 idx)
+                        hp (+ hw (+ (* 0.24 (- (* hw hw) 0.5))
+                                    (* 0.11 (* (Double.max 0.0 cr) (Double.sin (* 5.5 hw))))))]
+                    (do
+                      (Array.aset! &h-pinch idx hp)
+                      (set! sum-hp (+ sum-hp hp)))))))
+            (let [mean-hp (/ sum-hp 65536.0)]
+              (for [i 0 65536]
+                (Array.aset! &h-pinch i (- @(Array.unsafe-nth &h-pinch i) mean-hp))))))
+
+        ;; Bake exact periodic central derivatives `[h_pinch, dh_du, dh_dv, crag]`
+        (for [iv 0 256]
+          (let [vm1 (Int.bit-and (- iv 1) 255)
+                vp1 (Int.bit-and (+ iv 1) 255)
+                row (* iv 256)]
+            (for [iu 0 256]
+              (let [um1 (Int.bit-and (- iu 1) 255)
+                    up1 (Int.bit-and (+ iu 1) 255)
+                    idx (+ row iu)
+                    off (* idx 4)
+                    hp @(Array.unsafe-nth &h-pinch idx)
+                    dh-du (* 0.5 (- @(Array.unsafe-nth &h-pinch (+ row up1)) @(Array.unsafe-nth &h-pinch (+ row um1))))
+                    dh-dv (* 0.5 (- @(Array.unsafe-nth &h-pinch (+ (* vp1 256) iu)) @(Array.unsafe-nth &h-pinch (+ (* vm1 256) iu))))
+                    cr @(Array.unsafe-nth &c0 idx)]
+                (do
+                  (Array.aset! &out off (Double.to-float hp))
+                  (Array.aset! &out (+ off 1) (Double.to-float dh-du))
+                  (Array.aset! &out (+ off 2) (Double.to-float dh-dv))
+                  (Array.aset! &out (+ off 3) (Double.to-float cr)))))))
+        out)))
+
+  ;; Branchless periodic bilinear sampler on 256x256x4 landform atlas
+  (defn sample-landform-2d [atlas su sv]
+    (let [uw (- su (* 256.0 (Double.floor (/ su 256.0))))
+          vw (- sv (* 256.0 (Double.floor (/ sv 256.0))))
+          flu (Double.floor uw)
+          flv (Double.floor vw)
+          u0 (Int.bit-and (Double.to-int flu) 255)
+          v0 (Int.bit-and (Double.to-int flv) 255)
+          u1 (Int.bit-and (+ u0 1) 255)
+          v1 (Int.bit-and (+ v0 1) 255)
+          fu (- uw flu)
+          fv (- vw flv)
+          i00 (* (+ (* v0 256) u0) 4)
+          i10 (* (+ (* v0 256) u1) 4)
+          i01 (* (+ (* v1 256) u0) 4)
+          i11 (* (+ (* v1 256) u1) 4)
+          h00 (Double.from-float @(Array.unsafe-nth atlas i00))
+          h10 (Double.from-float @(Array.unsafe-nth atlas i10))
+          h01 (Double.from-float @(Array.unsafe-nth atlas i01))
+          h11 (Double.from-float @(Array.unsafe-nth atlas i11))
+          du00 (Double.from-float @(Array.unsafe-nth atlas (+ i00 1)))
+          du10 (Double.from-float @(Array.unsafe-nth atlas (+ i10 1)))
+          du01 (Double.from-float @(Array.unsafe-nth atlas (+ i01 1)))
+          du11 (Double.from-float @(Array.unsafe-nth atlas (+ i11 1)))
+          dv00 (Double.from-float @(Array.unsafe-nth atlas (+ i00 2)))
+          dv10 (Double.from-float @(Array.unsafe-nth atlas (+ i10 2)))
+          dv01 (Double.from-float @(Array.unsafe-nth atlas (+ i01 2)))
+          dv11 (Double.from-float @(Array.unsafe-nth atlas (+ i11 2)))
+          c00 (Double.from-float @(Array.unsafe-nth atlas (+ i00 3)))
+          c10 (Double.from-float @(Array.unsafe-nth atlas (+ i10 3)))
+          c01 (Double.from-float @(Array.unsafe-nth atlas (+ i01 3)))
+          c11 (Double.from-float @(Array.unsafe-nth atlas (+ i11 3)))
+          h (+ (+ h00 (* fu (- h10 h00))) (* fv (- (+ h01 (* fu (- h11 h01))) (+ h00 (* fu (- h10 h00))))))
+          dhx (+ (+ du00 (* fu (- du10 du00))) (* fv (- (+ du01 (* fu (- du11 du01))) (+ du00 (* fu (- du10 du00))))))
+          dhz (+ (+ dv00 (* fu (- dv10 dv00))) (* fv (- (+ dv01 (* fu (- dv11 dv01))) (+ dv00 (* fu (- dv10 dv00))))))
+          cr (+ (+ c00 (* fu (- c10 c00))) (* fv (- (+ c01 (* fu (- c11 c01))) (+ c00 (* fu (- c10 c00))))))]
+      (LandformSample.init h dhx dhz cr)))
 
   ;; Zero-inner-allocation 3D 64^3 inverse FFT using a single reusable 64-complex pencil
   (defn ifft3d-64! [vol line]
@@ -131,7 +359,74 @@
             (let [sigma (Double.sqrt (/ sum-sq 262144.0))]
               (/ 0.65 (Double.max sigma 0.000000001))))))))
 
-  ;; Generates interleaved 64x64x64 RGBA float volume (1,048,576 floats in (-1, +1))
+  ;; Hermitian Dual-Channel Synthesis: packs two distinct real spectra `ch-a` (Re) & `ch-b` (Im) into ONE 3D Complex IFFT!
+  (defn synthesize-geol-pair! [vol line out seed ch-a ch-b]
+    (let [s0 (Double.mod
+               (+ (* (Double.from-int (Int.abs seed)) 1597334677.0)
+                  (* (Double.from-int (+ (* ch-a 7) (+ ch-b 13))) 2891336453.0))
+               4294967296.0)
+          s (SpectralDetail.lcg-next (SpectralDetail.lcg-next s0))
+          two-pi (* 2.0 Double.pi)]
+      (do
+        (for [iz 0 64]
+          (let [nz (Int.bit-and (- 64 iz) 63)
+                kz (SpectralDetail.k-coord iz)
+                z-off (* iz 4096)
+                nz-off (* nz 4096)]
+            (for [iy 0 64]
+              (let [ny (Int.bit-and (- 64 iy) 63)
+                    ky (SpectralDetail.k-coord iy)
+                    zy-off (+ z-off (* iy 64))
+                    nzy-off (+ nz-off (* ny 64))]
+                (for [ix 0 64]
+                  (let [nx (Int.bit-and (- 64 ix) 63)
+                        idx (+ zy-off ix)
+                        nidx (+ nzy-off nx)]
+                    (if (= idx nidx)
+                      (Array.aset! vol idx (Complex.zero))
+                      (when (< idx nidx)
+                        (let [kx (SpectralDetail.k-coord ix)
+                              wa (SpectralDetail.geol-weight ch-a kx ky kz)
+                              wb (SpectralDetail.geol-weight ch-b kx ky kz)]
+                          (do
+                            (set! s (SpectralDetail.lcg-next s))
+                            (let [phi-a (* two-pi (/ s 4294967296.0))]
+                              (do
+                                (set! s (SpectralDetail.lcg-next s))
+                                (let [phi-b (* two-pi (/ s 4294967296.0))
+                                      ra (if (> wa 0.000001) (* wa (Double.cos phi-a)) 0.0)
+                                      ia (if (> wa 0.000001) (* wa (Double.sin phi-a)) 0.0)
+                                      rb (if (> wb 0.000001) (* wb (Double.cos phi-b)) 0.0)
+                                      ib (if (> wb 0.000001) (* wb (Double.sin phi-b)) 0.0)]
+                                  (do
+                                    ;; F(+k) = fa + i*fb, F(-k) = conj(fa) + i*conj(fb) -> exact zero-crosstalk Re=a, Im=b!
+                                    (Array.aset! vol idx (Complex.init (- ra ib) (+ ia rb)))
+                                    (Array.aset! vol nidx (Complex.init (+ ra ib) (- rb ia)))))))))))))))))
+
+        (SpectralDetail.ifft3d-64! vol line)
+
+        (let [sum-a2 0.0
+              sum-b2 0.0]
+          (do
+            (for [i 0 262144]
+              (let [z (Array.unsafe-nth vol i)
+                    re @(Complex.real z)
+                    im @(Complex.imag z)]
+                (do
+                  (set! sum-a2 (+ sum-a2 (* re re)))
+                  (set! sum-b2 (+ sum-b2 (* im im))))))
+            (let [inv-a (/ 0.72 (Double.max (Double.sqrt (/ sum-a2 262144.0)) 0.000000001))
+                  inv-b (/ 0.72 (Double.max (Double.sqrt (/ sum-b2 262144.0)) 0.000000001))]
+              (for [i 0 262144]
+                (let [z (Array.unsafe-nth vol i)
+                      va (Double.to-float (Double.tanh (* @(Complex.real z) inv-a)))
+                      vb (Double.to-float (Double.tanh (* @(Complex.imag z) inv-b)))
+                      base (* i 4)]
+                  (do
+                    (Array.aset! out (+ base ch-a) va)
+                    (Array.aset! out (+ base ch-b) vb))))))))))
+
+  ;; Generates interleaved 64x64x64x4 RGBA float volume (1,048,576 floats in (-1, +1)) for GPU shader LUT
   (defn make-gpu-rgba-volume [seed]
     (let [vol (Array.replicate 262144 &(Complex.zero))
           line (Array.replicate 64 &(Complex.zero))
@@ -145,21 +440,18 @@
                 (Array.aset! &out (+ (* idx 4) band) val)))))
         out)))
 
-  ;; Generates 64x64x64 scalar float volume (262,144 floats in (-1, +1)) for near-Nyquist SDF crags
-  (defn make-sdf-volume [seed]
+  ;; Generates 64x64x64x4 Geological SDF Bank `[crag, hex_col, strata_step, spinodal]` using just 2x 3D iFFTs!
+  (defn make-sdf-bank-3d [seed]
     (let [vol (Array.replicate 262144 &(Complex.zero))
           line (Array.replicate 64 &(Complex.zero))
-          out (Array.allocate 262144)
-          inv-sig (SpectralDetail.synthesize-band! &vol &line seed 4)]
+          out (Array.allocate 1048576)]
       (do
-        (for [idx 0 262144]
-          (let [re @(Complex.real (Array.unsafe-nth &vol idx))
-                val (Double.to-float (Double.tanh (* re inv-sig)))]
-            (Array.aset! &out idx val)))
+        (SpectralDetail.synthesize-geol-pair! &vol &line &out seed 0 1)
+        (SpectralDetail.synthesize-geol-pair! &vol &line &out seed 2 3)
         out)))
 
-  ;; Seamless periodic trilinear sampler on [0, 64)^3 with exact bitwise-and 63 wrap
-  (defn sample-sdf-3d [vol sx sy sz]
+  ;; Seamless periodic trilinear channel sampler on 64x64x64x4 bank (`ch` in 0..3)
+  (defn sample-bank-ch [bank ch sx sy sz]
     (let [ux (- sx (* 64.0 (Double.floor (/ sx 64.0))))
           uy (- sy (* 64.0 (Double.floor (/ sy 64.0))))
           uz (- sz (* 64.0 (Double.floor (/ sz 64.0))))
@@ -179,14 +471,14 @@
           z1 (* iz1 4096)
           y0 (* iy0 64)
           y1 (* iy1 64)
-          c000 (Double.from-float @(Array.unsafe-nth vol (+ z0 (+ y0 ix0))))
-          c100 (Double.from-float @(Array.unsafe-nth vol (+ z0 (+ y0 ix1))))
-          c010 (Double.from-float @(Array.unsafe-nth vol (+ z0 (+ y1 ix0))))
-          c110 (Double.from-float @(Array.unsafe-nth vol (+ z0 (+ y1 ix1))))
-          c001 (Double.from-float @(Array.unsafe-nth vol (+ z1 (+ y0 ix0))))
-          c101 (Double.from-float @(Array.unsafe-nth vol (+ z1 (+ y0 ix1))))
-          c011 (Double.from-float @(Array.unsafe-nth vol (+ z1 (+ y1 ix0))))
-          c111 (Double.from-float @(Array.unsafe-nth vol (+ z1 (+ y1 ix1))))
+          c000 (Double.from-float @(Array.unsafe-nth bank (+ (* (+ z0 (+ y0 ix0)) 4) ch)))
+          c100 (Double.from-float @(Array.unsafe-nth bank (+ (* (+ z0 (+ y0 ix1)) 4) ch)))
+          c010 (Double.from-float @(Array.unsafe-nth bank (+ (* (+ z0 (+ y1 ix0)) 4) ch)))
+          c110 (Double.from-float @(Array.unsafe-nth bank (+ (* (+ z0 (+ y1 ix1)) 4) ch)))
+          c001 (Double.from-float @(Array.unsafe-nth bank (+ (* (+ z1 (+ y0 ix0)) 4) ch)))
+          c101 (Double.from-float @(Array.unsafe-nth bank (+ (* (+ z1 (+ y0 ix1)) 4) ch)))
+          c011 (Double.from-float @(Array.unsafe-nth bank (+ (* (+ z1 (+ y1 ix0)) 4) ch)))
+          c111 (Double.from-float @(Array.unsafe-nth bank (+ (* (+ z1 (+ y1 ix1)) 4) ch)))
           c00 (+ c000 (* fx (- c100 c000)))
           c10 (+ c010 (* fx (- c110 c010)))
           c01 (+ c001 (* fx (- c101 c001)))

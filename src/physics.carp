@@ -199,7 +199,7 @@
                 (Physics.sample-mat-at world (- gx 1) gy0 gz))))))))
 
   (defn find-safe-spawn-y [world sx sz]
-    (let [y 52.0
+    (let [y 76.0
           found-y 44.0
           done false]
       (do

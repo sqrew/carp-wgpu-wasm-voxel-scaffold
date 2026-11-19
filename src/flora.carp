@@ -101,11 +101,11 @@
     (if (= b 10) 0.24  ;; 10: Carbide Lampworks (briars & lantern vines)
                  0.0)))))))))) ;; 3 (Acid), 7 (Magma), 11 (Cryo) stay stark mineral wastelands!
 
-  ;; Try spawning a surface tree or briar patch in 16x16 cell `(fx, fz)` (when `fy` covers `surface-h`)
+  ;; Try spawning a surface tree or briar patch in 16x16 cell `(fx, fz)` (when `fy` covers `est-h`)
   (defn try-surface-flora [noise-state strata seed fx fy fz out-items]
     (let [y-min (Double.from-int (* fy 16))
           y-max (+ y-min 16.0)]
-      (when (and (<= y-min 44.0) (>= y-max 20.0))
+      (when (and (<= y-min 68.0) (>= y-max 8.0))
         (let [h0 (csg-hash4 (+ seed 4111) fx 777 fz)
               h1 (csg-hash4 (+ seed 8293) fx 919 fz)
               h2 (csg-hash4 (+ seed 1973) fx 313 fz)
@@ -119,36 +119,57 @@
                   ;; Keep a 6.5m sunlit clearing around player spawn (32, 32)!
                   spawn-d2 (+ (* (- px 32.0) (- px 32.0)) (* (- pz 32.0) (- pz 32.0)))]
               (when (> spawn-d2 42.0)
-                (let [surf-h (+ 32.0 (* 10.0 (Noise.noise2d noise-state (* px 0.015) (* pz 0.015))))]
-                  (when (and (>= surf-h y-min) (< surf-h y-max))
-                    ;; Verify ground at `surf-h - 0.8` is solid hillside (not swallowed by a sinkhole or CSG vault!)
-                    (let [s-below (Terrain.eval-base-sdf-at noise-state strata px (- surf-h 0.9) pz)
-                          s-above (Terrain.eval-base-sdf-at noise-state strata px (+ surf-h 2.5) pz)]
-                      (when (and (<= s-below -0.35)
-                                 (and (> s-above 1.5)
-                                      (not (Flora.inside-vault-collar? noise-state strata px surf-h pz))))
-                        (let [phase (* 6.283185307179586 (Flora.hash-u01 h2))
-                              u-kind (Flora.hash-u01 (csg-hash4 (+ seed 5501) fx 101 fz))]
-                          (if (< u-kind 0.74)
-                            ;; Surface Gnarled Canopy Tree (Wood + Foliage + 30% Glow-Bulb night-lantern fruit!)
-                            (let [h-tree (+ 7.8 (* 4.0 (Flora.hash-u01 (csg-hash4 (+ seed 613) fx 17 fz))))
-                                  c-rad (+ 3.3 (* 1.3 (Flora.hash-u01 (csg-hash4 (+ seed 991) fx 29 fz))))
-                                  lx (* 1.15 (Double.cos phase))
-                                  lz (* 1.15 (Double.sin phase))
-                                  has-fruit (if (< u-kind 0.24) 1 0)
-                                  pad (+ c-rad 2.8)]
-                              (Array.push-back! out-items
-                                (FloraItem.init 1 has-fruit px surf-h pz h-tree c-rad lx lz phase
-                                  (- px pad) (+ px pad) (- surf-h 1.8) (+ surf-h (+ h-tree (* c-rad 1.15)))
-                                  (- pz pad) (+ pz pad))))
-                            ;; Surface Coiled Thorn-Briar Thicket
-                            (let [b-rad (+ 2.1 (* 0.85 (Flora.hash-u01 (csg-hash4 (+ seed 733) fx 43 fz))))
-                                  b-var (Int.mod (Int.abs h2) 3)
-                                  pad (+ b-rad 1.6)]
-                              (Array.push-back! out-items
-                                (FloraItem.init 5 b-var px surf-h pz b-rad b-rad 0.0 0.0 phase
-                                  (- px pad) (+ px pad) (- surf-h 1.6) (+ surf-h (+ b-rad 1.6))
-                                  (- pz pad) (+ pz pad)))))))))))))))))
+                (let [prof (Terrain.surface-profile-at strata px pz)
+                      est-h @(SurfProfile.h &prof)
+                      dhx @(SurfProfile.dhx &prof)
+                      dhz @(SurfProfile.dhz &prof)
+                      slope (Double.sqrt (+ (* dhx dhx) (* dhz dhz)))]
+                  (when (and (<= slope 0.68)
+                             (and (>= est-h y-min) (< est-h y-max)))
+                    (let [s-lo (Terrain.eval-base-sdf-at noise-state strata px (- est-h 3.5) pz)
+                          s-hi (Terrain.eval-base-sdf-at noise-state strata px (+ est-h 3.5) pz)]
+                      (when (and (<= s-lo -0.45) (>= s-hi 1.2))
+                        (let [root-y (Flora.bisect-y noise-state strata px pz (- est-h 3.5) s-lo (+ est-h 3.5))]
+                          (when (and (not (Flora.inside-vault-collar? noise-state strata px root-y pz))
+                                     (not (Terrain.near-geyser? noise-state strata px root-y pz)))
+                            ;; Require continuous solid ground at 3 depths + 4-compass footing ring so zero trees float over karst skylights!
+                            (let [d1 (Terrain.eval-base-sdf-at noise-state strata px (- root-y 1.1) pz)
+                                  d2 (Terrain.eval-base-sdf-at noise-state strata px (- root-y 3.4) pz)
+                                  d3 (Terrain.eval-base-sdf-at noise-state strata px (- root-y 6.2) pz)
+                                  air-up (Terrain.eval-base-sdf-at noise-state strata px (+ root-y 3.0) pz)]
+                              (when (and (<= d1 -0.45)
+                                         (and (<= d2 -1.10)
+                                              (and (<= d3 -1.50) (> air-up 1.8))))
+                                (let [ry-rim (- root-y 1.8)
+                                      r-e (Terrain.eval-base-sdf-at noise-state strata (+ px 1.6) ry-rim pz)
+                                      r-w (Terrain.eval-base-sdf-at noise-state strata (- px 1.6) ry-rim pz)
+                                      r-n (Terrain.eval-base-sdf-at noise-state strata px ry-rim (- pz 1.6))
+                                      r-s (Terrain.eval-base-sdf-at noise-state strata px ry-rim (+ pz 1.6))]
+                                  (when (and (<= r-e -0.28)
+                                             (and (<= r-w -0.28)
+                                                  (and (<= r-n -0.28) (<= r-s -0.28))))
+                                    (let [phase (* 6.283185307179586 (Flora.hash-u01 h2))
+                                          u-kind (Flora.hash-u01 (csg-hash4 (+ seed 5501) fx 101 fz))]
+                                      (if (< u-kind 0.74)
+                                        ;; Surface Gnarled Multi-Bough Canopy Tree (Wood + Cloud-Pad Foliage + 30% Glow-Bulb fruit!)
+                                        (let [h-tree (+ 8.2 (* 4.2 (Flora.hash-u01 (csg-hash4 (+ seed 613) fx 17 fz))))
+                                              c-rad (+ 3.4 (* 1.35 (Flora.hash-u01 (csg-hash4 (+ seed 991) fx 29 fz))))
+                                              lx (* 1.25 (Double.cos phase))
+                                              lz (* 1.25 (Double.sin phase))
+                                              has-fruit (if (< u-kind 0.24) 1 0)
+                                              pad (+ (* c-rad 1.55) 2.8)]
+                                          (Array.push-back! out-items
+                                            (FloraItem.init 1 has-fruit px root-y pz h-tree c-rad lx lz phase
+                                              (- px pad) (+ px pad) (- root-y 3.0) (+ root-y (+ h-tree (* c-rad 1.15)))
+                                              (- pz pad) (+ pz pad))))
+                                        ;; Surface Coiled Thorn-Briar Thicket
+                                        (let [b-rad (+ 2.1 (* 0.85 (Flora.hash-u01 (csg-hash4 (+ seed 733) fx 43 fz))))
+                                              b-var (Int.mod (Int.abs h2) 3)
+                                              pad (+ b-rad 1.6)]
+                                          (Array.push-back! out-items
+                                            (FloraItem.init 5 b-var px root-y pz b-rad b-rad 0.0 0.0 phase
+                                              (- px pad) (+ px pad) (- root-y 2.0) (+ root-y (+ b-rad 1.6))
+                                              (- pz pad) (+ pz pad)))))))))))))))))))))))
 
   ;; Try spawning subterranean cave flora inside 16x16x16 cell `(fx, fy, fz)`
   (defn try-cave-flora [noise-state strata seed fx fy fz out-items]
@@ -157,8 +178,8 @@
           gy-mid (* fy 16)
           seg (if (>= gy-mid -192) 0 (+ 1 (/ (- -193 gy-mid) 192)))
           local-mid (+ y-mid (Double.from-int (* seg 192)))]
-      ;; Skip sky cells & Abyssal Seal boundary bands
-      (when (and (< y-base 28.0)
+      ;; Skip high sky cells & Abyssal Seal boundary bands
+      (when (and (< y-base 56.0)
                  (and (> local-mid -181.0)
                       (or (= seg 0) (< local-mid -7.0))))
         (let [h0 (csg-hash4 (+ seed 1307) fx fy fz)
@@ -171,8 +192,8 @@
               b-curr (Terrain.biome-at noise-state strata px y-mid pz)
               chance (Flora.biome-flora-chance b-curr)]
           (when (and (> chance 0.01) (< (Flora.hash-u01 h0) chance))
-            ;;Verify underground (below surface-h - 7m) so cave plants don't poke through thin surface turf!
-            (let [surf-h (+ 32.0 (* 10.0 (Noise.noise2d noise-state (* px 0.015) (* pz 0.015))))]
+            ;; Verify underground (below surface-h - 7m) so cave plants don't poke through thin surface turf!
+            (let [surf-h (Terrain.surface-height-at noise-state strata px pz)]
               (when (< (+ y-base 14.0) (- surf-h 7.0))
                 (let [y0 (+ y-base 1.0)
                       y1 (+ y-base 6.0)
@@ -224,20 +245,22 @@
                             fy-hi (if has-floor01 y1 (if has-floor12 y2 y3))
                             flr-y (Flora.bisect-y noise-state strata px pz fy-lo fs-lo fy-hi)]
                         (when (and (not (Flora.inside-vault-collar? noise-state strata px flr-y pz))
-                                   (= 0.0f (Terrain.seed-fluid-at noise-state strata px (+ flr-y 1.0) pz)))
-                          (let [head5 (Terrain.eval-base-sdf-at noise-state strata px (+ flr-y 5.2) pz)
+                                   (and (not (Terrain.near-geyser? noise-state strata px flr-y pz))
+                                        (= 0.0f (Terrain.seed-fluid-at noise-state strata px (+ flr-y 1.0) pz))))
+                          (let [sub-rock (Terrain.eval-base-sdf-at noise-state strata px (- flr-y 2.2) pz)
+                                head5 (Terrain.eval-base-sdf-at noise-state strata px (+ flr-y 5.2) pz)
                                 head10 (Terrain.eval-base-sdf-at noise-state strata px (+ flr-y 10.2) pz)]
-                            (when (> head5 1.35)
+                            (when (and (<= sub-rock -0.75) (> head5 1.35))
                               (if (and (= b-curr 0) (and (> head10 2.6) (< u-pick 0.24)))
                                 ;; Subterranean Grotto Canopy Tree with Glow-Bulb Lantern Fruit!
-                                (let [h-tr (+ 7.2 (* 2.6 (Flora.hash-u01 h1)))
+                                (let [h-tr (+ 7.4 (* 2.6 (Flora.hash-u01 h1)))
                                       c-rad (+ 3.0 (* 1.1 (Flora.hash-u01 h2)))
                                       lx (* 0.95 (Double.cos phase))
                                       lz (* 0.95 (Double.sin phase))
-                                      pad (+ c-rad 2.5)]
+                                      pad (+ (* c-rad 1.55) 2.8)]
                                   (Array.push-back! out-items
                                     (FloraItem.init 1 1 px flr-y pz h-tr c-rad lx lz phase
-                                      (- px pad) (+ px pad) (- flr-y 1.6) (+ flr-y (+ h-tr (* c-rad 1.1)))
+                                      (- px pad) (+ px pad) (- flr-y 3.0) (+ flr-y (+ h-tr (* c-rad 1.15)))
                                       (- pz pad) (+ pz pad))))
                                 (if (or (= b-curr 4) (or (= b-curr 8) (or (= b-curr 10) (and (= b-curr 1) (> u-pick 0.45)))))
                                   ;; Coiled Thorn-Briar Arch / Fuse-Bramble
@@ -246,7 +269,7 @@
                                         pad (+ b-rad 1.6)]
                                     (Array.push-back! out-items
                                       (FloraItem.init 5 b-var px flr-y pz b-rad b-rad 0.0 0.0 phase
-                                        (- px pad) (+ px pad) (- flr-y 1.6) (+ flr-y (+ b-rad 1.6))
+                                        (- px pad) (+ px pad) (- flr-y 1.8) (+ flr-y (+ b-rad 1.6))
                                         (- pz pad) (+ pz pad))))
                                   ;; Giant Bioluminescent Toadstool (Bouncy Fungus 28 umbrella + glowing gill ring!)
                                   (let [max-sh (if (> head10 2.0) 7.4 4.6)
@@ -258,7 +281,7 @@
                                         pad (+ c-rad 1.8)]
                                     (Array.push-back! out-items
                                       (FloraItem.init 2 t-var px flr-y pz h-st c-rad lx lz phase
-                                        (- px pad) (+ px pad) (- flr-y 1.6) (+ flr-y (+ h-st (* c-rad 0.95)))
+                                        (- px pad) (+ px pad) (- flr-y 1.8) (+ flr-y (+ h-st (* c-rad 0.95)))
                                         (- pz pad) (+ pz pad))))))))))
 
                       ;; --- C. OPEN CHASM CELL: Probe Horizontal Wall for Shelf-Fungus Parkour Brackets (`kind = 4`) ---
@@ -310,7 +333,7 @@
           all-max-y -99999.0]
       (do
         ;; Skip high sky chunks cleanly in O(1)
-        (when (<= c-min-y 56.0)
+        (when (<= c-min-y 80.0)
           (for [fz fz0 fz1]
             (for [fx fx0 fx1]
               (for [fy fy0 fy1]
@@ -355,8 +378,8 @@
 
   ;; --- 3D Multi-Material CSG Plant Species Evaluators (`FloraItem -> MatSDF`) ---
 
-  ;; 1: Gnarled Canopy Tree (Wood 3 + Foliage 30 + optional Glow-Bulb 29 lantern fruit)
-  (defn eval-canopy-tree [it fdx fdy fdz n-det]
+  ;; 1: Gnarled Asymmetric Bonsai / Ancient-Oak Canopy Tree (3 Golden-Angle Boughs + Wind-Sheared Cloud-Pads!)
+  (defn eval-canopy-tree [it sdf-spec fdx fdy fdz n-det]
     (let [px (- fdx @(FloraItem.ax it))
           py (- fdy @(FloraItem.ay it))
           pz (- fdz @(FloraItem.az it))
@@ -367,40 +390,75 @@
           ph @(FloraItem.phase it)
           ca (Double.cos ph)
           sa (Double.sin ph)
-          ;; 3-fold polar buttress roots gripping the hillside/grotto floor
+          ;; Deep 3-fold polar buttress roots anchored down to -2.55m into hillside bedrock
           rx (CSG.rot-xz-x px pz ca sa)
           rz (CSG.rot-xz-z px pz ca sa)
           pr (CSG.polar-r rx rz 3)
           pt (CSG.polar-t rx rz 3)
-          d-roots (CSG.sd-tapered-capsule pr py pt 0.0 -1.25 0.0 2.45 -0.35 0.0 1.22 0.88)
-          ;; S-swaying tapered trunk + 2 forked upper boughs
-          u-y (CSG.dclamp 0.0 1.0 (/ py h))
-          sx (+ (- px (* lx u-y)) (* 0.28 (Double.sin (+ (* py 0.45) ph))))
-          sz (+ (- pz (* lz u-y)) (* 0.28 (Double.cos (+ (* py 0.42) ph))))
-          d-trunk (CSG.sd-tapered-capsule sx py sz 0.0 -1.35 0.0 0.0 (* h 0.78) 0.0 1.32 0.94)
-          bx0 (* lx 0.75)
-          by0 (* h 0.70)
-          bz0 (* lz 0.75)
-          b1x (+ lx (* ca 1.95))
-          b1z (+ lz (* sa 1.95))
-          b2x (- lx (* ca 1.85))
-          b2z (- lz (* sa 1.85))
-          by1 (* h 0.92)
-          d-b1 (CSG.sd-tapered-capsule px py pz bx0 by0 bz0 b1x by1 b1z 0.94 0.88)
-          d-b2 (CSG.sd-tapered-capsule px py pz bx0 by0 bz0 b2x by1 b2z 0.94 0.88)
-          d-wood (CSG.op-smooth-union d-roots (CSG.op-smooth-union d-trunk (CSG.dmin d-b1 d-b2) 0.45) 0.55)
-          ;; 4-lobe billowy Foliage (30.0f) crown
-          ruffle (* 0.24 n-det)
-          d-c0 (CSG.sd-ellipsoid (- px lx) (- py h) (- pz lz) cr (* cr 0.62) cr)
-          d-c1 (CSG.sd-ellipsoid (- px b1x) (- py (+ by1 0.35)) (- pz b1z) (* cr 0.76) (* cr 0.54) (* cr 0.76))
-          d-c2 (CSG.sd-ellipsoid (- px b2x) (- py (+ by1 0.25)) (- pz b2z) (* cr 0.74) (* cr 0.52) (* cr 0.74))
-          d-c3 (CSG.sd-ellipsoid (- px (* lx 0.9)) (- py (+ h (* cr 0.42))) (- pz (* lz 0.9)) (* cr 0.66) (* cr 0.52) (* cr 0.66))
-          d-leaf (+ (CSG.op-smooth-union (CSG.op-smooth-union d-c0 d-c1 0.80)
-                                         (CSG.op-smooth-union d-c2 d-c3 0.80) 0.80)
-                    ruffle)
-          tree-m (CSG.m-smooth-union (CSG.m-make d-wood 3.0f) (CSG.m-make d-leaf 30.0f) 0.28)]
+          d-roots (CSG.sd-tapered-capsule pr py pt 0.0 -2.55 0.0 2.65 -0.25 0.0 1.28 0.86)
+          ;; Crooked S-gnarled trunk from -2.60m to 0.78*h
+          top-y (* h 0.78)
+          span-y (+ top-y 2.60)
+          u-y (CSG.dclamp 0.0 1.0 (/ (+ py 2.60) span-y))
+          cx-py (+ (* (* lx 0.65) u-y) (* 0.42 (Double.sin (+ (* py 0.52) ph))))
+          cz-py (+ (* (* lz 0.65) u-y) (* 0.42 (Double.cos (+ (* py 0.47) ph))))
+          sx (- px cx-py)
+          sz (- pz cz-py)
+          d-trunk (CSG.sd-tapered-capsule sx py sz 0.0 -2.60 0.0 0.0 top-y 0.0 1.36 0.86)
+          ;; 3 staggered Golden-Angle (2.39996 rad) lateral boughs emerging directly from crooked trunk
+          y1a (* h 0.52)
+          y1b (* h 0.62)
+          u1 (/ (+ y1a 2.60) span-y)
+          t1x (+ (* (* lx 0.65) u1) (* 0.42 (Double.sin (+ (* y1a 0.52) ph))))
+          t1z (+ (* (* lz 0.65) u1) (* 0.42 (Double.cos (+ (* y1a 0.47) ph))))
+          r1 (* 0.88 cr)
+          b1x (+ t1x (* r1 ca))
+          b1z (+ t1z (* r1 sa))
+          d-b1 (CSG.sd-tapered-capsule px py pz t1x y1a t1z b1x y1b b1z 0.96 0.78)
+
+          y2a (* h 0.68)
+          y2b (* h 0.82)
+          u2 (/ (+ y2a 2.60) span-y)
+          t2x (+ (* (* lx 0.65) u2) (* 0.42 (Double.sin (+ (* y2a 0.52) ph))))
+          t2z (+ (* (* lz 0.65) u2) (* 0.42 (Double.cos (+ (* y2a 0.47) ph))))
+          a2 (+ ph 2.39996323)
+          r2 (* 0.78 cr)
+          b2x (+ t2x (* r2 (Double.cos a2)))
+          b2z (+ t2z (* r2 (Double.sin a2)))
+          d-b2 (CSG.sd-tapered-capsule px py pz t2x y2a t2z b2x y2b b2z 0.90 0.74)
+
+          y3a top-y
+          y3b (* h 0.98)
+          t3x (+ (* lx 0.65) (* 0.42 (Double.sin (+ (* y3a 0.52) ph))))
+          t3z (+ (* lz 0.65) (* 0.42 (Double.cos (+ (* y3a 0.47) ph))))
+          a3 (+ ph 4.79992646)
+          r3 (* 0.50 cr)
+          b3x (+ t3x (* r3 (Double.cos a3)))
+          b3z (+ t3z (* r3 (Double.sin a3)))
+          d-b3 (CSG.sd-tapered-capsule px py pz t3x y3a t3z b3x y3b b3z 0.86 0.70)
+
+          d-boughs (CSG.dmin d-b1 (CSG.dmin d-b2 d-b3))
+          d-wood (CSG.op-smooth-union d-roots (CSG.op-smooth-union d-trunk d-boughs 0.42) 0.52)
+
+          ;; Tiered flattened wind-sheared Foliage (30.0f) cloud-pads (`k = 0.28` keeps daylight gaps between tiers!)
+          d-p1 (CSG.sd-ellipsoid (- px b1x) (- py (+ y1b 0.35)) (- pz b1z) (* cr 0.76) (* cr 0.34) (* cr 0.68))
+          d-p2 (CSG.sd-ellipsoid (- px b2x) (- py (+ y2b 0.35)) (- pz b2z) (* cr 0.72) (* cr 0.33) (* cr 0.66))
+          d-p3 (CSG.sd-ellipsoid (- px b3x) (- py (+ y3b 0.35)) (- pz b3z) (* cr 0.74) (* cr 0.35) (* cr 0.68))
+          p4x (+ (* b1x 0.40) (* b3x 0.60))
+          p4y (+ h (* cr 0.28))
+          p4z (+ (* b1z 0.40) (* b3z 0.60))
+          d-p4 (CSG.sd-ellipsoid (- px p4x) (- py p4y) (- pz p4z) (* cr 0.56) (* cr 0.29) (* cr 0.52))
+          d-pads (CSG.op-smooth-union (CSG.op-smooth-union d-p1 d-p2 0.28)
+                                      (CSG.op-smooth-union d-p3 d-p4 0.28) 0.28)
+          d-leaf (if (< d-pads 2.2)
+                   (+ d-pads (+ (* 0.46 (SpectralDetail.sample-bank-ch sdf-spec 0 (* fdx 0.55) (* fdy 0.55) (* fdz 0.55)))
+                                (* 0.20 n-det)))
+                   d-pads)
+          tree-m (CSG.m-smooth-union (CSG.m-make d-wood 3.0f) (CSG.m-make d-leaf 30.0f) 0.24)]
       (if (= @(FloraItem.variant it) 1)
-        (let [d-fruit (CSG.sd-ellipsoid (- px (* b1x 0.88)) (- py (- by1 0.95)) (- pz (* b1z 0.88)) 1.02 1.28 1.02)]
+        (let [fx-l (* (+ t1x (* b1x 2.0)) 0.3333333)
+              fz-l (* (+ t1z (* b1z 2.0)) 0.3333333)
+              d-fruit (CSG.sd-ellipsoid (- px fx-l) (- py (- y1b 0.88)) (- pz fz-l) 1.02 1.28 1.02)]
           (CSG.m-union tree-m (CSG.m-make d-fruit 29.0f)))
         tree-m)))
 
@@ -507,16 +565,16 @@
         (CSG.m-union m-br (CSG.m-make (CSG.sd-sphere px (- py 0.70) pz 1.05) 29.0f))
         m-br)))
 
-  (defn eval-item [it fdx fdy fdz n-det]
+  (defn eval-item [it sdf-spec fdx fdy fdz n-det]
     (let [k @(FloraItem.kind it)]
-      (if (= k 1) (Flora.eval-canopy-tree it fdx fdy fdz n-det)
+      (if (= k 1) (Flora.eval-canopy-tree it sdf-spec fdx fdy fdz n-det)
       (if (= k 2) (Flora.eval-toadstool it fdx fdy fdz n-det)
       (if (= k 3) (Flora.eval-hanging-vine it fdx fdy fdz n-det)
       (if (= k 4) (Flora.eval-shelf-fungus it fdx fdy fdz n-det)
                   (Flora.eval-thorn-briar it fdx fdy fdz n-det)))))))
 
   ;; Evaluate all pre-culled flora items overlapping `(fdx, fdy, fdz)`
-  (defn eval-masked [cf mask fdx fdy fdz n-det]
+  (defn eval-masked [cf sdf-spec mask fdx fdy fdz n-det]
     (if (or (< fdy @(ChunkFlora.min-y cf)) (> fdy @(ChunkFlora.max-y cf)))
       (CSG.m-none)
       (let [items (ChunkFlora.items cf)
@@ -528,6 +586,6 @@
               (let [it (Array.unsafe-nth items i)]
                 (when (and (>= fdy (- @(FloraItem.min-y it) 1.5))
                            (<= fdy (+ @(FloraItem.max-y it) 1.5)))
-                  (set! best (CSG.m-union best (Flora.eval-item it fdx fdy fdz n-det)))))))
+                  (set! best (CSG.m-union best (Flora.eval-item it sdf-spec fdx fdy fdz n-det)))))))
           best))))
 )

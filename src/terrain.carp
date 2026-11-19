@@ -17,6 +17,14 @@
   biomes (Array Int)
   splits (Array Double)
   sdf-spec (Array Float)
+  landform-2d (Array Float)
+])
+
+(deftype SurfProfile [
+  h Double
+  dhx Double
+  dhz Double
+  crag Double
 ])
 
 (defmodule StrataConfig
@@ -37,6 +45,57 @@
     (let [splits (StrataConfig.splits strata)
           s-bank (Int.mod (if (< seg 0) 0 seg) 3)]
       @(Array.unsafe-nth splits (+ (* s-bank 4) slot))))
+)
+
+(defmodule Terrain
+  (defn smooth01 [edge0 edge1 x]
+    (let [raw (/ (- x edge0) (- edge1 edge0))
+          t (if (< raw 0.0) 0.0 (if (> raw 1.0) 1.0 raw))]
+      (* (* t t) (- 3.0 (* 2.0 t)))))
+
+  ;; Coprime 2-Layer Spectral Landform Evaluator (`384m` Macro Ridges + `113m @ 37deg` Meso Tors, zero tiling > 43km!)
+  (defn surface-profile-at [strata fdx fdz]
+    (let [atlas (StrataConfig.landform-2d strata)
+          ;; Layer 0: L0 = 384.0m, amp0 = 15.0m, scale0 = 256/384 = 0.6666666666666666
+          s0 (SpectralDetail.sample-landform-2d atlas (* fdx 0.6666666666666666) (* fdz 0.6666666666666666))
+          h0 (* 15.0 @(LandformSample.h &s0))
+          dhx0 (* 10.0 @(LandformSample.dhx &s0))
+          dhz0 (* 10.0 @(LandformSample.dhz &s0))
+          cr0 @(LandformSample.crag &s0)
+          ;; Layer 1: L1 = 113.0m rotated 37 deg (cos=0.79863551, sin=0.60181502), amp1 = 4.4m, scale1 = 256/113 = 2.26548673
+          rx (- (* fdx 0.7986355100472928) (* fdz 0.6018150231520483))
+          rz (+ (* fdx 0.6018150231520483) (* fdz 0.7986355100472928))
+          s1 (SpectralDetail.sample-landform-2d atlas (* rx 2.265486725663717) (* rz 2.265486725663717))
+          h1 (* 4.4 @(LandformSample.h &s1))
+          du1 @(LandformSample.dhx &s1)
+          dv1 @(LandformSample.dhz &s1)
+          dhx1 (* 9.968141592920355 (+ (* du1 0.7986355100472928) (* dv1 0.6018150231520483)))
+          dhz1 (* 9.968141592920355 (- (* dv1 0.7986355100472928) (* du1 0.6018150231520483)))
+          cr1 @(LandformSample.crag &s1)
+          raw-dh (+ h0 h1)
+          raw-dhx (+ dhx0 dhx1)
+          raw-dhz (+ dhz0 dhz1)
+          ;; Walkable sunlit meadow clearing envelope around player spawn (32, 32) & Surface Citadel (32, 11)
+          dx-sp (- fdx 32.0)
+          dz-sp (- fdz 22.0)
+          d2-sp (+ (* dx-sp dx-sp) (* dz-sp dz-sp))
+          w-sp (Terrain.smooth01 120.0 900.0 d2-sp)
+          env (+ 0.28 (* 0.72 w-sp))
+          u-sp (/ (- d2-sp 120.0) 780.0)
+          dw-dd2 (if (and (> u-sp 0.0) (< u-sp 1.0))
+                   (/ (* 6.0 (* u-sp (- 1.0 u-sp))) 780.0)
+                   0.0)
+          denv-dx (* 1.44 (* dw-dd2 dx-sp))
+          denv-dz (* 1.44 (* dw-dd2 dz-sp))
+          h (+ 33.5 (* raw-dh env))
+          dhx (+ (* raw-dhx env) (* raw-dh denv-dx))
+          dhz (+ (* raw-dhz env) (* raw-dh denv-dz))
+          crag (* (+ (* 0.70 cr0) (* 0.30 cr1)) env)]
+      (SurfProfile.init h dhx dhz crag)))
+
+  (defn surface-height-at [_noise-state strata fdx fdz]
+    (let [prof (Terrain.surface-profile-at strata fdx fdz)]
+      @(SurfProfile.h &prof)))
 )
 
 (load "structures.carp")
@@ -113,13 +172,9 @@
                            (Terrain.biome-name @(Array.unsafe-nth &biomes 8)) " -> "
                            (Terrain.biome-name @(Array.unsafe-nth &biomes 9))))
 
-        (let [sdf-spec (SpectralDetail.make-sdf-volume seed)]
-          (StrataConfig.init seed biomes splits sdf-spec)))))
-
-  (defn smooth01 [edge0 edge1 x]
-    (let [raw (/ (- x edge0) (- edge1 edge0))
-          t (if (< raw 0.0) 0.0 (if (> raw 1.0) 1.0 raw))]
-      (* (* t t) (- 3.0 (* 2.0 t)))))
+        (let [sdf-spec (SpectralDetail.make-sdf-bank-3d seed)
+              landform-2d (SpectralDetail.make-landform-atlas-2d seed)]
+          (StrataConfig.init seed biomes splits sdf-spec landform-2d)))))
 
   (defn lerp5 [v0 v1 v2 v3 v4 t0 t1 t2 t3]
     (let [a (+ v0 (* t0 (- v1 v0)))
@@ -127,29 +182,28 @@
           c (+ b (* t2 (- v3 b)))]
       (+ c (* t3 (- v4 c)))))
 
-  ;; +1.0 = horizontal sedimentary strata, -1.0 = tall vertical rifts, 0.0 = isotropic crags
-  (defn spec-style [b]
-    (if (or (= b 1) (or (= b 4) (or (= b 8) (or (= b 9) (= b 10)))))
-      1.0
-      (if (or (= b 2) (or (= b 5) (= b 11)))
-        -1.0
-        0.0)))
+  ;; 4-Way Partition of Unity for Subterranean Spectral Cave Morphologies:
+  ;;   1. Sedimentary flat-roof galleries & stepped benches (Biomes 1 Coal, 4 Sandstone, 10 Carbide)
+  ;;   2. Travertine rimstone bowls & cistern terraces (Biomes 8 Salt, 9 Saponified)
+  ;;   3. Razor fault chasms & hexagonal Giant's Causeway columns (Biomes 2 Glacial, 3 Obsidian, 5 Amethyst, 11 Cryo)
+  ;;   4. Vesicular geode blisters & karst solution arches (Biomes 0 Karst, 6 Rad-Geodes, 7 Magma)
+  (defn sed-morph-w [b]
+    (if (or (= b 1) (or (= b 4) (= b 10))) 1.0 0.0))
 
-  (defn sample-biome-sdf-spec [sdf-spec fdx fdy fdz style-w]
-    (let [sx (* fdx 1.73)
-          sz (* fdz 1.73)]
-      (if (> style-w 0.75)
-        (SpectralDetail.sample-sdf-3d sdf-spec sx (* fdy 2.35) sz)
-        (if (< style-w -0.75)
-          (SpectralDetail.sample-sdf-3d sdf-spec sx (* fdy 1.25) sz)
-          (if (and (>= style-w -0.15) (<= style-w 0.15))
-            (SpectralDetail.sample-sdf-3d sdf-spec sx (* fdy 1.73) sz)
-            (let [iso (SpectralDetail.sample-sdf-3d sdf-spec sx (* fdy 1.73) sz)]
-              (if (> style-w 0.0)
-                (let [sed (SpectralDetail.sample-sdf-3d sdf-spec sx (* fdy 2.35) sz)]
-                  (+ iso (* style-w (- sed iso))))
-                (let [rft (SpectralDetail.sample-sdf-3d sdf-spec sx (* fdy 1.25) sz)]
-                  (+ iso (* (- 0.0 style-w) (- rft iso)))))))))))
+  (defn rim-morph-w [b]
+    (if (or (= b 8) (= b 9)) 1.0 0.0))
+
+  (defn hex-morph-w [b]
+    (if (or (= b 2) (or (= b 3) (or (= b 5) (= b 11)))) 1.0 0.0))
+
+  (defn geo-morph-w [b]
+    (if (or (= b 0) (or (= b 6) (= b 7))) 1.0 0.0))
+
+  (defn vein-ore-for-biome [b]
+    (if (or (= b 0) (or (= b 1) (or (= b 4) (= b 10)))) 4.0f
+    (if (or (= b 2) (or (= b 3) (or (= b 8) (= b 9)))) 14.0f
+    (if (= b 6) 17.0f
+        15.0f))))
 
   (defn macro-w [b]
     (if (= b 0)  0.42
@@ -326,7 +380,12 @@
               (if (> n-tun 0.40) 12.0f (if (< n-tun -0.40) 10.0f 0.0f))
               0.0f))))))))))))))))
 
-  (defn solid-mat-for-biome [b wy band-bot cave-skin? deep-core? n3 n-tun n-det]
+  (defn solid-mat-for-biome [b wy band-bot cave-skin? deep-core? n3 n-tun n-det spinodal]
+    ;; Percolating 3D Spinodal Ore Dendrites (`Gold 5.0f` cores + biome signature ore filaments!)
+    (if (and (< (Double.abs spinodal) 0.085)
+             (and (> n-det 0.26)
+                  (not (and (Terrain.cauldron-biome? b) (<= wy (+ band-bot 7.5))))))
+      (if (> n-det 0.48) 5.0f (Terrain.vein-ore-for-biome b))
     (if (= b 0)
       ;; 0: Overgrown Spore Karst (Spore Pod + Slime + Sponge moss + Wood roots + Gold + Coal)
       (if (and cave-skin? (> n3 0.48))
@@ -479,19 +538,69 @@
                 5.0f
                 (if (or (<= wy (+ band-bot 14.5)) (< n-det -0.18))
                   16.0f
-                  8.0f))))))))))))))))))
+                  8.0f)))))))))))))))))))
 
-  ;; Stateless point evaluator for base Simplex + Stratigraphy + Seal/Cauldron SDF (`[-12.0 .. 12.0]`)
-  ;; Used by `Flora` to bisect exact rock/air zero-crossings with zero `32m` chunk-boundary seams!
+  ;; Shared Lipschitz-safe Overworld Boulder Outcrop + 4-Biome Subterranean Cave Morphology Evaluator
+  (defn eval-morph-sdf [sdf-spec seg local-fdy fdx fdy fdz surf-sdf slope crag-2d cave-sdf w-sed w-rim w-hex w-geo]
+    (let [surf-shaped (if (and (= seg 0) (< (Double.abs surf-sdf) 4.8))
+                        (let [c0 (SpectralDetail.sample-bank-ch sdf-spec 0 (* fdx 0.42) (* fdy 0.48) (* fdz 0.42))
+                              crag-gate (+ 0.28 (* 0.72 (Terrain.smooth01 0.26 0.85 (+ slope (* 0.35 (Double.max 0.0 crag-2d))))))
+                              surf-env (- 1.0 (Terrain.smooth01 1.6 4.8 (Double.abs surf-sdf)))]
+                          (Double.clamp -12.0 12.0 (+ surf-sdf (* 1.50 (* crag-gate (* surf-env c0))))))
+                        (Double.clamp -12.0 12.0 surf-sdf))
+          cave-shaped (if (and (< surf-sdf -3.2)
+                               (and (< (Double.abs cave-sdf) 4.8)
+                                    (and (> local-fdy -184.5)
+                                         (or (= seg 0) (< local-fdy -4.0)))))
+                        (let [seal-env (* (Terrain.smooth01 -184.5 -181.5 local-fdy)
+                                          (if (> seg 0) (- 1.0 (Terrain.smooth01 -7.0 -4.0 local-fdy)) 1.0))
+                              surf-gate (- 1.0 (Terrain.smooth01 -7.5 -3.2 surf-sdf))
+                              wall-env (- 1.0 (Terrain.smooth01 1.8 4.8 (Double.abs cave-sdf)))
+                              env (* seal-env (* surf-gate wall-env))]
+                          (if (<= env 0.004)
+                            cave-sdf
+                            (let [c-base (SpectralDetail.sample-bank-ch sdf-spec 0 (* fdx 0.40) (* fdy 0.40) (* fdz 0.40))
+                                  d-sed (if (> w-sed 0.02)
+                                          (let [st (SpectralDetail.sample-bank-ch sdf-spec 2 (* fdx 0.28) (* fdy 0.52) (* fdz 0.28))]
+                                            (* w-sed (+ (* 1.60 st) (* 0.80 c-base))))
+                                          0.0)
+                                  d-rim (if (> w-rim 0.02)
+                                          (let [st (SpectralDetail.sample-bank-ch sdf-spec 2 (* fdx 0.30) (* fdy 0.56) (* fdz 0.30))
+                                                flr-b (- 1.0 (Terrain.smooth01 0.0 2.8 (Double.abs (- cave-sdf 0.2))))]
+                                            (* w-rim (+ (* (+ 0.85 (* 0.72 flr-b)) st) (* 0.55 c-base))))
+                                          0.0)
+                                  d-hex (if (> w-hex 0.02)
+                                          (let [hc (SpectralDetail.sample-bank-ch sdf-spec 1 (* fdx 0.58) (* fdy 0.16) (* fdz 0.58))]
+                                            (* w-hex (+ (* 1.55 hc) (* 0.65 c-base))))
+                                          0.0)
+                                  d-geo (if (> w-geo 0.02)
+                                          (let [sp (SpectralDetail.sample-bank-ch sdf-spec 3 (* fdx 0.48) (* fdy 0.48) (* fdz 0.48))]
+                                            (* w-geo (+ (* 1.35 c-base) (* 0.95 sp))))
+                                          0.0)
+                                  raw-sum (+ cave-sdf (* env (+ (+ d-sed d-rim) (+ d-hex d-geo))))]
+                              (Double.clamp -12.0 12.0 (* 0.88 raw-sum)))))
+                        cave-sdf)]
+      (if (and (= seg 0) (> surf-shaped cave-shaped)) surf-shaped cave-shaped)))
+
+  ;; Stateless point evaluator for full Post-Morphology Landform + Cave + Seal SDF (`[-12.0 .. 12.0]`)
+  ;; Used by `Flora` and `Geysers` to bisect exact rock/air zero-crossings with zero `32m` chunk-boundary seams!
   (defn eval-base-sdf-at [noise-state strata fdx fdy fdz]
     (let [iy (Double.to-int (Double.floor fdy))
           seg (if (>= iy -192) 0 (+ 1 (/ (- -193 iy) 192)))
           local-fdy (+ fdy (Double.from-int (* seg 192)))]
       (if (and (<= local-fdy -186.5) (>= local-fdy -192.0))
         (Double.clamp -12.0 12.0 (- (Double.abs (- local-fdy -189.5)) 3.2))
-        (let [surface-h (+ 32.0 (* 10.0 (Noise.noise2d noise-state (* fdx 0.015) (* fdz 0.015))))
-              surf-sdf (- fdy surface-h)]
-          (if (and (= seg 0) (> fdy (+ surface-h 3.0)))
+        (let [prof (Terrain.surface-profile-at strata fdx fdz)
+              surface-h @(SurfProfile.h &prof)
+              dhx @(SurfProfile.dhx &prof)
+              dhz @(SurfProfile.dhz &prof)
+              crag-2d @(SurfProfile.crag &prof)
+              slope2 (+ (* dhx dhx) (* dhz dhz))
+              slope (Double.sqrt slope2)
+              inv-grad (/ 1.0 (Double.sqrt (+ 1.0 slope2)))
+              surf-sdf (* (- fdy surface-h) inv-grad)
+              sky-cutoff (+ surface-h (/ 5.5 inv-grad))]
+          (if (and (= seg 0) (> fdy sky-cutoff))
             (if (> surf-sdf 12.0) 12.0 surf-sdf)
             (let [b0 (StrataConfig.biome-for strata seg 0)
                   b1 (StrataConfig.biome-for strata seg 1)
@@ -515,10 +624,15 @@
                   w-chasm (Terrain.lerp5 (Terrain.chasm-w b0) (Terrain.chasm-w b1) (Terrain.chasm-w b2) (Terrain.chasm-w b3) (Terrain.chasm-w b4) t0 t1 t2 t3)
                   w-tun   (Terrain.lerp5 (Terrain.tun-w b0)   (Terrain.tun-w b1)   (Terrain.tun-w b2)   (Terrain.tun-w b3)   (Terrain.tun-w b4)   t0 t1 t2 t3)
                   base-th (Terrain.lerp5 (Terrain.thresh-w b0) (Terrain.thresh-w b1) (Terrain.thresh-w b2) (Terrain.thresh-w b3) (Terrain.thresh-w b4) t0 t1 t2 t3)
+                  w-sed   (Terrain.lerp5 (Terrain.sed-morph-w b0) (Terrain.sed-morph-w b1) (Terrain.sed-morph-w b2) (Terrain.sed-morph-w b3) (Terrain.sed-morph-w b4) t0 t1 t2 t3)
+                  w-rim   (Terrain.lerp5 (Terrain.rim-morph-w b0) (Terrain.rim-morph-w b1) (Terrain.rim-morph-w b2) (Terrain.rim-morph-w b3) (Terrain.rim-morph-w b4) t0 t1 t2 t3)
+                  w-hex   (Terrain.lerp5 (Terrain.hex-morph-w b0) (Terrain.hex-morph-w b1) (Terrain.hex-morph-w b2) (Terrain.hex-morph-w b3) (Terrain.hex-morph-w b4) t0 t1 t2 t3)
+                  w-geo   (Terrain.lerp5 (Terrain.geo-morph-w b0) (Terrain.geo-morph-w b1) (Terrain.geo-morph-w b2) (Terrain.geo-morph-w b3) (Terrain.geo-morph-w b4) t0 t1 t2 t3)
                   n-macro (Noise.noise3d noise-state (* fdx 0.018) (* fdy 0.022) (* fdz 0.018))
                   n-chasm (Noise.noise3d noise-state (- (* fdx 0.028) 63.0) (* fdy 0.011) (+ (* fdz 0.028) 29.0))
                   n-tun (Noise.noise3d noise-state (+ (* fdx 0.038) 17.0) (* fdy 0.044) (- (* fdz 0.038) 41.0))
                   n-det (Noise.noise3d noise-state (+ (* fdx 0.095) 37.0) (* fdy 0.095) (- (* fdz 0.095) 19.0))
+                  fault-crease (* w-hex (* 0.28 (- 0.42 (Double.abs n-chasm))))
                   roof-guard (if (and (= seg 0) (> surf-sdf -8.0)) (* (* (+ surf-sdf 8.0) 0.032) sink-open) 0.0)
                   seal-open (if (< local-fdy -178.0) (* (- -178.0 local-fdy) 0.055) 0.0)
                   vault-open (if (and (> seg 0) (> local-fdy -11.0)) (* (+ local-fdy 11.0) 0.055) 0.0)
@@ -529,7 +643,7 @@
                   cave-blend (+ (* n-macro w-macro)
                                 (+ (* n-chasm w-chasm)
                                    (+ (* n-tun w-tun)
-                                      (+ (* n-det 0.12) (+ seal-open vault-open)))))
+                                      (+ fault-crease (+ (* n-det 0.12) (+ seal-open vault-open))))))
                   cave-raw (- cave-blend (+ base-th (+ roof-guard cauld-guard)))
                   depth-below (- surface-h fdy)
                   deep-raw (/ (- depth-below 12.0) 55.0)
@@ -537,15 +651,19 @@
                   sdf-scale (+ 12.0 (* 12.0 deep-scale))
                   cave-sdf-raw (* cave-raw sdf-scale)
                   cave-sdf (if (> cave-sdf-raw 12.0) 12.0 (if (< cave-sdf-raw -12.0) -12.0 cave-sdf-raw))
-                  surf-clamped (if (> surf-sdf 12.0) 12.0 (if (< surf-sdf -12.0) -12.0 surf-sdf))]
-              (if (and (= seg 0) (> surf-clamped cave-sdf)) surf-clamped cave-sdf)))))))
+                  sdf-spec (StrataConfig.sdf-spec strata)]
+              (Terrain.eval-morph-sdf sdf-spec seg local-fdy fdx fdy fdz surf-sdf slope crag-2d cave-sdf w-sed w-rim w-hex w-geo)))))))
 
   (defn biome-at [noise-state strata fdx fdy fdz]
     (Structures.biome-at noise-state strata fdx fdy fdz))
 
   (defn seed-fluid-at [noise-state strata fdx fdy fdz]
-    (let [surface-h (+ 32.0 (* 10.0 (Noise.noise2d noise-state (* fdx 0.015) (* fdz 0.015))))
-          surf-sdf (- fdy surface-h)]
+    (let [prof (Terrain.surface-profile-at strata fdx fdz)
+          surface-h @(SurfProfile.h &prof)
+          dhx @(SurfProfile.dhx &prof)
+          dhz @(SurfProfile.dhz &prof)
+          inv-grad (/ 1.0 (Double.sqrt (+ 1.0 (+ (* dhx dhx) (* dhz dhz)))))
+          surf-sdf (* (- fdy surface-h) inv-grad)]
       (if (>= surf-sdf -12.0)
         0.0f
         (let [iy (Double.to-int (Double.floor fdy))
@@ -568,6 +686,298 @@
           (Terrain.seed-fluid-for-biome b-curr wy band-bot band-top n-macro n-chasm n-tun)))))
 )
 
+;; =============================================================================
+;; Self-Pumping Relaxation-Oscillator Geysers & Subterranean Fumaroles (64m Grid)
+;; =============================================================================
+
+(deftype GeyserDesc [
+  active Bool
+  biome Int
+  gx Double
+  gy Double
+  gz Double
+])
+
+(deftype GeyserHit [
+  active Bool
+  sdf Double
+  mat Float
+  fluid Float
+])
+
+(deftype ChunkGeysers [
+  count Int
+  min-y Double
+  max-y Double
+  items (Array GeyserDesc)
+  col-mask (Array Int)
+])
+
+(defmodule Terrain
+  (defn floor-div [a b]
+    (let [q (/ a b)
+          r (Int.mod a b)]
+      (if (and (< r 0) (/= r 0)) (- q 1) q)))
+
+  (defn inside-vault-collar? [noise-state strata px py pz]
+    (let [rx (Terrain.floor-div (Double.to-int (Double.floor px)) 96)
+          ry (Terrain.floor-div (Double.to-int (Double.floor py)) 64)
+          rz (Terrain.floor-div (Double.to-int (Double.floor pz)) 96)
+          sd (Structures.supercell-desc noise-state strata rx ry rz)]
+      (if (not @(StructureDesc.active &sd))
+        false
+        (and (<= (Double.abs (- px @(StructureDesc.sx &sd))) (+ @(StructureDesc.hx &sd) 8.0))
+             (and (<= (Double.abs (- py @(StructureDesc.sy &sd))) (+ @(StructureDesc.hy &sd) 8.0))
+                  (<= (Double.abs (- pz @(StructureDesc.sz &sd))) (+ @(StructureDesc.hz &sd) 8.0)))))))
+
+  (defn bisect-floor-y [noise-state strata px pz y-lo s-lo y-hi]
+    (let [lo y-lo
+          slo s-lo
+          hi y-hi]
+      (do
+        (for [_i 0 4]
+          (let [mid (* 0.5 (+ lo hi))
+                 sm (Terrain.eval-base-sdf-at noise-state strata px mid pz)]
+            (if (or (and (<= slo 0.0) (<= sm 0.0))
+                    (and (> slo 0.0) (> sm 0.0)))
+              (do (set! lo mid) (set! slo sm))
+              (set! hi mid))))
+        (* 0.5 (+ lo hi)))))
+
+  ;; Deterministic Overworld Valley Hot-Spring Geyser inside 64x64 cell `(kx, kz)`
+  (defn geyser-for-overworld [noise-state strata kx kz]
+    (let [seed @(StrataConfig.seed strata)
+          h0 (csg-hash4 (+ seed 61909) kx 0 kz)]
+      (if (>= (Int.mod (Int.abs h0) 1000) 145)
+        (GeyserDesc.init false -1 0.0 0.0 0.0)
+        (let [h1 (csg-hash4 (+ seed 27457) kx 1 kz)
+              gx0 (Double.from-int (+ (* kx 64) (+ 12 (Int.mod (Int.abs h1) 40))))
+              gz0 (Double.from-int (+ (* kz 64) (+ 12 (Int.mod (Int.abs (/ h1 64)) 40))))
+              d2-sp (+ (* (- gx0 32.0) (- gx0 32.0)) (* (- gz0 22.0) (- gz0 22.0)))]
+          (if (<= d2-sp 1600.0)
+            (GeyserDesc.init false -1 0.0 0.0 0.0)
+            (let [prof (Terrain.surface-profile-at strata gx0 gz0)
+                  est-h @(SurfProfile.h &prof)
+                  dhx @(SurfProfile.dhx &prof)
+                  dhz @(SurfProfile.dhz &prof)
+                  slope (Double.sqrt (+ (* dhx dhx) (* dhz dhz)))]
+              (if (>= slope 0.42)
+                (GeyserDesc.init false -1 0.0 0.0 0.0)
+                (let [s-lo (Terrain.eval-base-sdf-at noise-state strata gx0 (- est-h 3.0) gz0)
+                      s-deep (Terrain.eval-base-sdf-at noise-state strata gx0 (- est-h 7.0) gz0)
+                      s-hi (Terrain.eval-base-sdf-at noise-state strata gx0 (+ est-h 4.0) gz0)]
+                  (if (or (> s-lo -0.6) (or (> s-deep -1.6) (< s-hi 2.0)))
+                    (GeyserDesc.init false -1 0.0 0.0 0.0)
+                    (let [flr-y (Terrain.bisect-floor-y noise-state strata gx0 gz0 (- est-h 3.0) s-lo (+ est-h 3.0))]
+                      (if (Terrain.inside-vault-collar? noise-state strata gx0 flr-y gz0)
+                        (GeyserDesc.init false -1 0.0 0.0 0.0)
+                        (GeyserDesc.init true -1 gx0 flr-y gz0))))))))))))
+
+  ;; Deterministic Subterranean Fumarole Geyser inside 64x64x64 cell `(kx, ky, kz)`
+  (defn geyser-for-cave [noise-state strata kx ky kz]
+    (let [y-base (Double.from-int (* ky 64))
+          gy-mid (+ (* ky 64) 32)
+          seg (if (>= gy-mid -192) 0 (+ 1 (/ (- -193 gy-mid) 192)))
+          local-mid (+ (+ y-base 32.0) (Double.from-int (* seg 192)))]
+      (if (or (>= y-base 32.0)
+              (or (<= local-mid -174.0)
+                  (and (> seg 0) (>= local-mid -14.0))))
+        (GeyserDesc.init false 0 0.0 0.0 0.0)
+        (let [seed @(StrataConfig.seed strata)
+              h0 (csg-hash4 (+ seed 90371) kx ky kz)]
+          (if (>= (Int.mod (Int.abs h0) 1000) 220)
+            (GeyserDesc.init false 0 0.0 0.0 0.0)
+            (let [h1 (csg-hash4 (+ seed 44711) kx ky kz)
+                  gx0 (Double.from-int (+ (* kx 64) (+ 12 (Int.mod (Int.abs h1) 40))))
+                  gz0 (Double.from-int (+ (* kz 64) (+ 12 (Int.mod (Int.abs (/ h1 64)) 40))))
+                  y0 (+ y-base 12.0)
+                  y1 (+ y-base 24.0)
+                  y2 (+ y-base 36.0)
+                  y3 (+ y-base 48.0)
+                  s0 (Terrain.eval-base-sdf-at noise-state strata gx0 y0 gz0)
+                  s1 (Terrain.eval-base-sdf-at noise-state strata gx0 y1 gz0)
+                  s2 (Terrain.eval-base-sdf-at noise-state strata gx0 y2 gz0)
+                  s3 (Terrain.eval-base-sdf-at noise-state strata gx0 y3 gz0)
+                  f01 (and (<= s0 -0.8) (>= s1 1.5))
+                  f12 (and (not f01) (and (<= s1 -0.8) (>= s2 1.5)))
+                  f23 (and (not (or f01 f12)) (and (<= s2 -0.8) (>= s3 1.5)))]
+              (if (not (or f01 (or f12 f23)))
+                (GeyserDesc.init false 0 0.0 0.0 0.0)
+                (let [ylo (if f01 y0 (if f12 y1 y2))
+                      slo (if f01 s0 (if f12 s1 s2))
+                      yhi (if f01 y1 (if f12 y2 y3))
+                      flr-y (Terrain.bisect-floor-y noise-state strata gx0 gz0 ylo slo yhi)
+                      b (Terrain.biome-at noise-state strata gx0 flr-y gz0)]
+                  (if (not (or (= b 0) (or (= b 2) (or (= b 7) (or (= b 8) (= b 11))))))
+                    (GeyserDesc.init false 0 0.0 0.0 0.0)
+                    (let [surf-h (Terrain.surface-height-at noise-state strata gx0 gz0)]
+                      (if (>= (+ flr-y 12.0) (- surf-h 8.0))
+                        (GeyserDesc.init false 0 0.0 0.0 0.0)
+                        (let [s-sub (Terrain.eval-base-sdf-at noise-state strata gx0 (- flr-y 6.5) gz0)
+                              s-head (Terrain.eval-base-sdf-at noise-state strata gx0 (+ flr-y 9.0) gz0)]
+                          (if (or (> s-sub -1.2)
+                                  (or (< s-head 1.8)
+                                      (Terrain.inside-vault-collar? noise-state strata gx0 flr-y gz0)))
+                            (GeyserDesc.init false 0 0.0 0.0 0.0)
+                            (GeyserDesc.init true b gx0 flr-y gz0))))))))))))))
+
+  ;; O(1) Query used by `Flora` so trees/toadstools never root inside an active geyser cone!
+  (defn near-geyser? [noise-state strata px py pz]
+    (let [kx (Terrain.floor-div (Double.to-int (Double.floor px)) 64)
+          ky (Terrain.floor-div (Double.to-int (Double.floor py)) 64)
+          kz (Terrain.floor-div (Double.to-int (Double.floor pz)) 64)
+          go (Terrain.geyser-for-overworld noise-state strata kx kz)
+          hit-o (if @(GeyserDesc.active &go)
+                  (and (<= (Double.abs (- px @(GeyserDesc.gx &go))) 7.5)
+                       (and (<= (Double.abs (- pz @(GeyserDesc.gz &go))) 7.5)
+                            (<= (Double.abs (- py @(GeyserDesc.gy &go))) 10.0)))
+                  false)]
+      (if hit-o
+        true
+        (let [gc (Terrain.geyser-for-cave noise-state strata kx ky kz)]
+          (if @(GeyserDesc.active &gc)
+            (and (<= (Double.abs (- px @(GeyserDesc.gx &gc))) 7.5)
+                 (and (<= (Double.abs (- pz @(GeyserDesc.gz &gc))) 7.5)
+                      (<= (Double.abs (- py @(GeyserDesc.gy &gc))) 10.0)))
+            false)))))
+
+  ;; O(1) Chunk Pre-Culler (`<= 2` geyser candidates per `32^3` chunk because `gx,gz in [12..52]` never cross `64m` walls!)
+  (defn prepare-chunk-geysers [noise-state strata qx qy qz]
+    (let [c-min-x (Double.from-int (* qx 32))
+          c-max-x (+ c-min-x 32.0)
+          c-min-y (Double.from-int (* qy 32))
+          c-max-y (+ c-min-y 32.0)
+          c-min-z (Double.from-int (* qz 32))
+          c-max-z (+ c-min-z 32.0)
+          kx (Terrain.floor-div qx 2)
+          ky (Terrain.floor-div qy 2)
+          kz (Terrain.floor-div qz 2)
+          items (the (Array GeyserDesc) [])
+          col-mask (the (Array Int) (Array.replicate 1024 &0))
+          all-min-y 99999.0
+          all-max-y -99999.0]
+      (do
+        (when (and (>= qy -1) (<= qy 2))
+          (let [go (Terrain.geyser-for-overworld noise-state strata kx kz)]
+            (when @(GeyserDesc.active &go)
+              (Array.push-back! &items go))))
+        (when (<= qy 1)
+          (let [gc (Terrain.geyser-for-cave noise-state strata kx ky kz)]
+            (when @(GeyserDesc.active &gc)
+              (Array.push-back! &items gc))))
+
+        (let [kept (the (Array GeyserDesc) [])
+              n-cand (Array.length &items)]
+          (do
+            (for [i 0 n-cand]
+              (let [gd @(Array.unsafe-nth &items i)
+                    gx0 @(GeyserDesc.gx &gd)
+                    gy0 @(GeyserDesc.gy &gd)
+                    gz0 @(GeyserDesc.gz &gd)
+                    g-min-x (- gx0 5.6)
+                    g-max-x (+ gx0 5.6)
+                    g-min-y (- gy0 8.6)
+                    g-max-y (+ gy0 5.2)
+                    g-min-z (- gz0 5.6)
+                    g-max-z (+ gz0 5.6)]
+                (when (and (<= g-min-x c-max-x)
+                           (and (>= g-max-x c-min-x)
+                                (and (<= g-min-y c-max-y)
+                                     (and (>= g-max-y c-min-y)
+                                          (and (<= g-min-z c-max-z)
+                                               (>= g-max-z c-min-z))))))
+                  (let [slot (Array.length &kept)
+                        bit (Int.bit-shift-left 1 slot)
+                        lx0 (Int.clamp 0 31 (Double.to-int (Double.floor (- g-min-x c-min-x))))
+                        lx1 (Int.clamp 0 31 (Double.to-int (Double.floor (- g-max-x c-min-x))))
+                        lz0 (Int.clamp 0 31 (Double.to-int (Double.floor (- g-min-z c-min-z))))
+                        lz1 (Int.clamp 0 31 (Double.to-int (Double.floor (- g-max-z c-min-z))))]
+                    (do
+                      (when (< g-min-y all-min-y) (set! all-min-y g-min-y))
+                      (when (> g-max-y all-max-y) (set! all-max-y g-max-y))
+                      (for [lz lz0 (+ lz1 1)]
+                        (let [z-row (* lz 32)]
+                          (for [lx lx0 (+ lx1 1)]
+                            (let [mi (+ z-row lx)]
+                              (Array.aset! &col-mask mi (Int.bit-or @(Array.unsafe-nth &col-mask mi) bit))))))
+                      (Array.push-back! &kept gd))))))
+            (ChunkGeysers.init (Array.length &kept) all-min-y all-max-y kept col-mask))))))
+
+  (defn geyser-column-mask [cg lx lz]
+    (if (= @(ChunkGeysers.count cg) 0)
+      0
+      @(Array.unsafe-nth (ChunkGeysers.col-mask cg) (+ (* lz 32) lx))))
+
+  ;; Evaluate 3-Zone CSG Sinter Cone + Buried Obsidian Boiler Flask + Self-Oscillating Fluid Charge!
+  (defn eval-single-geyser [gd fdx fdy fdz rock-sdf n-det]
+    (let [dx (- fdx @(GeyserDesc.gx gd))
+          dy (- fdy @(GeyserDesc.gy gd))
+          dz (- fdz @(GeyserDesc.gz gd))]
+      (if (or (> (Double.abs dx) 5.6)
+              (or (> (Double.abs dz) 5.6)
+                  (or (< dy -8.6) (> dy 5.2))))
+        (GeyserHit.init false rock-sdf 0.0f 0.0f)
+        (let [b @(GeyserDesc.biome gd)
+              d-cone (+ (CSG.sd-capped-cone-y dx (- dy 0.45) dz 4.0 1.68 1.80) (* 0.14 n-det))
+              d-flask-out (CSG.sd-sphere dx (+ dy 4.3) dz 3.10)
+              d-liner (CSG.sd-cyl-y dx (+ dy 1.4) dz 2.30 3.0)
+              d-shell-raw (CSG.op-smooth-union d-cone (CSG.dmin d-flask-out d-liner) 0.45)
+              d-boiler (CSG.sd-sphere dx (+ dy 4.3) dz 2.02)
+              d-torus (CSG.sd-torus-y dx (+ dy 2.3) dz 2.08 1.12)
+              d-throat (CSG.sd-cyl-y dx (+ dy 0.6) dz 1.22 3.8)
+              d-carve (CSG.dmin d-boiler (CSG.dmin d-torus d-throat))
+              d-wall (CSG.op-sub d-shell-raw d-carve)
+              merged-solid (CSG.op-smooth-union rock-sdf d-wall 0.30)
+              out-sdf (CSG.dclamp -12.0 12.0 (CSG.op-sub merged-solid d-carve))]
+          (if (> out-sdf 0.0)
+            (let [fl (if (< d-carve 0.0)
+                       (if (and (< d-boiler 0.0) (<= dy -4.5))
+                         -2.0f
+                         (if (and (< d-torus 0.0) (> dy -3.1))
+                           (if (= b 7) -3.0f (if (= b 11) -15.0f -1.0f))
+                           0.0f))
+                       0.0f)]
+              (GeyserHit.init true out-sdf 0.0f fl))
+            (let [g-mat (if (<= d-wall (+ rock-sdf 0.28))
+                          (if (< dy -1.1)
+                            16.0f
+                            (if (= b 7)
+                              (if (and (> dy 1.1) (< (CSG.len2 dx dz) 2.6)) 23.0f 16.0f)
+                              (if (or (= b 2) (= b 11))
+                                (if (> n-det 0.15) 14.0f 8.0f)
+                                (if (or (> dy 0.80) (> n-det 0.05)) 21.0f 1.0f))))
+                          0.0f)
+                  safe-d (if (and (or (= g-mat 21.0f) (= g-mat 23.0f))
+                                  (and (> out-sdf -0.55) (< out-sdf -0.45)))
+                           -0.57
+                           out-sdf)]
+              (GeyserHit.init true safe-d g-mat 0.0f)))))))
+
+  (defn eval-geyser-masked [cg mask fdx fdy fdz rock-sdf n-det]
+    (if (or (< fdy @(ChunkGeysers.min-y cg)) (> fdy @(ChunkGeysers.max-y cg)))
+      (GeyserHit.init false rock-sdf 0.0f 0.0f)
+      (let [items (ChunkGeysers.items cg)
+            cnt @(ChunkGeysers.count cg)
+            cur-sdf rock-sdf
+            cur-mat 0.0f
+            cur-fl 0.0f
+            any-hit false]
+        (do
+          (for [i 0 cnt]
+            (when (/= (Int.bit-and mask (Int.bit-shift-left 1 i)) 0)
+              (let [gd (Array.unsafe-nth items i)
+                    gh (Terrain.eval-single-geyser gd fdx fdy fdz cur-sdf n-det)]
+                (when @(GeyserHit.active &gh)
+                  (do
+                    (set! any-hit true)
+                    (set! cur-sdf @(GeyserHit.sdf &gh))
+                    (when (> @(GeyserHit.mat &gh) 0.5f)
+                      (set! cur-mat @(GeyserHit.mat &gh)))
+                    (when (/= @(GeyserHit.fluid &gh) 0.0f)
+                      (set! cur-fl @(GeyserHit.fluid &gh))))))))
+          (GeyserHit.init any-hit cur-sdf cur-mat cur-fl)))))
+)
+
 (load "flora.carp")
 
 (defmodule Terrain
@@ -588,10 +998,15 @@
           cw0 (Terrain.chasm-w b0) cw1 (Terrain.chasm-w b1) cw2 (Terrain.chasm-w b2) cw3 (Terrain.chasm-w b3) cw4 (Terrain.chasm-w b4)
           tw0 (Terrain.tun-w b0)   tw1 (Terrain.tun-w b1)   tw2 (Terrain.tun-w b2)   tw3 (Terrain.tun-w b3)   tw4 (Terrain.tun-w b4)
           th0 (Terrain.thresh-w b0) th1 (Terrain.thresh-w b1) th2 (Terrain.thresh-w b2) th3 (Terrain.thresh-w b3) th4 (Terrain.thresh-w b4)
-          st0 (Terrain.spec-style b0) st1 (Terrain.spec-style b1) st2 (Terrain.spec-style b2) st3 (Terrain.spec-style b3) st4 (Terrain.spec-style b4)
+          sm0 (Terrain.sed-morph-w b0) sm1 (Terrain.sed-morph-w b1) sm2 (Terrain.sed-morph-w b2) sm3 (Terrain.sed-morph-w b3) sm4 (Terrain.sed-morph-w b4)
+          rm0 (Terrain.rim-morph-w b0) rm1 (Terrain.rim-morph-w b1) rm2 (Terrain.rim-morph-w b2) rm3 (Terrain.rim-morph-w b3) rm4 (Terrain.rim-morph-w b4)
+          hm0 (Terrain.hex-morph-w b0) hm1 (Terrain.hex-morph-w b1) hm2 (Terrain.hex-morph-w b2) hm3 (Terrain.hex-morph-w b3) hm4 (Terrain.hex-morph-w b4)
+          gm0 (Terrain.geo-morph-w b0) gm1 (Terrain.geo-morph-w b1) gm2 (Terrain.geo-morph-w b2) gm3 (Terrain.geo-morph-w b3) gm4 (Terrain.geo-morph-w b4)
           sdf-spec (StrataConfig.sdf-spec strata)
           ;; O(1) Supercell + Connector Graph Pre-Culler (~78% of chunks & ~75% of columns skip CSG!)
           ccsg (Structures.prepare-chunk noise-state strata qx qy qz)
+          ;; O(1) Relaxation-Oscillator Geyser & Fumarole Pre-Culler (`<= 2` geysers/chunk, `0` on >85% of chunks!)
+          cgeys (Terrain.prepare-chunk-geysers noise-state strata qx qy qz)
           ;; Stateless CSG Botanical Pre-Culler (`32x32` column bitmask for trees, toadstools, vines, shelf-fungi & briars)
           cflora (Flora.prepare-chunk noise-state strata qx qy qz)]
       (do
@@ -602,9 +1017,17 @@
                   fdx (Double.from-int gx)
                   fdz (Double.from-int gz)
                   col-mask (Structures.column-mask &ccsg fdx fdz)
+                  geyser-mask (Terrain.geyser-column-mask &cgeys x z)
                   flora-mask (Flora.column-mask &cflora x z)
-                  surface-h (+ 32.0 (* 10.0 (Noise.noise2d noise-state (* fdx 0.015) (* fdz 0.015))))
-                  sky-cutoff (+ surface-h 3.0)
+                  prof (Terrain.surface-profile-at strata fdx fdz)
+                  surface-h @(SurfProfile.h &prof)
+                  dhx @(SurfProfile.dhx &prof)
+                  dhz @(SurfProfile.dhz &prof)
+                  crag-2d @(SurfProfile.crag &prof)
+                  slope2 (+ (* dhx dhx) (* dhz dhz))
+                  slope (Double.sqrt slope2)
+                  inv-grad (/ 1.0 (Double.sqrt (+ 1.0 slope2)))
+                  sky-cutoff (+ surface-h (/ 5.5 inv-grad))
                   ;; Geological folding/faulting warps stratum boundaries by +-14m across (x, z)
                   fold-y (+ (* 10.5 (Noise.noise2d noise-state (+ (* fdx 0.011) 131.0) (- (* fdz 0.011) 83.0)))
                             (* 4.0 (Noise.noise2d noise-state (- (* fdx 0.029) 41.0) (+ (* fdz 0.029) 67.0))))
@@ -627,15 +1050,18 @@
                           (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) seal-sdf)
                           (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
                           (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 10.0f)))
-                      (let [surf-sdf (- fdy surface-h)]
+                      (let [surf-sdf (* (- fdy surface-h) inv-grad)]
                         (if (and (= seg 0)
                                  (and (> fdy sky-cutoff)
                                       (and (not (and (/= (Int.bit-and col-mask 1) 0)
                                                      (and (>= fdy @(ChunkCSG.s-min-y &ccsg))
                                                           (<= fdy @(ChunkCSG.s-max-y &ccsg)))))
-                                           (not (and (/= flora-mask 0)
-                                                     (and (>= fdy @(ChunkFlora.min-y &cflora))
-                                                          (<= fdy @(ChunkFlora.max-y &cflora))))))))
+                                           (and (not (and (/= geyser-mask 0)
+                                                          (and (>= fdy @(ChunkGeysers.min-y &cgeys))
+                                                               (<= fdy @(ChunkGeysers.max-y &cgeys)))))
+                                                (not (and (/= flora-mask 0)
+                                                          (and (>= fdy @(ChunkFlora.min-y &cflora))
+                                                               (<= fdy @(ChunkFlora.max-y &cflora)))))))))
                             (do
                               (Pointer.set (Pointer.add p-data (Long.from-int offset)) 0.0f)
                               (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) (Double.to-float (if (> surf-sdf 12.0) 12.0 surf-sdf)))
@@ -650,10 +1076,15 @@
                                   w-chasm (Terrain.lerp5 cw0 cw1 cw2 cw3 cw4 t0 t1 t2 t3)
                                   w-tun   (Terrain.lerp5 tw0 tw1 tw2 tw3 tw4 t0 t1 t2 t3)
                                   base-th (Terrain.lerp5 th0 th1 th2 th3 th4 t0 t1 t2 t3)
+                                  w-sed   (Terrain.lerp5 sm0 sm1 sm2 sm3 sm4 t0 t1 t2 t3)
+                                  w-rim   (Terrain.lerp5 rm0 rm1 rm2 rm3 rm4 t0 t1 t2 t3)
+                                  w-hex   (Terrain.lerp5 hm0 hm1 hm2 hm3 hm4 t0 t1 t2 t3)
+                                  w-geo   (Terrain.lerp5 gm0 gm1 gm2 gm3 gm4 t0 t1 t2 t3)
                                   n-macro (Noise.noise3d noise-state (* fdx 0.018) (* fdy 0.022) (* fdz 0.018))
                                   n-chasm (Noise.noise3d noise-state (- (* fdx 0.028) 63.0) (* fdy 0.011) (+ (* fdz 0.028) 29.0))
                                   n-tun (Noise.noise3d noise-state (+ (* fdx 0.038) 17.0) (* fdy 0.044) (- (* fdz 0.038) 41.0))
                                   n-det (Noise.noise3d noise-state (+ (* fdx 0.095) 37.0) (* fdy 0.095) (- (* fdz 0.095) 19.0))
+                                  fault-crease (* w-hex (* 0.28 (- 0.42 (Double.abs n-chasm))))
                                   roof-guard (if (and (= seg 0) (> surf-sdf -8.0)) (* (* (+ surf-sdf 8.0) 0.032) sink-open) 0.0)
                                   ;; Open wide Seal Chambers right above (-178..-186) and Vaults right below (-1..-11) each Abyssal Seal!
                                   seal-open (if (< local-fdy -178.0) (* (- -178.0 local-fdy) 0.055) 0.0)
@@ -665,7 +1096,7 @@
                                   cave-blend (+ (* n-macro w-macro)
                                                 (+ (* n-chasm w-chasm)
                                                    (+ (* n-tun w-tun)
-                                                      (+ (* n-det 0.12) (+ seal-open vault-open)))))
+                                                      (+ fault-crease (+ (* n-det 0.12) (+ seal-open vault-open))))))
                                   cave-raw (- cave-blend (+ base-th (+ roof-guard cauld-guard)))
                                   depth-below (- surface-h fdy)
                                   deep-raw (/ (- depth-below 12.0) 55.0)
@@ -673,20 +1104,7 @@
                                   sdf-scale (+ 12.0 (* 12.0 deep-scale))
                                   cave-sdf-raw (* cave-raw sdf-scale)
                                   cave-sdf (if (> cave-sdf-raw 12.0) 12.0 (if (< cave-sdf-raw -12.0) -12.0 cave-sdf-raw))
-                                  surf-clamped (if (> surf-sdf 12.0) 12.0 (if (< surf-sdf -12.0) -12.0 surf-sdf))
-                                  base-final-sdf (if (and (= seg 0) (> surf-clamped cave-sdf)) surf-clamped cave-sdf)
-                                  abs-base-sdf (Double.abs base-final-sdf)
-                                  final-sdf (if (and (< abs-base-sdf 3.4)
-                                                     (and (> local-fdy -184.5)
-                                                          (or (= seg 0) (< local-fdy -3.5))))
-                                              (let [seal-env (* (Terrain.smooth01 -184.5 -181.5 local-fdy)
-                                                                (if (> seg 0) (- 1.0 (Terrain.smooth01 -6.5 -3.5 local-fdy)) 1.0))
-                                                    skin-env (* seal-env (- 1.0 (Terrain.smooth01 0.75 3.4 abs-base-sdf)))
-                                                    style-w (Terrain.lerp5 st0 st1 st2 st3 st4 t0 t1 t2 t3)
-                                                    spec-val (Terrain.sample-biome-sdf-spec sdf-spec fdx fdy fdz style-w)
-                                                    spec-disp (* 0.33 (* skin-env spec-val))]
-                                                (Double.clamp -12.0 12.0 (+ base-final-sdf spec-disp)))
-                                              base-final-sdf)
+                                  final-sdf (Terrain.eval-morph-sdf sdf-spec seg local-fdy fdx fdy fdz surf-sdf slope crag-2d cave-sdf w-sed w-rim w-hex w-geo)
                                   csg-s (if (/= col-mask 0)
                                           (Structures.eval-masked &ccsg col-mask fdx fdy fdz n-det)
                                           (CSGSample.init 0 0.0f 12.0f 0.0f 0.0f))
@@ -715,17 +1133,25 @@
                                           (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) out-sdf)
                                           (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) c-fl)
                                           (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 0.0f)))
-                                      ;; Mode 0 (`CSG_NONE`), buried Mode 4 (`final-sdf <= -0.6`), or Mode 3 (`CSG_COLLAR` smooth Euclidean cave collar):
-                                      (let [rock-eff-sdf (if (= csg-mode 3)
-                                                           (Double.from-float
-                                                             (Float.clamp -12.0f 12.0f
-                                                               (Float.min @(CSGSample.wall-sdf &csg-s)
-                                                                          (Float.max (Double.to-float final-sdf) @(CSGSample.sdf &csg-s)))))
-                                                           (if (= csg-mode 4)
-                                                             (CSG.dmin final-sdf (Double.from-float @(CSGSample.sdf &csg-s)))
-                                                             final-sdf))
-                                            fl-msdf (if (and (/= flora-mask 0) (> rock-eff-sdf -1.45))
-                                                      (Flora.eval-masked &cflora flora-mask fdx fdy fdz n-det)
+                                      ;; Mode 0 (`CSG_NONE`), buried Mode 4 (`final-sdf <= -0.6`), or Mode 3 (`CSG_COLLAR`):
+                                      (let [rock-base-sdf (if (= csg-mode 3)
+                                                            (Double.from-float
+                                                              (Float.clamp -12.0f 12.0f
+                                                                (Float.min @(CSGSample.wall-sdf &csg-s)
+                                                                           (Float.max (Double.to-float final-sdf) @(CSGSample.sdf &csg-s)))))
+                                                            (if (= csg-mode 4)
+                                                              (CSG.dmin final-sdf (Double.from-float @(CSGSample.sdf &csg-s)))
+                                                              final-sdf))
+                                            gh (if (/= geyser-mask 0)
+                                                 (Terrain.eval-geyser-masked &cgeys geyser-mask fdx fdy fdz rock-base-sdf n-det)
+                                                 (GeyserHit.init false rock-base-sdf 0.0f 0.0f))
+                                            rock-eff-sdf @(GeyserHit.sdf &gh)
+                                            g-mat @(GeyserHit.mat &gh)
+                                            g-fl @(GeyserHit.fluid &gh)
+                                            fl-msdf (if (and (/= flora-mask 0)
+                                                             (and (not @(GeyserHit.active &gh))
+                                                                  (> rock-eff-sdf -1.45)))
+                                                      (Flora.eval-masked &cflora sdf-spec flora-mask fdx fdy fdz n-det)
                                                       (CSG.m-none))
                                             fl-d @(MatSDF.d &fl-msdf)
                                             fl-mat @(MatSDF.mat &fl-msdf)
@@ -738,9 +1164,11 @@
                                             band-top (if (= slot 0) 24.0 (if (= slot 1) s0 (if (= slot 2) s1 (if (= slot 3) s2 s3))))
                                             band-bot (if (= slot 0) s0 (if (= slot 1) s1 (if (= slot 2) s2 (if (= slot 3) s3 -187.0))))]
                                         (if (> eff-sdf 0.0)
-                                            (let [seed-fluid (if (< surf-sdf -12.0)
-                                                                 (Terrain.seed-fluid-for-biome b-curr wy band-bot band-top n-macro n-chasm n-tun)
-                                                                 0.0f)]
+                                            (let [seed-fluid (if (/= g-fl 0.0f)
+                                                                 g-fl
+                                                                 (if (< surf-sdf -12.0)
+                                                                     (Terrain.seed-fluid-for-biome b-curr wy band-bot band-top n-macro n-chasm n-tun)
+                                                                     0.0f))]
                                               (do
                                                 (Pointer.set (Pointer.add p-data (Long.from-int offset)) 0.0f)
                                                 (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) (Double.to-float eff-sdf))
@@ -751,6 +1179,9 @@
                                                   n3 (if cave-skin?
                                                          (Noise.noise3d noise-state (- (* fdx 0.17) 11.0) (+ (* fdy 0.17) 53.0) (* fdz 0.17))
                                                          0.0)
+                                                  spinodal (if (> n-det 0.26)
+                                                             (SpectralDetail.sample-bank-ch sdf-spec 3 (* fdx 0.52) (* fdy 0.52) (* fdz 0.52))
+                                                             1.0)
                                                   wy-dither (+ wy (* n-det 2.4))
                                                   slot-m (if (>= wy-dither s0) 0 (if (>= wy-dither s1) 1 (if (>= wy-dither s2) 2 (if (>= wy-dither s3) 3 4))))
                                                   b-mat (if (= slot-m 0) b0 (if (= slot-m 1) b1 (if (= slot-m 2) b2 (if (= slot-m 3) b3 b4))))
@@ -761,26 +1192,51 @@
                                                                               (and (Terrain.cauldron-biome? b3) (< (Double.abs (- wy s3)) 5.0)))))
                                                   moss-cand? (and (not under-cauldron?)
                                                                   (and (> rock-eff-sdf -1.15)
-                                                                       (or (and (= seg 0) (and (> surf-sdf -1.25) (> n-det 0.04)))
+                                                                       (or (and (= seg 0) (and (< slope 0.68) (and (> surf-sdf -1.25) (> n-det -0.16))))
                                                                            (and (< surf-sdf -6.0)
                                                                                 (or (and (= b-curr 0) (> n3 -0.22))
                                                                                     (and (or (= b-curr 2) (= b-curr 9)) (> n3 0.30)))))))
                                                   moss-top? (if moss-cand?
                                                               (> (Terrain.eval-base-sdf-at noise-state strata fdx (+ fdy 1.15) fdz)
-                                                                 (+ base-final-sdf 0.35))
+                                                                 (+ final-sdf 0.32))
                                                               false)
-                                                  mat-id (if (and (> fl-mat 0.5f) (<= fl-d (+ rock-eff-sdf 0.14)))
-                                                             fl-mat
-                                                             (if moss-top?
-                                                                 26.0f
-                                                                 (if (and (= seg 0) (> surf-sdf -3.2))
-                                                                     2.0f
-                                                                     (if under-cauldron?
-                                                                         16.0f
-                                                                         (Terrain.solid-mat-for-biome b-mat wy-dither bot-m cave-skin? deep-core? n3 n-tun n-det)))))]
+                                                  mat-id (if (> g-mat 0.5f)
+                                                             g-mat
+                                                             (if (and (> fl-mat 0.5f) (<= fl-d (+ rock-eff-sdf 0.14)))
+                                                                 fl-mat
+                                                                 (if (and (= seg 0) (> surf-sdf -3.4))
+                                                                     ;; Overworld Slope & Elevation Stratification:
+                                                                     (if (< slope 0.44)
+                                                                         ;; 1. Lush valley meadows & terrace benches
+                                                                         (if moss-top? 26.0f 2.0f)
+                                                                         (if (< slope 0.68)
+                                                                             ;; 2. Rocky talus shoulders: jutting Stone crag ribs + Soil/Moss pockets
+                                                                             (let [spec-crag (SpectralDetail.sample-bank-ch sdf-spec 0 (* fdx 0.42) (* fdy 0.48) (* fdz 0.42))]
+                                                                               (if (or (< spec-crag -0.14) (<= surf-sdf -2.2))
+                                                                                   (if (and (> surface-h 48.0) (> n-det 0.12)) 8.0f 1.0f)
+                                                                                   (if (and (> surf-sdf -1.10) (and (> n-det 0.08) moss-top?)) 26.0f 2.0f)))
+                                                                             ;; 3. Steep cliff escarpments & pinched arêtes: zero Soil/Grass, bare stratified Stone + veins + alpine frost!
+                                                                             (if (and (> surface-h 46.5) (and (> surf-sdf -1.8) (> n-det -0.15)))
+                                                                                 8.0f
+                                                                                 (if (and (< (Double.abs spinodal) 0.085) (> n-det 0.28))
+                                                                                     (if (> n-det 0.48) 5.0f (Terrain.vein-ore-for-biome b0))
+                                                                                     (if (and (> (Double.sin (+ (* wy 0.52) (* n-det 0.85))) 0.84) (> n-det 0.05))
+                                                                                         (if (= b0 4) 6.0f (if (= b0 8) 21.0f (Terrain.vein-ore-for-biome b0)))
+                                                                                         1.0f)))))
+                                                                     ;; Subterranean caves & deep bedrock
+                                                                     (if moss-top?
+                                                                         26.0f
+                                                                         (if under-cauldron?
+                                                                             16.0f
+                                                                             (Terrain.solid-mat-for-biome b-mat wy-dither bot-m cave-skin? deep-core? n3 n-tun n-det spinodal))))))
+                                                  f-out-raw (Double.to-float eff-sdf)
+                                                  f-out (if (and (or (= mat-id 6.0f) (or (= mat-id 21.0f) (= mat-id 23.0f)))
+                                                                 (and (= seg 0) (and (> surf-sdf -3.4) (and (> f-out-raw -0.55f) (< f-out-raw -0.45f)))))
+                                                          -0.57f
+                                                          f-out-raw)]
                                               (do
                                                 (Pointer.set (Pointer.add p-data (Long.from-int offset)) mat-id)
-                                                (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) (Double.to-float eff-sdf))
+                                                (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) f-out)
                                                 (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
                                                 (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 10.0f)))))))))))))))))))
 )
