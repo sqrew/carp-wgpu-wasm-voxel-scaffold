@@ -265,7 +265,7 @@
       if (bind_group) {
           wgpuRenderPassEncoderSetBindGroup(pass, 0, bind_group, 0, NULL);
       }
-      wgpuRenderPassEncoderDraw(pass, flora_count * 24, 1, 0, 0);
+      wgpuRenderPassEncoderDraw(pass, flora_count * 54, 1, 0, 0);
       wgpuRenderPassEncoderEnd(pass);
       wgpuRenderPassEncoderRelease(pass);
   }")

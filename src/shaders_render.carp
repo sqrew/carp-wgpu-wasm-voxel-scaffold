@@ -1408,6 +1408,92 @@ fn resolve_liquid_id(wrapped_p: vec3<f32>, ip_cell: vec3<i32>) -> u32 {
     return best_id;
 }
 
+// Exact discrete solid voxel lookup across the 2x2x2 trilinear SDF footprint:
+// Preserves thin 1-voxel surface skins (Moss, Stains) at p, steps -raw_normal when p crosses into an air texel,
+// and falls back to trilinear-weighted 2x2x2 solid corners so curved surfaces NEVER sample MAT_AIR (0 = pitch black)!
+fn resolve_solid_voxel(p: vec3<f32>, wrapped_p: vec3<f32>, raw_normal: vec3<f32>) -> vec4<f32> {
+    let ip0 = vec3<i32>(clamp(wrapped_p, vec3<f32>(0.0), vec3<f32>(159.0)));
+    let v0 = textureLoad(solid_texture, ip0, 0);
+    if (abs(v0.r) > 0.5) {
+        return v0;
+    }
+    let p_in = p - raw_normal * 0.52;
+    let w_in = p_in - floor(p_in / 160.0) * 160.0;
+    let ip_in = vec3<i32>(clamp(w_in, vec3<f32>(0.0), vec3<f32>(159.0)));
+    let v_in = textureLoad(solid_texture, ip_in, 0);
+    if (abs(v_in.r) > 0.5) {
+        return v_in;
+    }
+    let b = p - vec3<f32>(0.5);
+    let b0 = floor(b);
+    let f = b - b0;
+    var best_vox = vec4<f32>(1.0, 0.0, 0.0, 10.0);
+    var best_score: f32 = -1.0;
+    for (var dz = 0; dz <= 1; dz = dz + 1) {
+        let wz = select(1.0 - f.z, f.z, dz == 1);
+        for (var dy = 0; dy <= 1; dy = dy + 1) {
+            let wy = select(1.0 - f.y, f.y, dy == 1);
+            for (var dx = 0; dx <= 1; dx = dx + 1) {
+                let wx = select(1.0 - f.x, f.x, dx == 1);
+                let q = b0 + vec3<f32>(f32(dx), f32(dy), f32(dz));
+                let wq = q - floor(q / 160.0) * 160.0;
+                let tc = vec3<i32>(clamp(wq, vec3<f32>(0.0), vec3<f32>(159.0)));
+                let tv = textureLoad(solid_texture, tc, 0);
+                if (abs(tv.r) > 0.5) {
+                    let score = (wx * wy * wz) * max(0.05, 0.65 - tv.g);
+                    if (score > best_score) {
+                        best_score = score;
+                        best_vox = tv;
+                    }
+                }
+            }
+        }
+    }
+    return best_vox;
+}
+
+// Exact discrete gas ID lookup across the 2x2x2 trilinear footprint (never snaps to 1x1x1 cube walls or Air 0 on cloud fringes!)
+fn resolve_gas_id(p_ws: vec3<f32>) -> u32 {
+    let b0 = floor(p_ws - vec3<f32>(0.5));
+    var best_id: u32 = 0u;
+    var best_fill: f32 = 0.015;
+    for (var dz = 0; dz <= 1; dz = dz + 1) {
+        for (var dy = 0; dy <= 1; dy = dy + 1) {
+            for (var dx = 0; dx <= 1; dx = dx + 1) {
+                let q = b0 + vec3<f32>(f32(dx), f32(dy), f32(dz));
+                let wq = q - floor(q / 160.0) * 160.0;
+                let tc = vec3<i32>(clamp(wq, vec3<f32>(0.0), vec3<f32>(159.0)));
+                let tg = textureLoad(gas_texture, tc, 0);
+                let gid = u32(round(abs(tg.r)));
+                if (gid >= 1u && gid <= 13u && tg.g > best_fill) {
+                    best_fill = tg.g;
+                    best_id = gid;
+                }
+            }
+        }
+    }
+    return best_id;
+}
+
+// Khronos PBR Neutral Tonemapper: 1:1 linear color fidelity below 0.76 + smooth HDR highlight roll-off & plasma desaturation!
+fn tonemap_pbr_neutral(color_in: vec3<f32>) -> vec3<f32> {
+    let start_comp: f32 = 0.76;
+    let desat: f32 = 0.15;
+    var c = max(color_in, vec3<f32>(0.0));
+    let x = min(c.r, min(c.g, c.b));
+    let offset = select(0.04, x - 6.25 * x * x, x < 0.08);
+    c = c - vec3<f32>(offset);
+    let peak = max(c.r, max(c.g, c.b));
+    if (peak < start_comp) {
+        return c;
+    }
+    let d = 1.0 - start_comp;
+    let new_peak = 1.0 - (d * d) / (peak + d - start_comp);
+    c = c * (new_peak / max(peak, 0.0001));
+    let g = 1.0 - 1.0 / (desat * (peak - new_peak) + 1.0);
+    return mix(c, vec3<f32>(new_peak), g);
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> FragmentOutput {
     let aspect = u.width / u.height;
@@ -1432,21 +1518,23 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
     let day_factor = clamp(sun_h * 5.0 + 0.5, 0.0, 1.0);
     let sunset_factor = clamp(1.0 - abs(sun_h) * 5.0, 0.0, 1.0);
     
-    // Base sky colors
-    let day_space = vec3<f32>(0.05, 0.12, 0.25);
-    let day_horizon = vec3<f32>(0.2, 0.38, 0.58);
+    // Base sky colors (bright warm/cool horizon at rd.y = 0 -> deep azure/space zenith at rd.y = 1!)
+    let day_space = vec3<f32>(0.06, 0.15, 0.34);
+    let day_horizon = vec3<f32>(0.34, 0.54, 0.76);
     
-    let sunset_space = vec3<f32>(0.06, 0.04, 0.12);
-    let sunset_horizon = vec3<f32>(0.65, 0.28, 0.12);
+    let sunset_space = vec3<f32>(0.06, 0.04, 0.14);
+    let sunset_horizon = vec3<f32>(0.68, 0.30, 0.13);
     
-    let night_space = vec3<f32>(0.002, 0.004, 0.008);
-    let night_horizon = vec3<f32>(0.01, 0.015, 0.035);
+    let night_space = vec3<f32>(0.004, 0.007, 0.016);
+    let night_horizon = vec3<f32>(0.022, 0.032, 0.065);
     
     let space_color = mix(mix(night_space, sunset_space, sunset_factor), day_space, day_factor);
     let horizon_color = mix(mix(night_horizon, sunset_horizon, sunset_factor), day_horizon, day_factor);
+    let sky_amb_col = mix(horizon_color, space_color, 0.35) * 0.55 + vec3<f32>(0.05, 0.065, 0.105);
+    let gnd_amb_col = sky_amb_col * vec3<f32>(0.48, 0.44, 0.40);
     
     let sky_dir_y = max(0.0, rd.y);
-    var color = mix(space_color, horizon_color, sky_dir_y);
+    var color = mix(horizon_color, space_color, pow(sky_dir_y, 0.60));
     
     // Add orbiting sun
     let light_dir = normalize(u.sun_dir.xyz);
@@ -1598,7 +1686,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                     let refl_d = reflect(cur_rd, liq_n);
                     let gi_r1 = sample_gi_world(p + refl_d * 1.9);
                     let gi_r2 = sample_gi_world(p + refl_d * 4.4);
-                    let sky_refl = mix(space_color, horizon_color, max(0.0, refl_d.y)) * clamp((p.y - 6.0) / 20.0, 0.0, 1.0);
+                    let sky_refl = mix(horizon_color, space_color, pow(max(0.0, refl_d.y), 0.60)) * clamp((p.y - 6.0) / 20.0, 0.0, 1.0);
                     var refl_env = max(vec3<f32>(0.0), sky_refl + gi_r1 * 0.68 + gi_r2 * 0.42 + vec3<f32>(0.03, 0.04, 0.06) * l_amb);
 
                     // Sun + Player Headlamp wet meniscus specular glints
@@ -1720,49 +1808,54 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 }
             }
 
-            let gas_val = textureSampleLevel(gas_texture, voxel_sampler, uvw, 0.0);
-            if (gas_val.g > 0.05) {
-                let raw_gas = textureLoad(gas_texture, ip_cell, 0);
-                let mat = materials[u32(round(raw_gas.r)) + 512u];
-                var gas_color = vec3<f32>(mat.r, mat.g, mat.b);
-                var absorb = mat.density;
-                let v_gas = textureSampleLevel(vel_texture, voxel_sampler, uvw, 0.0);
-                let g_spd = length(v_gas.xyz);
-                let p_adv = p - v_gas.xyz * 1.65;
-                
-                let g_id = round(raw_gas.r);
-                if (g_id == 3.0) {
-                    let flicker = sin(u.time * 15.0 + dot(p_adv, vec3<f32>(3.4, 2.6, 3.4))) * 0.15 + 0.85;
-                    let blowtorch = 1.0 + clamp(g_spd * 0.28, 0.0, 0.75);
-                    gas_color = vec3<f32>(mat.r, mat.g * flicker, mat.b + clamp(g_spd * 0.08, 0.0, 0.32)) * blowtorch;
-                    absorb = mat.density * flicker * (1.0 + clamp(g_spd * 0.18, 0.0, 0.45));
-                } else if (g_id == 4.0 || g_id == 1.0) {
-                    let billow_p = p_adv * 2.1 - vec3<f32>(0.0, u.time * 3.2, 0.0);
-                    let billow = 0.55 + 0.45 * (sin(billow_p.x + sin(billow_p.y * 0.8 + billow_p.z)) * cos(billow_p.z - sin(billow_p.y * 0.7 - billow_p.x)));
-                    let g_gi = max(vec3<f32>(0.0), textureSampleLevel(light_texture, voxel_sampler, uvw, 0.0).rgb);
-                    var g_flash = vec3<f32>(0.0);
-                    if (u.cam_pos.w > 0.5) {
-                        let f_att = 1.0 / (1.0 + 0.05 * t + 0.012 * t * t);
-                        g_flash = vec3<f32>(0.9, 0.88, 0.82) * f_att * 1.1;
+            let sp1 = sample_spectral_3d(p * 2.45 - vec3<f32>(0.0, u.time * 0.82, u.time * 0.32));
+            let p_gas = p + sp1.rgb * 0.58;
+            let uvw_gas = wrap_world_uvw(p_gas);
+            let gas_val = textureSampleLevel(gas_texture, voxel_sampler, uvw_gas, 0.0);
+            if (gas_val.g > 0.025) {
+                let gid = resolve_gas_id(p_gas);
+                if (gid >= 1u) {
+                    let sp2 = sample_spectral_3d(p * 6.8 + vec3<f32>(u.time * 0.45, -u.time * 1.35, 0.0));
+                    let dens_mod = clamp(0.74 + 0.56 * (sp1.a * 0.60 + sp2.r * 0.40), 0.25, 1.48) * smoothstep(0.025, 0.15, gas_val.g);
+                    let mat = materials[gid + 512u];
+                    var gas_color = vec3<f32>(mat.r, mat.g, mat.b);
+                    var absorb = mat.density;
+                    let v_gas = textureSampleLevel(vel_texture, voxel_sampler, uvw_gas, 0.0);
+                    let g_spd = length(v_gas.xyz);
+                    let p_adv = p_gas - v_gas.xyz * 1.65;
+
+                    if (gid == 3u) {
+                        let flicker = sin(u.time * 15.0 + dot(p_adv, vec3<f32>(3.4, 2.6, 3.4))) * 0.15 + 0.85;
+                        let blowtorch = 1.0 + clamp(g_spd * 0.28, 0.0, 0.75);
+                        gas_color = vec3<f32>(mat.r, mat.g * flicker, mat.b + clamp(g_spd * 0.08, 0.0, 0.32)) * blowtorch;
+                        absorb = mat.density * flicker * (1.0 + clamp(g_spd * 0.18, 0.0, 0.45));
+                    } else if (gid == 4u || gid == 1u) {
+                        let billow = clamp(0.55 + 0.42 * (sp1.a * 0.55 + sp2.g * 0.45), 0.15, 1.05);
+                        let g_gi = max(vec3<f32>(0.0), textureSampleLevel(light_texture, voxel_sampler, uvw_gas, 0.0).rgb);
+                        var g_flash = vec3<f32>(0.0);
+                        if (u.cam_pos.w > 0.5) {
+                            let f_att = 1.0 / (1.0 + 0.05 * t + 0.012 * t * t);
+                            g_flash = vec3<f32>(0.9, 0.88, 0.82) * f_att * 1.1;
+                        }
+                        let wilson = smoothstep(1.6, 4.2, g_spd) * 0.28;
+                        let puff_shade = 0.72 + 0.36 * billow + wilson;
+                        let g_sky = clamp((p.y - 6.0) / 20.0, 0.08, 1.0);
+                        let g_amb_col = mix(vec3<f32>(0.08, 0.09, 0.12), sky_amb_col * 1.65, g_sky);
+                        let g_sun = vec3<f32>(1.0, 0.95, 0.85) * clamp(u.sun_dir.y * 3.2, 0.0, 0.85) * g_sky * (0.45 + 0.55 * billow);
+                        let g_gi_kneed = (g_gi * 1.30) / (vec3<f32>(1.0) + g_gi * 0.65);
+                        gas_color = (gas_color * puff_shade + vec3<f32>(wilson * 0.45)) * (g_amb_col + g_sun + g_gi_kneed + g_flash);
+                        absorb = mat.density * (0.65 + 0.75 * billow) * (1.0 + clamp(abs(v_gas.w) * 0.35, 0.0, 0.55));
+                    } else if (g_spd > 0.12) {
+                        let wisp = clamp(0.62 + 0.38 * (sp2.b * 0.6 + sp1.a * 0.4), 0.25, 1.05);
+                        let streak = smoothstep(0.12, 2.2, g_spd);
+                        gas_color *= mix(1.0, 0.82 + 0.36 * wisp, streak);
+                        absorb *= mix(1.0, (0.60 + 0.75 * wisp) * (1.0 + clamp(abs(v_gas.w) * 0.35, 0.0, 0.55)), streak);
                     }
-                    let wilson = smoothstep(1.6, 4.2, g_spd) * 0.28;
-                    let puff_shade = 0.72 + 0.36 * billow + wilson;
-                    let g_sky = clamp((p.y - 6.0) / 20.0, 0.08, 1.0);
-                    let g_amb = clamp(u.sun_dir.y * 2.8 + 0.35, 0.16, 0.92) * g_sky;
-                    let g_gi_kneed = (g_gi * 1.30) / (vec3<f32>(1.0) + g_gi * 0.65);
-                    gas_color = (gas_color * puff_shade + vec3<f32>(wilson * 0.45)) * max(vec3<f32>(0.18), vec3<f32>(g_amb) + g_gi_kneed + g_flash);
-                    absorb = mat.density * (0.65 + 0.75 * billow) * (1.0 + clamp(abs(v_gas.w) * 0.35, 0.0, 0.55));
-                } else if (g_spd > 0.12) {
-                    let wisp_p = p_adv * 2.6 - vec3<f32>(0.0, u.time * 1.8, 0.0);
-                    let wisp = 0.62 + 0.38 * (sin(wisp_p.x + sin(wisp_p.y + wisp_p.z)) * cos(wisp_p.z - wisp_p.x));
-                    let streak = smoothstep(0.12, 2.2, g_spd);
-                    gas_color *= mix(1.0, 0.82 + 0.36 * wisp, streak);
-                    absorb *= mix(1.0, (0.60 + 0.75 * wisp) * (1.0 + clamp(abs(v_gas.w) * 0.35, 0.0, 0.55)), streak);
+                    let step_size = max(0.008, step_len);
+                    let alpha = clamp((1.0 - exp(-gas_val.g * step_size * absorb * dens_mod)) * 0.42, 0.0, 0.98);
+                    in_scatter_rgb += trans_rgb * gas_color * alpha;
+                    trans_rgb *= (1.0 - alpha);
                 }
-                let step_size = max(0.008, step_len);
-                let alpha = clamp((1.0 - exp(-gas_val.g * step_size * absorb)) * 0.4, 0.0, 0.98);
-                in_scatter_rgb += trans_rgb * gas_color * alpha;
-                trans_rgb *= (1.0 - alpha);
             }
 
             if (max(trans_rgb.r, max(trans_rgb.g, trans_rgb.b)) < 0.005) {
@@ -1775,19 +1868,18 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 // Hit! Calculate normals using finite differences
                 let eps = 0.5;
                 let n = vec3<f32>(
-                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p + vec3<f32>(eps, 0.0, 0.0), vec3<f32>(0.0), vec3<f32>(160.0))/160.0, 0.0).g - 
-                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p - vec3<f32>(eps, 0.0, 0.0), vec3<f32>(0.0), vec3<f32>(160.0))/160.0, 0.0).g,
-                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p + vec3<f32>(0.0, eps, 0.0), vec3<f32>(0.0), vec3<f32>(160.0))/160.0, 0.0).g - 
-                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p - vec3<f32>(0.0, eps, 0.0), vec3<f32>(0.0), vec3<f32>(160.0))/160.0, 0.0).g,
-                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p + vec3<f32>(0.0, 0.0, eps), vec3<f32>(0.0), vec3<f32>(160.0))/160.0, 0.0).g - 
-                    textureSampleLevel(solid_texture, voxel_sampler, clamp(wrapped_p - vec3<f32>(0.0, 0.0, eps), vec3<f32>(0.0), vec3<f32>(160.0))/160.0, 0.0).g
+                    textureSampleLevel(solid_texture, voxel_sampler, wrap_world_uvw(p + vec3<f32>(eps, 0.0, 0.0)), 0.0).g -
+                    textureSampleLevel(solid_texture, voxel_sampler, wrap_world_uvw(p - vec3<f32>(eps, 0.0, 0.0)), 0.0).g,
+                    textureSampleLevel(solid_texture, voxel_sampler, wrap_world_uvw(p + vec3<f32>(0.0, eps, 0.0)), 0.0).g -
+                    textureSampleLevel(solid_texture, voxel_sampler, wrap_world_uvw(p - vec3<f32>(0.0, eps, 0.0)), 0.0).g,
+                    textureSampleLevel(solid_texture, voxel_sampler, wrap_world_uvw(p + vec3<f32>(0.0, 0.0, eps)), 0.0).g -
+                    textureSampleLevel(solid_texture, voxel_sampler, wrap_world_uvw(p - vec3<f32>(0.0, 0.0, eps)), 0.0).g
                 );
                 let raw_normal = normalize(n);
                 var normal = raw_normal;
                 
-                // Fetch discrete material ID using textureLoad at the nearest integer coordinate (avoids trilinear bleeding!)
-                let ip = vec3<i32>(clamp(wrapped_p, vec3<f32>(0.0), vec3<f32>(159.0)));
-                let raw_voxel = textureLoad(solid_texture, ip, 0);
+                // Fetch discrete solid voxel across the 2x2x2 trilinear SDF cell (never returns MAT_AIR = 0 black patches!)
+                let raw_voxel = resolve_solid_voxel(p, wrapped_p, raw_normal);
                 let mat_id = raw_voxel.r;
                 
                 // Color based on material ID
@@ -1842,12 +1934,10 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 // Ambient Occlusion (deepened inside open structural fissures & spectral micro-cavities)
                 let ao = getAO(p, raw_normal) * mix(1.0, 0.10, crack_core) * mix(1.0, 0.72, surf_imp.micro_cavity);
                 
-                // Blend surface sky ambient with moody deep-subterranean ambient
-                let surf_ambient = clamp(u.sun_dir.y * 3.0 + 0.3, 0.2, 1.0);
-                let ambient_intensity = mix(0.22, surf_ambient, sky_exposure);
-                
-                // Combine Shading with 1-Tap Directional GI Block Light (.rgb, preserving Negative GI Darklight!)
-                let ambient = vec3<f32>(0.15, 0.18, 0.25) * ao * ambient_intensity;
+                // Sky-Hemisphere + Ground-Bounce Ambient blended with moody deep-subterranean ambient
+                let hemi = clamp(normal.y * 0.5 + 0.5, 0.0, 1.0);
+                let cave_amb_col = mix(vec3<f32>(0.028, 0.032, 0.048), vec3<f32>(0.052, 0.062, 0.088), hemi);
+                let ambient = mix(cave_amb_col, mix(gnd_amb_col, sky_amb_col, hemi), sky_exposure) * ao;
                 let direct = vec3<f32>(1.0, 0.95, 0.85) * diffuse * sha * sun_intensity;
                 let gi_bevel_p = p + normal * 0.88;
                 let gi_bevel_w = gi_bevel_p - floor(gi_bevel_p / 160.0) * 160.0;
@@ -2035,14 +2125,17 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                         let light_dir = normalize(u.sun_dir.xyz);
                         let sun_intensity = clamp(u.sun_dir.y * 4.0, 0.0, 1.0) * e_sky;
                         let diffuse = max(dot(normal, light_dir), 0.0);
-                        let ambient = vec3<f32>(0.18, 0.22, 0.30) * mix(0.25, 1.0, e_sky);
+                        let e_hemi = clamp(normal.y * 0.5 + 0.5, 0.0, 1.0);
+                        let e_cave_amb = mix(vec3<f32>(0.032, 0.036, 0.054), vec3<f32>(0.058, 0.068, 0.096), e_hemi);
+                        let ambient = mix(e_cave_amb, mix(gnd_amb_col, sky_amb_col, e_hemi), e_sky);
+                        let e_moon = vec3<f32>(0.7, 0.8, 1.0) * max(dot(normal, -light_dir), 0.0) * clamp(-u.sun_dir.y * 4.0, 0.0, 1.0) * 0.15 * e_sky;
                         let direct = vec3<f32>(1.0, 0.95, 0.85) * diffuse * sun_intensity;
                         var e_flash = vec3<f32>(0.0);
                         if (u.cam_pos.w > 0.5) {
                             let f_att = 1.0 / (1.0 + 0.04 * ent_t + 0.009 * ent_t * ent_t);
                             e_flash = vec3<f32>(1.0, 0.96, 0.88) * f_att * 2.4 * max(dot(normal, -rd), 0.15);
                         }
-                        let lit_env = direct + ambient + e_gi + e_flash;
+                        let lit_env = direct + ambient + e_moon + e_gi + e_flash;
 
                         if (ent_kind >= 7.5) {
                             // Geometric Lawmancer Shading (8.0..13.5): Inner Sphere (Law color) + Orbiting Torus & Crown +/- (Polarity color), split 50/50 for Dual Lawmancers!
@@ -2326,13 +2419,13 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         }
         
         if (hit) {
-            // Apply linear atmospheric distance fog ending at the world box boundary (88 units)
-            let fog_factor = clamp((t - 44.0) / 44.0, 0.0, 1.0);
-            
-            // Fade fog color to pitch black underground so huge caverns contrast against the abyss
+            // Smooth 2-stage exponential aerial-perspective haze + clean boundary fade at 88m
+            let haze_d = max(0.0, t - 10.0);
+            let fog_factor = clamp((1.0 - exp(-0.00038 * haze_d * haze_d)) * 0.65 + smoothstep(56.0, 87.5, t), 0.0, 1.0);
             let depth_fade = clamp(((ro.y + rd.y * t) - 4.0) / 20.0, 0.0, 1.0);
-            let fog_color = mix(space_color, horizon_color, max(0.0, rd.y)) * depth_fade;
-            
+            let base_haze = mix(horizon_color, space_color, pow(max(0.0, rd.y), 0.60));
+            let mie_sun = vec3<f32>(0.55, 0.40, 0.22) * pow(max(dot(rd, light_dir), 0.0), 8.0) * clamp(sun_h * 4.0 + 0.4, 0.0, 1.0);
+            let fog_color = (base_haze + mie_sun) * depth_fade;
             color = mix(hit_color, fog_color, fog_factor);
         } else {
             let far_y = ro.y + rd.y * min(t_far, 88.0);
@@ -2452,7 +2545,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 textureSampleLevel(gas_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r +
                 textureSampleLevel(vel_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r;
     var out: FragmentOutput;
-    out.color = vec4<f32>(color + dummy * 0.000001, 1.0);
+    out.color = vec4<f32>(tonemap_pbr_neutral(color) + dummy * 0.000001, 1.0);
     out.depth = final_depth;
     return out;
 }

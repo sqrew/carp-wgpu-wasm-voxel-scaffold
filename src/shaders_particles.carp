@@ -499,6 +499,27 @@ fn solid_visual(sidx: u32) -> vec4<f32> {
     return out;
 }
 
+fn tonemap_glow(color_in: vec3<f32>) -> vec3<f32> {
+    let start_comp: f32 = 0.72;
+    let desat: f32 = 0.18;
+    var c = max(color_in, vec3<f32>(0.0));
+    let peak = max(c.r, max(c.g, c.b));
+    if (peak < start_comp) { return c; }
+    let d = 1.0 - start_comp;
+    let new_peak = 1.0 - (d * d) / (peak + d - start_comp);
+    c = c * (new_peak / max(peak, 0.0001));
+    let g = 1.0 - 1.0 / (desat * (peak - new_peak) + 1.0);
+    return mix(c, vec3<f32>(new_peak), g);
+}
+
+fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32) -> vec4<f32> {
+    let tm = tonemap_glow(raw_rgb * 0.85) * 1.05;
+    let peak = max(tm.r, max(tm.g, tm.b));
+    let halo_a = peak * mix(0.28, 0.84, clamp(peak, 0.0, 1.0));
+    let out_a = clamp(max(body_a, halo_a), 0.0, 0.95);
+    return vec4<f32>(tm, out_a);
+}
+
 @fragment fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let d = length(in.uv - vec2<f32>(0.5));
     if (d > 0.5) { discard; }
@@ -507,12 +528,12 @@ fn solid_visual(sidx: u32) -> vec4<f32> {
     let core = pow(radial, 2.0);
 
     if (in.ptype == 0u) {
-        // 0: Sparks - burning ember with additive glow (alpha = 0 for pure additive)
+        // 0: Sparks - burning ember with self-attenuating luminous glow
         let r = mix(0.4, 1.0, in.t);
         let g = mix(0.05, 0.95, in.t * in.t);
         let b = mix(0.0, 0.45, in.t * in.t * in.t);
         let rgb = vec3<f32>(r, g, b) * (core * 2.0);
-        return vec4<f32>(rgb, 0.0);
+        return pack_luminous_premul(rgb, 0.0);
     } else if (in.ptype == 1u) {
         // 1: Dust - soft earthy sandstone puff (premultiplied alpha)
         let alpha = in.t * radial * 0.55;
@@ -534,7 +555,7 @@ fn solid_visual(sidx: u32) -> vec4<f32> {
         let spec = pow(clamp(1.0 - length(in.uv - vec2<f32>(0.36, 0.64)) * 3.0, 0.0, 1.0), 3.0) * 0.35;
         if (vis.w > 0.5) {
             let rgb = (vis.rgb + vec3<f32>(spec)) * (core * 2.1);
-            return vec4<f32>(rgb, 0.0);
+            return pack_luminous_premul(rgb, clamp(core * 0.45, 0.0, 0.85));
         }
         let alpha = clamp(smoothstep(0.05, 0.42, radial) * (0.35 + 0.6 * in.t), 0.0, 0.92);
         let rgb = vis.rgb * (0.75 + 0.35 * radial) + vec3<f32>(spec);
@@ -544,7 +565,7 @@ fn solid_visual(sidx: u32) -> vec4<f32> {
         let vis = gas_visual(in.ptype - 200u);
         if (vis.w > 0.5) {
             let rgb = vis.rgb * (core * 2.1 * in.t);
-            return vec4<f32>(rgb, 0.0);
+            return pack_luminous_premul(rgb, 0.0);
         }
         let alpha = in.t * radial * 0.48;
         return vec4<f32>(vis.rgb * alpha, alpha);
@@ -554,7 +575,7 @@ fn solid_visual(sidx: u32) -> vec4<f32> {
         let spec = pow(radial, 3.0) * 0.3;
         if (vis.w > 0.5) {
             let rgb = (vis.rgb + vec3<f32>(spec)) * (core * 2.2);
-            return vec4<f32>(rgb, 0.0);
+            return pack_luminous_premul(rgb, clamp(core * 0.35, 0.0, 0.80));
         }
         let alpha = clamp(radial * 0.85, 0.0, 0.9);
         let rgb = vis.rgb + vec3<f32>(spec);
@@ -566,16 +587,16 @@ fn solid_visual(sidx: u32) -> vec4<f32> {
         let shade = 0.68 + 0.38 * clamp(1.0 - length(in.uv - vec2<f32>(0.35, 0.65)) * 1.6, 0.0, 1.0);
         if (vis.w > 0.5) {
             let rgb = vis.rgb * (core * 2.0 + 0.35);
-            return vec4<f32>(rgb, 0.0);
+            return pack_luminous_premul(rgb, smoothstep(0.22, 0.44, radial) * 0.65);
         }
         let alpha = smoothstep(0.22, 0.44, radial);
         let rgb = vis.rgb * shade;
         return vec4<f32>(rgb * alpha, alpha);
     } else {
-        // 4: Magic - electric cyan/magenta plasma with intense additive glow
+        // 4: Magic - electric cyan/magenta plasma with self-attenuating luminous glow
         let c = mix(vec3<f32>(0.85, 0.15, 0.95), vec3<f32>(0.12, 0.92, 1.0), in.t);
         let rgb = c * (core * 2.5);
-        return vec4<f32>(rgb, 0.0);
+        return pack_luminous_premul(rgb, 0.0);
     }
 }
 ")
@@ -791,6 +812,27 @@ struct BoltVertexOut {
     return out;
 }
 
+fn tonemap_glow(color_in: vec3<f32>) -> vec3<f32> {
+    let start_comp: f32 = 0.72;
+    let desat: f32 = 0.18;
+    var c = max(color_in, vec3<f32>(0.0));
+    let peak = max(c.r, max(c.g, c.b));
+    if (peak < start_comp) { return c; }
+    let d = 1.0 - start_comp;
+    let new_peak = 1.0 - (d * d) / (peak + d - start_comp);
+    c = c * (new_peak / max(peak, 0.0001));
+    let g = 1.0 - 1.0 / (desat * (peak - new_peak) + 1.0);
+    return mix(c, vec3<f32>(new_peak), g);
+}
+
+fn pack_luminous_premul(raw_rgb: vec3<f32>, body_a: f32) -> vec4<f32> {
+    let tm = tonemap_glow(raw_rgb * 0.85) * 1.05;
+    let peak = max(tm.r, max(tm.g, tm.b));
+    let halo_a = peak * mix(0.28, 0.84, clamp(peak, 0.0, 1.0));
+    let out_a = clamp(max(body_a, halo_a), 0.0, 0.95);
+    return vec4<f32>(tm, out_a);
+}
+
 @fragment fn fs_main(in: BoltVertexOut) -> @location(0) vec4<f32> {
     let half_seg = max(0.0, in.stretch_time.x - 1.0);
     let cx = clamp(in.local_xy.x, -half_seg, half_seg);
@@ -820,7 +862,7 @@ struct BoltVertexOut {
         let steel_tint = mix(base_col, vec3<f32>(0.68, 0.96, 1.0), 0.35);
         let hot_edge = mix(steel_tint, vec3<f32>(1.0, 0.995, 0.98), clamp(inner_bevel * 0.85 + saw_rim * 0.72 + glint * 0.65, 0.0, 1.0));
         let corona = steel_tint * (saw_rim * 1.55 + inner_bevel * 1.15 + exp(-abs(rc - 0.95) * 2.8) * 0.48);
-        return vec4<f32>(hot_edge * alpha + corona, alpha);
+        return pack_luminous_premul(hot_edge * alpha + corona, alpha);
     }
 
     // Style 13: Caltrop Proximity Mine — tumbling 4-prong tetrahedral steel spikes + pulsing armed sensor beacon!
@@ -844,7 +886,7 @@ struct BoltVertexOut {
         let beacon_col = mix(base_col, vec3<f32>(1.0, 0.28, 0.12), armed * 0.62);
         let surf_rgb = mix(iron_col * (0.55 + 0.65 * prongs4), vec3<f32>(1.0, 0.97, 0.92), clamp(hub * (0.55 + 0.45 * strobe) + prongs4 * 0.35, 0.0, 1.0));
         let glow_rgb = beacon_col * (hub * (0.85 + 1.35 * armed * strobe) + prox_ring * 1.65 + prongs4 * 0.55);
-        return vec4<f32>(surf_rgb * metal_body + glow_rgb, alpha);
+        return pack_luminous_premul(surf_rgb * metal_body + glow_rgb, alpha);
     }
 
     // Style 10: Supernova Solar Star — roiling convective photosphere + whipping prominence loops + blue-white core-collapse flash!
@@ -866,7 +908,7 @@ struct BoltVertexOut {
         let surf_hot = clamp(gran * 0.75 + (1.0 - min(r, 1.0)) * 0.62 + limb * 0.55 + pinch * 0.75, 0.0, 1.0);
         let surf_rgb = mix(pinch_col * 0.82, vec3<f32>(1.0, 0.99, 0.94), surf_hot);
         let corona = pinch_col * (limb * 1.65 + prom * 2.10 + rays * 0.95 + exp(-r * 1.15) * (0.72 + pinch * 1.25));
-        return vec4<f32>(surf_rgb * sphere_mask + corona, alpha);
+        return pack_luminous_premul(surf_rgb * sphere_mask + corona, alpha);
     }
 
     // Style 11: Gargantua Black Hole (`Invert` + `Supernova`) — opaque pitch-black Event Horizon + Einstein ring + Doppler accretion disk!
@@ -887,7 +929,10 @@ struct BoltVertexOut {
         let bh_tint = mix(base_col, vec3<f32>(0.78, 0.42, 1.0), 0.40);
         let hot_disk = mix(bh_tint, vec3<f32>(1.0, 0.97, 0.92), clamp(einstein * 0.88 + disk_band * 0.55 * doppler, 0.0, 1.0));
         let rgb_out = hot_disk * glow_ring * (1.0 - horizon * 0.97);
-        return vec4<f32>(rgb_out, void_alpha);
+        let tm_bh = tonemap_glow(rgb_out * 0.86) * 1.05;
+        let bh_peak = max(tm_bh.r, max(tm_bh.g, tm_bh.b));
+        let bh_alpha = clamp(max(void_alpha, bh_peak * mix(0.28, 0.84, clamp(bh_peak, 0.0, 1.0))), 0.0, 0.996);
+        return vec4<f32>(tm_bh, bh_alpha);
     }
 
     // Style 9: Ophanim Gyro-Mill — two +/-45 deg counter-rotating 20-tooth diamond saw-wheels + inner gimbal + blazing shear eye!
@@ -915,7 +960,7 @@ struct BoltVertexOut {
         let hot = mix(gold_tint, vec3<f32>(1.0, 0.995, 0.97), clamp(rings * 0.68 + iris * 0.90 + eye_core * 0.72, 0.0, 1.0));
         let eye_rgb = mix(hot, base_col * 0.06, slit * 0.88);
         let corona = gold_tint * (rings * 1.75 + iris * 1.75 + exp(-r * 1.25) * 0.65) * (1.0 - 0.62 * slit);
-        return vec4<f32>(eye_rgb * alpha + corona, alpha);
+        return pack_luminous_premul(eye_rgb * alpha + corona, alpha);
     }
 
     // Style 8: Phase-Wave Crest — foaming parabolic bow-wave crescent + turbulent trailing surf ribs!
@@ -933,7 +978,7 @@ struct BoltVertexOut {
         if (alpha < 0.015) { discard; }
         let hot = mix(base_col, vec3<f32>(1.0, 0.99, 0.97), clamp(foam * 0.88 + wake_body * 0.22, 0.0, 1.0));
         let corona = base_col * (crest_edge * 1.45 + wake_body * 0.95);
-        return vec4<f32>(hot * alpha + corona, alpha);
+        return pack_luminous_premul(hot * alpha + corona, alpha);
     }
 
     // Style 6: Maelstrom Storm-Eye Seed — visible compressed storm pearl during throw, vanishing into a faint eye shimmer once anchored!
@@ -946,7 +991,7 @@ struct BoltVertexOut {
         let alpha = clamp(seed_core * 0.85 + eye_ring * 0.72, 0.0, 0.88);
         let hot = mix(base_col, vec3<f32>(1.0, 0.99, 0.96), clamp(seed_core * 0.75 + eye_ring * 0.25, 0.0, 0.90));
         let corona = base_col * (eye_ring * (0.28 + 0.95 * throw_t) + exp(-r * 2.4) * 0.45 * throw_t);
-        return vec4<f32>(hot * alpha + corona, alpha);
+        return pack_luminous_premul(hot * alpha + corona, alpha);
     }
 
     // Style 7: Starburst Seed — blazing 8-ray comet during throw, collapsing into an inward-sucking singularity star during THE BIG SUCC!
@@ -966,7 +1011,7 @@ struct BoltVertexOut {
         let bright = mix(base_col, vec3<f32>(1.0, 0.99, 0.96), clamp(star_core * 0.90 + horizon_rim * 0.78 + rays8 * 0.42, 0.0, 1.0));
         let core_rgb = mix(bright, base_col * 0.06, dark_throat * 0.92);
         let corona = base_col * (rays8 * 1.55 + succ_rings * 1.65 + horizon_rim * 1.85 + exp(-r * 1.55) * 0.85) * (1.0 - 0.75 * dark_throat);
-        return vec4<f32>(core_rgb * alpha + corona, alpha);
+        return pack_luminous_premul(core_rgb * alpha + corona, alpha);
     }
 
     // Style 1: Rail-Lance — incandescent white-hot sabot core + pulsing supersonic Mach shock-rings!
@@ -977,7 +1022,7 @@ struct BoltVertexOut {
         let alpha = clamp(core_spear * 0.96 + mach_ring * 0.62 + outer_flare * 0.32, 0.0, 0.96);
         let hot = mix(base_col, vec3<f32>(1.0, 0.99, 0.97), clamp(core_spear * 0.92 + mach_ring * 0.38, 0.0, 1.0));
         let corona = base_col * (outer_flare * 1.55 + mach_ring * 1.35);
-        return vec4<f32>(hot * alpha + corona, alpha);
+        return pack_luminous_premul(hot * alpha + corona, alpha);
     }
 
     // Style 4: Luminous Drill — high-frequency humming laser needle + reagent plasma sheath!
@@ -987,7 +1032,7 @@ struct BoltVertexOut {
         let sheath = exp(-r * 2.25) * hum;
         let alpha = clamp(needle * 0.92 + sheath * 0.48, 0.0, 0.95);
         let hot = mix(base_col, vec3<f32>(1.0, 0.99, 0.97), clamp(needle * 0.85, 0.0, 1.0));
-        return vec4<f32>(hot * alpha + base_col * sheath * 1.15, alpha);
+        return pack_luminous_premul(hot * alpha + base_col * sheath * 1.15, alpha);
     }
 
     // Style 3: Gyre Vortex — swirling cyclone torus + blazing eye-wall!
@@ -999,7 +1044,7 @@ struct BoltVertexOut {
         let alpha = clamp(ring * 0.78 + core_eye * 0.65, 0.0, 0.90);
         let hot = mix(base_col, vec3<f32>(1.0, 0.98, 0.95), core_eye * 0.55 + ring * 0.35);
         let corona = base_col * (exp(-r * 1.85) * (0.95 + 0.55 * spiral) + ring * 1.15);
-        return vec4<f32>(hot * alpha + corona, alpha);
+        return pack_luminous_premul(hot * alpha + corona, alpha);
     }
 
     // Style 5: Nova / Bulwark — incandescent star-core + rotating hexagonal prism shield-ring!
@@ -1012,7 +1057,7 @@ struct BoltVertexOut {
         let alpha = clamp(star_core * 0.94 + prism_ring * 0.72 + corona_glow * 0.28, 0.0, 0.95);
         let hot = mix(base_col, vec3<f32>(1.0, 0.99, 0.96), clamp(star_core * 0.88 + prism_ring * 0.35, 0.0, 1.0));
         let corona = base_col * (corona_glow * 1.20 + prism_ring * 1.15);
-        return vec4<f32>(hot * alpha + corona, alpha);
+        return pack_luminous_premul(hot * alpha + corona, alpha);
     }
 
     // Matte / Solid Mineral Slug (glow < 0.5): crisp analytical 3D sphere + subtle kinetic rim
@@ -1033,13 +1078,13 @@ struct BoltVertexOut {
         return vec4<f32>(rgb * alpha, alpha);
     }
 
-    // Incandescent Orb / Cluster Mortar: analytical white-hot plasma core + HDR corona!
+    // Incandescent Orb / Cluster Mortar: analytical white-hot plasma core + self-attenuating HDR corona!
     let nz = sqrt(max(0.0, 1.0 - min(r * r, 1.0)));
     let body_a = smoothstep(1.04, 0.78, r) * clamp(0.68 + 0.16 * glow_amt, 0.68, 0.92);
     let warhead_pulse = select(1.0, 0.85 + 0.30 * sin(t * 22.0 + r * 8.0), in.style == 2u);
     let hot_core = mix(base_col, vec3<f32>(1.0, 0.99, 0.96), pow(nz, 2.1) * 0.72);
     let halo = exp(-max(0.0, r - 0.35) * 2.55) * (0.75 + 0.45 * glow_amt) * warhead_pulse;
-    return vec4<f32>(hot_core * body_a + base_col * halo, body_a);
+    return pack_luminous_premul(hot_core * body_a + base_col * halo, body_a);
 }
 ")
 
@@ -1603,10 +1648,10 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 ")
 
 ;; ---------------------------------------------------------------------------
-;; 4-Segment Curved Botanical Ribbon Render Pass (Opaque, DepthWrite = true)
-;;   - 24 vertices/strand, 5-tap vs_main dappled tree-canopy & cliff SDF shadows
-;;   - 4-tap vs_main volumetric Smoke/Fire/Spore/Waterfall view-ray veil
-;;   - Voxel stain inheritance (Blood, Oil, Ambrosia, Acid, Wet) + burning char!
+;; 3-Blade Tousled Botanical Tuft & Ribbon Render Pass (Opaque, DepthWrite = true)
+;;   - 54 vertices/slot (3 blades x 3 curved segments x 6 verts; 1-ribbon early-out for vines/spores)
+;;   - Soil-locked terrain macro-normal hillside shadow gating + 5-tap canopy SDF shadows
+;;   - 4-tap vs_main volumetric Smoke/Fire/Spore/Waterfall view-ray veil + unified aerial haze & tonemap!
 ;; ---------------------------------------------------------------------------
 (def flora-render-wgsl
   "struct FloraStrand {
@@ -1639,11 +1684,30 @@ struct FloraVertexOut {
     @location(2) uv_phase: vec4<f32>,
     @location(3) veil_rgba: vec4<f32>,
     @location(4) @interpolate(flat) kind_mat: vec2<u32>,
+    @location(5) terr_light: vec3<f32>,
 }
 
 fn wrap_f160(p: vec3<f32>) -> vec3<i32> {
     let w = p - floor(p / 160.0) * 160.0;
     return vec3<i32>(clamp(w, vec3<f32>(0.0), vec3<f32>(159.0)));
+}
+
+fn tonemap_pbr_neutral(color_in: vec3<f32>) -> vec3<f32> {
+    let start_comp: f32 = 0.76;
+    let desat: f32 = 0.15;
+    var c = max(color_in, vec3<f32>(0.0));
+    let x = min(c.r, min(c.g, c.b));
+    let offset = select(0.04, x - 6.25 * x * x, x < 0.08);
+    c = c - vec3<f32>(offset);
+    let peak = max(c.r, max(c.g, c.b));
+    if (peak < start_comp) {
+        return c;
+    }
+    let d = 1.0 - start_comp;
+    let new_peak = 1.0 - (d * d) / (peak + d - start_comp);
+    c = c * (new_peak / max(peak, 0.0001));
+    let g = 1.0 - 1.0 / (desat * (peak - new_peak) + 1.0);
+    return mix(c, vec3<f32>(new_peak), g);
 }
 
 fn gas_veil_info(gid: u32) -> vec4<f32> {
@@ -1699,7 +1763,18 @@ fn sample_gi_trilinear(pos: vec3<f32>) -> vec3<f32> {
     return mix(cxy0, cxy1, f.z);
 }
 
-fn eval_strand_pt(s: f32, root: vec3<f32>, signed_len: f32, disp: vec2<f32>, t: f32, ph: f32, kind: u32, sub_u: u32) -> vec3<f32> {
+fn eval_strand_pt(
+    s: f32,
+    root: vec3<f32>,
+    signed_len: f32,
+    disp: vec2<f32>,
+    t: f32,
+    ph: f32,
+    dir_az: vec2<f32>,
+    kind: u32,
+    sub_u: u32,
+    is_detached: u32
+) -> vec3<f32> {
     let abs_l = abs(signed_len);
     if (signed_len > 0.0) {
         let s2 = s * s;
@@ -1711,7 +1786,18 @@ fn eval_strand_pt(s: f32, root: vec3<f32>, signed_len: f32, disp: vec2<f32>, t: 
             sin(t * 3.4 + ph * 6.28318 + s * 3.2),
             cos(t * 2.8 + ph * 5.12 + s * 2.7)
         ) * flutter_amp;
-        let lean = select(vec2<f32>(0.0), vec2<f32>(cos(ph * 6.28318), sin(ph * 6.28318)) * (0.24 * abs_l * s), kind == 4u);
+        let droop_j = fract(ph * 7.13);
+        var droop_amt: f32 = mix(0.32, 0.58, droop_j);
+        if (is_detached == 1u) {
+            droop_amt = 0.35;
+        } else if (kind == 2u) {
+            droop_amt = select(mix(0.28, 0.50, droop_j), 0.18, sub_u == 1u);
+        } else if (kind == 3u) {
+            droop_amt = mix(0.10, 0.24, droop_j);
+        } else if (kind == 4u) {
+            droop_amt = mix(0.38, 0.64, droop_j);
+        }
+        let lean = dir_az * (droop_amt * abs_l * (0.32 * s + 0.68 * s2));
         let h_xz = disp * s2 + flutter + lean;
         let h2 = dot(h_xz, h_xz);
         let seg_l = s * abs_l;
@@ -1754,7 +1840,7 @@ fn strand_width_scale(s: f32, kind: u32, sub_u: u32) -> f32 {
     // Keep @binding(4) solid_texture and @binding(5) gas_texture unconditionally live in WebGPU auto-layout!
     let dummy_keep = (textureLoad(solid_texture, vec3<i32>(0), 0).r + textureLoad(gas_texture, vec3<i32>(0), 0).r) * 0.0;
 
-    let strand_idx = vi / 24u;
+    let strand_idx = vi / 54u;
     if (strand_idx >= 65536u) {
         out.clip_position = vec4<f32>(2.0 + dummy_keep, 2.0, 2.0, 1.0);
         return out;
@@ -1762,6 +1848,29 @@ fn strand_width_scale(s: f32, kind: u32, sub_u: u32) -> f32 {
 
     let st = flora[strand_idx];
     if (st.len_kind == 0u) {
+        out.clip_position = vec4<f32>(2.0 + dummy_keep, 2.0, 2.0, 1.0);
+        return out;
+    }
+
+    let lk = unpack2x16float(st.len_kind);
+    let raw_kind = u32(lk.y + 0.5);
+    let is_detached = select(0u, 1u, raw_kind >= 9u);
+    let kind = select(raw_kind, raw_kind - 8u, is_detached == 1u);
+    let mp = st.mat_packed;
+    let flag16 = (mp >> 16u) & 1u;
+    let sub_u = select(flag16, 0u, is_detached == 1u);
+
+    let sub_vi = vi % 54u;
+    let blade_k = sub_vi / 18u;
+    var max_blades: u32 = 1u;
+    if (is_detached == 0u) {
+        if (kind == 1u || kind == 4u || (kind == 2u && sub_u == 0u)) {
+            max_blades = 3u;
+        } else if (kind == 2u && sub_u == 1u) {
+            max_blades = 2u;
+        }
+    }
+    if (blade_k >= max_blades) {
         out.clip_position = vec4<f32>(2.0 + dummy_keep, 2.0, 2.0, 1.0);
         return out;
     }
@@ -1779,26 +1888,55 @@ fn strand_width_scale(s: f32, kind: u32, sub_u: u32) -> f32 {
         return out;
     }
 
-    let lk = unpack2x16float(st.len_kind);
     let signed_len = lk.x * edge_fade;
     if (abs(signed_len) < 0.04) {
         out.clip_position = vec4<f32>(2.0 + dummy_keep, 2.0, 2.0, 1.0);
         return out;
     }
-    let raw_kind = u32(lk.y + 0.5);
-    let is_detached = select(0u, 1u, raw_kind >= 9u);
-    let kind = select(raw_kind, raw_kind - 8u, is_detached == 1u);
-    let mp = st.mat_packed;
+
     let mat_id = mp & 255u;
     let base_w = f32((mp >> 8u) & 255u) * 0.001 * mix(0.45, 1.0, edge_fade);
-    let flag16 = (mp >> 16u) & 1u;
-    let sub_u = select(flag16, 0u, is_detached == 1u);
     let burn_u = select(0u, flag16, is_detached == 1u);
     let stain_u = (mp >> 20u) & 15u;
     let ph = f32((mp >> 24u) & 255u) / 255.0;
     let env_t = u.cam_up.w;
 
-    let local_v = vi % 24u;
+    // Terrain macro-normal (+/-1.0 integer texel differences) & crevice AO around root_pos!
+    let gx = textureLoad(solid_texture, wrap_f160(st.root_pos + vec3<f32>(1.0, 0.0, 0.0)), 0).g
+           - textureLoad(solid_texture, wrap_f160(st.root_pos - vec3<f32>(1.0, 0.0, 0.0)), 0).g;
+    let gy = textureLoad(solid_texture, wrap_f160(st.root_pos + vec3<f32>(0.0, 1.0, 0.0)), 0).g
+           - textureLoad(solid_texture, wrap_f160(st.root_pos - vec3<f32>(0.0, 1.0, 0.0)), 0).g;
+    let gz = textureLoad(solid_texture, wrap_f160(st.root_pos + vec3<f32>(0.0, 0.0, 1.0)), 0).g
+           - textureLoad(solid_texture, wrap_f160(st.root_pos - vec3<f32>(0.0, 0.0, 1.0)), 0).g;
+    let raw_tn = vec3<f32>(gx, gy, gz);
+    let default_n = vec3<f32>(0.0, select(-1.0, 1.0, signed_len > 0.0), 0.0);
+    let terr_n = select(default_n, normalize(raw_tn), dot(raw_tn, raw_tn) > 0.001);
+    let ao_probe = textureLoad(solid_texture, wrap_f160(st.root_pos + terr_n * 1.05), 0).g * 0.5;
+    let terr_ao = clamp(0.42 + ao_probe * 0.58, 0.36, 1.0);
+
+    // 120-deg botanical rosette fan, slope-hugging basal offset & staggered tuft hierarchy!
+    let bk_f = f32(blade_k);
+    let az = ph * 6.283185 + bk_f * 2.094395 + sin(ph * 19.3 + bk_f * 4.1) * 0.42;
+    let dir_az = vec2<f32>(cos(az), sin(az));
+    let blade_ph = fract(ph + bk_f * 0.37);
+
+    var blade_root = st.root_pos;
+    var len_mul: f32 = 1.0;
+    var wid_mul: f32 = 1.0;
+    if (max_blades > 1u) {
+        let rad_off = (0.04 + 0.085 * bk_f) * edge_fade;
+        let off_xz = dir_az * rad_off;
+        let slope_y = clamp(-(terr_n.x * off_xz.x + terr_n.z * off_xz.y) / max(terr_n.y, 0.35), -0.18, 0.18);
+        blade_root = st.root_pos + vec3<f32>(off_xz.x, slope_y - 0.02, off_xz.y);
+        var l_arr = array<f32, 3>(1.04, 0.85, 0.68);
+        var w_arr = array<f32, 3>(1.24, 1.10, 0.96);
+        len_mul = l_arr[blade_k];
+        wid_mul = w_arr[blade_k];
+    }
+    let blade_len = signed_len * len_mul;
+    let blade_w = base_w * wid_mul;
+
+    let local_v = sub_vi % 18u;
     let seg_idx = local_v / 6u;
     let tri_v = local_v % 6u;
 
@@ -1810,27 +1948,28 @@ fn strand_width_scale(s: f32, kind: u32, sub_u: u32) -> f32 {
     else if (tri_v == 4u) { joint_u = seg_idx; side_sgn = 1.0; }
     else if (tri_v == 5u) { joint_u = seg_idx + 1u; side_sgn = 1.0; }
 
-    let s = f32(joint_u) * 0.25;
+    let s = f32(joint_u) * 0.33333334;
     let disp_raw = unpack2x16float(st.disp_xz);
     let disp = select(disp_raw, vec2<f32>(disp_raw.x, disp_raw.x * 0.65), is_detached == 1u) * edge_fade;
 
-    let pt = eval_strand_pt(s, st.root_pos, signed_len, disp, env_t, ph, kind, sub_u);
-    let pt_a = eval_strand_pt(max(0.0, s - 0.12), st.root_pos, signed_len, disp, env_t, ph, kind, sub_u);
-    let pt_b = eval_strand_pt(min(1.0, s + 0.12), st.root_pos, signed_len, disp, env_t, ph, kind, sub_u);
+    let pt = eval_strand_pt(s, blade_root, blade_len, disp, env_t, blade_ph, dir_az, kind, sub_u, is_detached);
+    let pt_a = eval_strand_pt(max(0.0, s - 0.15), blade_root, blade_len, disp, env_t, blade_ph, dir_az, kind, sub_u, is_detached);
+    let pt_b = eval_strand_pt(min(1.0, s + 0.15), blade_root, blade_len, disp, env_t, blade_ph, dir_az, kind, sub_u, is_detached);
 
-    let tang = normalize((pt_b - pt_a) + vec3<f32>(0.0, select(-0.0001, 0.0001, signed_len > 0.0), 0.0));
+    let tang = normalize((pt_b - pt_a) + vec3<f32>(0.0, select(-0.0001, 0.0001, blade_len > 0.0), 0.0));
     let view_v = pt - u.cam_pos.xyz;
     let dist_v = length(view_v);
     let c_tv = cross(tang, view_v);
     let c_len = length(c_tv);
     let side = select(u.cam_right.xyz, c_tv / max(c_len, 0.0001), c_len > 0.001);
-    let half_w = base_w * strand_width_scale(s, kind, sub_u);
+    let half_w = blade_w * strand_width_scale(s, kind, sub_u);
     let wpos = pt + side * (side_sgn * half_w);
 
     let face_n = normalize(cross(side, tang) * select(-1.0, 1.0, dot(cross(side, tang), -view_v) >= 0.0));
-    let rib_n = normalize(face_n * 0.80 + side * (side_sgn * 0.60) + vec3<f32>(0.0, 0.35, 0.0));
+    let raw_rib_n = normalize(face_n * 0.80 + side * (side_sgn * 0.60) + vec3<f32>(0.0, 0.35, 0.0));
+    let rib_n = select(raw_rib_n, normalize(mix(terr_n, raw_rib_n, 0.35 + 0.45 * s)), blade_len > 0.0 && is_detached == 0u);
 
-    // 1. 5-Tap Per-Vertex Dappled Tree-Canopy & Cliff Overhang SDF Sun Shadow!
+    // 1. 5-Tap Per-Vertex Dappled Tree-Canopy & Cliff Overhang SDF Sun Shadow + Hillside Macro-Normal Gating!
     let sun_ang_v = env_t * 0.15;
     let sun_dir_v = normalize(vec3<f32>(cos(sun_ang_v), sin(sun_ang_v), 0.3));
     let sky_exp_v = clamp((wpos.y - 6.0) / 18.0, 0.0, 1.0);
@@ -1841,6 +1980,18 @@ fn strand_width_scale(s: f32, kind: u32, sub_u: u32) -> f32 {
         for (var si: u32 = 0u; si < 5u; si = si + 1u) {
             let hs = textureLoad(solid_texture, wrap_f160(sh_o + sun_dir_v * ts[si]), 0).g * 0.5;
             sun_sha = min(sun_sha, clamp(0.08 + hs * 0.78, 0.08, 1.0));
+        }
+    }
+
+    var hill_sun: f32 = sun_sha;
+    var hill_moon: f32 = 1.0;
+    if (is_detached == 0u) {
+        if (blade_len > 0.0) {
+            hill_sun = smoothstep(-0.05, 0.28, dot(terr_n, sun_dir_v)) * sun_sha;
+            hill_moon = smoothstep(-0.05, 0.28, dot(terr_n, -sun_dir_v));
+        } else {
+            hill_sun = sun_sha * 0.78;
+            hill_moon = 0.65;
         }
     }
 
@@ -1893,9 +2044,10 @@ fn strand_width_scale(s: f32, kind: u32, sub_u: u32) -> f32 {
     out.clip_position = u.view_proj * vec4<f32>(wpos, 1.0) + vec4<f32>(dummy_keep, 0.0, 0.0, 0.0);
     out.world_pos = wpos;
     out.ribbon_n = rib_n;
-    out.uv_phase = vec4<f32>(side_sgn, s, ph, sun_sha);
+    out.uv_phase = vec4<f32>(side_sgn, s, blade_ph, sun_sha);
     out.veil_rgba = vec4<f32>(inscat_v, trans_v);
     out.kind_mat = vec2<u32>(kind | (sub_u << 8u) | (burn_u << 9u) | (stain_u << 10u), mat_id);
+    out.terr_light = vec3<f32>(hill_sun, hill_moon, terr_ao);
     return out;
 }
 
@@ -1903,12 +2055,14 @@ fn strand_width_scale(s: f32, kind: u32, sub_u: u32) -> f32 {
     let side_u = in.uv_phase.x;
     let s = clamp(in.uv_phase.y, 0.0, 1.0);
     let ph = in.uv_phase.z;
-    let sun_sha = in.uv_phase.w;
     let kind = in.kind_mat.x & 255u;
     let sub_u = (in.kind_mat.x >> 8u) & 1u;
     let burn_u = (in.kind_mat.x >> 9u) & 1u;
     let stain_u = (in.kind_mat.x >> 10u) & 15u;
     let mat_id = in.kind_mat.y;
+    let hill_sun = in.terr_light.x;
+    let hill_moon = in.terr_light.y;
+    let terr_ao = in.terr_light.z;
     let env_t = u.cam_up.w;
 
     // Keep @binding(2) and @binding(3) unconditionally live for WebGPU auto-layout
@@ -1937,8 +2091,8 @@ fn strand_width_scale(s: f32, kind: u32, sub_u: u32) -> f32 {
     var emissive = vec3<f32>(0.0);
 
     if (kind == 1u) {
-        let root_c = vec3<f32>(0.15 + hue_jit * 0.2, 0.48 + hue_jit * 0.3, 0.18);
-        let tip_c = vec3<f32>(0.36 + hue_jit * 0.4, 0.80 + hue_jit * 0.25, 0.22);
+        let root_c = vec3<f32>(0.18 + hue_jit * 0.15, 0.46 + hue_jit * 0.22, 0.20);
+        let tip_c = vec3<f32>(0.32 + hue_jit * 0.35, 0.68 + hue_jit * 0.20, 0.21);
         albedo = mix(root_c, tip_c, pow(s, 0.85)) * (0.90 + 0.16 * midrib);
     } else if (kind == 2u) {
         if (sub_u == 1u) {
@@ -1946,8 +2100,8 @@ fn strand_width_scale(s: f32, kind: u32, sub_u: u32) -> f32 {
             let k_tip = vec3<f32>(0.24, 0.70, 0.36 + hue_jit * 0.3);
             albedo = mix(k_root, k_tip, s) * (0.86 + 0.22 * midrib);
         } else {
-            let m_root = vec3<f32>(0.12, 0.52, 0.22);
-            let m_tip = vec3<f32>(0.26 + hue_jit * 0.3, 0.76, 0.34);
+            let m_root = vec3<f32>(0.14, 0.48, 0.22);
+            let m_tip = vec3<f32>(0.26 + hue_jit * 0.28, 0.69, 0.32);
             albedo = mix(m_root, m_tip, s) * (0.88 + 0.18 * midrib);
         }
     } else if (kind == 3u) {
@@ -1964,7 +2118,7 @@ fn strand_width_scale(s: f32, kind: u32, sub_u: u32) -> f32 {
         albedo = mix(b_stem, b_thorn, clamp(s * 0.7 + au * 0.5, 0.0, 1.0));
     } else if (kind == 5u) {
         let v_cord = vec3<f32>(0.26, 0.34, 0.16);
-        let v_leaf = vec3<f32>(0.22 + hue_jit * 0.25, 0.66 + hue_jit * 0.2, 0.20);
+        let v_leaf = vec3<f32>(0.22 + hue_jit * 0.25, 0.62 + hue_jit * 0.2, 0.20);
         albedo = mix(v_cord, v_leaf, smoothstep(0.18, 0.55, au));
     } else {
         let bead_t = smoothstep(0.74, 0.94, s);
@@ -2015,21 +2169,30 @@ fn strand_width_scale(s: f32, kind: u32, sub_u: u32) -> f32 {
         emissive += vec3<f32>(2.35, 0.62, 0.08) * ember;
     }
 
+    // Unified Sky, Hemisphere Bounce & Hillside-Gated Direct Lighting (exact match with shaders_render.carp!)
     let sun_ang = env_t * 0.15;
     let sun_dir = normalize(vec3<f32>(cos(sun_ang), sin(sun_ang), 0.3));
+    let sun_h = sun_dir.y;
+    let day_factor = clamp(sun_h * 5.0 + 0.5, 0.0, 1.0);
+    let sunset_factor = clamp(1.0 - abs(sun_h) * 5.0, 0.0, 1.0);
+    let space_color = mix(mix(vec3<f32>(0.004, 0.007, 0.016), vec3<f32>(0.06, 0.04, 0.14), sunset_factor), vec3<f32>(0.06, 0.15, 0.34), day_factor);
+    let horizon_color = mix(mix(vec3<f32>(0.022, 0.032, 0.065), vec3<f32>(0.68, 0.30, 0.13), sunset_factor), vec3<f32>(0.34, 0.54, 0.76), day_factor);
+    let sky_amb_col = mix(horizon_color, space_color, 0.35) * 0.55 + vec3<f32>(0.05, 0.065, 0.105);
+    let gnd_amb_col = sky_amb_col * vec3<f32>(0.48, 0.44, 0.40);
+
     let sky_exposure = clamp((in.world_pos.y - 6.0) / 18.0, 0.0, 1.0);
-    let sun_int = clamp(sun_dir.y * 4.0, 0.0, 1.0) * sky_exposure;
+    let sun_int = clamp(sun_h * 4.0, 0.0, 1.0) * sky_exposure;
     let wrap_diff = clamp(dot(n, sun_dir) * 0.55 + 0.45, 0.0, 1.0);
-    let sss = pow(clamp(dot(-view_dir, sun_dir), 0.0, 1.0), 3.0) * (0.35 + 0.45 * s);
-    let direct = vec3<f32>(1.0, 0.95, 0.85) * (wrap_diff * 0.82 + sss * 0.55) * sun_int * sun_sha;
+    let sss = pow(clamp(dot(-view_dir, sun_dir), 0.0, 1.0), 3.0) * (0.32 + 0.42 * s);
+    let direct = vec3<f32>(1.0, 0.95, 0.85) * (wrap_diff * 0.80 + sss * 0.50) * sun_int * hill_sun;
 
-    let moon_int = clamp(-sun_dir.y * 4.0, 0.0, 1.0) * 0.15 * sky_exposure;
-    let moon_light = vec3<f32>(0.7, 0.8, 1.0) * clamp(dot(n, -sun_dir) * 0.5 + 0.5, 0.0, 1.0) * moon_int;
+    let moon_int = clamp(-sun_h * 4.0, 0.0, 1.0) * 0.15 * sky_exposure;
+    let moon_light = vec3<f32>(0.7, 0.8, 1.0) * clamp(dot(n, -sun_dir) * 0.5 + 0.5, 0.0, 1.0) * moon_int * hill_moon;
 
-    let root_ao = mix(0.54, 1.06, s);
-    let surf_amb = clamp(sun_dir.y * 3.0 + 0.3, 0.2, 1.0);
-    let amb_int = mix(0.22, surf_amb, sky_exposure);
-    let ambient = vec3<f32>(0.15, 0.18, 0.25) * root_ao * amb_int;
+    let root_ao = terr_ao * mix(0.68, 1.06, s);
+    let hemi = clamp(n.y * 0.5 + 0.5, 0.0, 1.0);
+    let cave_amb_col = mix(vec3<f32>(0.028, 0.032, 0.048), vec3<f32>(0.052, 0.062, 0.088), hemi);
+    let ambient = mix(cave_amb_col, mix(gnd_amb_col, sky_amb_col, hemi), sky_exposure) * root_ao;
 
     let pos_gi = max(vec3<f32>(0.0), gi_sample);
     let neg_gi = min(vec3<f32>(0.0), gi_sample);
@@ -2056,7 +2219,17 @@ fn strand_width_scale(s: f32, kind: u32, sub_u: u32) -> f32 {
     // Apply volumetric Smoke / Fire / Spore / Waterfall view-ray veil!
     col = col * in.veil_rgba.w + in.veil_rgba.xyz;
 
-    return vec4<f32>(col, 1.0);
+    // Smooth 2-stage exponential aerial-perspective haze + solar Mie scatter matching terrain!
+    let rd_frag = -view_dir;
+    let haze_d = max(0.0, dist_cam - 10.0);
+    let fog_factor = clamp((1.0 - exp(-0.00038 * haze_d * haze_d)) * 0.65 + smoothstep(56.0, 87.5, dist_cam), 0.0, 1.0);
+    let depth_fade = clamp((in.world_pos.y - 4.0) / 20.0, 0.0, 1.0);
+    let base_haze = mix(horizon_color, space_color, pow(max(0.0, rd_frag.y), 0.60));
+    let mie_sun = vec3<f32>(0.55, 0.40, 0.22) * pow(max(dot(rd_frag, sun_dir), 0.0), 8.0) * clamp(sun_h * 4.0 + 0.4, 0.0, 1.0);
+    let fog_color = (base_haze + mie_sun) * depth_fade;
+    col = mix(col, fog_color, fog_factor);
+
+    return vec4<f32>(tonemap_pbr_neutral(col), 1.0);
 }
 ")
 
