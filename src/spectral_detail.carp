@@ -30,38 +30,42 @@
 
   (defn band-weight [band kx ky kz]
     (if (= band 1)
-      ;; Channel .g: Anisotropic fibrous / stratified band (high k_xz, low k_y)
-      (let [k-xz (Double.sqrt (+ (* kx kx) (* kz kz)))
+      ;; Channel .g: Multi-octave anisotropic stratified bedding & deep bark furrow spectrum (k_xz in [1.8..25], |k_y| <= 6.5)
+      (let [kxz2 (+ (* kx kx) (* kz kz))
+            k-xz (Double.sqrt kxz2)
             aky (Double.abs ky)]
-        (if (or (< k-xz 3.5) (or (> k-xz 26.0) (> aky 8.0)))
+        (if (or (< k-xz 1.8) (or (> k-xz 25.0) (> aky 6.5)))
           0.0
-          (let [dr (/ (- k-xz 14.0) 4.2)
-                dy (/ ky 1.7)]
-            (* (Double.exp (* -0.5 (* dr dr)))
-               (Double.exp (* -0.5 (* dy dy)))))))
-      (let [kr (Double.sqrt (+ (* kx kx) (+ (* ky ky) (* kz kz))))]
+          (* (* (Double.pow k-xz -1.45) (Double.exp (/ (* -1.0 kxz2) 361.0)))
+             (Double.exp (/ (* -1.0 (* ky ky)) 3.2)))))
+      (let [kr2 (+ (* kx kx) (+ (* ky ky) (* kz kz)))
+            kr (Double.sqrt kr2)]
         (if (= band 0)
-          ;; Channel .r: Isotropic high-k granular / pitting ring
-          (if (or (< kr 4.0) (> kr 25.0))
+          ;; Channel .r: Multi-octave polyhedral crag & ridge spectrum (kr in [1.8..25])
+          (if (or (< kr 1.8) (> kr 25.0))
             0.0
-            (let [d (/ (- kr 12.5) 4.0)]
-              (Double.exp (* -0.5 (* d d)))))
+            (let [ax (Double.abs kx)
+                  ay (Double.abs ky)
+                  az (Double.abs kz)
+                  cube-sum (+ (* ax (* ax ax)) (+ (* ay (* ay ay)) (* az (* az az))))
+                  kr3 (Double.max 1.0 (* kr kr2))
+                  oct-lobe (+ 0.48 (* 0.52 (/ cube-sum kr3)))]
+              (* (* (Double.pow kr -1.55) (Double.exp (/ (* -1.0 kr2) 400.0))) oct-lobe)))
           (if (= band 2)
-            ;; Channel .b: Polyhedral cleavage & conchoidal facet harmonics
-            (if (or (< kr 4.0) (> kr 16.0))
+            ;; Channel .b: Macro cleavage planes, conchoidal waves & domain-warp field (kr in [1.5..14])
+            (if (or (< kr 1.5) (> kr 14.0))
               0.0
-              (let [ax (Double.abs kx)
-                    ay (Double.abs ky)
-                    az (Double.abs kz)
-                    cube-sum (+ (* ax (* ax ax)) (+ (* ay (* ay ay)) (* az (* az az))))
-                    kr3 (Double.max 1.0 (* kr (* kr kr)))
-                    oct-lobe (+ 0.55 (* 0.45 (/ cube-sum kr3)))]
-                (* (Double.pow kr -1.35) oct-lobe)))
-            ;; Channel .a: Ultra-high-k micro-cavity & pre-fracture crackle
-            (if (or (< kr 12.0) (> kr 28.0))
+              (let [kx2 (* kx kx)
+                    ky2 (* ky ky)
+                    kz2 (* kz kz)
+                    q-sum (+ (* kx2 kx2) (+ (* ky2 ky2) (* kz2 kz2)))
+                    kr4 (Double.max 1.0 (* kr2 kr2))]
+                (* (Double.pow kr -1.65) (+ 0.40 (* 0.60 (/ q-sum kr4))))))
+            ;; Channel .a: Crisp high-k mineral grit, quartz sparkle & micro-fissures (kr in [6..28])
+            (if (or (< kr 6.0) (> kr 28.0))
               0.0
-              (let [d (/ (- kr 19.5) 3.6)]
-                (Double.exp (* -0.5 (* d d))))))))))
+              (let [d (/ (- kr 16.5) 8.5)]
+                (* (Double.pow kr -1.10) (Double.exp (* -0.5 (* d d)))))))))))
 
   ;; 4-Channel Geological SDF Spectrum Weights:
   ;;   0 = `crag` (polyhedral boulder/cliff noses, kr in [2.0, 7.5])

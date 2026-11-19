@@ -410,249 +410,361 @@ struct SurfaceImperfection {
     spec_glint: f32,
 }
 
-fn eval_spec_relief_scalar(p_ws: vec3<f32>, scale_vec: vec3<f32>, swap_xy: bool, mode: u32, weights: vec4<f32>) -> vec2<f32> {
-    let q = p_ws * scale_vec;
-    let qs = select(q, vec3<f32>(q.y, q.x, q.z), swap_xy);
-    let s = sample_spectral_3d(qs);
-    var h = dot(s, weights);
-    if (mode == 1u) {
-        // Conchoidal / vitreous scalloped shell ripples (Ice, Glass, Obsidian, Bitumen)
-        h = sin(s.b * 3.4 + s.r * 1.25) * 0.52 + s.b * 0.34 + s.a * weights.w;
-    } else if (mode == 2u) {
-        // Polyhedral cleavage & metallic micro-facets (Crystal, Amethyst, Salt, Coal, Gold, Ore)
-        let facet_step = clamp(s.b * 2.1, -0.85, 0.85);
-        h = h * 0.68 + facet_step * 0.42;
+// Evaluates 2-scale (Meso 0.25m..1.5m + 37-deg rotated domain-warped Micro 2cm..6cm) spectral relief:
+//   mode 0 = Craggy ridged Stone, Bedrock & Jagged Ore (sharp C0 arêtes + stepped strata + V-crevices)
+//   mode 1 = Conchoidal razor-flaked Obsidian, Flinty Ice, Glass & Bitumen
+//   mode 2 = Stepped polyhedral Crystal cleavage, Anthracite Coal & Metallic facets
+//   mode 3 = Deeply furrowed Bark & braided fibrous Vine / Thorn-Briar
+//   mode 4 = Soft crumbly / velvety / waxy Organic & Granular (Soil, Moss, Foliage, Slime, Soap, Sponge, Fungus)
+//   mode 5 = Wind-rippled Quartz Sand
+fn eval_spec_relief_2scale(
+    p_ws: vec3<f32>,
+    meso_sc: vec3<f32>,
+    micro_sc: vec3<f32>,
+    swap_xy: bool,
+    mode: u32,
+    weights: vec4<f32>,
+    meso_w: f32,
+    micro_w: f32
+) -> vec3<f32> {
+    let qm_raw = p_ws * meso_sc;
+    let qm = select(qm_raw, vec3<f32>(qm_raw.y, qm_raw.x, qm_raw.z), swap_xy);
+    let sm = sample_spectral_3d(qm);
+
+    var sf = vec4<f32>(0.0);
+    if (micro_w > 0.008) {
+        let pr = vec3<f32>(p_ws.x * 0.7986 - p_ws.z * 0.6018, p_ws.y, p_ws.x * 0.6018 + p_ws.z * 0.7986);
+        let qf_raw = pr * micro_sc + vec3<f32>(sm.b, sm.g, sm.r) * weights.w;
+        let qf = select(qf_raw, vec3<f32>(qf_raw.y, qf_raw.x, qf_raw.z), swap_xy);
+        sf = sample_spectral_3d(qf);
     }
-    return vec2<f32>(h, s.a);
+
+    var hm: f32 = 0.0;
+    var hf: f32 = 0.0;
+    var crest: f32 = 0.0;
+    var crevice: f32 = 0.0;
+
+    if (mode == 0u) {
+        let r_m1 = clamp(1.0 - abs(sm.r * 1.45 + sm.b * 0.55), 0.0, 1.0);
+        let r_m2 = clamp(1.0 - abs(sm.b * 1.35 - sm.r * 0.45), 0.0, 1.0);
+        let crag_m = (r_m1 * r_m1 * 1.18 + r_m2 * r_m2 * 0.56) - 0.58;
+        let strat_u = sm.g * 2.4;
+        let strat_fl = floor(strat_u);
+        let strat_m = (strat_fl + smoothstep(0.26, 0.74, strat_u - strat_fl)) * 0.42;
+        hm = crag_m * weights.x + strat_m * weights.y;
+
+        let r_f = clamp(1.0 - abs(sf.r * 1.55), 0.0, 1.0);
+        let v_seam = pow(clamp(1.0 - abs(sf.g * 1.85), 0.0, 1.0), 2.2);
+        hf = (r_f * r_f - 0.36) * weights.z - v_seam * 0.58 + sf.a * 0.24;
+
+        crest = clamp((r_m1 * r_m1 * 0.74 + r_f * r_f * 0.48 * micro_w) - 0.30, 0.0, 1.0);
+        crevice = clamp(max(0.0, -crag_m) * 0.70 + v_seam * 0.88 * micro_w + max(0.0, -sf.a) * 0.32 * micro_w, 0.0, 1.0);
+    } else if (mode == 1u) {
+        let wave_m = sin(sm.b * 3.1 + sm.r * 1.15);
+        let rib_m = pow(clamp(1.0 - abs(wave_m), 0.0, 1.0), 1.8);
+        hm = (rib_m * 1.12 - 0.38) * weights.x + sm.b * weights.y;
+
+        let wave_f = sin(sf.b * 3.4 + sf.r * 1.30);
+        let rib_f = pow(clamp(1.0 - abs(wave_f), 0.0, 1.0), 2.0);
+        hf = (rib_f - 0.34) * weights.z + sf.a * 0.18;
+
+        crest = clamp(rib_m * 0.78 + rib_f * 0.50 * micro_w - 0.28, 0.0, 1.0);
+        crevice = clamp((1.0 - rib_m) * 0.44 + max(0.0, -sf.a) * 0.25 * micro_w, 0.0, 1.0);
+    } else if (mode == 2u) {
+        let u_m = sm.b * 2.7 + sm.r * 0.75;
+        let fl_m = floor(u_m);
+        let step_m = (fl_m + smoothstep(0.30, 0.70, u_m - fl_m)) * 0.40;
+        let arris_m = clamp(1.0 - abs(sm.r * 1.50), 0.0, 1.0);
+        hm = step_m * weights.x + (arris_m * arris_m - 0.38) * weights.y;
+
+        let u_f = sf.b * 2.5 + sf.g * 0.65;
+        let fl_f = floor(u_f);
+        let step_f = (fl_f + smoothstep(0.28, 0.72, u_f - fl_f)) * 0.38;
+        hf = step_f * weights.z + sf.a * 0.22;
+
+        let riser = 1.0 - abs((u_m - fl_m) * 2.0 - 1.0);
+        crest = clamp(arris_m * 0.66 + smoothstep(0.45, 0.88, riser) * 0.46 + max(0.0, sf.a) * 0.42 * micro_w, 0.0, 1.0);
+        crevice = clamp(max(0.0, -sm.b) * 0.44 + max(0.0, -sf.a) * 0.35 * micro_w, 0.0, 1.0);
+    } else if (mode == 3u) {
+        let cleft_m = pow(clamp(1.0 - abs(sm.g * 1.55), 0.0, 1.0), 1.9);
+        let plate_m = clamp(1.0 - abs(sm.g * 1.15 + sm.b * 0.40), 0.0, 1.0);
+        hm = (plate_m * 0.86 - cleft_m * 0.96) * weights.y + sm.r * weights.x;
+
+        let fib_f = clamp(1.0 - abs(sf.g * 1.65), 0.0, 1.0);
+        hf = (fib_f * fib_f - 0.40) * weights.z + sf.a * 0.24;
+
+        crest = clamp(plate_m * 0.68 + fib_f * 0.44 * micro_w - 0.24, 0.0, 1.0);
+        crevice = clamp(cleft_m * 0.95 + (1.0 - fib_f) * 0.45 * micro_w, 0.0, 1.0);
+    } else if (mode == 5u) {
+        let rip_m = 1.0 - abs(sin(sm.g * 2.4 + sm.b * 1.2));
+        hm = (rip_m * rip_m - 0.40) * weights.y + sm.r * weights.x;
+        hf = sf.r * weights.z + sf.a * 0.35;
+        crest = clamp(rip_m * rip_m * 0.65 - 0.20, 0.0, 1.0);
+        crevice = clamp((1.0 - rip_m) * 0.45 + max(0.0, -sf.r) * 0.35 * micro_w, 0.0, 1.0);
+    } else {
+        hm = sm.r * weights.x + sm.g * weights.y + sm.b * 0.22;
+        hf = sf.r * weights.z + sf.g * 0.24 + sf.a * 0.32;
+        crest = clamp(max(0.0, hm) * 0.55 + max(0.0, hf) * 0.35 * micro_w, 0.0, 1.0);
+        crevice = clamp(max(0.0, -hm) * 0.65 + max(0.0, -sf.a) * 0.45 * micro_w, 0.0, 1.0);
+    }
+
+    let h_world = (hm * 0.105 * meso_w) + (hf * 0.021 * micro_w);
+    return vec3<f32>(h_world, crest * meso_w, crevice * meso_w);
 }
 
-fn eval_surface_imperfection(p: vec3<f32>, raw_normal: vec3<f32>, mat_id_u: u32, tags: u32, detail_fade: f32) -> SurfaceImperfection {
-    if (detail_fade <= 0.004) {
+fn eval_surface_imperfection(p: vec3<f32>, raw_normal: vec3<f32>, mat_id_u: u32, tags: u32, hit_t: f32) -> SurfaceImperfection {
+    let meso_fade = smoothstep(64.0, 14.0, hit_t);
+    if (meso_fade <= 0.004) {
         return SurfaceImperfection(vec3<f32>(0.0), 0.0, 0.0, 0.0);
     }
+    let micro_fade = exp(-hit_t * 0.038) * smoothstep(32.0, 4.0, hit_t);
 
     let is_brittle = (tags & 16384u) != 0u;
     let is_organic = (tags & 536870912u) != 0u;
     let is_granular = (tags & 2048u) != 0u;
     let is_transparent = (tags & 4194304u) != 0u;
 
-    // Default recipe (tag-driven fallback)
-    var scale_vec = vec3<f32>(15.0, 21.0, 15.0);
-    var weights = vec4<f32>(0.50, 0.42, 0.30, 0.34);
+    // Default recipe (craggy rock fallback)
+    var meso_sc = vec3<f32>(3.6, 5.8, 3.6);
+    var micro_sc = vec3<f32>(18.5, 25.0, 18.5);
+    var weights = vec4<f32>(0.78, 0.56, 0.72, 2.2);
     var swap_xy: bool = true;
     var mode: u32 = 0u;
-    var bump_strength: f32 = 0.22;
-    var cavity_gain: f32 = 0.72;
-    var grain_gain: f32 = 0.10;
-    var glint_gain: f32 = 0.05;
+    var bump_strength: f32 = 0.54;
+    var cavity_gain: f32 = 0.88;
+    var grain_gain: f32 = 0.19;
+    var glint_gain: f32 = 0.06;
 
     if (is_granular) {
-        scale_vec = vec3<f32>(21.5, 21.5, 21.5);
-        weights = vec4<f32>(0.66, 0.14, 0.12, 0.52);
+        meso_sc = vec3<f32>(4.6, 4.6, 4.6);
+        micro_sc = vec3<f32>(22.5, 22.5, 22.5);
+        weights = vec4<f32>(0.58, 0.24, 0.62, 1.2);
         swap_xy = false;
-        bump_strength = 0.25;
-        cavity_gain = 0.85;
-        grain_gain = 0.12;
+        mode = 4u;
+        bump_strength = 0.30;
+        cavity_gain = 0.82;
+        grain_gain = 0.14;
         glint_gain = 0.0;
     } else if (is_organic) {
-        scale_vec = vec3<f32>(19.5, 19.5, 19.5);
-        weights = vec4<f32>(0.62, 0.28, 0.10, 0.48);
+        meso_sc = vec3<f32>(4.2, 4.2, 4.2);
+        micro_sc = vec3<f32>(20.0, 20.0, 20.0);
+        weights = vec4<f32>(0.56, 0.32, 0.52, 1.4);
         swap_xy = false;
-        bump_strength = 0.22;
-        cavity_gain = 0.80;
-        grain_gain = 0.11;
+        mode = 4u;
+        bump_strength = 0.26;
+        cavity_gain = 0.78;
+        grain_gain = 0.13;
         glint_gain = 0.02;
     } else if (is_brittle && is_transparent) {
-        scale_vec = vec3<f32>(15.0, 15.0, 15.0);
-        weights = vec4<f32>(0.14, 0.18, 0.78, 0.30);
+        meso_sc = vec3<f32>(3.8, 3.8, 3.8);
+        micro_sc = vec3<f32>(17.5, 17.5, 17.5);
+        weights = vec4<f32>(0.76, 0.52, 0.68, 1.8);
         swap_xy = false;
         mode = 2u;
-        bump_strength = 0.18;
-        cavity_gain = 0.52;
-        grain_gain = 0.07;
-        glint_gain = 0.30;
+        bump_strength = 0.44;
+        cavity_gain = 0.64;
+        grain_gain = 0.15;
+        glint_gain = 0.34;
     }
 
     switch (mat_id_u) {
-        case 1u, 255u: { // Stone & Bedrock: horizontal sedimentary strata + pitted mineral pores
-            scale_vec = vec3<f32>(13.5, 23.0, 13.5);
-            weights = vec4<f32>(0.52, 0.46, 0.28, 0.34);
+        case 1u, 255u: { // Stone & Bedrock: bold chiseled crag arêtes + stepped sedimentary shelves + V-crevices!
+            meso_sc = vec3<f32>(3.4, 6.2, 3.4);
+            micro_sc = vec3<f32>(18.0, 26.0, 18.0);
+            weights = vec4<f32>(0.86, 0.62, 0.78, 2.4);
             swap_xy = true;
             mode = 0u;
-            bump_strength = 0.24;
-            cavity_gain = 0.76;
-            grain_gain = 0.11;
-            glint_gain = 0.05;
+            bump_strength = 0.58;
+            cavity_gain = 0.94;
+            grain_gain = 0.22;
+            glint_gain = 0.06;
         }
-        case 2u: { // Soil: crumbly isotropic clods & rootlet pores
-            scale_vec = vec3<f32>(20.5, 20.5, 20.5);
-            weights = vec4<f32>(0.68, 0.14, 0.12, 0.50);
+        case 2u: { // Soil: soft crumbly earthy clods & rootlet pores (contrasts against craggy Stone!)
+            meso_sc = vec3<f32>(4.5, 4.5, 4.5);
+            micro_sc = vec3<f32>(21.0, 21.0, 21.0);
+            weights = vec4<f32>(0.62, 0.22, 0.56, 1.3);
             swap_xy = false;
-            mode = 0u;
-            bump_strength = 0.27;
-            cavity_gain = 0.88;
-            grain_gain = 0.12;
+            mode = 4u;
+            bump_strength = 0.29;
+            cavity_gain = 0.85;
+            grain_gain = 0.14;
             glint_gain = 0.0;
         }
-        case 3u: { // Wood: elongated vertical bark & timber grain flutes
-            scale_vec = vec3<f32>(23.5, 6.8, 23.5);
-            weights = vec4<f32>(0.18, 0.80, 0.12, 0.38);
+        case 3u: { // Wood: rugged deeply furrowed oak/pine bark plates & vertical V-clefts!
+            meso_sc = vec3<f32>(5.4, 1.7, 5.4);
+            micro_sc = vec3<f32>(24.5, 6.8, 24.5);
+            weights = vec4<f32>(0.32, 0.92, 0.78, 2.1);
             swap_xy = false;
-            mode = 0u;
+            mode = 3u;
+            bump_strength = 0.56;
+            cavity_gain = 0.96;
+            grain_gain = 0.21;
+            glint_gain = 0.02;
+        }
+        case 4u: { // Coal: stepped anthracite cleat ledges & glossy fractured facets!
+            meso_sc = vec3<f32>(3.8, 6.5, 3.8);
+            micro_sc = vec3<f32>(18.0, 25.0, 18.0);
+            weights = vec4<f32>(0.78, 0.68, 0.74, 2.0);
+            swap_xy = true;
+            mode = 2u;
+            bump_strength = 0.50;
+            cavity_gain = 0.82;
+            grain_gain = 0.18;
+            glint_gain = 0.26;
+        }
+        case 5u, 20u: { // Gold & Sodium: hammered nugget facets & crystalline metallic planes
+            meso_sc = vec3<f32>(4.4, 4.4, 4.4);
+            micro_sc = vec3<f32>(19.5, 19.5, 19.5);
+            weights = vec4<f32>(0.66, 0.54, 0.62, 1.6);
+            swap_xy = true;
+            mode = 2u;
+            bump_strength = 0.36;
+            cavity_gain = 0.56;
+            grain_gain = 0.13;
+            glint_gain = 0.30;
+        }
+        case 6u: { // Sand: wind-rippled quartz ridges + fine sparkling grains
+            meso_sc = vec3<f32>(4.2, 5.8, 4.2);
+            micro_sc = vec3<f32>(25.0, 28.0, 25.0);
+            weights = vec4<f32>(0.34, 0.72, 0.58, 1.4);
+            swap_xy = true;
+            mode = 5u;
+            bump_strength = 0.32;
+            cavity_gain = 0.76;
+            grain_gain = 0.14;
+            glint_gain = 0.09;
+        }
+        case 7u: { // Gunpowder: coarse matte black-powder prills
+            meso_sc = vec3<f32>(5.0, 5.0, 5.0);
+            micro_sc = vec3<f32>(25.0, 25.0, 25.0);
+            weights = vec4<f32>(0.58, 0.18, 0.64, 1.1);
+            swap_xy = false;
+            mode = 4u;
             bump_strength = 0.28;
             cavity_gain = 0.84;
             grain_gain = 0.13;
-            glint_gain = 0.02;
-        }
-        case 4u: { // Coal: horizontal bedding + crisp anthracite cleat facets
-            scale_vec = vec3<f32>(14.0, 22.5, 14.0);
-            weights = vec4<f32>(0.22, 0.46, 0.64, 0.28);
-            swap_xy = true;
-            mode = 2u;
-            bump_strength = 0.25;
-            cavity_gain = 0.72;
-            grain_gain = 0.09;
-            glint_gain = 0.22;
-        }
-        case 5u, 20u: { // Gold & Sodium: hammered/brushed metallic micro-facets
-            scale_vec = vec3<f32>(19.5, 19.5, 19.5);
-            weights = vec4<f32>(0.24, 0.38, 0.64, 0.22);
-            swap_xy = true;
-            mode = 2u;
-            bump_strength = 0.17;
-            cavity_gain = 0.48;
-            grain_gain = 0.08;
-            glint_gain = 0.26;
-        }
-        case 6u: { // Sand: fine wind/water-rippled quartz grains
-            scale_vec = vec3<f32>(24.0, 28.0, 24.0);
-            weights = vec4<f32>(0.62, 0.28, 0.10, 0.56);
-            swap_xy = true;
-            mode = 0u;
-            bump_strength = 0.24;
-            cavity_gain = 0.78;
-            grain_gain = 0.11;
-            glint_gain = 0.07;
-        }
-        case 7u: { // Gunpowder: coarse matte black-powder prills
-            scale_vec = vec3<f32>(25.0, 25.0, 25.0);
-            weights = vec4<f32>(0.64, 0.10, 0.16, 0.58);
-            swap_xy = false;
-            mode = 0u;
-            bump_strength = 0.26;
-            cavity_gain = 0.86;
-            grain_gain = 0.11;
             glint_gain = 0.0;
         }
-        case 8u, 9u, 16u: { // Ice, Glass & Obsidian: conchoidal shell ripples + frost/vitreous glint
-            let s_v = select(14.5, 13.0, mat_id_u == 9u);
-            scale_vec = vec3<f32>(s_v, s_v, s_v);
-            weights = vec4<f32>(0.14, 0.20, 0.76, 0.24);
+        case 8u, 9u, 16u: { // Ice, Glass & Obsidian: razor-flaked conchoidal volcanic-glass / glacier shell ribs!
+            let m_v = select(3.6, 3.2, mat_id_u == 9u);
+            let f_v = select(17.0, 14.5, mat_id_u == 9u);
+            meso_sc = vec3<f32>(m_v, m_v, m_v);
+            micro_sc = vec3<f32>(f_v, f_v, f_v);
+            weights = vec4<f32>(0.84, 0.38, 0.70, 2.0);
             swap_xy = false;
             mode = 1u;
-            bump_strength = select(0.17, 0.12, mat_id_u == 9u);
-            cavity_gain = 0.45;
-            grain_gain = select(0.07, 0.04, mat_id_u == 9u);
-            glint_gain = 0.30;
+            bump_strength = select(0.46, 0.26, mat_id_u == 9u);
+            cavity_gain = 0.64;
+            grain_gain = select(0.17, 0.08, mat_id_u == 9u);
+            glint_gain = 0.34;
         }
         case 10u, 12u, 22u, 29u: { // Slime, C4, Soap & Glow-Bulb: smooth dimpled gel / waxy rind
-            scale_vec = vec3<f32>(16.5, 16.5, 16.5);
-            weights = vec4<f32>(0.56, 0.28, 0.18, 0.26);
+            meso_sc = vec3<f32>(3.8, 3.8, 3.8);
+            micro_sc = vec3<f32>(16.5, 16.5, 16.5);
+            weights = vec4<f32>(0.44, 0.24, 0.36, 1.0);
             swap_xy = false;
-            mode = 0u;
+            mode = 4u;
             bump_strength = 0.17;
-            cavity_gain = 0.58;
+            cavity_gain = 0.52;
             grain_gain = 0.08;
-            glint_gain = 0.14;
+            glint_gain = 0.15;
         }
         case 11u: { // Sponge: deep open cellular pores
-            scale_vec = vec3<f32>(21.5, 21.5, 21.5);
-            weights = vec4<f32>(0.74, 0.12, 0.08, 0.68);
+            meso_sc = vec3<f32>(4.8, 4.8, 4.8);
+            micro_sc = vec3<f32>(22.0, 22.0, 22.0);
+            weights = vec4<f32>(0.68, 0.20, 0.72, 1.3);
             swap_xy = false;
-            mode = 0u;
-            bump_strength = 0.30;
+            mode = 4u;
+            bump_strength = 0.34;
             cavity_gain = 1.15;
+            grain_gain = 0.15;
+            glint_gain = 0.0;
+        }
+        case 14u, 15u, 18u, 21u: { // Crystal, Amethyst, Abyssal Seal & Salt: sharp polyhedral cleavage terraces & arrises!
+            meso_sc = vec3<f32>(3.8, 3.8, 3.8);
+            micro_sc = vec3<f32>(17.5, 17.5, 17.5);
+            weights = vec4<f32>(0.84, 0.68, 0.76, 1.9);
+            swap_xy = false;
+            mode = 2u;
+            bump_strength = 0.48;
+            cavity_gain = 0.70;
+            grain_gain = 0.17;
+            glint_gain = 0.38;
+        }
+        case 17u, 23u, 24u, 25u: { // Rad-Ore, Sulfur, Carbide & Phosphorus: jagged craggy ore / slag clinker!
+            meso_sc = vec3<f32>(4.0, 5.4, 4.0);
+            micro_sc = vec3<f32>(19.5, 24.0, 19.5);
+            weights = vec4<f32>(0.88, 0.54, 0.82, 2.3);
+            swap_xy = true;
+            mode = 0u;
+            bump_strength = 0.58;
+            cavity_gain = 0.92;
+            grain_gain = 0.21;
+            glint_gain = 0.18;
+        }
+        case 19u: { // Bitumen: viscous ropy pahoehoe tar folds
+            meso_sc = vec3<f32>(3.2, 5.2, 3.2);
+            micro_sc = vec3<f32>(15.0, 22.0, 15.0);
+            weights = vec4<f32>(0.74, 0.48, 0.62, 2.2);
+            swap_xy = true;
+            mode = 1u;
+            bump_strength = 0.40;
+            cavity_gain = 0.72;
+            grain_gain = 0.14;
+            glint_gain = 0.24;
+        }
+        case 26u, 30u: { // Moss & Canopy Foliage: soft lush velvety bryophyte / leaf tufts
+            meso_sc = vec3<f32>(4.6, 4.6, 4.6);
+            micro_sc = vec3<f32>(22.0, 22.0, 22.0);
+            weights = vec4<f32>(0.58, 0.26, 0.54, 1.3);
+            swap_xy = false;
+            mode = 4u;
+            bump_strength = 0.25;
+            cavity_gain = 0.90;
             grain_gain = 0.13;
             glint_gain = 0.0;
         }
-        case 14u, 15u, 18u, 21u: { // Crystal, Amethyst, Abyssal Seal & Salt: polyhedral cleavage steps & sparkle
-            scale_vec = vec3<f32>(16.0, 16.0, 16.0);
-            weights = vec4<f32>(0.16, 0.18, 0.82, 0.36);
+        case 27u, 31u: { // Hanging Vine & Thorn-Briar: gnarled braided vertical woody ridges!
+            meso_sc = vec3<f32>(5.6, 1.8, 5.6);
+            micro_sc = vec3<f32>(25.0, 6.5, 25.0);
+            weights = vec4<f32>(0.34, 0.90, 0.76, 2.0);
             swap_xy = false;
-            mode = 2u;
-            bump_strength = 0.22;
-            cavity_gain = 0.58;
-            grain_gain = 0.08;
-            glint_gain = 0.34;
-        }
-        case 17u, 23u, 24u, 25u: { // Rad-Ore, Sulfur, Carbide & Phosphorus: jagged crystalline ore / slag clinker
-            scale_vec = vec3<f32>(17.5, 21.5, 17.5);
-            weights = vec4<f32>(0.54, 0.28, 0.52, 0.46);
-            swap_xy = true;
-            mode = 2u;
-            bump_strength = 0.25;
-            cavity_gain = 0.80;
-            grain_gain = 0.11;
-            glint_gain = 0.15;
-        }
-        case 19u: { // Bitumen: viscous tar flow ripples
-            scale_vec = vec3<f32>(13.0, 20.0, 13.0);
-            weights = vec4<f32>(0.32, 0.52, 0.42, 0.22);
-            swap_xy = true;
-            mode = 1u;
-            bump_strength = 0.21;
-            cavity_gain = 0.64;
-            grain_gain = 0.08;
-            glint_gain = 0.22;
-        }
-        case 26u, 30u: { // Moss & Canopy Foliage: velvety bryophyte / leaf tufts
-            scale_vec = vec3<f32>(22.0, 22.0, 22.0);
-            weights = vec4<f32>(0.68, 0.24, 0.08, 0.58);
-            swap_xy = false;
-            mode = 0u;
-            bump_strength = 0.24;
-            cavity_gain = 0.95;
-            grain_gain = 0.12;
-            glint_gain = 0.0;
-        }
-        case 27u, 31u: { // Hanging Vine & Thorn-Briar: braided vertical fibrous strands
-            scale_vec = vec3<f32>(25.0, 6.2, 25.0);
-            weights = vec4<f32>(0.20, 0.80, 0.14, 0.42);
-            swap_xy = false;
-            mode = 0u;
-            bump_strength = 0.27;
-            cavity_gain = 0.86;
-            grain_gain = 0.12;
-            glint_gain = 0.03;
+            mode = 3u;
+            bump_strength = 0.52;
+            cavity_gain = 0.92;
+            grain_gain = 0.19;
+            glint_gain = 0.04;
         }
         case 28u: { // Shelf Fungus: pleated gill-cap cellular flesh
-            scale_vec = vec3<f32>(18.0, 24.0, 18.0);
-            weights = vec4<f32>(0.48, 0.54, 0.12, 0.38);
+            meso_sc = vec3<f32>(4.2, 5.6, 4.2);
+            micro_sc = vec3<f32>(18.5, 24.0, 18.5);
+            weights = vec4<f32>(0.48, 0.56, 0.50, 1.5);
             swap_xy = true;
-            mode = 0u;
-            bump_strength = 0.22;
+            mode = 4u;
+            bump_strength = 0.26;
             cavity_gain = 0.78;
-            grain_gain = 0.10;
+            grain_gain = 0.12;
             glint_gain = 0.04;
         }
         default: {}
     }
 
-    let max_sc = max(max(scale_vec.x, scale_vec.y), scale_vec.z);
-    let eps_w = 0.82 / max(max_sc, 1.0);
-    let r0 = eval_spec_relief_scalar(p, scale_vec, swap_xy, mode, weights);
-    let rx = eval_spec_relief_scalar(p + vec3<f32>(eps_w, 0.0, 0.0), scale_vec, swap_xy, mode, weights);
-    let ry = eval_spec_relief_scalar(p + vec3<f32>(0.0, eps_w, 0.0), scale_vec, swap_xy, mode, weights);
-    let rz = eval_spec_relief_scalar(p + vec3<f32>(0.0, 0.0, eps_w), scale_vec, swap_xy, mode, weights);
+    let eps_w = mix(0.15, 0.036, clamp(micro_fade * 1.35, 0.0, 1.0));
+    let inv_eps = 1.0 / eps_w;
+    let r0 = eval_spec_relief_2scale(p, meso_sc, micro_sc, swap_xy, mode, weights, meso_fade, micro_fade);
+    let rx = eval_spec_relief_2scale(p + vec3<f32>(eps_w, 0.0, 0.0), meso_sc, micro_sc, swap_xy, mode, weights, meso_fade, micro_fade);
+    let ry = eval_spec_relief_2scale(p + vec3<f32>(0.0, eps_w, 0.0), meso_sc, micro_sc, swap_xy, mode, weights, meso_fade, micro_fade);
+    let rz = eval_spec_relief_2scale(p + vec3<f32>(0.0, 0.0, eps_w), meso_sc, micro_sc, swap_xy, mode, weights, meso_fade, micro_fade);
 
-    // Outward elevation h(p) tilts surface normal by -(grad_tan h) so pits shadow inward & rims catch light
-    let grad_h = vec3<f32>(rx.x - r0.x, ry.x - r0.x, rz.x - r0.x);
+    // True world-space height gradient tilted into tangent plane with smooth highlight-safe normal limiter
+    let grad_h = vec3<f32>(rx.x - r0.x, ry.x - r0.x, rz.x - r0.x) * inv_eps;
     let g_tan = grad_h - raw_normal * dot(grad_h, raw_normal);
-    let tangent_bump = -g_tan * (bump_strength * detail_fade * 1.22);
-    let micro_cavity = clamp((max(0.0, -r0.x) * 0.75 + max(0.0, -r0.y) * 0.45) * cavity_gain, 0.0, 1.0) * detail_fade;
-    let albedo_grain = clamp((r0.x * 0.72 + r0.y * 0.28) * grain_gain, -0.14, 0.14) * detail_fade;
-    let facet_spark = smoothstep(-0.15, 0.55, r0.y);
-    let spec_glint = glint_gain * (0.55 + 0.75 * facet_spark) * detail_fade;
+    let raw_bump = -g_tan * bump_strength;
+    let b_len = length(raw_bump);
+    let tangent_bump = raw_bump / (1.0 + b_len * 1.05);
+    let micro_cavity = clamp(r0.z * cavity_gain, 0.0, 1.0);
+    let albedo_grain = clamp((r0.y * 0.85 - r0.z * 0.72) * grain_gain, -0.24, 0.22);
+    let spec_glint = glint_gain * (0.45 + 0.95 * r0.y) * mix(0.35, 1.0, micro_fade) * meso_fade;
 
     return SurfaceImperfection(tangent_bump, micro_cavity, albedo_grain, spec_glint);
 }
@@ -1900,8 +2012,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 let strain_hi = select(0.90, 0.78, is_brittle);
                 let strain = select(smoothstep(strain_lo, strain_hi, stress_raw), 0.0, is_indestructible);
 
-                let detail_fade = exp(-t * 0.055) * smoothstep(28.0, 4.0, t);
-                let surf_imp = eval_surface_imperfection(p, raw_normal, mat_id_u, mat.tags, detail_fade);
+                let detail_fade = smoothstep(62.0, 12.0, t);
+                let surf_imp = eval_surface_imperfection(p, raw_normal, mat_id_u, mat.tags, t);
 
                 var crack_core: f32 = 0.0;
                 var frac_bevel = vec3<f32>(0.0);
@@ -1931,8 +2043,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 let moon_diffuse = max(dot(normal, moon_dir), 0.0);
                 let moon_light = vec3<f32>(0.7, 0.8, 1.0) * moon_diffuse * moon_intensity;
                 
-                // Ambient Occlusion (deepened inside open structural fissures & spectral micro-cavities)
-                let ao = getAO(p, raw_normal) * mix(1.0, 0.10, crack_core) * mix(1.0, 0.72, surf_imp.micro_cavity);
+                // Ambient Occlusion (deepened inside open structural fissures & sharp spectral crag crevices)
+                let ao = getAO(p, raw_normal) * mix(1.0, 0.10, crack_core) * mix(1.0, 0.52, surf_imp.micro_cavity);
                 
                 // Sky-Hemisphere + Ground-Bounce Ambient blended with moody deep-subterranean ambient
                 let hemi = clamp(normal.y * 0.5 + 0.5, 0.0, 1.0);
@@ -2009,7 +2121,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                     }
                 }
 
-                stained_base = stained_base * clamp(1.0 + surf_imp.albedo_grain, 0.86, 1.14);
+                stained_base = stained_base * clamp(1.0 + surf_imp.albedo_grain, 0.76, 1.22);
                 var caustic_add = vec3<f32>(0.0);
                 if (clear_liq_path > 0.06) {
                     // Wetten submerged rock & project dancing refracted spectral caustic light-nets!
