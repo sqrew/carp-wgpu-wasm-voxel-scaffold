@@ -254,6 +254,86 @@
                               (when (and (not carve?) (and (<= new-sdf 0.0f) (or (> old-sdf 0.0f) (< sphere-sdf -0.15f))))
                                 (Pointer.set (Pointer.add p-data (Long.from-int offset)) mat-id))))))))))))))))
 
+  ;; Anisotropic toughness- & fault-cleavage-guided CPU blast crater (mirrors GPU `solid-sim-wgsl` `va.z > 1.5`!)
+  (defn carve-blast-sdf! [world hit-pos radius]
+    (let [chunks (World.chunks world)
+          len (Array.length chunks)
+          hx @(Vector3.x hit-pos)
+          hy @(Vector3.y hit-pos)
+          hz @(Vector3.z hit-pos)
+          r-scan (+ (* radius 1.45) 3.5)]
+      (for [i 0 len]
+        (let [chunk (Array.unsafe-nth chunks i)
+              c-base-x (Double.from-int (* @(Chunk.coord-x chunk) 32))
+              c-base-y (Double.from-int (* @(Chunk.coord-y chunk) 32))
+              c-base-z (Double.from-int (* @(Chunk.coord-z chunk) 32))
+              min-x (Double.to-int (Double.floor (- (- hx r-scan) c-base-x)))
+              max-x (Double.to-int (Double.ceil (- (+ hx r-scan) c-base-x)))
+              min-y (Double.to-int (Double.floor (- (- hy r-scan) c-base-y)))
+              max-y (Double.to-int (Double.ceil (- (+ hy r-scan) c-base-y)))
+              min-z (Double.to-int (Double.floor (- (- hz r-scan) c-base-z)))
+              max-z (Double.to-int (Double.ceil (- (+ hz r-scan) c-base-z)))
+              cmin-x (if (< min-x 0) 0 min-x)
+              cmax-x (if (> max-x 31) 31 max-x)
+              cmin-y (if (< min-y 0) 0 min-y)
+              cmax-y (if (> max-y 31) 31 max-y)
+              cmin-z (if (< min-z 0) 0 min-z)
+              cmax-z (if (> max-z 31) 31 max-z)]
+          (when (and (<= cmin-x cmax-x)
+                     (and (<= cmin-y cmax-y)
+                          (<= cmin-z cmax-z)))
+            (let [p-data (Array.unsafe-raw (Chunk.voxel-data chunk))]
+              (for [z cmin-z (+ cmax-z 1)]
+                (for [y cmin-y (+ cmax-y 1)]
+                  (for [x cmin-x (+ cmax-x 1)]
+                    (let [idx (+ (* z 1024) (+ (* y 32) x))
+                          offset (* idx 4)
+                          wx (+ c-base-x (Double.from-int x))
+                          wy (+ c-base-y (Double.from-int y))
+                          wz (+ c-base-z (Double.from-int z))
+                          vx (- wx hx)
+                          vy (- wy hy)
+                          vz (- wz hz)
+                          dist (Double.sqrt (+ (+ (* vx vx) (* vy vy)) (* vz vz)))]
+                      (when (< dist r-scan)
+                        (let [old-id (Pointer.to-value (Pointer.add p-data (Long.from-int offset)))
+                              abs-id (Float.abs old-id)]
+                          (when (and (/= old-id 255.0f) (/= abs-id 18.0f))
+                            (let [mid (Int.clamp 1 254 (if (> abs-id 0.5f) (Float.to-int (+ abs-id 0.5f)) 1))
+                                  m-ref (Array.unsafe-nth &Materials.registry mid)
+                                  s-tough (Double.from-float @(Materials.Material.toughness m-ref))
+                                  s-tags @(Materials.Material.tags m-ref)
+                                  tough-mul (Double.clamp 0.38 1.38 (/ 1.30 (Double.sqrt (if (> s-tough 0.75) s-tough 0.75))))
+                                  sol-w (Double.from-float (Pointer.to-value (Pointer.add p-data (Long.from-int (+ offset 3)))))
+                                  cleav (if (> sol-w 10.01)
+                                          (Double.clamp 0.0 1.0 (/ (- sol-w 10.0) 5.90))
+                                          (if (> sol-w 0.005) (Double.clamp 0.0 1.0 (- sol-w (Double.floor sol-w))) 0.50))
+                                  cleav-mul (- 1.32 (* 0.58 cleav))
+                                  r-eff (* radius (* tough-mul cleav-mul))
+                                  brittle? (/= (Int.bit-and s-tags 16384) 0)
+                                  sed? (or (= mid 1) (or (= mid 4) (or (= mid 6) (or (= mid 21) (= mid 24)))))
+                                  wood? (or (= mid 3) (or (= mid 28) (= mid 30)))
+                                  eff-dist (if sed?
+                                             (+ (Double.sqrt (+ (* (* vx 0.86) (* vx 0.86))
+                                                                (+ (* (* vy 1.26) (* vy 1.26))
+                                                                   (* (* vz 0.86) (* vz 0.86)))))
+                                                (* 0.30 (Double.sin (* wy 2.1))))
+                                             (if brittle?
+                                               (+ (* 0.55 dist)
+                                                  (* 0.45 (* 0.66 (+ (Double.abs vx) (+ (Double.abs vy) (Double.abs vz))))))
+                                               (if wood?
+                                                 (Double.sqrt (+ (* (* vx 1.18) (* vx 1.18))
+                                                                 (+ (* (* vy 0.74) (* vy 0.74))
+                                                                    (* (* vz 1.18) (* vz 1.18)))))
+                                                 dist)))
+                                  carve-val (Double.to-float (- r-eff eff-dist))
+                                  old-sdf (Pointer.to-value (Pointer.add p-data (Long.from-int (+ offset 1))))]
+                              (when (> carve-val old-sdf)
+                                (do
+                                  (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) carve-val)
+                                  (when (> carve-val 0.0f)
+                                    (Pointer.set (Pointer.add p-data (Long.from-int offset)) 0.0f))))))))))))))))))
+
   ;; Destroy an orb slot cleanly (unless it is a real GoldBank 24k nugget, which stays collectable!)
   (defn destroy-orb-slot! [state oslot keep-gold?]
     (let [mbk (EngineState.mancers state)

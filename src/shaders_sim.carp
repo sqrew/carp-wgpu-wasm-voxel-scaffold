@@ -1745,6 +1745,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 @group(0) @binding(6) var liquid_texture:      texture_3d<f32>;
 @group(0) @binding(7) var gas_texture:         texture_3d<f32>;
 @group(0) @binding(8) var vel_texture:         texture_3d<f32>;
+@group(0) @binding(9) var detail_texture:      texture_3d<f32>;
 
 fn positive_mod(n: i32, m: i32) -> i32 {
     let r = n % m;
@@ -2017,7 +2018,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     var next_age = self_sol.z;
     var next_sleep = self_sol.w;
 
-    let dummy_val = u.time + solid_buffer[0].x + vec4<f32>(bitcast<f32>(registry_data[0])).x + textureLoad(solid_texture, vec3<i32>(0), 0).x + textureLoad(liquid_texture, vec3<i32>(0), 0).x + textureLoad(gas_texture, vec3<i32>(0), 0).x + textureLoad(vel_texture, vec3<i32>(0), 0).x;
+    let dummy_val = u.time + solid_buffer[0].x + vec4<f32>(bitcast<f32>(registry_data[0])).x + textureLoad(solid_texture, vec3<i32>(0), 0).x + textureLoad(liquid_texture, vec3<i32>(0), 0).x + textureLoad(gas_texture, vec3<i32>(0), 0).x + textureLoad(vel_texture, vec3<i32>(0), 0).x + textureLoad(detail_texture, vec3<i32>(0), 0).x;
     if (dummy_val < -99999.0) { return; }
 
     let active_tg = has_law_tg_sol();
@@ -2052,7 +2053,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         for (var vi = 0u; vi < vox_cnt_s; vi++) {
             let vp = u.vox_pos[vi];
             let va = u.vox_act[vi];
-            if (vp.w > 0.05 && abs(va.x) > 0.5 && abs(va.x) < 254.5 && abs(va.y) > 0.001 && distance(wp_s, vp.xyz) <= (vp.w + 8.5)) {
+            if (vp.w > 0.05 && abs(va.x) > 0.5 && abs(va.x) < 254.5 && abs(va.y) > 0.001 && distance(wp_s, vp.xyz) <= (vp.w * 1.45 + 8.5)) {
                 vox_near = true;
                 break;
             }
@@ -2093,10 +2094,24 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
     }
 
+    // Preserve geological cleavage code (`[10.05..15.95]` asleep <-> `0.01..0.99` fractional awake) on unmoved rigid rock!
+    var cleav_frac: f32 = 0.0;
+    if (self_sol.w > 10.01) {
+        cleav_frac = clamp((self_sol.w - 10.0) / 5.90, 0.01, 0.99);
+    } else if (self_sol.w > 0.005 && fract(self_sol.w) > 0.005) {
+        cleav_frac = clamp(fract(self_sol.w), 0.01, 0.99);
+    }
+    let keep_cleav = (cleav_frac > 0.005) && !grain_moved && (next_vol <= 0.0) && (next_id > 0.5);
+
     if (!grain_moved && abs(next_vol - self_vol) < 0.001 && !wind_wake) {
-        next_sleep = min(next_sleep + 1.0, 10.0);
+        let s_step = floor(next_sleep) + 1.0;
+        if (s_step >= 10.0) {
+            next_sleep = select(10.0, 10.0 + cleav_frac * 5.90, keep_cleav);
+        } else {
+            next_sleep = s_step + select(0.0, cleav_frac, keep_cleav);
+        }
     } else {
-        next_sleep = 0.0;
+        next_sleep = select(0.0, cleav_frac, keep_cleav);
     }
     
     if (next_vol <= 0.0 && next_id < 0.0 && next_sleep >= 4.0) {
@@ -2222,12 +2237,45 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 let sr = vp.w;
                 let is_gold_melt = abs(abs(va.x) - 5.0) < 0.2;
                 if (va.y < 0.0) {
-                    if (next_id != 255.0 && (abs(next_id) != 18.0 || is_gold_melt) && fdist <= sr + 8.0) {
-                        let carve_val = sr - fdist;
+                    if (next_id != 255.0 && (abs(next_id) != 18.0 || is_gold_melt) && fdist <= sr * 1.45 + 8.0) {
+                        var carve_val = sr - fdist;
+                        if (va.z > 1.5 && !is_gold_melt) {
+                            let s_id_c = clamp(u32(round(abs(select(1.0, next_id, abs(next_id) > 0.5)))), 1u, 254u);
+                            let s_tough_c = bitcast<f32>(registry_data[s_id_c * 8u + 6u]);
+                            let s_tags_c = registry_data[s_id_c * 8u + 7u];
+                            let tough_mul = clamp(1.30 / sqrt(max(s_tough_c, 0.75)), 0.38, 1.38);
+                            let cleav_c = select(0.50, cleav_frac, cleav_frac > 0.005);
+                            let cleav_mul = 1.32 - 0.58 * cleav_c;
+                            let sr_eff = sr * tough_mul * cleav_mul;
+
+                            let det_ip = vec3<i32>(floor(world_pos - floor(world_pos / 64.0) * 64.0)) & vec3<i32>(63);
+                            let det = textureLoad(detail_texture, det_ip, 0);
+                            let dp = world_pos - vp.xyz;
+                            let is_brit_c = (s_tags_c & TAG_BRITTLE) != 0u;
+                            let is_sed_c = (s_id_c == 1u || s_id_c == 4u || s_id_c == 6u || s_id_c == 21u || s_id_c == 24u);
+                            let is_wood_c = (s_id_c == 3u || s_id_c == 28u || s_id_c == 30u);
+
+                            var eff_dist = fdist;
+                            if (is_sed_c) {
+                                // Flat-topped stepped horizontal sedimentary rock slabs!
+                                let dp_sed = vec3<f32>(dp.x * 0.86, dp.y * 1.28 + det.g * 0.55, dp.z * 0.86);
+                                eff_dist = length(dp_sed) + 0.36 * sin(world_pos.y * 2.1 + det.g * 3.0);
+                            } else if (is_brit_c) {
+                                // Conchoidal / octahedral crystal & obsidian wedge shatter!
+                                let oct_d = (abs(dp.x) + abs(dp.y) + abs(dp.z)) * 0.66;
+                                eff_dist = mix(fdist, oct_d, 0.45) - det.b * 0.16 * sr;
+                            } else if (is_wood_c) {
+                                // Vertical fibrous splinter elongation along Y!
+                                eff_dist = length(vec3<f32>(dp.x * 1.18, dp.y * 0.74, dp.z * 1.18)) - det.g * 0.22;
+                            } else {
+                                eff_dist = fdist - det.r * 0.14 * sr;
+                            }
+                            carve_val = sr_eff - eff_dist;
+                        }
                         if (carve_val > next_vol) {
                             next_vol = carve_val;
                             if (next_vol > 0.0) { next_id = 0.0; }
-                            next_sleep = 0.0;
+                            next_sleep = select(0.0, cleav_frac, next_vol <= 0.0 && cleav_frac > 0.005);
                         }
                     }
                 } else if (va.x > 0.0) {
@@ -2929,7 +2977,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         } else if (max_shock_p >= 4.2) {
             shear += 240.0;
         }
-        let struct_t = max(toughness, 2.5);
+        let cleav_f = select(0.55, clamp((sol.w - 10.0) / 5.90, 0.0, 1.0), sol.w > 10.01);
+        let struct_t = max(toughness, 2.5) * select(1.0, mix(0.52, 1.28, cleav_f), sol.w > 10.01);
         
         let limit_c = struct_t * 120.0; 
         let limit_t = struct_t * 50.0;
@@ -3236,6 +3285,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 @group(0) @binding(5) var vel_texture:         texture_3d<f32>;
 @group(0) @binding(6) var<storage, read>       field_in:       array<vec4<f32>>;
 @group(0) @binding(7) var<storage, read>       registry_data:  array<u32>;
+@group(0) @binding(8) var curl_texture:        texture_3d<f32>;
 
 fn positive_mod(n: i32, m: i32) -> i32 {
     let r = n % m;
@@ -3332,6 +3382,26 @@ fn sample_vel_trilinear(back_lp: vec3<f32>, win_min: vec3<i32>) -> vec4<f32> {
     return mix(cxy0, cxy1, f.z);
 }
 
+fn sample_curl_64(q: vec3<f32>) -> vec3<f32> {
+    let w = q - floor(q / 64.0) * 64.0;
+    let i0 = vec3<i32>(floor(w)) & vec3<i32>(63);
+    let i1 = (i0 + vec3<i32>(1)) & vec3<i32>(63);
+    let f = fract(w);
+    let c000 = textureLoad(curl_texture, vec3<i32>(i0.x, i0.y, i0.z), 0).rgb;
+    let c100 = textureLoad(curl_texture, vec3<i32>(i1.x, i0.y, i0.z), 0).rgb;
+    let c010 = textureLoad(curl_texture, vec3<i32>(i0.x, i1.y, i0.z), 0).rgb;
+    let c110 = textureLoad(curl_texture, vec3<i32>(i1.x, i1.y, i0.z), 0).rgb;
+    let c001 = textureLoad(curl_texture, vec3<i32>(i0.x, i0.y, i1.z), 0).rgb;
+    let c101 = textureLoad(curl_texture, vec3<i32>(i1.x, i0.y, i1.z), 0).rgb;
+    let c011 = textureLoad(curl_texture, vec3<i32>(i0.x, i1.y, i1.z), 0).rgb;
+    let c111 = textureLoad(curl_texture, vec3<i32>(i1.x, i1.y, i1.z), 0).rgb;
+    let cx00 = mix(c000, c100, f.x);
+    let cx10 = mix(c010, c110, f.x);
+    let cx01 = mix(c001, c101, f.x);
+    let cx11 = mix(c011, c111, f.x);
+    return mix(mix(cx00, cx10, f.y), mix(cx01, cx11, f.y), f.z);
+}
+
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let idx = global_id.x;
@@ -3341,6 +3411,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 textureLoad(liquid_texture, vec3<i32>(0), 0).x +
                 textureLoad(gas_texture, vec3<i32>(0), 0).x +
                 textureLoad(vel_texture, vec3<i32>(0), 0).x +
+                textureLoad(curl_texture, vec3<i32>(0), 0).x +
                 field_in[0].x + bitcast<f32>(registry_data[0]);
     if (dummy < -999999.0) {
         vel_out[idx] = vec4<f32>(0.0);
@@ -3675,6 +3746,19 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
     if (abs(self_tg.y - 0.50) > 0.16) {
         next_v.y += (0.50 - self_tg.y) * 0.32 * time_scale;
+    }
+
+    // 4.25. Exact k-space divergence-free Kolmogorov plume roll-up & overworld valley breeze!
+    if (raw_liq.g < 0.15) {
+        let adv_spd = length(adv.xyz);
+        if (self_tp.x > 0.25 || raw_gas.g > 0.06 || adv_spd > 0.75) {
+            let plume_amp = clamp(max((self_tp.x - 0.22) * 1.8, max(raw_gas.g * 0.85, (adv_spd - 0.75) * 0.45)), 0.0, 1.35);
+            next_v += sample_curl_64(world_p * 1.45 - vec3<f32>(0.0, u.time * 1.80, 0.0)) * (0.24 * plume_amp * time_scale);
+        }
+        if (world_p.y > 20.0 && raw_liq.g < 0.05) {
+            let breeze_env = clamp((world_p.y - 20.0) / 16.0, 0.0, 1.0) * mix(0.35, 1.0, smoothstep(0.8, 3.5, raw_sol.g * 0.5));
+            next_v += sample_curl_64(world_p * 0.55 + vec3<f32>(u.time * 0.65, 0.0, u.time * 0.38)) * (0.14 * breeze_env * time_scale);
+        }
     }
 
     // 4.5. Solid-State Gold (5) -> Obsidian (16) MHD Pipe Pump!

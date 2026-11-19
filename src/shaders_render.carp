@@ -70,6 +70,7 @@ struct FragmentOutput {
 @group(0) @binding(8) var vel_texture: texture_3d<f32>;
 @group(0) @binding(9) var detail_texture: texture_3d<f32>;
 @group(0) @binding(10) var detail_sampler: sampler;
+@group(0) @binding(11) var curl_texture: texture_3d<f32>;
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
@@ -403,9 +404,60 @@ fn sample_spectral_3d(q: vec3<f32>) -> vec4<f32> {
     return textureSampleLevel(detail_texture, detail_sampler, fract(q * (1.0 / 64.0)), 0.0);
 }
 
+fn sample_curl_3d(q: vec3<f32>) -> vec4<f32> {
+    // .rgb = divergence-free Kolmogorov curl velocity; .a = capillary-gravity wave Hessian caustic cusps!
+    return textureSampleLevel(curl_texture, detail_sampler, fract(q * (1.0 / 64.0)), 0.0);
+}
+
 fn wrap_world_uvw(q: vec3<f32>) -> vec3<f32> {
     let w = q - floor(q / 160.0) * 160.0;
     return clamp(w / 160.0, vec3<f32>(0.002), vec3<f32>(0.998));
+}
+
+// Upward 7-step SDF sky-visibility march: darkens enclosed mountain caves & Citadel domes (y = 20..65) under solid stone roofs
+// while keeping sheer outdoor cliffs, open canyons, and dappled woodland tree canopies naturally lit!
+fn eval_sky_exposure(p: vec3<f32>, raw_n: vec3<f32>, box_max_y: f32) -> f32 {
+    let base_sky = clamp((p.y + 8.0) / 22.0, 0.0, 1.0);
+    if (base_sky <= 0.002) { return 0.0; }
+
+    let up_dir = normalize(vec3<f32>(raw_n.x * 0.52, 1.0, raw_n.z * 0.52));
+    let p_origin = p + raw_n * 0.44;
+    var sky_trans: f32 = 1.0;
+    var t_sky: f32 = 1.10;
+
+    for (var s = 0; s < 7; s = s + 1) {
+        let q = p_origin + up_dir * t_sky;
+        if (q.y >= box_max_y - 1.5 || any(abs(q.xz - u.cam_pos.xz) > vec2<f32>(76.0))) {
+            break;
+        }
+        let w_q = q - floor(q / 160.0) * 160.0;
+        let uvw_q = clamp(w_q / 160.0, vec3<f32>(0.002), vec3<f32>(0.998));
+        let d_world = textureSampleLevel(solid_texture, voxel_sampler, uvw_q, 0.0).g;
+        if (d_world < 0.12) {
+            let ip_q = vec3<i32>(clamp(w_q, vec3<f32>(0.0), vec3<f32>(159.0)));
+            var mat_q = u32(round(abs(textureLoad(solid_texture, ip_q, 0).r)));
+            if (mat_q == 0u) {
+                let ip_up = (ip_q + vec3<i32>(0, 1, 0)) % vec3<i32>(160);
+                mat_q = u32(round(abs(textureLoad(solid_texture, ip_up, 0).r)));
+            }
+            let is_canopy = (mat_q == 30u) || (mat_q == 27u) || (mat_q == 3u) || (mat_q == 29u);
+            if (is_canopy) {
+                sky_trans = max(0.50, sky_trans * 0.78);
+                t_sky = t_sky + 2.4;
+                continue;
+            }
+            sky_trans = sky_trans * smoothstep(-0.55, 0.12, d_world);
+            if (sky_trans < 0.03) {
+                sky_trans = 0.0;
+                break;
+            }
+        }
+        t_sky = t_sky + clamp(d_world * 0.85, 1.35, 4.8);
+        if (t_sky > 28.0) {
+            break;
+        }
+    }
+    return base_sky * sky_trans;
 }
 
 // Continuous 2-octave ridged sub-voxel SDF erosion (0.30m .. 1.8m wavelengths; note d_vox = val.g * 0.5):
@@ -1505,7 +1557,7 @@ fn sample_gi_world(q: vec3<f32>) -> vec3<f32> {
     return textureSampleLevel(light_texture, voxel_sampler, wrap_world_uvw(q), 0.0).rgb;
 }
 
-fn sample_meniscus_normal(p: vec3<f32>, v_flow: vec3<f32>, l_spd: f32, t_dist: f32, out_ripple: ptr<function, f32>) -> vec3<f32> {
+fn sample_meniscus_normal(p: vec3<f32>, v_flow: vec3<f32>, l_spd: f32, solid_dist: f32, t_dist: f32, out_ripple: ptr<function, f32>) -> vec3<f32> {
     let eps_m = 1.15;
     let gx_n = textureSampleLevel(liquid_texture, voxel_sampler, wrap_world_uvw(p - vec3<f32>(eps_m, 0.0, 0.0)), 0.0).g;
     let gx_p = textureSampleLevel(liquid_texture, voxel_sampler, wrap_world_uvw(p + vec3<f32>(eps_m, 0.0, 0.0)), 0.0).g;
@@ -1519,17 +1571,47 @@ fn sample_meniscus_normal(p: vec3<f32>, v_flow: vec3<f32>, l_spd: f32, t_dist: f
 
     let rip_fade = exp(-t_dist * 0.045) * smoothstep(42.0, 4.0, t_dist);
     if (rip_fade > 0.005) {
-        let w1 = sample_spectral_3d(p * 3.2 + vec3<f32>(u.time * 0.85, u.time * 0.30, -u.time * 0.62));
-        let w2 = sample_spectral_3d(p * 7.4 + vec3<f32>(-u.time * 1.15, -u.time * 0.40, u.time * 0.92));
-        *out_ripple = w1.b * 0.65 + w2.r * 0.35;
-        let wave_vec = vec3<f32>(w1.r, w1.b, w1.g) * 0.65 + vec3<f32>(w2.g, w2.a, w2.r) * 0.35;
+        let flow_shift = clamp(vec3<f32>(v_flow.x, 0.0, v_flow.z), vec3<f32>(-3.2), vec3<f32>(3.2)) * (u.time * 0.48);
+        let c1 = sample_curl_3d((p - flow_shift) * 3.1 + vec3<f32>(u.time * 0.92, u.time * 0.34, -u.time * 0.68));
+        let c2 = sample_curl_3d((p - flow_shift * 0.65) * 6.9 + vec3<f32>(-u.time * 1.25, -u.time * 0.46, u.time * 1.02));
+        let shore_env = smoothstep(0.55, 0.03, solid_dist);
+        let shore_ring = sin(solid_dist * 26.0 - u.time * 4.6) * shore_env;
+        *out_ripple = clamp((c1.a - 0.45) * 0.55 + shore_ring * 0.45, -1.0, 1.0);
+        let wave_vec = (c1.rgb * 0.68 + c2.gbr * 0.38) * (1.0 + 0.42 * shore_ring);
         let wave_tan = wave_vec - n0 * dot(wave_vec, n0);
-        let flow_chop = clamp((l_spd + length(v_flow) * 0.25) * 0.11, 0.0, 0.25);
-        let rip_amp = (0.095 + flow_chop) * rip_fade;
+        let flow_chop = clamp((l_spd + length(v_flow) * 0.25) * 0.12, 0.0, 0.26);
+        let rip_amp = (0.115 + flow_chop + shore_env * 0.045) * rip_fade;
         return normalize(n0 + wave_tan * rip_amp);
     }
     *out_ripple = 0.0;
     return n0;
+}
+
+// Snell-refracted Hessian-Jacobian tricuspid caustic webs with subtle R/B chromatic focal dispersion!
+fn eval_underwater_caustics(p: vec3<f32>, normal: vec3<f32>, light_vec: vec3<f32>, clear_depth: f32, ior_eta: f32, tint: vec3<f32>, src_energy: f32, t_ray: f32) -> vec3<f32> {
+    let c_fade = smoothstep(0.05, 0.50, clear_depth) * exp(-clear_depth * 0.13) * smoothstep(34.0, 5.0, t_ray);
+    if (c_fade <= 0.004 || src_energy <= 0.004) {
+        return vec3<f32>(0.0);
+    }
+    let inc_l = normalize(light_vec + vec3<f32>(0.0, 0.0001, 0.0));
+    let l_refr = refract(-inc_l, vec3<f32>(0.0, 1.0, 0.0), clamp(ior_eta, 0.65, 0.92));
+    let refr_dir = select(vec3<f32>(0.0, -1.0, 0.0), l_refr, length(l_refr) > 0.05);
+    let proj_xz = p.xz - refr_dir.xz * (min(clear_depth, 14.0) / max(0.30, -refr_dir.y));
+
+    let q1_base = vec3<f32>(proj_xz.x * 13.5 + u.time * 1.15, u.time * 0.72, proj_xz.y * 13.5 - u.time * 0.84);
+    let q2 = vec3<f32>(proj_xz.x * 25.0 - u.time * 0.96, -u.time * 0.90, proj_xz.y * 25.0 + u.time * 1.32);
+
+    let disp = clamp(clear_depth * 0.11, 0.04, 0.34);
+    let disp_v = vec3<f32>(disp, 0.0, disp * 0.65);
+    let c1_r = sample_curl_3d(q1_base + disp_v).a;
+    let c1_g = sample_curl_3d(q1_base).a;
+    let c1_b = sample_curl_3d(q1_base - disp_v).a;
+    let c2_a = sample_curl_3d(q2).a;
+
+    let web_rgb = max(vec3<f32>(0.0), vec3<f32>(c1_r, c1_g, c1_b) * 0.68 + vec3<f32>(c2_a) * 0.42 - vec3<f32>(0.18));
+    let sharp_web = web_rgb * (0.65 + 0.55 * web_rgb);
+    let up_exp = clamp(normal.y * 0.58 + 0.42, 0.06, 1.0);
+    return tint * sharp_web * (up_exp * src_energy * c_fade * 0.78);
 }
 
 // Exact discrete liquid ID lookup across the 2x2x2 trilinear footprint (never divides interpolated ID by partial fill!)
@@ -2013,6 +2095,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         var meniscus_rd = rd;
         var meniscus_sigma = vec3<f32>(0.44, 0.12, 0.042);
         var meniscus_caustic = vec3<f32>(0.80, 0.96, 1.0);
+        var meniscus_ior: f32 = 0.75;
+        var meniscus_sky: f32 = 0.0;
         if (in_liq) {
             let start_w = ray_p - floor(ray_p / 160.0) * 160.0;
             let start_ip = vec3<i32>(clamp(start_w, vec3<f32>(0.0), vec3<f32>(159.0)));
@@ -2021,6 +2105,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
             let sopt = get_liquid_optics(s_lid, vec3<f32>(smat.r, smat.g, smat.b));
             meniscus_sigma = sopt.sigma_ext;
             meniscus_caustic = sopt.caustic_tint;
+            meniscus_ior = select(0.75, sopt.ior_eta, sopt.ior_eta > 0.01);
+            meniscus_sky = eval_sky_exposure(ray_p, vec3<f32>(0.0, 1.0, 0.0), box_max.y);
         }
         var pre_meniscus_trans = vec3<f32>(1.0);
         var pre_meniscus_scatter = vec3<f32>(0.0);
@@ -2028,6 +2114,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         var meniscus_fres_saved: f32 = 0.0;
         var clear_liq_path: f32 = 0.0;
         var caustic_col_acc = meniscus_caustic;
+        var hit_sky_exp: f32 = 1.0;
         var shell_steps: i32 = 0;
         
         for (var step = 0; step < 288; step = step + 1) {
@@ -2089,7 +2176,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
             if (in_liq && liq_val.g < 0.20) {
                 var rip_u: f32 = 0.0;
                 let v_ex = textureSampleLevel(vel_texture, voxel_sampler, uvw, 0.0);
-                let raw_ln = sample_meniscus_normal(p, v_ex.xyz, length(v_ex.xyz), t, &rip_u);
+                let raw_ln = sample_meniscus_normal(p, v_ex.xyz, length(v_ex.xyz), dist, t, &rip_u);
                 let under_n = select(-raw_ln, raw_ln, dot(cur_rd, -raw_ln) > 0.0);
                 let exit_r = refract(cur_rd, under_n, 1.333);
                 let ndv_u = max(dot(under_n, -cur_rd), 0.0);
@@ -2132,19 +2219,20 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 // Air -> Liquid Meniscus Crossing (fires once on surface entry!)
                 if (!in_liq && liq_val.g >= 0.26) {
                     var rip_w: f32 = 0.0;
-                    let raw_ln = sample_meniscus_normal(p, v_liq.xyz, l_spd, t, &rip_w);
+                    let raw_ln = sample_meniscus_normal(p, v_liq.xyz, l_spd, dist, t, &rip_w);
                     let liq_n = select(raw_ln, -raw_ln, dot(cur_rd, raw_ln) > 0.0);
+                    let m_sky = eval_sky_exposure(p, liq_n, box_max.y);
                     let ndv = max(dot(liq_n, -cur_rd), 0.0);
                     let fres = clamp(opt.r0 + (1.0 - opt.r0) * pow(1.0 - ndv, 5.0), 0.0, 0.96);
 
                     let refl_d = reflect(cur_rd, liq_n);
                     let gi_r1 = sample_gi_world(p + refl_d * 1.9);
                     let gi_r2 = sample_gi_world(p + refl_d * 4.4);
-                    let sky_refl = mix(horizon_color, space_color, pow(max(0.0, refl_d.y), 0.60)) * clamp((p.y - 6.0) / 20.0, 0.0, 1.0);
-                    var refl_env = max(vec3<f32>(0.0), sky_refl + gi_r1 * 0.68 + gi_r2 * 0.42 + vec3<f32>(0.03, 0.04, 0.06) * l_amb);
+                    let sky_refl = mix(horizon_color, space_color, pow(max(0.0, refl_d.y), 0.60)) * m_sky;
+                    var refl_env = max(vec3<f32>(0.0), sky_refl + gi_r1 * 0.68 + gi_r2 * 0.42 + vec3<f32>(0.03, 0.04, 0.06) * l_amb * mix(0.25, 1.0, m_sky));
 
                     // Sun + Player Headlamp wet meniscus specular glints
-                    let sun_vis_m = clamp(u.sun_dir.y * 4.0, 0.0, 1.0) * clamp((p.y - 6.0) / 18.0, 0.0, 1.0);
+                    let sun_vis_m = clamp(u.sun_dir.y * 4.0, 0.0, 1.0) * m_sky;
                     let h_sun = normalize(-cur_rd + light_dir + vec3<f32>(0.0001));
                     var spec_glint = vec3<f32>(1.0, 0.95, 0.84) * pow(max(dot(liq_n, h_sun), 0.0), opt.spec_power) * sun_vis_m * 2.4;
                     if (u.cam_pos.w > 0.5) {
@@ -2186,6 +2274,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                         meniscus_t = t;
                         meniscus_sigma = opt.sigma_ext;
                         meniscus_caustic = opt.caustic_tint;
+                        meniscus_ior = select(0.75, opt.ior_eta, opt.ior_eta > 0.01);
+                        meniscus_sky = m_sky;
                         meniscus_refl_saved = surf_refl;
                         meniscus_fres_saved = select(fres, 0.0, liq_id_u == 2u);
                     }
@@ -2382,8 +2472,9 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 normal = normalize(geom_normal + surf_imp.tangent_bump * micro_bump_scale + frac_bevel);
                 let surf_lift = clamp(-raw_dist * 2.0, 0.0, 0.24);
                 
-                // Smoothly fade direct sky/moon illumination deep underground so >40m caverns stay dark except for GI & flashlight
-                let sky_exposure = clamp((p.y - 6.0) / 18.0, 0.0, 1.0);
+                // Overhead-rock SDF sky visibility: enclosed mountain caves & Citadel domes go genuinely dark even at y = 25..65!
+                let sky_exposure = eval_sky_exposure(p, raw_normal, box_max.y);
+                hit_sky_exp = sky_exposure;
                 let light_dir = normalize(u.sun_dir.xyz);
                 let sun_intensity = clamp(u.sun_dir.y * 4.0, 0.0, 1.0) * sky_exposure;
                 let diffuse = max(dot(normal, light_dir), 0.0);
@@ -2461,17 +2552,11 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 stained_base = stained_base * clamp(1.0 + surf_imp.albedo_grain, 0.76, 1.22);
                 var caustic_add = vec3<f32>(0.0);
                 if (clear_liq_path > 0.06) {
-                    // Wetten submerged rock & project dancing refracted spectral caustic light-nets!
+                    // Wetten submerged rock & project Snell-refracted Hessian-Jacobian tricuspid caustic webs!
                     stained_base *= mix(1.0, 0.72, clamp(clear_liq_path * 1.8, 0.0, 1.0));
-                    let c_fade = smoothstep(0.05, 0.55, clear_liq_path) * exp(-clear_liq_path * 0.14) * smoothstep(32.0, 5.0, t);
-                    if (c_fade > 0.005) {
-                        let cs1 = sample_spectral_3d(p * 3.8 + vec3<f32>(u.time * 0.58, -u.time * 0.24, -u.time * 0.44)).b;
-                        let cs2 = sample_spectral_3d(p * 6.1 + vec3<f32>(-u.time * 0.46, -u.time * 0.30, u.time * 0.63)).g;
-                        let focus = pow(clamp(1.0 - abs(cs1 + cs2 * 0.80) * 2.1, 0.0, 1.0), 2.6);
-                        let up_exp = clamp(normal.y * 0.55 + 0.45, 0.06, 1.0);
-                        let src_e = sun_intensity * 1.45 + min(length(pos_gi_base), 1.8) * 0.78 + min(length(player_glow), 1.8) * 0.42;
-                        caustic_add = caustic_col_acc * (focus * up_exp * src_e * c_fade * 0.88);
-                    }
+                    let c_light_dir = select(select(vec3<f32>(0.0, 1.0, 0.0), lamp_dir, u.cam_pos.w > 0.5), light_dir, sun_intensity > 0.12);
+                    let src_e = sun_intensity * 1.55 + min(length(pos_gi_base), 1.8) * 0.82 + min(length(player_glow), 1.8) * 0.48;
+                    caustic_add = eval_underwater_caustics(p, normal, c_light_dir, clear_liq_path, meniscus_ior, caustic_col_acc, src_e, t);
                 }
                 let rock_albedo = mix(stained_base, stained_base * 0.07, crack_core * 0.94);
                 let total_light = max(vec3<f32>(0.0), direct + ambient + moon_light + block_light + player_glow + caustic_add);
@@ -2547,6 +2632,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 var ent_t = min_ent_t;
                 var ent_hit = false;
                 var final_ent_color = vec3<f32>(0.0);
+                var hit_ent_normal = vec3<f32>(0.0, 1.0, 0.0);
+                var hit_ent_gi_e: f32 = 0.0;
 
                 for (var step = 0; step < 38; step = step + 1) {
                     if (ent_t > max_ent_t) { break; }
@@ -2567,10 +2654,14 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                             map_entities_dist(p + vec3<f32>(0.0, 0.0, eps), active_mask) - map_entities_dist(p - vec3<f32>(0.0, 0.0, eps), active_mask)
                         );
                         let normal = normalize(n);
+                        hit_ent_normal = normal;
                         let e_wrap = p - floor(p / 160.0) * 160.0;
                         let e_uvw = clamp(e_wrap / 160.0, vec3<f32>(0.002), vec3<f32>(0.998));
                         let e_gi = textureSampleLevel(light_texture, voxel_sampler, e_uvw, 0.0).rgb;
-                        let e_sky = clamp((p.y - 6.0) / 18.0, 0.0, 1.0);
+                        hit_ent_gi_e = min(length(max(vec3<f32>(0.0), e_gi)), 1.8);
+                        let e_probe_n = normalize(vec3<f32>(normal.x * 0.35, max(normal.y, 0.45), normal.z * 0.35));
+                        let e_sky = eval_sky_exposure(p, e_probe_n, box_max.y);
+                        hit_sky_exp = e_sky;
                         let light_dir = normalize(u.sun_dir.xyz);
                         let sun_intensity = clamp(u.sun_dir.y * 4.0, 0.0, 1.0) * e_sky;
                         let diffuse = max(dot(normal, light_dir), 0.0);
@@ -2853,13 +2944,19 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                         let above_col = final_ent_color * mix(1.0, 0.70, wet_ring);
                         hit_color = above_col * pre_meniscus_trans + pre_meniscus_scatter;
                     } else {
-                        // Submerged half below the meniscus: Beer-Lambert depth absorption + underwater caustics + surface Fresnel reflection!
+                        // Submerged half below the meniscus: Beer-Lambert depth absorption + Snell-projected tricuspid caustics + surface Fresnel reflection!
                         let sub_d = ent_t - meniscus_t;
                         let sub_trans = exp(-meniscus_sigma * sub_d);
                         let p_sub = meniscus_p + meniscus_rd * sub_d;
-                        let cs_e = sample_spectral_3d(p_sub * 4.2 + vec3<f32>(u.time * 0.55, -u.time * 0.25, -u.time * 0.42)).b;
-                        let e_caustic = pow(clamp(1.0 - abs(cs_e) * 2.4, 0.0, 1.0), 2.4) * exp(-sub_d * 0.20) * smoothstep(28.0, 4.0, ent_t);
-                        let wet_sub_col = final_ent_color * 0.78 + meniscus_caustic * (e_caustic * 0.24);
+                        var e_caustic_rgb = vec3<f32>(0.0);
+                        if (meniscus_sigma.x < 5.0) {
+                            let e_sun_i = clamp(u.sun_dir.y * 4.0, 0.0, 1.0) * meniscus_sky;
+                            let e_lamp_d = normalize((u.cam_pos.xyz + u.cam_right.xyz * 0.42 + u.cam_up.xyz * 0.28) - p_sub + vec3<f32>(0.0001));
+                            let e_c_dir = select(select(vec3<f32>(0.0, 1.0, 0.0), e_lamp_d, u.cam_pos.w > 0.5), light_dir, e_sun_i > 0.12);
+                            let e_src = e_sun_i * 1.45 + hit_ent_gi_e * 0.78 + select(0.0, 0.85 / (1.0 + 0.04 * ent_t + 0.009 * ent_t * ent_t), u.cam_pos.w > 0.5);
+                            e_caustic_rgb = eval_underwater_caustics(p_sub, hit_ent_normal, e_c_dir, sub_d, meniscus_ior, meniscus_caustic, e_src, ent_t);
+                        }
+                        let wet_sub_col = final_ent_color * 0.78 + e_caustic_rgb * 0.72;
                         hit_color = (wet_sub_col * sub_trans) * pre_meniscus_trans * (1.0 - meniscus_fres_saved)
                                   + pre_meniscus_scatter + pre_meniscus_trans * meniscus_refl_saved;
                     }
@@ -2868,13 +2965,14 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         }
         
         if (hit) {
-            // Smooth 2-stage exponential aerial-perspective haze + clean boundary fade at 88m
+            // Smooth 2-stage exponential aerial-perspective haze (gated by hit_sky_exp so enclosed mountain caves stay dark!)
             let haze_d = max(0.0, t - 10.0);
             let fog_factor = clamp((1.0 - exp(-0.00038 * haze_d * haze_d)) * 0.65 + smoothstep(56.0, 87.5, t), 0.0, 1.0);
-            let depth_fade = clamp(((ro.y + rd.y * t) - 4.0) / 20.0, 0.0, 1.0);
+            let depth_fade = clamp(((ro.y + rd.y * t) - 4.0) / 20.0, 0.0, 1.0) * hit_sky_exp;
             let base_haze = mix(horizon_color, space_color, pow(max(0.0, rd.y), 0.60));
             let mie_sun = vec3<f32>(0.55, 0.40, 0.22) * pow(max(dot(rd, light_dir), 0.0), 8.0) * clamp(sun_h * 4.0 + 0.4, 0.0, 1.0);
-            let fog_color = (base_haze + mie_sun) * depth_fade;
+            let cave_mist = vec3<f32>(0.004, 0.006, 0.010) * clamp(((ro.y + rd.y * t) + 16.0) / 40.0, 0.0, 1.0);
+            let fog_color = mix(cave_mist, base_haze + mie_sun, depth_fade);
             color = mix(hit_color, fog_color, fog_factor);
         } else {
             let far_y = ro.y + rd.y * min(t_far, 88.0);
@@ -2992,7 +3090,9 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
     
     let dummy = textureSampleLevel(liquid_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r +
                 textureSampleLevel(gas_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r +
-                textureSampleLevel(vel_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r;
+                textureSampleLevel(vel_texture, voxel_sampler, vec3<f32>(0.0), 0.0).r +
+                textureSampleLevel(detail_texture, detail_sampler, vec3<f32>(0.0), 0.0).r +
+                textureSampleLevel(curl_texture, detail_sampler, vec3<f32>(0.0), 0.0).r;
     var out: FragmentOutput;
     out.color = vec4<f32>(tonemap_pbr_neutral(color) + dummy * 0.000001, 1.0);
     out.depth = final_depth;

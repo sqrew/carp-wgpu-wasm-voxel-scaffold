@@ -1155,7 +1155,7 @@
                                       (Pointer.set (Pointer.add p-data (Long.from-int offset)) @(CSGSample.mat &csg-s))
                                       (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) s-out)
                                       (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
-                                      (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 10.0f)))
+                                      (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 15.4f)))
                                   (if (= csg-mode 2)
                                       ;; Mode 2 (`CSG_AIR_OR_VAT`): Carved room air, pipe bore, fluid vat, or doorway apron!
                                       (let [c-fl @(CSGSample.fluid &csg-s)
@@ -1273,10 +1273,27 @@
                                                   f-out (if (and (or (= mat-id 6.0f) (or (= mat-id 21.0f) (= mat-id 23.0f)))
                                                                  (and (= seg 0) (and (> surf-sdf -3.4) (and (> f-out-raw -0.55f) (< f-out-raw -0.45f)))))
                                                           -0.57f
-                                                          f-out-raw)]
+                                                          f-out-raw)
+                                                  b-clv (if (and (= seg 0) (> surf-sdf -3.8)) b0 b-mat)
+                                                  cleav (if (or (= b-clv 1) (or (= b-clv 4) (or (= b-clv 8) (or (= b-clv 9) (= b-clv 10)))))
+                                                          ;; Sedimentary biomes: weak horizontal bedding partings along |strata_step| == 0
+                                                          (let [st-c (SpectralDetail.sample-bank-ch sdf-spec 2 (* fdx 0.34) (* fdy 0.68) (* fdz 0.34))]
+                                                            (+ 0.06 (* 0.86 (Terrain.smooth01 0.03 0.28 (Double.abs st-c)))))
+                                                          (if (or (= b-clv 2) (or (= b-clv 3) (or (= b-clv 5) (= b-clv 11))))
+                                                            ;; Columnar / Crystalline biomes: vertical hexagonal prism joints + crag facets
+                                                            (let [hx-c (SpectralDetail.sample-bank-ch sdf-spec 1 (* fdx 0.62) (* fdy 0.18) (* fdz 0.62))
+                                                                  cr-c (SpectralDetail.sample-bank-ch sdf-spec 0 (* fdx 0.50) (* fdy 0.50) (* fdz 0.50))]
+                                                              (+ 0.06 (+ (* 0.64 (Terrain.smooth01 0.04 0.30 (Double.abs hx-c)))
+                                                                         (* 0.26 (Terrain.smooth01 0.04 0.32 (Double.abs cr-c))))))
+                                                            ;; Karst / Geode / Magma & Overworld rock: spinodal fault webs + crag cleavage
+                                                            (let [sp-c (SpectralDetail.sample-bank-ch sdf-spec 3 (* fdx 0.52) (* fdy 0.52) (* fdz 0.52))
+                                                                  cr-c (SpectralDetail.sample-bank-ch sdf-spec 0 (* fdx 0.45) (* fdy 0.45) (* fdz 0.45))]
+                                                              (+ 0.06 (+ (* 0.60 (Terrain.smooth01 0.04 0.26 (Double.abs sp-c)))
+                                                                         (* 0.30 (Terrain.smooth01 0.04 0.32 (Double.abs cr-c))))))))
+                                                  cleav-w (Double.to-float (+ 10.05 (* 5.85 (Double.clamp 0.02 0.98 cleav))))]
                                               (do
                                                 (Pointer.set (Pointer.add p-data (Long.from-int offset)) mat-id)
                                                 (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 1))) f-out)
                                                 (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 2))) 0.0f)
-                                                (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) 10.0f)))))))))))))))))))
+                                                (Pointer.set (Pointer.add p-data (Long.from-int (+ offset 3))) cleav-w)))))))))))))))))))
 )

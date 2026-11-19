@@ -536,4 +536,144 @@
           c0 (+ c00 (* fy (- c10 c00)))
           c1 (+ c01 (* fy (- c11 c01)))]
       (+ c0 (* fz (- c1 c0)))))
+
+  ;; Generates 64x64x64x4 RGBA float volume:
+  ;;   .rgb = Exact divergence-free Kolmogorov curl-turbulence `u = curl(Psi)` (div u == 0!)
+  ;;   .a   = Wave Hessian-Jacobian tricuspid swimming-pool caustic cusp web `[0.0 .. 2.2]`
+  (defn make-gpu-curl-volume [seed]
+    (let [vol-x (Array.replicate 262144 &(Complex.zero))
+          vol-y (Array.replicate 262144 &(Complex.zero))
+          vol-z (Array.replicate 262144 &(Complex.zero))
+          line (Array.replicate 64 &(Complex.zero))
+          eta (Array.allocate 262144)
+          out (Array.allocate 1048576)
+          s0 (Double.mod (* (Double.from-int (Int.abs seed)) 2654435761.0) 4294967296.0)
+          s (SpectralDetail.lcg-next (SpectralDetail.lcg-next s0))
+          two-pi (* 2.0 Double.pi)]
+      (do
+        ;; 1. Exact k-space curl `u_hat(k) = i * (k x Psi_hat(k))` with inertial Kolmogorov-Kraichnan spectrum
+        (for [iz 0 64]
+          (let [kz (SpectralDetail.k-coord iz)
+                z-off (* iz 4096)]
+            (for [iy 0 64]
+              (let [ky (SpectralDetail.k-coord iy)
+                    row-off (+ z-off (* iy 64))]
+                (for [ix 0 64]
+                  (let [kx (SpectralDetail.k-coord ix)
+                        kr2 (+ (* kx kx) (+ (* ky ky) (* kz kz)))
+                        kr (Double.sqrt kr2)
+                        idx (+ row-off ix)]
+                    (if (or (< kr 1.0) (> kr 22.0))
+                      (do
+                        (Array.aset! &vol-x idx (Complex.zero))
+                        (Array.aset! &vol-y idx (Complex.zero))
+                        (Array.aset! &vol-z idx (Complex.zero)))
+                      (let [_s1 (set! s (SpectralDetail.lcg-next s))
+                            phi-x (* two-pi (/ s 4294967296.0))
+                            _s2 (set! s (SpectralDetail.lcg-next s))
+                            phi-y (* two-pi (/ s 4294967296.0))
+                            _s3 (set! s (SpectralDetail.lcg-next s))
+                            phi-z (* two-pi (/ s 4294967296.0))
+                            amp (* (* kr (Double.pow (+ kr2 6.76) -1.4166666666666667))
+                                   (Double.exp (/ (* -1.0 kr2) 272.25)))
+                            pxr (* amp (Double.cos phi-x))
+                            pxi (* amp (Double.sin phi-x))
+                            pyr (* amp (Double.cos phi-y))
+                            pyi (* amp (Double.sin phi-y))
+                            pzr (* amp (Double.cos phi-z))
+                            pzi (* amp (Double.sin phi-z))
+                            ;; c = k x Psi; i * (cr + i*ci) = -ci + i*cr
+                            cxr (- (* ky pzr) (* kz pyr))
+                            cxi (- (* ky pzi) (* kz pyi))
+                            cyr (- (* kz pxr) (* kx pzr))
+                            cyi (- (* kz pxi) (* kx pzi))
+                            czr (- (* kx pyr) (* ky pxr))
+                            czi (- (* kx pyi) (* ky pxi))]
+                        (do
+                          (Array.aset! &vol-x idx (Complex.init (- 0.0 cxi) cxr))
+                          (Array.aset! &vol-y idx (Complex.init (- 0.0 cyi) cyr))
+                          (Array.aset! &vol-z idx (Complex.init (- 0.0 czi) czr)))))))))))
+
+        (SpectralDetail.ifft3d-64! &vol-x &line)
+        (SpectralDetail.ifft3d-64! &vol-y &line)
+        (SpectralDetail.ifft3d-64! &vol-z &line)
+
+        ;; Shared linear scalar normalization preserves exact div(u) == 0 everywhere!
+        (let [sum-u2 0.0]
+          (do
+            (for [i 0 262144]
+              (let [ux @(Complex.real (Array.unsafe-nth &vol-x i))
+                    uy @(Complex.real (Array.unsafe-nth &vol-y i))
+                    uz @(Complex.real (Array.unsafe-nth &vol-z i))]
+                (set! sum-u2 (+ sum-u2 (+ (* ux ux) (+ (* uy uy) (* uz uz)))))))
+            (let [inv-u (/ 0.45 (Double.max (Double.sqrt (/ sum-u2 786432.0)) 0.000000001))]
+              (for [i 0 262144]
+                (let [base (* i 4)
+                      ux (Double.to-float (* @(Complex.real (Array.unsafe-nth &vol-x i)) inv-u))
+                      uy (Double.to-float (* @(Complex.real (Array.unsafe-nth &vol-y i)) inv-u))
+                      uz (Double.to-float (* @(Complex.real (Array.unsafe-nth &vol-z i)) inv-u))]
+                  (do
+                    (Array.aset! &out base ux)
+                    (Array.aset! &out (+ base 1) uy)
+                    (Array.aset! &out (+ base 2) uz)))))))
+
+        ;; 2. Capillary-gravity wave surface height `eta` (k_xz in [2.0, 13.5], |k_y| <= 3.0) -> Hessian Jacobian cusps in `.a`
+        (for [iz 0 64]
+          (let [kz (SpectralDetail.k-coord iz)
+                z-off (* iz 4096)]
+            (for [iy 0 64]
+              (let [ky (SpectralDetail.k-coord iy)
+                    aky (Double.abs ky)
+                    row-off (+ z-off (* iy 64))]
+                (for [ix 0 64]
+                  (let [kx (SpectralDetail.k-coord ix)
+                        kxz2 (+ (* kx kx) (* kz kz))
+                        kxz (Double.sqrt kxz2)
+                        idx (+ row-off ix)]
+                    (do
+                      (set! s (SpectralDetail.lcg-next s))
+                      (if (or (< kxz 2.0) (or (> kxz 13.5) (> aky 3.0)))
+                        (Array.aset! &vol-x idx (Complex.zero))
+                        (let [w-e (* (* (Double.pow kxz -1.35) (Double.exp (/ (* -1.0 kxz2) 100.0)))
+                                     (Double.exp (/ (* -1.0 (* ky ky)) 3.2)))
+                              phi (* two-pi (/ s 4294967296.0))]
+                          (Array.aset! &vol-x idx (Complex.from-polar w-e phi)))))))))))
+
+        (SpectralDetail.ifft3d-64! &vol-x &line)
+
+        (let [sum-e2 0.0]
+          (do
+            (for [i 0 262144]
+              (let [re @(Complex.real (Array.unsafe-nth &vol-x i))]
+                (set! sum-e2 (+ sum-e2 (* re re)))))
+            (let [inv-e (/ 1.0 (Double.max (Double.sqrt (/ sum-e2 262144.0)) 0.000000001))]
+              (for [i 0 262144]
+                (Array.aset! &eta i (* @(Complex.real (Array.unsafe-nth &vol-x i)) inv-e))))))
+
+        (for [iz 0 64]
+          (let [zm1 (* (Int.bit-and (- iz 1) 63) 4096)
+                z0  (* iz 4096)
+                zp1 (* (Int.bit-and (+ iz 1) 63) 4096)]
+            (for [iy 0 64]
+              (let [y-off (* iy 64)]
+                (for [ix 0 64]
+                  (let [xm1 (Int.bit-and (- ix 1) 63)
+                        xp1 (Int.bit-and (+ ix 1) 63)
+                        idx (+ z0 (+ y-off ix))
+                        e00 @(Array.unsafe-nth &eta idx)
+                        exm @(Array.unsafe-nth &eta (+ z0 (+ y-off xm1)))
+                        exp1 @(Array.unsafe-nth &eta (+ z0 (+ y-off xp1)))
+                        ezm @(Array.unsafe-nth &eta (+ zm1 (+ y-off ix)))
+                        ezp @(Array.unsafe-nth &eta (+ zp1 (+ y-off ix)))
+                        epp @(Array.unsafe-nth &eta (+ zp1 (+ y-off xp1)))
+                        epm @(Array.unsafe-nth &eta (+ zm1 (+ y-off xp1)))
+                        emp @(Array.unsafe-nth &eta (+ zp1 (+ y-off xm1)))
+                        emm @(Array.unsafe-nth &eta (+ zm1 (+ y-off xm1)))
+                        exx (- (+ exp1 exm) (* 2.0 e00))
+                        ezz (- (+ ezp ezm) (* 2.0 e00))
+                        exz (* 0.25 (- (- epp epm) (- emp emm)))
+                        j-inv (- (* (+ 1.0 (* 0.52 exx)) (+ 1.0 (* 0.52 ezz))) (* 0.2704 (* exz exz)))
+                        caustic (Double.clamp 0.0 2.2 (- (/ 0.28 (Double.max (Double.abs j-inv) 0.15)) 0.32))]
+                    (Array.aset! &out (+ (* idx 4) 3) (Double.to-float caustic))))))))
+        out)))
 )

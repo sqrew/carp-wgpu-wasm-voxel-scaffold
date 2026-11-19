@@ -626,7 +626,8 @@
                           liquid-tex @(M-RenderTexture.p (Renderer.liquid-texture &ren))
                           gas-tex @(M-RenderTexture.p (Renderer.gas-texture &ren))
                           ent-buf @(M-VertexBuffer.p (Renderer.entities-buffer &ren))
-                          ps (ParticleSystem.create ps-ctx &surf-format solid-tex vel-tex light-tex liquid-tex gas-tex ent-buf)
+                          curl-tex @(M-RenderTexture.p (Renderer.curl-texture &ren))
+                          ps (ParticleSystem.create ps-ctx &surf-format solid-tex vel-tex light-tex liquid-tex gas-tex ent-buf curl-tex)
                           w-seed (Double.to-int (* (Double.abs spawn-foot-y) 13.0))]
                       (Result.Success (EngineState.init
                         platform-eng ren world player uniforms
@@ -1183,11 +1184,11 @@
         ;; Debounce GPU readback around this crater so async readback never echoes our own blast
         (EngineState.record-expl-cd! vq x y z 0.48f)
 
-        ;; 1. Smooth Euclidean SDF Crater (GPU + CPU) & Fire/Smoke Bloom
-        (EngineState.push-voxel-action! state x y z carve-r 1.0f -1.0f 0.0f)
+        ;; 1. Anisotropic Toughness- & Fault-Cleavage-Guided Blast Crater (GPU flags=2.0 + CPU) & Fire/Smoke Bloom
+        (EngineState.push-voxel-action! state x y z carve-r 1.0f -1.0f 2.0f)
         (EngineState.push-voxel-action! state x y z (+ carve-r (* 1.35f clamped-yld)) 515.0f
           (Float.clamp 0.85f 1.0f (+ 0.82f (* 0.18f clamped-yld))) 1.0f)
-        (MancerSystem.edit-bender-sdf! world &pos cpu-carve 1.0f true)
+        (MancerSystem.carve-blast-sdf! world &pos cpu-carve)
 
         ;; 2. Radial 3D Velocity + Acoustic Overpressure Shockwave into vel_texture
         (EngineState.push-wake-capsule! state x y z x (+ y 0.25f) z

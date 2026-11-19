@@ -320,7 +320,7 @@
   ;; -------------------------------------------------------------------------
   ;; Create the particle + tethered flora system: allocates all GPU buffers, pipelines, bind groups
   ;; -------------------------------------------------------------------------
-  (defn create [ctx format solid-tex vel-tex light-tex liquid-tex gas-tex ent-buf]
+  (defn create [ctx format solid-tex vel-tex light-tex liquid-tex gas-tex ent-buf curl-tex]
     ;; 1. Allocate initial particle data (all zeros = all dead)
     (let [particle-floats (* PARTICLE-MAX 8)  ;; 8 floats per particle (32 bytes)
           initial-particles (the (Array Float) (Array.replicate particle-floats &0.0f))
@@ -360,7 +360,7 @@
           flora-compute-pipe (Result.unsafe-from-success (WGPU.create-pipeline ctx flora-compute-wgsl "compute_main"))
 
           ;; 9. Build particle compute bind group:
-          ;;    0=particles, 1=write_head, 2=spawn_queue, 3=spawn_count, 4=dt+cam, 5=solid_texture, 6=vel_texture
+          ;;    0=particles, 1=write_head, 2=spawn_queue, 3=spawn_count, 4=dt+cam, 5=solid_texture, 6=vel_texture, 7=curl_texture
           b (builder-new)
           _ (do
               (builder-add-buffer b (particle-get-v-buffer particle-buf-ptr))
@@ -369,12 +369,13 @@
               (builder-add-buffer b (particle-get-v-buffer spawn-count-ptr))
               (builder-add-buffer b (particle-get-v-buffer dt-ptr))
               (builder-add-texture b solid-tex)
-              (builder-add-texture b vel-tex))
+              (builder-add-texture b vel-tex)
+              (builder-add-texture b curl-tex))
           compute-bg (builder-build-compute ctx compute-pipe b)
           _free (builder-free b)
 
           ;; 9b. Build flora compute bind group:
-          ;;     0=flora, 1=particles, 2=write_head, 3=time_params, 4=solid_texture, 5=vel_texture, 6=liquid_texture, 7=gas_texture, 8=s_entities
+          ;;     0=flora, 1=particles, 2=write_head, 3=time_params, 4=solid_texture, 5=vel_texture, 6=liquid_texture, 7=gas_texture, 8=s_entities, 9=curl_texture
           b-fc (builder-new)
           _fc (do
               (builder-add-buffer b-fc (particle-get-v-buffer flora-buf-ptr))
@@ -385,7 +386,8 @@
               (builder-add-texture b-fc vel-tex)
               (builder-add-texture b-fc liquid-tex)
               (builder-add-texture b-fc gas-tex)
-              (builder-add-buffer b-fc (particle-get-v-buffer ent-buf)))
+              (builder-add-buffer b-fc (particle-get-v-buffer ent-buf))
+              (builder-add-texture b-fc curl-tex))
           flora-compute-bg (builder-build-compute ctx flora-compute-pipe b-fc)
           _free-fc (builder-free b-fc)
 
