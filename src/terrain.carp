@@ -53,28 +53,45 @@
           t (if (< raw 0.0) 0.0 (if (> raw 1.0) 1.0 raw))]
       (* (* t t) (- 3.0 (* 2.0 t)))))
 
-  ;; Coprime 2-Layer Spectral Landform Evaluator (`384m` Macro Ridges + `113m @ 37deg` Meso Tors, zero tiling > 43km!)
+  ;; Coprime 3-Layer Non-Aliasing Spectral Landform Evaluator (`384m` + `137m @ 37deg` + `53m @ 73deg`, all modes >= 4m!)
   (defn surface-profile-at [strata fdx fdz]
     (let [atlas (StrataConfig.landform-2d strata)
-          ;; Layer 0: L0 = 384.0m, amp0 = 15.0m, scale0 = 256/384 = 0.6666666666666666
+          ;; Layer 0: L0 = 384.0m, amp0 = 14.5m, scale0 = 256/384 = 0.6666666666666666
           s0 (SpectralDetail.sample-landform-2d atlas (* fdx 0.6666666666666666) (* fdz 0.6666666666666666))
-          h0 (* 15.0 @(LandformSample.h &s0))
-          dhx0 (* 10.0 @(LandformSample.dhx &s0))
-          dhz0 (* 10.0 @(LandformSample.dhz &s0))
+          h0 (* 14.5 @(LandformSample.h &s0))
+          dhx0 (* 9.666666666666666 @(LandformSample.dhx &s0))
+          dhz0 (* 9.666666666666666 @(LandformSample.dhz &s0))
           cr0 @(LandformSample.crag &s0)
-          ;; Layer 1: L1 = 113.0m rotated 37 deg (cos=0.79863551, sin=0.60181502), amp1 = 4.4m, scale1 = 256/113 = 2.26548673
-          rx (- (* fdx 0.7986355100472928) (* fdz 0.6018150231520483))
-          rz (+ (* fdx 0.6018150231520483) (* fdz 0.7986355100472928))
-          s1 (SpectralDetail.sample-landform-2d atlas (* rx 2.265486725663717) (* rz 2.265486725663717))
-          h1 (* 4.4 @(LandformSample.h &s1))
+          ;; Layer 1: L1 = 137.0m rotated 37 deg (cos=0.79863551, sin=0.60181502), amp1 = 4.6m, scale1 = 256/137 = 1.86861314
+          rx1 (- (* fdx 0.7986355100472928) (* fdz 0.6018150231520483))
+          rz1 (+ (* fdx 0.6018150231520483) (* fdz 0.7986355100472928))
+          s1 (SpectralDetail.sample-landform-2d atlas (* rx1 1.8686131386861313) (* rz1 1.8686131386861313))
+          h1 (* 4.6 @(LandformSample.h &s1))
           du1 @(LandformSample.dhx &s1)
           dv1 @(LandformSample.dhz &s1)
-          dhx1 (* 9.968141592920355 (+ (* du1 0.7986355100472928) (* dv1 0.6018150231520483)))
-          dhz1 (* 9.968141592920355 (- (* dv1 0.7986355100472928) (* du1 0.6018150231520483)))
+          dhx1 (* 8.595620437956204 (+ (* du1 0.7986355100472928) (* dv1 0.6018150231520483)))
+          dhz1 (* 8.595620437956204 (- (* dv1 0.7986355100472928) (* du1 0.6018150231520483)))
           cr1 @(LandformSample.crag &s1)
-          raw-dh (+ h0 h1)
-          raw-dhx (+ dhx0 dhx1)
-          raw-dhz (+ dhz0 dhz1)
+          ;; Smooth roughness envelope: 0.16 in flat valley meadows -> 1.0 on slopes, spurs & craggy ridges
+          dhx01 (+ dhx0 dhx1)
+          dhz01 (+ dhz0 dhz1)
+          slope01 (Double.sqrt (+ (* dhx01 dhx01) (* dhz01 dhz01)))
+          rough-env (+ 0.16 (* 0.84 (Terrain.smooth01 0.20 0.68 (+ slope01 (* 0.32 (Double.max 0.0 cr0))))))
+          ;; Layer 2: L2 = 53.0m rotated 73 deg (cos=0.29237170, sin=0.95630476), scale2 = 256/53 = 4.83018868
+          rx2 (- (* fdx 0.29237170472273677) (* fdz 0.9563047559630354))
+          rz2 (+ (* fdx 0.9563047559630354) (* fdz 0.29237170472273677))
+          s2 (SpectralDetail.sample-landform-2d atlas (+ (* rx2 4.830188679245283) 41.3) (- (* rz2 4.830188679245283) 19.7))
+          amp2 (* 1.35 rough-env)
+          g2 (* amp2 4.830188679245283)
+          h2 (* amp2 @(LandformSample.h &s2))
+          du2 @(LandformSample.dhx &s2)
+          dv2 @(LandformSample.dhz &s2)
+          dhx2 (* g2 (+ (* du2 0.29237170472273677) (* dv2 0.9563047559630354)))
+          dhz2 (* g2 (- (* dv2 0.29237170472273677) (* du2 0.9563047559630354)))
+          cr2 @(LandformSample.crag &s2)
+          raw-dh (+ (+ h0 h1) h2)
+          raw-dhx (+ dhx01 dhx2)
+          raw-dhz (+ dhz01 dhz2)
           ;; Walkable sunlit meadow clearing envelope around player spawn (32, 32) & Surface Citadel (32, 11)
           dx-sp (- fdx 32.0)
           dz-sp (- fdz 22.0)
@@ -90,7 +107,7 @@
           h (+ 33.5 (* raw-dh env))
           dhx (+ (* raw-dhx env) (* raw-dh denv-dx))
           dhz (+ (* raw-dhz env) (* raw-dh denv-dz))
-          crag (* (+ (* 0.70 cr0) (* 0.30 cr1)) env)]
+          crag (* (+ (* 0.50 cr0) (+ (* 0.30 cr1) (* 0.20 cr2))) env)]
       (SurfProfile.init h dhx dhz crag)))
 
   (defn surface-height-at [_noise-state strata fdx fdz]
@@ -540,26 +557,40 @@
                   16.0f
                   8.0f)))))))))))))))))))
 
-  ;; Shared Lipschitz-safe Overworld Boulder Outcrop + 4-Biome Subterranean Cave Morphology Evaluator
+  ;; Shared Lipschitz-safe 3-Octave Ridged Overworld Crag + 4-Biome Subterranean Cave Morphology Evaluator
   (defn eval-morph-sdf [sdf-spec seg local-fdy fdx fdy fdz surf-sdf slope crag-2d cave-sdf w-sed w-rim w-hex w-geo]
-    (let [surf-shaped (if (and (= seg 0) (< (Double.abs surf-sdf) 4.8))
-                        (let [c0 (SpectralDetail.sample-bank-ch sdf-spec 0 (* fdx 0.42) (* fdy 0.48) (* fdz 0.42))
-                              crag-gate (+ 0.28 (* 0.72 (Terrain.smooth01 0.26 0.85 (+ slope (* 0.35 (Double.max 0.0 crag-2d))))))
-                              surf-env (- 1.0 (Terrain.smooth01 1.6 4.8 (Double.abs surf-sdf)))]
-                          (Double.clamp -12.0 12.0 (+ surf-sdf (* 1.50 (* crag-gate (* surf-env c0))))))
+    (let [surf-shaped (if (and (= seg 0) (< (Double.abs surf-sdf) 6.0))
+                        (let [c0 (SpectralDetail.sample-bank-ch sdf-spec 0 (* fdx 0.38) (* fdy 0.46) (* fdz 0.38))
+                              c1 (SpectralDetail.sample-bank-ch sdf-spec 0 (+ (* fdx 0.96) 17.3) (* fdy 1.18) (- (* fdz 0.96) 29.1))
+                              r1 (- 0.60 (Double.sqrt (+ (* c1 c1) 0.022)))
+                              c2 (SpectralDetail.sample-bank-ch sdf-spec 0 (- (* fdx 1.92) 41.7) (* fdy 2.35) (+ (* fdz 1.92) 13.9))
+                              st2 (SpectralDetail.sample-bank-ch sdf-spec 2 (* fdx 1.25) (* fdy 2.40) (* fdz 1.25))
+                              r2 (+ (* 0.55 (- 0.56 (Double.sqrt (+ (* c2 c2) 0.026)))) (* 0.45 st2))
+                              ;; 0.08 on flat ground (zero stalagmites!) -> 1.0 on slopes, shoulders & ridges
+                              crag-gate (+ 0.08 (* 0.92 (Terrain.smooth01 0.24 0.78 (+ slope (* 0.26 (Double.max 0.0 crag-2d))))))
+                              surf-env (- 1.0 (Terrain.smooth01 2.2 6.0 (Double.abs surf-sdf)))
+                              protrude (* crag-gate (* surf-env (+ (* -1.10 c0) (+ (* 0.68 r1) (* 0.34 r2)))))
+                              damp-s (- 1.0 (* 0.26 surf-env))]
+                          (Double.clamp -12.0 12.0 (* damp-s (- surf-sdf protrude))))
                         (Double.clamp -12.0 12.0 surf-sdf))
           cave-shaped (if (and (< surf-sdf -3.2)
-                               (and (< (Double.abs cave-sdf) 4.8)
+                               (and (< (Double.abs cave-sdf) 5.4)
                                     (and (> local-fdy -184.5)
                                          (or (= seg 0) (< local-fdy -4.0)))))
                         (let [seal-env (* (Terrain.smooth01 -184.5 -181.5 local-fdy)
                                           (if (> seg 0) (- 1.0 (Terrain.smooth01 -7.0 -4.0 local-fdy)) 1.0))
                               surf-gate (- 1.0 (Terrain.smooth01 -7.5 -3.2 surf-sdf))
-                              wall-env (- 1.0 (Terrain.smooth01 1.8 4.8 (Double.abs cave-sdf)))
+                              wall-env (- 1.0 (Terrain.smooth01 2.0 5.4 (Double.abs cave-sdf)))
                               env (* seal-env (* surf-gate wall-env))]
                           (if (<= env 0.004)
                             cave-sdf
                             (let [c-base (SpectralDetail.sample-bank-ch sdf-spec 0 (* fdx 0.40) (* fdy 0.40) (* fdz 0.40))
+                                  c1 (SpectralDetail.sample-bank-ch sdf-spec 0 (+ (* fdx 0.96) 17.3) (* fdy 1.18) (- (* fdz 0.96) 29.1))
+                                  r1 (- 0.60 (Double.sqrt (+ (* c1 c1) 0.022)))
+                                  c2 (SpectralDetail.sample-bank-ch sdf-spec 0 (- (* fdx 1.92) 41.7) (* fdy 2.35) (+ (* fdz 1.92) 13.9))
+                                  st2 (SpectralDetail.sample-bank-ch sdf-spec 2 (* fdx 1.25) (* fdy 2.40) (* fdz 1.25))
+                                  r2 (+ (* 0.55 (- 0.56 (Double.sqrt (+ (* c2 c2) 0.026)))) (* 0.45 st2))
+                                  cave-ribs (- 0.0 (+ (* 0.58 r1) (* 0.30 r2)))
                                   d-sed (if (> w-sed 0.02)
                                           (let [st (SpectralDetail.sample-bank-ch sdf-spec 2 (* fdx 0.28) (* fdy 0.52) (* fdz 0.28))]
                                             (* w-sed (+ (* 1.60 st) (* 0.80 c-base))))
@@ -577,8 +608,9 @@
                                           (let [sp (SpectralDetail.sample-bank-ch sdf-spec 3 (* fdx 0.48) (* fdy 0.48) (* fdz 0.48))]
                                             (* w-geo (+ (* 1.35 c-base) (* 0.95 sp))))
                                           0.0)
-                                  raw-sum (+ cave-sdf (* env (+ (+ d-sed d-rim) (+ d-hex d-geo))))]
-                              (Double.clamp -12.0 12.0 (* 0.88 raw-sum)))))
+                                  raw-sum (+ cave-sdf (* env (+ (+ (+ d-sed d-rim) (+ d-hex d-geo)) cave-ribs)))
+                                  damp-c (- 1.0 (* 0.24 env))]
+                              (Double.clamp -12.0 12.0 (* damp-c raw-sum)))))
                         cave-sdf)]
       (if (and (= seg 0) (> surf-shaped cave-shaped)) surf-shaped cave-shaped)))
 
@@ -597,9 +629,9 @@
               crag-2d @(SurfProfile.crag &prof)
               slope2 (+ (* dhx dhx) (* dhz dhz))
               slope (Double.sqrt slope2)
-              inv-grad (/ 1.0 (Double.sqrt (+ 1.0 slope2)))
+              inv-grad (/ 0.88 (Double.sqrt (+ 1.0 (+ slope2 (* 0.55 (* crag-2d crag-2d))))))
               surf-sdf (* (- fdy surface-h) inv-grad)
-              sky-cutoff (+ surface-h (/ 5.5 inv-grad))]
+              sky-cutoff (+ surface-h (/ 6.8 inv-grad))]
           (if (and (= seg 0) (> fdy sky-cutoff))
             (if (> surf-sdf 12.0) 12.0 surf-sdf)
             (let [b0 (StrataConfig.biome-for strata seg 0)
@@ -1026,8 +1058,8 @@
                   crag-2d @(SurfProfile.crag &prof)
                   slope2 (+ (* dhx dhx) (* dhz dhz))
                   slope (Double.sqrt slope2)
-                  inv-grad (/ 1.0 (Double.sqrt (+ 1.0 slope2)))
-                  sky-cutoff (+ surface-h (/ 5.5 inv-grad))
+                  inv-grad (/ 0.88 (Double.sqrt (+ 1.0 (+ slope2 (* 0.55 (* crag-2d crag-2d))))))
+                  sky-cutoff (+ surface-h (/ 6.8 inv-grad))
                   ;; Geological folding/faulting warps stratum boundaries by +-14m across (x, z)
                   fold-y (+ (* 10.5 (Noise.noise2d noise-state (+ (* fdx 0.011) 131.0) (- (* fdz 0.011) 83.0)))
                             (* 4.0 (Noise.noise2d noise-state (- (* fdx 0.029) 41.0) (+ (* fdz 0.029) 67.0))))
@@ -1204,25 +1236,28 @@
                                                              g-mat
                                                              (if (and (> fl-mat 0.5f) (<= fl-d (+ rock-eff-sdf 0.14)))
                                                                  fl-mat
-                                                                 (if (and (= seg 0) (> surf-sdf -3.4))
-                                                                     ;; Overworld Slope & Elevation Stratification:
-                                                                     (if (< slope 0.44)
-                                                                         ;; 1. Lush valley meadows & terrace benches
-                                                                         (if moss-top? 26.0f 2.0f)
-                                                                         (if (< slope 0.68)
-                                                                             ;; 2. Rocky talus shoulders: jutting Stone crag ribs + Soil/Moss pockets
-                                                                             (let [spec-crag (SpectralDetail.sample-bank-ch sdf-spec 0 (* fdx 0.42) (* fdy 0.48) (* fdz 0.42))]
-                                                                               (if (or (< spec-crag -0.14) (<= surf-sdf -2.2))
-                                                                                   (if (and (> surface-h 48.0) (> n-det 0.12)) 8.0f 1.0f)
-                                                                                   (if (and (> surf-sdf -1.10) (and (> n-det 0.08) moss-top?)) 26.0f 2.0f)))
-                                                                             ;; 3. Steep cliff escarpments & pinched arêtes: zero Soil/Grass, bare stratified Stone + veins + alpine frost!
-                                                                             (if (and (> surface-h 46.5) (and (> surf-sdf -1.8) (> n-det -0.15)))
-                                                                                 8.0f
-                                                                                 (if (and (< (Double.abs spinodal) 0.085) (> n-det 0.28))
-                                                                                     (if (> n-det 0.48) 5.0f (Terrain.vein-ore-for-biome b0))
-                                                                                     (if (and (> (Double.sin (+ (* wy 0.52) (* n-det 0.85))) 0.84) (> n-det 0.05))
-                                                                                         (if (= b0 4) 6.0f (if (= b0 8) 21.0f (Terrain.vein-ore-for-biome b0)))
-                                                                                         1.0f)))))
+                                                                 (if (and (= seg 0) (> surf-sdf -3.8))
+                                                                     ;; Overworld Slope, Crag Spine & Elevation Stratification:
+                                                                     (let [ridge-exp (+ slope (* 0.42 (Double.max 0.0 crag-2d)))]
+                                                                       (if (and (< ridge-exp 0.46) (< surf-sdf 0.32))
+                                                                           ;; 1. Lush valley meadows & sheltered terrace benches
+                                                                           (if moss-top? 26.0f 2.0f)
+                                                                           (if (< slope 0.68)
+                                                                               ;; 2. Rocky talus shoulders & hogback crests: jutting Stone crag spines + Soil/Moss pockets
+                                                                               (let [spec-crag (SpectralDetail.sample-bank-ch sdf-spec 0 (* fdx 0.38) (* fdy 0.46) (* fdz 0.38))
+                                                                                     c1-m (SpectralDetail.sample-bank-ch sdf-spec 0 (+ (* fdx 0.96) 17.3) (* fdy 1.18) (- (* fdz 0.96) 29.1))
+                                                                                     r1-m (- 0.60 (Double.sqrt (+ (* c1-m c1-m) 0.022)))]
+                                                                                 (if (or (> surf-sdf 0.28) (or (> r1-m 0.20) (or (< spec-crag -0.10) (or (> ridge-exp 0.62) (<= surf-sdf -2.2)))))
+                                                                                     (if (and (> surface-h 48.0) (> n-det 0.12)) 8.0f 1.0f)
+                                                                                     (if (and (> surf-sdf -1.10) (and (> n-det 0.08) moss-top?)) 26.0f 2.0f)))
+                                                                               ;; 3. Steep cliff escarpments & pinched arêtes: zero Soil/Grass, bare stratified Stone + veins + alpine frost!
+                                                                               (if (and (> surface-h 46.5) (and (> surf-sdf -1.8) (> n-det -0.15)))
+                                                                                   8.0f
+                                                                                   (if (and (< (Double.abs spinodal) 0.085) (> n-det 0.28))
+                                                                                       (if (> n-det 0.48) 5.0f (Terrain.vein-ore-for-biome b0))
+                                                                                       (if (and (> (Double.sin (+ (* wy 0.52) (* n-det 0.85))) 0.84) (> n-det 0.05))
+                                                                                           (if (= b0 4) 6.0f (if (= b0 8) 21.0f (Terrain.vein-ore-for-biome b0)))
+                                                                                           1.0f))))))
                                                                      ;; Subterranean caves & deep bedrock
                                                                      (if moss-top?
                                                                          26.0f
